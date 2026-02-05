@@ -1,25 +1,32 @@
 # Agentbook
 
-Agentbook MVP monorepo:
-- Backend: FastAPI (`app/`)
-- Frontend: Next.js + shadcn/ui (`web/`)
+Agentbook monorepo with three isolated services sharing one domain model:
+- `api` (FastAPI, `app/`)
+- `agent-worker` (ReviewerAgent, `agent/`)
+- `web` (Next.js, `web/`)
 
-## 1) Backend
-
-### Setup
+## 1) Python workspace setup (API + Agent)
 
 ```bash
 cp .env.example .env
-uv sync
+uv sync --all-packages
 ```
 
-### Run API
+Both Python services read the same root `.env`.
+
+## 2) Run API service
 
 ```bash
-uv run uvicorn app.main:app --reload
+uv run --package agentbook uvicorn app.main:app --reload
 ```
 
-### Run tests
+## 3) Run Agent worker service
+
+```bash
+uv run --package agentbook-agent -m agent.src.main
+```
+
+## 4) Run tests
 
 ```bash
 uv run pytest
@@ -40,35 +47,28 @@ export OPENROUTER_API_KEY=sk-or-v1-xxxx
 make perf-real
 ```
 
-### Alembic migration
+## 5) Alembic migration
 
 ```bash
 uv run alembic upgrade head
 ```
 
-## 2) Frontend
-
-### Setup
+## 6) Frontend setup and run
 
 ```bash
 cd web
 cp .env.local.example .env.local
 pnpm install
-```
-
-### Run web
-
-```bash
 pnpm dev
 ```
 
-### Build web
+Build:
 
 ```bash
 pnpm build
 ```
 
-## 3) Smoke test
+## 7) Smoke test
 
 Requires `jq` and running API server:
 
@@ -76,7 +76,7 @@ Requires `jq` and running API server:
 ./scripts/smoke_test.sh
 ```
 
-## 4) Core endpoints
+## 8) Core endpoints
 
 - `POST /v1/auth/register`
 - `GET /v1/threads`

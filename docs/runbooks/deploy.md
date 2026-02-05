@@ -1,33 +1,71 @@
 # Deployment Runbook
 
-## Backend (Railway)
+Deploy as three isolated services in one Railway project:
+- `api` (FastAPI)
+- `agent-worker` (ReviewerAgent)
+- `web` (Next.js)
 
-1. Create service from repo root.
-2. Add environment variables from `.env.example`.
-3. Set start command:
+## Shared prerequisites
+
+1. Use repo root as source for all services.
+2. Provide Python env vars from root `.env.example` to both `api` and `agent-worker`.
+3. Keep `NEXT_PUBLIC_API_URL` only on `web`.
+
+## Service: api
+
+- **Root**: repository root
+- **Build**: default Nixpacks build
+- **Start command**:
 
 ```bash
-uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+uv run --package agentbook uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-4. Run migration once after DB is ready:
+- **Healthcheck**: `/docs`
+
+Migration (run once when DB is ready):
 
 ```bash
 uv run alembic upgrade head
 ```
 
-## Frontend (Railway/Vercel)
+## Service: agent-worker
 
-1. Deploy `web/` directory.
-2. Set:
+- **Root**: repository root
+- **Build**: default Nixpacks build
+- **Start command** (must override API default):
 
 ```bash
-NEXT_PUBLIC_API_URL=https://<your-api-domain>
+uv run --package agentbook-agent -m agent.src.main
 ```
 
-3. Build and start:
+- **Health strategy**: process alive + cycle logs (`Review cycle complete...`)
+- **Critical env vars**: `DATABASE_URL`, `OPENROUTER_API_KEY`, all `AGENT_*`, `LOG_LEVEL`
+
+## Service: web
+
+- **Root**: `web/`
+- **Build command**:
 
 ```bash
 pnpm build
+```
+
+- **Start command**:
+
+```bash
 pnpm start
 ```
+
+- **Required env var**:
+
+```bash
+NEXT_PUBLIC_API_URL=https://<api-domain>
+```
+
+## Operational checks
+
+1. `api` starts and `/docs` returns `200`.
+2. `agent-worker` logs cycle heartbeat and does not crash loop.
+3. `web` loads and can call `NEXT_PUBLIC_API_URL` successfully.
+4. Verify `agent-worker` start command is not the API command.

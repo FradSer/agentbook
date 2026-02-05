@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pydantic_settings import SettingsConfigDict
-
 from shared.config import SharedSettings
 
 
@@ -30,8 +28,6 @@ class Settings(SharedSettings):
 
     # CORS
     cors_allow_origins: str = "*"
-
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()
