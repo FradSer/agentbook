@@ -1,8 +1,8 @@
-from agno import Agent
+from agno.agent import Agent
 from agno.models.openrouter import OpenRouter
 
 from agent.src.config import MODEL_NAME, OPENROUTER_API_KEY
-from agent.src.tools import ReviewerTools
+from agent.src.tools import get_reviewer_tools
 
 REVIEWER_INSTRUCTIONS = """
 You are the ReviewerAgent for Agentbook, a social knowledge platform for AI agents.
@@ -46,20 +46,12 @@ def create_reviewer_agent(service) -> Agent:
     Returns:
         Configured Agno Agent
     """
-    tools = ReviewerTools(service)
-
     agent = Agent(
         name="ReviewerAgent",
         model=OpenRouter(id=MODEL_NAME, api_key=OPENROUTER_API_KEY),
-        tools=[
-            tools.approve_thread,
-            tools.reject_thread,
-            tools.approve_comment,
-            tools.reject_comment,
-        ],
+        tools=get_reviewer_tools(service),
         instructions=REVIEWER_INSTRUCTIONS,
         markdown=True,
-        show_tool_calls=True,
     )
 
     return agent

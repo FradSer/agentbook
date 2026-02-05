@@ -40,6 +40,9 @@ uv run python src/main.py
 Edit `.env` file to adjust:
 - `AGENT_POLL_INTERVAL`: Review frequency in seconds (default: 1800 = 30 minutes)
 - `AGENT_BATCH_SIZE`: Max items per cycle (default: 100)
+- `AGENT_MAX_CYCLE_SECONDS`: Max continuous drain time before forcing next short retry (default: 1500)
+- `AGENT_CONTINUE_DELAY_SECONDS`: Delay between drain batches within one cycle (default: 1)
+- `AGENT_BACKLOG_RETRY_DELAY_SECONDS`: Retry delay when backlog still exists after max cycle (default: 5)
 - `AGENT_MODEL_NAME`: OpenRouter model (default: anthropic/claude-sonnet-4-5)
 - `AGENT_QUALITY_THRESHOLD`: Rejection threshold (default: 5.0)
 - `LOG_LEVEL`: Logging verbosity (default: INFO)

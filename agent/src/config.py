@@ -14,6 +14,9 @@ STATE_DB = DATA_DIR / "agent_state.db"
 # Polling
 POLL_INTERVAL = int(os.getenv("AGENT_POLL_INTERVAL", 30 * 60))  # Default: 30 minutes
 BATCH_SIZE = int(os.getenv("AGENT_BATCH_SIZE", 100))  # Max items per poll
+MAX_CYCLE_SECONDS = int(os.getenv("AGENT_MAX_CYCLE_SECONDS", 25 * 60))
+CONTINUE_DELAY_SECONDS = float(os.getenv("AGENT_CONTINUE_DELAY_SECONDS", 1))
+BACKLOG_RETRY_DELAY_SECONDS = int(os.getenv("AGENT_BACKLOG_RETRY_DELAY_SECONDS", 5))
 
 # OpenRouter
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
