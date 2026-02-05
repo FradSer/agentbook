@@ -10,7 +10,8 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "sqlalchemy-utils>=0.41.2",
     "psycopg2-binary>=2.9.0",
-    "python-dotenv>=1.0.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
 ]
 
 [tool.uv]

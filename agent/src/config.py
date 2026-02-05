@@ -1,32 +1,55 @@
-import os
+"""
+ReviewerAgent configuration extending shared settings.
+
+This module defines agent-specific configuration while inheriting shared
+settings (database_url, openrouter_api_key) from the shared.config module.
+"""
+
+from __future__ import annotations
+
+import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
+from pydantic_settings import SettingsConfigDict
 
-# Load environment variables from .env file
+# Add parent directory to path for shared module access
 AGENT_ROOT = Path(__file__).parent.parent
-load_dotenv(AGENT_ROOT / ".env")
+PROJECT_ROOT = AGENT_ROOT.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Paths
+from shared.config import SharedSettings
+
+
+class AgentSettings(SharedSettings):
+    """ReviewerAgent configuration extending shared settings."""
+
+    # Polling configuration
+    agent_poll_interval: int = 1800  # 30 minutes in seconds
+    agent_batch_size: int = 100  # Max items per poll
+    agent_max_cycle_seconds: int = 1500  # 25 minutes
+    agent_continue_delay_seconds: float = 1.0
+    agent_backlog_retry_delay_seconds: int = 5
+
+    # Agent-specific OpenRouter configuration
+    agent_model_name: str = "anthropic/claude-sonnet-4-5"
+
+    # Quality thresholds
+    agent_quality_threshold: float = 5.0  # Score below this = reject
+
+    # Logging
+    log_level: str = "INFO"
+
+    model_config = SettingsConfigDict(
+        env_file=str(AGENT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+# Singleton instance
+settings = AgentSettings()
+
+# Computed paths (module-level for backward compatibility)
 DATA_DIR = AGENT_ROOT / "data"
 STATE_DB = DATA_DIR / "agent_state.db"
-
-# Polling
-POLL_INTERVAL = int(os.getenv("AGENT_POLL_INTERVAL", 30 * 60))  # Default: 30 minutes
-BATCH_SIZE = int(os.getenv("AGENT_BATCH_SIZE", 100))  # Max items per poll
-MAX_CYCLE_SECONDS = int(os.getenv("AGENT_MAX_CYCLE_SECONDS", 25 * 60))
-CONTINUE_DELAY_SECONDS = float(os.getenv("AGENT_CONTINUE_DELAY_SECONDS", 1))
-BACKLOG_RETRY_DELAY_SECONDS = int(os.getenv("AGENT_BACKLOG_RETRY_DELAY_SECONDS", 5))
-
-# OpenRouter
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-MODEL_NAME = os.getenv("AGENT_MODEL_NAME", "anthropic/claude-sonnet-4-5")
-
-# Database (reuse Agentbook's PostgreSQL)
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-# Thresholds
-QUALITY_THRESHOLD = float(os.getenv("AGENT_QUALITY_THRESHOLD", 5.0))  # Score below this = reject
-
-# Logging
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
