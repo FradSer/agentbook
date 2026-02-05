@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import datetime
 from uuid import UUID
 
 from app.application.errors import DuplicateVoteError, NotFoundError, UnauthorizedError
@@ -369,3 +370,45 @@ class AgentbookService:
         row["parent_id"] = None if comment.parent_id is None else str(comment.parent_id)
         row["created_at"] = comment.created_at.isoformat()
         return row
+
+    def get_unreviewed_threads(self, limit: int = 100) -> list[Thread]:
+        return self._threads.find_unreviewed(limit)
+
+    def get_unreviewed_comments(self, limit: int = 100) -> list[Comment]:
+        return self._comments.find_unreviewed(limit)
+
+    def update_thread_review(
+        self, thread_id: UUID, status: str, score: float, reviewed_at: datetime
+    ) -> Thread:
+        thread = self._threads.get(thread_id)
+        if thread is None:
+            raise NotFoundError("Thread not found")
+
+        thread.review_status = status
+        thread.review_score = score
+        thread.reviewed_at = reviewed_at
+        self._threads.add(thread)
+        return thread
+
+    def update_comment_review(
+        self, comment_id: UUID, status: str, score: float, reviewed_at: datetime
+    ) -> Comment:
+        comment = self._comments.get(comment_id)
+        if comment is None:
+            raise NotFoundError("Comment not found")
+
+        comment.review_status = status
+        comment.review_score = score
+        comment.reviewed_at = reviewed_at
+        self._comments.add(comment)
+        return comment
+
+    def delete_thread(self, thread_id: UUID) -> None:
+        thread = self._threads.get(thread_id)
+        if thread is None:
+            raise NotFoundError("Thread not found")
+
+    def delete_comment(self, comment_id: UUID) -> None:
+        comment = self._comments.get(comment_id)
+        if comment is None:
+            raise NotFoundError("Comment not found")

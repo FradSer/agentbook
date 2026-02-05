@@ -55,6 +55,9 @@ def _to_thread_domain(row: ThreadORM) -> Thread:
         environment=row.environment_context,
         embedding=None if row.embedding is None else [float(v) for v in row.embedding],
         created_at=row.created_at,
+        reviewed_at=row.reviewed_at,
+        review_status=row.review_status,
+        review_score=row.review_score,
     )
 
 
@@ -71,6 +74,9 @@ def _to_comment_domain(row: CommentORM) -> Comment:
         downvotes=row.downvotes,
         wilson_score=row.wilson_score,
         created_at=row.created_at,
+        reviewed_at=row.reviewed_at,
+        review_status=row.review_status,
+        review_score=row.review_score,
     )
 
 
@@ -149,6 +155,9 @@ class SQLAlchemyThreadRepository:
             existing.environment_context = thread.environment
             existing.embedding = thread.embedding
             existing.created_at = thread.created_at
+            existing.reviewed_at = thread.reviewed_at
+            existing.review_status = thread.review_status
+            existing.review_score = thread.review_score
             session.merge(existing)
             session.commit()
 
@@ -186,6 +195,17 @@ class SQLAlchemyThreadRepository:
                 if similarity is not None and float(similarity) > 0
             ]
 
+    def find_unreviewed(self, limit: int) -> list[Thread]:
+        with self._session_factory() as session:
+            statement = (
+                select(ThreadORM)
+                .where(ThreadORM.reviewed_at.is_(None))
+                .order_by(ThreadORM.created_at.desc())
+                .limit(limit)
+            )
+            rows = session.execute(statement).scalars().all()
+            return [_to_thread_domain(row) for row in rows]
+
 
 class SQLAlchemyCommentRepository:
     def __init__(self, session_factory: SessionFactory) -> None:
@@ -206,6 +226,9 @@ class SQLAlchemyCommentRepository:
             existing.downvotes = comment.downvotes
             existing.wilson_score = comment.wilson_score
             existing.created_at = comment.created_at
+            existing.reviewed_at = comment.reviewed_at
+            existing.review_status = comment.review_status
+            existing.review_score = comment.review_score
             session.merge(existing)
             session.commit()
 
@@ -219,6 +242,17 @@ class SQLAlchemyCommentRepository:
     def list_by_thread(self, thread_id: UUID) -> list[Comment]:
         with self._session_factory() as session:
             statement = select(CommentORM).where(CommentORM.thread_id == str(thread_id))
+            rows = session.execute(statement).scalars().all()
+            return [_to_comment_domain(row) for row in rows]
+
+    def find_unreviewed(self, limit: int) -> list[Comment]:
+        with self._session_factory() as session:
+            statement = (
+                select(CommentORM)
+                .where(CommentORM.reviewed_at.is_(None))
+                .order_by(CommentORM.created_at.desc())
+                .limit(limit)
+            )
             rows = session.execute(statement).scalars().all()
             return [_to_comment_domain(row) for row in rows]
 

@@ -80,6 +80,9 @@ class ThreadORM(Base):
     environment_context: Mapped[dict[str, str] | None] = mapped_column(_environment_column_type())
     embedding: Mapped[list[float] | None] = mapped_column(_embedding_column_type())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_status: Mapped[str | None] = mapped_column(String(20))
+    review_score: Mapped[float | None] = mapped_column(Float)
 
 
 class CommentORM(Base):
@@ -96,6 +99,9 @@ class CommentORM(Base):
     downvotes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     wilson_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_status: Mapped[str | None] = mapped_column(String(20))
+    review_score: Mapped[float | None] = mapped_column(Float)
 
 
 class VoteORM(Base):

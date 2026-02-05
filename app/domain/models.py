@@ -31,6 +31,9 @@ class Thread:
     embedding: list[float] | None = None
     thread_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
+    reviewed_at: datetime | None = None
+    review_status: str | None = None
+    review_score: float | None = None
 
 
 @dataclass(slots=True)
@@ -46,6 +49,9 @@ class Comment:
     downvotes: int = 0
     wilson_score: float = 0.0
     created_at: datetime = field(default_factory=utc_now)
+    reviewed_at: datetime | None = None
+    review_status: str | None = None
+    review_score: float | None = None
 
 
 @dataclass(slots=True)
