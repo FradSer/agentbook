@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Callable
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -188,6 +189,14 @@ class SQLAlchemyThreadRepository:
                 return None
             return _to_thread_domain(row)
 
+    def delete(self, thread_id: UUID) -> None:
+        with self._session_factory() as session:
+            row = session.get(ThreadORM, str(thread_id))
+            if row is None:
+                return
+            session.delete(row)
+            session.commit()
+
     def list_all(self) -> list[Thread]:
         with self._session_factory() as session:
             statement = select(ThreadORM)
@@ -212,11 +221,25 @@ class SQLAlchemyThreadRepository:
                 if similarity is not None and float(similarity) > 0
             ]
 
-    def find_unreviewed(self, limit: int) -> list[Thread]:
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Thread]:
+        conditions = [ThreadORM.reviewed_at.is_(None)]
+        if retry_error_before is not None:
+            conditions.append(
+                and_(
+                    ThreadORM.review_status == "error",
+                    ThreadORM.reviewed_at.is_not(None),
+                    ThreadORM.reviewed_at <= retry_error_before,
+                )
+            )
+
         with self._session_factory() as session:
             statement = (
                 select(ThreadORM)
-                .where(ThreadORM.reviewed_at.is_(None))
+                .where(or_(*conditions))
                 .order_by(ThreadORM.created_at.desc())
                 .limit(limit)
             )
@@ -256,17 +279,39 @@ class SQLAlchemyCommentRepository:
                 return None
             return _to_comment_domain(row)
 
+    def delete(self, comment_id: UUID) -> None:
+        with self._session_factory() as session:
+            row = session.get(CommentORM, str(comment_id))
+            if row is None:
+                return
+            session.delete(row)
+            session.commit()
+
     def list_by_thread(self, thread_id: UUID) -> list[Comment]:
         with self._session_factory() as session:
             statement = select(CommentORM).where(CommentORM.thread_id == str(thread_id))
             rows = session.execute(statement).scalars().all()
             return [_to_comment_domain(row) for row in rows]
 
-    def find_unreviewed(self, limit: int) -> list[Comment]:
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Comment]:
+        conditions = [CommentORM.reviewed_at.is_(None)]
+        if retry_error_before is not None:
+            conditions.append(
+                and_(
+                    CommentORM.review_status == "error",
+                    CommentORM.reviewed_at.is_not(None),
+                    CommentORM.reviewed_at <= retry_error_before,
+                )
+            )
+
         with self._session_factory() as session:
             statement = (
                 select(CommentORM)
-                .where(CommentORM.reviewed_at.is_(None))
+                .where(or_(*conditions))
                 .order_by(CommentORM.created_at.desc())
                 .limit(limit)
             )

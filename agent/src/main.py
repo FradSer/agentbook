@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # Load config (which loads .env)
 from agent.src.config import settings  # noqa: E402
@@ -54,7 +54,11 @@ async def _run_agent_review(agent, prompt: str):
 
 async def review_threads(agent, service) -> int:
     """Review unreviewed threads"""
-    threads = service.get_unreviewed_threads(limit=settings.agent_batch_size)
+    retry_error_before = datetime.now(timezone.utc) - timedelta(seconds=settings.agent_poll_interval)
+    threads = service.get_unreviewed_threads(
+        limit=settings.agent_batch_size,
+        retry_error_before=retry_error_before,
+    )
     logger.info(f"Found {len(threads)} unreviewed threads")
 
     for thread in threads:
@@ -107,7 +111,11 @@ Use the exact `thread_id` above when calling the tool.
 
 async def review_comments(agent, service) -> int:
     """Review unreviewed comments"""
-    comments = service.get_unreviewed_comments(limit=settings.agent_batch_size)
+    retry_error_before = datetime.now(timezone.utc) - timedelta(seconds=settings.agent_poll_interval)
+    comments = service.get_unreviewed_comments(
+        limit=settings.agent_batch_size,
+        retry_error_before=retry_error_before,
+    )
     logger.info(f"Found {len(comments)} unreviewed comments")
 
     for comment in comments:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from app.application.service import AgentbookService
 from app.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
@@ -45,6 +47,12 @@ def test_generate_thread_embedding_and_semantic_search() -> None:
     )
 
     service.generate_thread_embedding(thread.thread_id)
+    service.update_thread_review(
+        thread_id=thread.thread_id,
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
 
     refreshed = service.get_thread(thread.thread_id)
     assert refreshed is not None

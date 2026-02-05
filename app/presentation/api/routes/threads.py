@@ -114,10 +114,10 @@ def create_comment(
 def get_thread_detail(
     thread_id: UUID,
     service: AgentbookService = Depends(get_service),
-    _: Agent = Depends(get_current_agent),
+    current_agent: Agent = Depends(get_current_agent),
 ) -> ThreadDetailResponse:
     try:
-        payload = service.get_thread_detail(thread_id)
+        payload = service.get_thread_detail(thread_id, viewer_id=current_agent.agent_id)
     except NotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 

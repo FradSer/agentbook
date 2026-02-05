@@ -84,12 +84,16 @@ class AgentbookService:
     def get_thread(self, thread_id: UUID) -> Thread | None:
         return self._threads.get(thread_id)
 
-    def get_thread_detail(self, thread_id: UUID) -> dict:
+    def get_thread_detail(self, thread_id: UUID, viewer_id: UUID) -> dict:
         thread = self._threads.get(thread_id)
         if thread is None:
             raise NotFoundError("Thread not found")
+        if not self._can_view_thread(thread, viewer_id):
+            raise NotFoundError("Thread not found")
 
-        comments = self._comments.list_by_thread(thread_id)
+        comments = [
+            comment for comment in self._comments.list_by_thread(thread_id) if self._is_approved(comment)
+        ]
         comments.sort(key=lambda item: item.created_at)
         return {
             "thread_id": str(thread.thread_id),
@@ -196,6 +200,8 @@ class AgentbookService:
         if query_embedding is not None:
             semantic_rows = self._threads.search_similar(query_embedding)
             for thread, similarity in semantic_rows:
+                if not self._is_approved(thread):
+                    continue
                 comments = self._comments.list_by_thread(thread.thread_id)
                 top_solution = self._pick_top_solution(comments)
                 rows.append(
@@ -213,6 +219,8 @@ class AgentbookService:
         if not rows:
             query_terms = self._extract_terms(normalized_query)
             for thread in self._threads.list_all():
+                if not self._is_approved(thread):
+                    continue
                 similarity = self._keyword_similarity(thread=thread, query_terms=query_terms)
                 if normalized_query and similarity <= 0.0:
                     continue
@@ -240,7 +248,7 @@ class AgentbookService:
         }
 
     def list_threads(self, limit: int) -> dict:
-        threads = self._threads.list_all()
+        threads = [thread for thread in self._threads.list_all() if self._is_approved(thread)]
         threads.sort(key=lambda item: item.created_at, reverse=True)
         rows = [
             {
@@ -252,13 +260,18 @@ class AgentbookService:
             }
             for thread in threads[: max(limit, 0)]
         ]
-        return {"results": rows, "total": len(rows)}
+        return {"results": rows, "total": len(threads)}
 
     def _pick_top_solution(self, comments: list[Comment]) -> dict | None:
-        if not comments:
+        approved_comments = [comment for comment in comments if self._is_approved(comment)]
+        if not approved_comments:
             return None
 
-        ranked = sorted(comments, key=lambda item: (item.wilson_score, item.upvotes), reverse=True)
+        ranked = sorted(
+            approved_comments,
+            key=lambda item: (item.wilson_score, item.upvotes),
+            reverse=True,
+        )
         comment = ranked[0]
         return {
             "comment_id": str(comment.comment_id),
@@ -302,6 +315,14 @@ class AgentbookService:
             return self._embedding_provider.embed(text)
         except Exception:
             return None
+
+    def _is_approved(self, content: Thread | Comment) -> bool:
+        return content.review_status == "approved"
+
+    def _can_view_thread(self, thread: Thread, viewer_id: UUID) -> bool:
+        if self._is_approved(thread):
+            return True
+        return thread.author_id == viewer_id
 
     def _keyword_similarity(self, thread: Thread, query_terms: list[str]) -> float:
         if not query_terms:
@@ -371,11 +392,19 @@ class AgentbookService:
         row["created_at"] = comment.created_at.isoformat()
         return row
 
-    def get_unreviewed_threads(self, limit: int = 100) -> list[Thread]:
-        return self._threads.find_unreviewed(limit)
+    def get_unreviewed_threads(
+        self,
+        limit: int = 100,
+        retry_error_before: datetime | None = None,
+    ) -> list[Thread]:
+        return self._threads.find_unreviewed(limit=limit, retry_error_before=retry_error_before)
 
-    def get_unreviewed_comments(self, limit: int = 100) -> list[Comment]:
-        return self._comments.find_unreviewed(limit)
+    def get_unreviewed_comments(
+        self,
+        limit: int = 100,
+        retry_error_before: datetime | None = None,
+    ) -> list[Comment]:
+        return self._comments.find_unreviewed(limit=limit, retry_error_before=retry_error_before)
 
     def update_thread_review(
         self, thread_id: UUID, status: str, score: float, reviewed_at: datetime
@@ -407,8 +436,12 @@ class AgentbookService:
         thread = self._threads.get(thread_id)
         if thread is None:
             raise NotFoundError("Thread not found")
+        for comment in self._comments.list_by_thread(thread_id):
+            self._comments.delete(comment.comment_id)
+        self._threads.delete(thread_id)
 
     def delete_comment(self, comment_id: UUID) -> None:
         comment = self._comments.get(comment_id)
         if comment is None:
             raise NotFoundError("Comment not found")
+        self._comments.delete(comment_id)

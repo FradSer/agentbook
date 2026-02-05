@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -23,6 +26,24 @@ def auth_headers(api_key: str, model_name: str) -> dict[str, str]:
         "X-API-Key": api_key,
         "X-Agent-Info": f'{{"model":"{model_name}","platform":"cli"}}',
     }
+
+
+def approve_thread(client: TestClient, thread_id: str) -> None:
+    client.app.state.service.update_thread_review(
+        thread_id=UUID(thread_id),
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
+
+
+def approve_comment(client: TestClient, comment_id: str) -> None:
+    client.app.state.service.update_comment_review(
+        comment_id=UUID(comment_id),
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
 
 
 def test_downvote_does_not_issue_reward_or_change_balance(client: TestClient) -> None:
@@ -81,6 +102,7 @@ def test_search_picks_top_solution_by_highest_wilson_score(client: TestClient) -
         },
     )
     thread_id = thread_response.json()["thread_id"]
+    approve_thread(client, thread_id)
 
     comment_a = client.post(
         f"/v1/threads/{thread_id}/comments",
@@ -92,6 +114,8 @@ def test_search_picks_top_solution_by_highest_wilson_score(client: TestClient) -
         headers=author_headers,
         json={"content": "solution B"},
     ).json()
+    approve_comment(client, comment_a["comment_id"])
+    approve_comment(client, comment_b["comment_id"])
 
     client.post(
         f"/v1/threads/comments/{comment_a['comment_id']}/vote",

@@ -2,6 +2,7 @@ import asyncio
 import importlib
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -20,13 +21,37 @@ class DrainService:
     def __init__(self) -> None:
         self.thread_fetches = 0
 
-    def get_unreviewed_threads(self, limit: int):
+    def get_unreviewed_threads(self, limit: int, retry_error_before=None):
         self.thread_fetches += 1
         if self.thread_fetches == 1:
             return [SimpleNamespace(thread_id=uuid4(), title="valid title", body="valid thread body")]
         return []
 
-    def get_unreviewed_comments(self, limit: int):
+    def get_unreviewed_comments(self, limit: int, retry_error_before=None):
+        return []
+
+    def update_thread_review(self, **kwargs):
+        return None
+
+    def update_comment_review(self, **kwargs):
+        return None
+
+    def delete_thread(self, _thread_id):
+        return None
+
+    def delete_comment(self, _comment_id):
+        return None
+
+
+class RetryBackoffService:
+    def __init__(self) -> None:
+        self.retry_error_before = None
+
+    def get_unreviewed_threads(self, limit: int, retry_error_before=None):
+        self.retry_error_before = retry_error_before
+        return []
+
+    def get_unreviewed_comments(self, limit: int, retry_error_before=None):
         return []
 
     def update_thread_review(self, **kwargs):
@@ -67,6 +92,20 @@ class TestAsyncCycle(unittest.IsolatedAsyncioTestCase):
 
         self.assertGreaterEqual(service.thread_fetches, 2)
         self.assertEqual(metrics["processed"], 1)
+
+    async def test_review_threads_passes_retry_cutoff_for_error_items(self) -> None:
+        main_module = importlib.import_module("agent.src.main")
+        service = RetryBackoffService()
+        agent = DummyAsyncAgent()
+
+        await main_module.review_threads(agent, service)
+
+        self.assertIsNotNone(service.retry_error_before)
+        cutoff = service.retry_error_before
+        self.assertIsNotNone(cutoff.tzinfo)
+        delta = datetime.now(timezone.utc) - cutoff
+        self.assertGreaterEqual(delta, timedelta(seconds=main_module.settings.agent_poll_interval - 5))
+        self.assertLessEqual(delta, timedelta(seconds=main_module.settings.agent_poll_interval + 5))
 
 
 if __name__ == "__main__":

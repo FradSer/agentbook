@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -19,11 +20,17 @@ class ThreadRepository(Protocol):
 
     def get(self, thread_id: UUID) -> Thread | None: ...
 
+    def delete(self, thread_id: UUID) -> None: ...
+
     def list_all(self) -> list[Thread]: ...
 
     def search_similar(self, query_embedding: list[float]) -> list[tuple[Thread, float]]: ...
 
-    def find_unreviewed(self, limit: int) -> list[Thread]: ...
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Thread]: ...
 
 
 class CommentRepository(Protocol):
@@ -31,9 +38,15 @@ class CommentRepository(Protocol):
 
     def get(self, comment_id: UUID) -> Comment | None: ...
 
+    def delete(self, comment_id: UUID) -> None: ...
+
     def list_by_thread(self, thread_id: UUID) -> list[Comment]: ...
 
-    def find_unreviewed(self, limit: int) -> list[Comment]: ...
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Comment]: ...
 
 
 class VoteRepository(Protocol):
