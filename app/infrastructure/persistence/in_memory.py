@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime
 import math
 from uuid import UUID
 
@@ -37,6 +38,9 @@ class InMemoryThreadRepository:
     def get(self, thread_id: UUID) -> Thread | None:
         return self._threads.get(thread_id)
 
+    def delete(self, thread_id: UUID) -> None:
+        self._threads.pop(thread_id, None)
+
     def list_all(self) -> list[Thread]:
         return list(self._threads.values())
 
@@ -51,6 +55,25 @@ class InMemoryThreadRepository:
         rows.sort(key=lambda item: item[1], reverse=True)
         return rows
 
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Thread]:
+        rows = [
+            thread
+            for thread in self._threads.values()
+            if thread.reviewed_at is None
+            or (
+                retry_error_before is not None
+                and thread.review_status == "error"
+                and thread.reviewed_at is not None
+                and thread.reviewed_at <= retry_error_before
+            )
+        ]
+        rows.sort(key=lambda item: item.created_at, reverse=True)
+        return rows[: max(limit, 0)]
+
 
 class InMemoryCommentRepository:
     def __init__(self) -> None:
@@ -58,15 +81,58 @@ class InMemoryCommentRepository:
         self._by_thread: dict[UUID, list[UUID]] = defaultdict(list)
 
     def add(self, comment: Comment) -> None:
+        existing = self._comments.get(comment.comment_id)
         self._comments[comment.comment_id] = comment
+        if existing is None:
+            self._by_thread[comment.thread_id].append(comment.comment_id)
+            return
+
+        if existing.thread_id == comment.thread_id:
+            return
+
+        old_rows = self._by_thread.get(existing.thread_id, [])
+        self._by_thread[existing.thread_id] = [
+            comment_id for comment_id in old_rows if comment_id != comment.comment_id
+        ]
         self._by_thread[comment.thread_id].append(comment.comment_id)
 
     def get(self, comment_id: UUID) -> Comment | None:
         return self._comments.get(comment_id)
 
+    def delete(self, comment_id: UUID) -> None:
+        existing = self._comments.pop(comment_id, None)
+        if existing is None:
+            return
+
+        rows = self._by_thread.get(existing.thread_id, [])
+        self._by_thread[existing.thread_id] = [value for value in rows if value != comment_id]
+
     def list_by_thread(self, thread_id: UUID) -> list[Comment]:
         comment_ids = self._by_thread.get(thread_id, [])
-        return [self._comments[comment_id] for comment_id in comment_ids]
+        return [
+            self._comments[comment_id]
+            for comment_id in comment_ids
+            if comment_id in self._comments
+        ]
+
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Comment]:
+        rows = [
+            comment
+            for comment in self._comments.values()
+            if comment.reviewed_at is None
+            or (
+                retry_error_before is not None
+                and comment.review_status == "error"
+                and comment.reviewed_at is not None
+                and comment.reviewed_at <= retry_error_before
+            )
+        ]
+        rows.sort(key=lambda item: item.created_at, reverse=True)
+        return rows[: max(limit, 0)]
 
 
 class InMemoryVoteRepository:

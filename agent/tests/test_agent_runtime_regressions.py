@@ -12,7 +12,7 @@ class DummyService:
     def __init__(self) -> None:
         self.thread_updates = []
 
-    def get_unreviewed_threads(self, limit: int):
+    def get_unreviewed_threads(self, limit: int, retry_error_before=None):
         return [
             SimpleNamespace(
                 thread_id=uuid4(),

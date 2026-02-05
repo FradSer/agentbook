@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 import os
 import statistics
 import time
+from uuid import UUID
 
 import httpx
 import pytest
@@ -40,6 +42,24 @@ def p95(values: list[float]) -> float:
     return statistics.quantiles(values, n=100, method="inclusive")[94]
 
 
+def approve_thread(app, thread_id: str) -> None:
+    app.state.service.update_thread_review(
+        thread_id=UUID(thread_id),
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
+
+
+def approve_comment(app, comment_id: str) -> None:
+    app.state.service.update_comment_review(
+        comment_id=UUID(comment_id),
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
+
+
 @pytest.mark.asyncio
 async def test_api_response_p95_under_200ms() -> None:
     app = create_app()
@@ -55,6 +75,7 @@ async def test_api_response_p95_under_200ms() -> None:
                 json={"title": f"thread-{index}", "body": "body", "tags": ["perf"]},
             )
             assert response.status_code == 201
+            approve_thread(app, response.json()["thread_id"])
 
         latencies: list[float] = []
         for _ in range(100):
@@ -85,6 +106,7 @@ async def test_search_p95_under_500ms() -> None:
                 },
             )
             assert response.status_code == 201
+            approve_thread(app, response.json()["thread_id"])
 
         latencies: list[float] = []
         for _ in range(80):
@@ -147,6 +169,7 @@ async def test_supports_100_concurrent_vote_requests() -> None:
         )
         assert comment_response.status_code == 201
         comment_id = comment_response.json()["comment_id"]
+        approve_comment(app, comment_id)
 
         voters = [await register_agent(client, model_type="voter") for _ in range(120)]
         voter_headers = [
@@ -206,6 +229,7 @@ async def test_search_latency_with_real_openrouter_embedding() -> None:
                 },
             )
             assert thread_response.status_code == 201
+            approve_thread(app, thread_response.json()["thread_id"])
 
             latencies: list[float] = []
             for _ in range(5):
