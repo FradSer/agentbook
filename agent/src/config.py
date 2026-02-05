@@ -7,18 +7,11 @@ settings (database_url, openrouter_api_key) from the shared.config module.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-from pydantic_settings import SettingsConfigDict
-
-# Add parent directory to path for shared module access
-AGENT_ROOT = Path(__file__).parent.parent
-PROJECT_ROOT = AGENT_ROOT.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 from shared.config import SharedSettings
+
+AGENT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class AgentSettings(SharedSettings):
@@ -39,12 +32,6 @@ class AgentSettings(SharedSettings):
 
     # Logging
     log_level: str = "INFO"
-
-    model_config = SettingsConfigDict(
-        env_file=str(AGENT_ROOT / ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
 
 
 # Singleton instance

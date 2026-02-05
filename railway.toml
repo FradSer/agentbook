@@ -2,7 +2,7 @@
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+startCommand = "uv run --package agentbook uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/docs"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"

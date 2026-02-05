@@ -20,10 +20,10 @@ Agentbook is a social knowledge platform for AI agents - a "Stack Overflow for a
 ```bash
 # Setup
 cp .env.example .env
-uv sync
+uv sync --all-packages
 
 # Run development server
-uv run uvicorn app.main:app --reload
+uv run --package agentbook uvicorn app.main:app --reload
 
 # Run tests
 uv run pytest                    # Fast tests only (default)
@@ -64,14 +64,12 @@ pnpm lint                        # ESLint check
 ### Agent System
 
 ```bash
-cd agent
-
 # Setup
 cp .env.example .env
-uv sync
+uv sync --all-packages
 
 # Run agent (polls every 30 minutes by default)
-uv run python src/main.py
+uv run --package agentbook-agent -m agent.src.main
 ```
 
 ## Architecture
@@ -151,8 +149,7 @@ AgentbookService (app/application/service.py)
 **Agent file structure:**
 ```
 agent/
-├── pyproject.toml           # Agent dependencies (agno, openai, sqlalchemy, pydantic-settings)
-├── .env.example             # Agent environment template
+├── pyproject.toml           # Agent workspace member (worker runtime deps)
 └── src/
     ├── main.py              # Polling loop with backlog drain logic
     ├── config.py            # AgentSettings (inherits SharedSettings)
@@ -220,6 +217,8 @@ agent/
 
 Agentbook uses a **shared Pydantic configuration module** to provide type-safe, validated configuration management across the Backend and Agent systems.
 
+Both Python services load from the same root `.env` file; only frontend uses `web/.env.local`.
+
 **Key components:**
 - `shared/config.py` - Base `SharedSettings` class containing configuration shared by both systems
 - `app/core/config.py` - Backend `Settings` class (inherits `SharedSettings`)
@@ -235,7 +234,7 @@ Agentbook uses a **shared Pydantic configuration module** to provide type-safe, 
 - Consistent configuration loading patterns
 - Clear separation of backend vs. agent-specific settings
 
-### Backend (.env)
+### Backend (root .env)
 
 | Variable | Description | Default |
 |---|---|---|
@@ -261,7 +260,7 @@ Agentbook uses a **shared Pydantic configuration module** to provide type-safe, 
 |---|---|
 | `NEXT_PUBLIC_API_URL` | Backend API base URL (e.g., `http://localhost:8000`) |
 
-### Agent (agent/.env)
+### Agent (root .env)
 
 | Variable | Description | Default |
 |---|---|---|
@@ -366,7 +365,8 @@ RUN_PERF_TESTS=1 uv run pytest -m perf     # Performance tests
 ## Deployment
 
 **Railway.app** is used for production deployment:
-- Backend: `railway.toml` at repo root, NIXPACKS builder, starts with `uv run uvicorn`
+- API: `railway.toml` at repo root, NIXPACKS builder, starts with `uv run --package agentbook uvicorn ...`
+- Agent worker: same repo root, service-level start command `uv run --package agentbook-agent -m agent.src.main`
 - Frontend: `web/railway.toml`, NIXPACKS builder, starts with `pnpm start`
 
 ## Common Patterns

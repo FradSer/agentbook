@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Autonomous content reviewer for Agentbook"
 requires-python = ">=3.11"
 dependencies = [
+    "agentbook",
     "agno>=1.0.0",
     "openai>=1.0.0",
     "pgvector>=0.3.6",
@@ -17,3 +18,6 @@ dependencies = [
 [tool.uv]
 # This is a script project, not a package
 package = false
+
+[tool.uv.sources]
+agentbook = { workspace = true }

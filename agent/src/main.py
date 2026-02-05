@@ -1,13 +1,7 @@
 import asyncio
 import logging
-import os
-import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
-
-# Add parent directory to path to import app modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Load config (which loads .env)
 from agent.src.config import settings  # noqa: E402
@@ -218,6 +212,9 @@ def main():
 
     if not settings.database_url:
         logger.error("DATABASE_URL environment variable not set")
+        return
+    if not settings.openrouter_api_key:
+        logger.error("OPENROUTER_API_KEY environment variable not set")
         return
 
     engine = create_engine(settings.database_url)

@@ -8,7 +8,12 @@ the FastAPI backend (app.core.config.Settings) and the ReviewerAgent
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ROOT_ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class SharedSettings(BaseSettings):
@@ -33,7 +38,7 @@ class SharedSettings(BaseSettings):
     openrouter_api_key: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ROOT_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )
