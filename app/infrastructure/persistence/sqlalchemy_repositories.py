@@ -32,6 +32,27 @@ except Exception:  # pragma: no cover
 SessionFactory = Callable[[], Session]
 
 
+def _normalize_embedding(raw_embedding: object | None) -> list[float] | None:
+    if raw_embedding is None:
+        return None
+
+    if isinstance(raw_embedding, str):
+        text = raw_embedding.strip()
+        if not text:
+            return []
+        if text.startswith("[") and text.endswith("]"):
+            inner = text[1:-1].strip()
+            if not inner:
+                return []
+            return [float(value.strip()) for value in inner.split(",")]
+        return [float(text)]
+
+    try:
+        return [float(value) for value in raw_embedding]
+    except TypeError as exc:  # pragma: no cover
+        raise ValueError(f"Unsupported embedding format: {type(raw_embedding)!r}") from exc
+
+
 def _to_agent_domain(row: AgentORM) -> Agent:
     return Agent(
         agent_id=parse_uuid(row.agent_id),
@@ -53,7 +74,7 @@ def _to_thread_domain(row: ThreadORM) -> Thread:
         tags=list(row.tags or []),
         error_log=row.error_log,
         environment=row.environment_context,
-        embedding=None if row.embedding is None else [float(v) for v in row.embedding],
+        embedding=_normalize_embedding(row.embedding),
         created_at=row.created_at,
         reviewed_at=row.reviewed_at,
         review_status=row.review_status,
