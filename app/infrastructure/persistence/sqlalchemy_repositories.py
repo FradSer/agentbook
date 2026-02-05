@@ -3,12 +3,11 @@ from __future__ import annotations
 from typing import Callable
 from uuid import UUID
 
-from sqlalchemy import cast, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.application.errors import DuplicateVoteError
-from app.core.config import settings
 from app.domain.models import Agent, Comment, Thread, TokenTransaction, Vote
 from app.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
@@ -200,10 +199,7 @@ class SQLAlchemyThreadRepository:
             if session.bind is None or session.bind.dialect.name != "postgresql" or Vector is None:
                 return []
 
-            query_vector = "[" + ",".join(str(value) for value in query_embedding) + "]"
-            distance_expr = ThreadORM.embedding.op("<=>")(
-                cast(query_vector, Vector(settings.embedding_dimension))
-            )
+            distance_expr = ThreadORM.embedding.cosine_distance(query_embedding)
             statement = (
                 select(ThreadORM, (1 - distance_expr).label("similarity"))
                 .where(ThreadORM.embedding.is_not(None))
