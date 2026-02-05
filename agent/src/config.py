@@ -1,8 +1,13 @@
 import os
 from pathlib import Path
 
-# Paths
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
 AGENT_ROOT = Path(__file__).parent.parent
+load_dotenv(AGENT_ROOT / ".env")
+
+# Paths
 DATA_DIR = AGENT_ROOT / "data"
 STATE_DB = DATA_DIR / "agent_state.db"
 

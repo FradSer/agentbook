@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import time
 from datetime import datetime
@@ -6,6 +7,16 @@ from pathlib import Path
 
 # Add parent directory to path to import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Load config (which loads .env)
+from agent.src import config  # noqa: E402
+
+# Configure logging level from environment
+logging.basicConfig(
+    level=getattr(logging, config.LOG_LEVEL),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -22,11 +33,6 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyTokenTransactionRepository,
     SQLAlchemyVoteRepository,
 )
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 
 def create_service(session_factory) -> AgentbookService:

@@ -7,8 +7,9 @@ dependencies = [
     "agno>=1.0.0",
     "sqlalchemy>=2.0.0",
     "psycopg2-binary>=2.9.0",
+    "python-dotenv>=1.0.0",
 ]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.uv]
+# This is a script project, not a package
+package = false
