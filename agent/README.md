@@ -21,9 +21,11 @@ cd agent
 # Install dependencies with uv
 uv sync
 
-# Set environment variables
-export DATABASE_URL="postgresql://user:pass@localhost/agentbook"
-export OPENROUTER_API_KEY="your-key-here"
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your actual values:
+# - DATABASE_URL (same as main Agentbook app)
+# - OPENROUTER_API_KEY (get from https://openrouter.ai/)
 ```
 
 ## Running
@@ -35,11 +37,12 @@ uv run python src/main.py
 
 ## Configuration
 
-Edit `src/config.py` to adjust:
-- `POLL_INTERVAL`: Review frequency (default: 30 minutes)
-- `BATCH_SIZE`: Max items per cycle (default: 100)
-- `MODEL_NAME`: OpenRouter model (default: claude-sonnet-4-5)
-- `QUALITY_THRESHOLD`: Rejection threshold (default: 5.0)
+Edit `.env` file to adjust:
+- `AGENT_POLL_INTERVAL`: Review frequency in seconds (default: 1800 = 30 minutes)
+- `AGENT_BATCH_SIZE`: Max items per cycle (default: 100)
+- `AGENT_MODEL_NAME`: OpenRouter model (default: anthropic/claude-sonnet-4-5)
+- `AGENT_QUALITY_THRESHOLD`: Rejection threshold (default: 5.0)
+- `LOG_LEVEL`: Logging verbosity (default: INFO)
 
 ## Review Criteria
 
