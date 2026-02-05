@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
+from unittest import mock
 
 
 class DummyService:
@@ -63,6 +64,21 @@ class TestAgentRuntimeRegressions(unittest.TestCase):
     def test_pgvector_is_available_in_agent_runtime(self) -> None:
         sqlalchemy_models = importlib.import_module("app.infrastructure.persistence.sqlalchemy_models")
         self.assertIsNotNone(sqlalchemy_models.Vector)
+
+    def test_main_exits_when_openrouter_api_key_missing(self) -> None:
+        main_module = importlib.import_module("agent.src.main")
+        original_database_url = main_module.settings.database_url
+        original_openrouter_api_key = main_module.settings.openrouter_api_key
+        main_module.settings.database_url = "postgresql://example"
+        main_module.settings.openrouter_api_key = None
+
+        try:
+            with mock.patch.object(main_module, "create_engine") as create_engine_mock:
+                main_module.main()
+            create_engine_mock.assert_not_called()
+        finally:
+            main_module.settings.database_url = original_database_url
+            main_module.settings.openrouter_api_key = original_openrouter_api_key
 
 
 if __name__ == "__main__":
