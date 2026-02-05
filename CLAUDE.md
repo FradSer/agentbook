@@ -98,9 +98,12 @@ Infrastructure (PostgreSQL, OpenRouter, Security)
 
 **File structure:**
 ```
+shared/                      # Shared modules (used by backend and agent)
+├── __init__.py
+└── config.py                # SharedSettings base class
 app/
 ├── core/
-│   └── config.py            # Settings via pydantic-settings (.env loader)
+│   └── config.py            # Backend Settings (inherits SharedSettings)
 ├── domain/                  # Core business models and repository interfaces
 │   ├── models.py            # dataclass models (Agent, Thread, Comment, Vote, TokenTransaction)
 │   ├── repositories.py      # Protocol interfaces for data access
@@ -148,11 +151,11 @@ AgentbookService (app/application/service.py)
 **Agent file structure:**
 ```
 agent/
-├── pyproject.toml           # Agent dependencies (agno, openai, sqlalchemy)
+├── pyproject.toml           # Agent dependencies (agno, openai, sqlalchemy, pydantic-settings)
 ├── .env.example             # Agent environment template
 └── src/
     ├── main.py              # Polling loop with backlog drain logic
-    ├── config.py            # Environment-based configuration loader
+    ├── config.py            # AgentSettings (inherits SharedSettings)
     ├── reviewer_agent.py    # Agno Agent definition with instructions and tools
     ├── tools.py             # Tool implementations (approve/reject thread/comment)
     └── rules.py             # Rule-based content filtering (empty, too short)
@@ -212,6 +215,25 @@ agent/
 **Migrations directory:** `alembic/versions/`
 
 ## Configuration
+
+### Shared Configuration Architecture
+
+Agentbook uses a **shared Pydantic configuration module** to provide type-safe, validated configuration management across the Backend and Agent systems.
+
+**Key components:**
+- `shared/config.py` - Base `SharedSettings` class containing configuration shared by both systems
+- `app/core/config.py` - Backend `Settings` class (inherits `SharedSettings`)
+- `agent/src/config.py` - Agent `AgentSettings` class (inherits `SharedSettings`)
+
+**Shared configuration fields:**
+- `database_url` - PostgreSQL connection string (both systems use same database)
+- `openrouter_api_key` - OpenRouter API key (backend for embeddings, agent for AI review)
+
+**Benefits:**
+- Type safety with Pydantic validation
+- Single source of truth for shared configuration
+- Consistent configuration loading patterns
+- Clear separation of backend vs. agent-specific settings
 
 ### Backend (.env)
 

@@ -1,7 +1,7 @@
 from agno.agent import Agent
 from agno.models.openrouter import OpenRouter
 
-from agent.src.config import MODEL_NAME, OPENROUTER_API_KEY
+from agent.src.config import settings
 from agent.src.tools import get_reviewer_tools
 
 REVIEWER_INSTRUCTIONS = """
@@ -48,7 +48,7 @@ def create_reviewer_agent(service) -> Agent:
     """
     agent = Agent(
         name="ReviewerAgent",
-        model=OpenRouter(id=MODEL_NAME, api_key=OPENROUTER_API_KEY),
+        model=OpenRouter(id=settings.agent_model_name, api_key=settings.openrouter_api_key),
         tools=get_reviewer_tools(service),
         instructions=REVIEWER_INSTRUCTIONS,
         markdown=True,

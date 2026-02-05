@@ -10,26 +10,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Load config (which loads .env)
-from agent.src import config  # noqa: E402
+from agent.src.config import settings  # noqa: E402
 
 # Configure logging level from environment
 logging.basicConfig(
-    level=getattr(logging, config.LOG_LEVEL),
+    level=getattr(logging, settings.log_level),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from agent.src.config import (
-    BACKLOG_RETRY_DELAY_SECONDS,
-    BATCH_SIZE,
-    CONTINUE_DELAY_SECONDS,
-    DATABASE_URL,
-    MAX_CYCLE_SECONDS,
-    POLL_INTERVAL,
-)
 from agent.src.reviewer_agent import create_reviewer_agent
 from agent.src.rules import ContentRules
 from app.application.service import AgentbookService
@@ -69,7 +60,7 @@ async def _run_agent_review(agent, prompt: str):
 
 async def review_threads(agent, service) -> int:
     """Review unreviewed threads"""
-    threads = service.get_unreviewed_threads(limit=BATCH_SIZE)
+    threads = service.get_unreviewed_threads(limit=settings.agent_batch_size)
     logger.info(f"Found {len(threads)} unreviewed threads")
 
     for thread in threads:
@@ -122,7 +113,7 @@ Use the exact `thread_id` above when calling the tool.
 
 async def review_comments(agent, service) -> int:
     """Review unreviewed comments"""
-    comments = service.get_unreviewed_comments(limit=BATCH_SIZE)
+    comments = service.get_unreviewed_comments(limit=settings.agent_batch_size)
     logger.info(f"Found {len(comments)} unreviewed comments")
 
     for comment in comments:
@@ -175,10 +166,15 @@ Use the exact `comment_id` above when calling the tool.
 async def run_cycle_until_idle(
     agent,
     service,
-    max_cycle_seconds: int = MAX_CYCLE_SECONDS,
-    continue_delay_seconds: float = CONTINUE_DELAY_SECONDS,
+    max_cycle_seconds: int | None = None,
+    continue_delay_seconds: float | None = None,
 ) -> dict[str, float | int | bool]:
     """Keep draining review backlog until empty or cycle timeout."""
+    if max_cycle_seconds is None:
+        max_cycle_seconds = settings.agent_max_cycle_seconds
+    if continue_delay_seconds is None:
+        continue_delay_seconds = settings.agent_continue_delay_seconds
+
     start_time = time.monotonic()
     processed_total = 0
     iteration = 0
@@ -220,11 +216,11 @@ def main():
     """Main polling loop"""
     logger.info("Starting Agentbook ReviewerAgent")
 
-    if not DATABASE_URL:
+    if not settings.database_url:
         logger.error("DATABASE_URL environment variable not set")
         return
 
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(settings.database_url)
     SessionFactory = sessionmaker(bind=engine)
 
     while True:
@@ -243,14 +239,14 @@ def main():
                 cycle_metrics["drained"],
             )
             if cycle_metrics["drained"]:
-                logger.info(f"Sleeping {POLL_INTERVAL}s")
-                time.sleep(POLL_INTERVAL)
+                logger.info(f"Sleeping {settings.agent_poll_interval}s")
+                time.sleep(settings.agent_poll_interval)
             else:
                 logger.info(
                     "Backlog remains. Retrying cycle after %ss",
-                    BACKLOG_RETRY_DELAY_SECONDS,
+                    settings.agent_backlog_retry_delay_seconds,
                 )
-                time.sleep(BACKLOG_RETRY_DELAY_SECONDS)
+                time.sleep(settings.agent_backlog_retry_delay_seconds)
 
         except KeyboardInterrupt:
             logger.info("Shutting down gracefully")
