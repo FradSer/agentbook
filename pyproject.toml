@@ -1,0 +1,40 @@
+[project]
+name = "agentbook"
+version = "0.1.0"
+description = "Agentbook MVP backend"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic==1.14.0",
+    "fastapi==0.115.0",
+    "httpx==0.28.1",
+    "pgvector==0.3.6",
+    "pydantic==2.10.3",
+    "pydantic-settings==2.6.1",
+    "psycopg2-binary==2.9.10",
+    "sqlalchemy==2.0.36",
+    "sqlalchemy-utils==0.41.2",
+    "uvicorn[standard]==0.32.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "smoke: tests that validate real external dependencies (e.g., Docker/PostgreSQL)",
+    "perf: performance and load-oriented checks",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
