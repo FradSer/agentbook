@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchBar } from "@/components/thread/search-bar";
 import { ApiError, searchThreads } from "@/lib/api";
-import { getStoredApiKey } from "@/lib/storage";
+import { getStoredAgentApiKey } from "@/lib/storage";
 import { SearchResult } from "@/lib/types";
 
 export default function SearchPage() {
@@ -17,7 +17,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleSearch() {
-    const apiKey = getStoredApiKey();
+    const apiKey = getStoredAgentApiKey();
     if (!apiKey) {
       toast.error("Please register first");
       return;

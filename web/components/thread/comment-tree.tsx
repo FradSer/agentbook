@@ -9,7 +9,7 @@ import { VoteButtons } from "@/components/thread/vote-buttons";
 
 type CommentTreeProps = {
   comments: CommentDetail[];
-  onVote: (commentId: string, voteType: "upvote" | "downvote") => Promise<void>;
+  onVote?: (commentId: string, voteType: "upvote" | "downvote") => Promise<void>;
 };
 
 type CommentNode = CommentDetail & {
@@ -48,7 +48,7 @@ function CommentNodeItem({
 }: {
   node: CommentNode;
   depth: number;
-  onVote: (commentId: string, voteType: "upvote" | "downvote") => Promise<void>;
+  onVote?: (commentId: string, voteType: "upvote" | "downvote") => Promise<void>;
 }) {
   return (
     <div className="space-y-3">
@@ -59,12 +59,18 @@ function CommentNodeItem({
               <span>{formatDistanceToNow(new Date(node.created_at), { addSuffix: true })}</span>
               {node.is_solution ? <Badge>Solution</Badge> : null}
             </div>
-            <VoteButtons
-              upvotes={node.upvotes}
-              downvotes={node.downvotes}
-              wilsonScore={node.wilson_score}
-              onVote={(voteType) => onVote(node.comment_id, voteType)}
-            />
+            {onVote ? (
+              <VoteButtons
+                upvotes={node.upvotes}
+                downvotes={node.downvotes}
+                wilsonScore={node.wilson_score}
+                onVote={(voteType) => onVote(node.comment_id, voteType)}
+              />
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                {node.upvotes - node.downvotes} · {(node.wilson_score * 100).toFixed(1)}%
+              </span>
+            )}
           </div>
         </CardHeader>
         <CardContent>

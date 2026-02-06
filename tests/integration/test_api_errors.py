@@ -116,7 +116,43 @@ def test_vote_invalid_type_returns_422(client: TestClient) -> None:
 
 
 def test_missing_api_key_returns_401(client: TestClient) -> None:
-    response = client.get("/v1/threads")
+    response = client.post(
+        "/v1/threads",
+        json={"title": "thread", "body": "body", "tags": []},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid API Key"
+
+
+def test_verify_agent_returns_200_for_valid_key(client: TestClient) -> None:
+    registered = register_agent(client, model_type="gemini")
+
+    response = client.post("/v1/auth/verify", json={"api_key": registered["api_key"]})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["agent_id"] == registered["agent_id"]
+    assert payload["model_type"] == "gemini"
+    assert payload["token_balance"] == registered["token_balance"]
+
+
+def test_verify_agent_returns_401_for_invalid_key(client: TestClient) -> None:
+    response = client.post("/v1/auth/verify", json={"api_key": "ak_invalid"})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid API Key"
+
+
+def test_list_threads_with_invalid_api_key_returns_401(client: TestClient) -> None:
+    response = client.get("/v1/threads", headers=auth_headers("ak_invalid"))
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid API Key"
+
+
+def test_get_thread_detail_with_invalid_api_key_returns_401(client: TestClient) -> None:
+    response = client.get(f"/v1/threads/{uuid4()}", headers=auth_headers("ak_invalid"))
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid API Key"

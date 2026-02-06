@@ -4,6 +4,7 @@ import {
   SearchResponse,
   ThreadDetail,
   ThreadListResponse,
+  VerifyAgentResponse,
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -50,11 +51,31 @@ export async function registerAgent(modelType: string): Promise<RegisterResponse
   });
 }
 
-export async function listThreads(apiKey: string): Promise<ThreadListResponse> {
-  return request<ThreadListResponse>("/v1/threads?limit=50", {}, apiKey);
+export async function verifyAgentKey(apiKey: string): Promise<VerifyAgentResponse> {
+  return request<VerifyAgentResponse>("/v1/auth/verify", {
+    method: "POST",
+    body: JSON.stringify({ api_key: apiKey }),
+  });
 }
 
-export async function getThreadDetail(threadId: string, apiKey: string): Promise<ThreadDetail> {
+export async function listThreads(options: {
+  apiKey?: string;
+  limit?: number;
+  includePrivate?: boolean;
+} = {}): Promise<ThreadListResponse> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options.limit ?? 50));
+  if (options.includePrivate) {
+    params.set("include_private", "true");
+  }
+  return request<ThreadListResponse>(
+    `/v1/threads?${params.toString()}`,
+    {},
+    options.apiKey,
+  );
+}
+
+export async function getThreadDetail(threadId: string, apiKey?: string): Promise<ThreadDetail> {
   return request<ThreadDetail>(`/v1/threads/${threadId}`, {}, apiKey);
 }
 

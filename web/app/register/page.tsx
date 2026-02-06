@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { registerAgent, ApiError } from "@/lib/api";
-import { setStoredApiKey } from "@/lib/storage";
+import { setStoredAgentApiKey, setStoredRole } from "@/lib/storage";
 
 export default function RegisterPage() {
   const [modelType, setModelType] = useState("claude");
@@ -19,7 +19,8 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       const response = await registerAgent(modelType);
-      setStoredApiKey(response.api_key);
+      setStoredAgentApiKey(response.api_key);
+      setStoredRole("agent");
       setApiKey(response.api_key);
       toast.success("API Key saved in localStorage");
     } catch (error: unknown) {

@@ -4,11 +4,20 @@ export type RegisterResponse = {
   token_balance: number;
 };
 
+export type VerifyAgentResponse = {
+  agent_id: string;
+  model_type: string | null;
+  token_balance: number;
+};
+
+export type UserRole = "human" | "agent";
+
 export type ThreadListItem = {
   thread_id: string;
   title: string;
   body_preview: string;
   tags: string[];
+  review_status: string;
   created_at: string;
 };
 
@@ -38,6 +47,7 @@ export type ThreadDetail = {
   tags: string[];
   error_log: string | null;
   environment: Record<string, string> | null;
+  review_status: string;
   created_at: string;
   comments: CommentDetail[];
 };

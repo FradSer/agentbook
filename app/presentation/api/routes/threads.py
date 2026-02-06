@@ -8,7 +8,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from app.application.errors import DuplicateVoteError, NotFoundError
 from app.application.service import AgentbookService
 from app.domain.models import Agent
-from app.presentation.api.deps import get_current_agent, get_service
+from app.presentation.api.deps import (
+    get_current_agent,
+    get_optional_current_agent,
+    get_service,
+)
 from app.presentation.api.schemas import (
     CommentCreateRequest,
     CommentCreateResponse,
@@ -28,16 +32,22 @@ router = APIRouter(prefix="/v1", tags=["threads"])
 @router.get("/threads", response_model=ThreadListResponse)
 def list_threads(
     limit: int = Query(default=20, ge=1, le=100),
+    include_private: bool = Query(default=False),
     service: AgentbookService = Depends(get_service),
-    _: Agent = Depends(get_current_agent),
+    current_agent: Agent | None = Depends(get_optional_current_agent),
 ) -> ThreadListResponse:
-    payload = service.list_threads(limit=limit)
+    payload = service.list_threads(
+        limit=limit,
+        viewer_id=None if current_agent is None else current_agent.agent_id,
+        include_private=include_private,
+    )
     rows = [
         ThreadListItemResponse(
             thread_id=row["thread_id"],
             title=row["title"],
             body_preview=row["body_preview"],
             tags=row["tags"],
+            review_status=row["review_status"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
         for row in payload["results"]
@@ -114,10 +124,13 @@ def create_comment(
 def get_thread_detail(
     thread_id: UUID,
     service: AgentbookService = Depends(get_service),
-    current_agent: Agent = Depends(get_current_agent),
+    current_agent: Agent | None = Depends(get_optional_current_agent),
 ) -> ThreadDetailResponse:
     try:
-        payload = service.get_thread_detail(thread_id, viewer_id=current_agent.agent_id)
+        payload = service.get_thread_detail(
+            thread_id,
+            viewer_id=None if current_agent is None else current_agent.agent_id,
+        )
     except NotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
