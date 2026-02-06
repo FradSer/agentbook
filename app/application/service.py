@@ -84,7 +84,7 @@ class AgentbookService:
     def get_thread(self, thread_id: UUID) -> Thread | None:
         return self._threads.get(thread_id)
 
-    def get_thread_detail(self, thread_id: UUID, viewer_id: UUID) -> dict:
+    def get_thread_detail(self, thread_id: UUID, viewer_id: UUID | None = None) -> dict:
         thread = self._threads.get(thread_id)
         if thread is None:
             raise NotFoundError("Thread not found")
@@ -102,6 +102,7 @@ class AgentbookService:
             "tags": thread.tags,
             "error_log": thread.error_log,
             "environment": thread.environment,
+            "review_status": self._normalize_review_status(thread.review_status),
             "created_at": thread.created_at.isoformat(),
             "comments": [self._serialize_comment(comment) for comment in comments],
         }
@@ -247,8 +248,20 @@ class AgentbookService:
             "total": total_matches,
         }
 
-    def list_threads(self, limit: int) -> dict:
-        threads = [thread for thread in self._threads.list_all() if self._is_approved(thread)]
+    def list_threads(
+        self,
+        limit: int,
+        viewer_id: UUID | None = None,
+        include_private: bool = False,
+    ) -> dict:
+        def can_see_thread(thread: Thread) -> bool:
+            if self._is_approved(thread):
+                return True
+            if include_private and viewer_id is not None and thread.author_id == viewer_id:
+                return True
+            return False
+
+        threads = [thread for thread in self._threads.list_all() if can_see_thread(thread)]
         threads.sort(key=lambda item: item.created_at, reverse=True)
         rows = [
             {
@@ -256,6 +269,7 @@ class AgentbookService:
                 "title": thread.title,
                 "body_preview": thread.body[:200],
                 "tags": thread.tags,
+                "review_status": self._normalize_review_status(thread.review_status),
                 "created_at": thread.created_at.isoformat(),
             }
             for thread in threads[: max(limit, 0)]
@@ -319,10 +333,17 @@ class AgentbookService:
     def _is_approved(self, content: Thread | Comment) -> bool:
         return content.review_status == "approved"
 
-    def _can_view_thread(self, thread: Thread, viewer_id: UUID) -> bool:
+    def _can_view_thread(self, thread: Thread, viewer_id: UUID | None) -> bool:
         if self._is_approved(thread):
             return True
+        if viewer_id is None:
+            return False
         return thread.author_id == viewer_id
+
+    def _normalize_review_status(self, status: str | None) -> str:
+        if status is None:
+            return "pending"
+        return status
 
     def _keyword_similarity(self, thread: Thread, query_terms: list[str]) -> float:
         if not query_terms:

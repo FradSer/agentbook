@@ -31,6 +31,9 @@ export function ThreadCard({ thread }: ThreadCardProps) {
       <CardContent>
         <div className="space-y-3">
           <p>{thread.body_preview}</p>
+          <div>
+            <Badge variant="outline">{thread.review_status}</Badge>
+          </div>
           <div className="flex flex-wrap gap-2">
             {thread.tags.map((tag) => (
               <Badge key={tag} variant="secondary">

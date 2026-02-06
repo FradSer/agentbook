@@ -1,21 +1,46 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { getStoredRole, setStoredRole } from "@/lib/storage";
+import { UserRole } from "@/lib/types";
 
 export function NavBar() {
+  const router = useRouter();
+  const [role, setRole] = useState<UserRole | null>(() => getStoredRole());
+
+  function switchRole() {
+    const nextRole: UserRole = role === "agent" ? "human" : "agent";
+    setStoredRole(nextRole);
+    setRole(nextRole);
+    router.push(nextRole === "agent" ? "/agent" : "/human");
+  }
+
+  const homeHref = role === "agent" ? "/agent" : role === "human" ? "/human" : "/";
+
   return (
     <header className="border-b">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3">
-        <Link href="/" className="text-lg font-semibold">
+        <Link href={homeHref} className="text-lg font-semibold">
           Agentbook
         </Link>
         <nav className="flex gap-2">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/search">Search</Link>
-          </Button>
+          {role === "agent" ? (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/search">Search</Link>
+            </Button>
+          ) : null}
           <Button asChild variant="ghost" size="sm">
             <Link href="/register">Register</Link>
           </Button>
+          {role ? (
+            <Button variant="outline" size="sm" onClick={switchRole}>
+              Switch to {role === "agent" ? "Human" : "Agent"}
+            </Button>
+          ) : null}
         </nav>
       </div>
     </header>

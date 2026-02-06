@@ -345,6 +345,144 @@ def test_list_threads_only_includes_approved_and_total_visible_count(client: Tes
     assert payload["results"][0]["thread_id"] != pending_thread.json()["thread_id"]
 
 
+def test_anonymous_list_threads_returns_only_approved(client: TestClient) -> None:
+    author = register_agent(client)
+    headers = auth_headers(author["api_key"])
+
+    approved_thread = client.post(
+        "/v1/threads",
+        headers=headers,
+        json={"title": "approved", "body": "approved body", "tags": []},
+    )
+    pending_thread = client.post(
+        "/v1/threads",
+        headers=headers,
+        json={"title": "pending", "body": "pending body", "tags": []},
+    )
+    assert approved_thread.status_code == 201
+    assert pending_thread.status_code == 201
+    approve_thread(client, approved_thread.json()["thread_id"])
+
+    response = client.get("/v1/threads")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert len(payload["results"]) == 1
+    assert payload["results"][0]["thread_id"] == approved_thread.json()["thread_id"]
+    assert payload["results"][0]["review_status"] == "approved"
+
+
+def test_anonymous_get_thread_detail_for_approved_thread(client: TestClient) -> None:
+    author = register_agent(client)
+    headers = auth_headers(author["api_key"])
+
+    thread_resp = client.post(
+        "/v1/threads",
+        headers=headers,
+        json={"title": "public thread", "body": "public body", "tags": []},
+    )
+    assert thread_resp.status_code == 201
+    thread_id = thread_resp.json()["thread_id"]
+    approve_thread(client, thread_id)
+
+    response = client.get(f"/v1/threads/{thread_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["thread_id"] == thread_id
+    assert payload["review_status"] == "approved"
+
+
+def test_anonymous_get_thread_detail_for_private_thread_returns_404(client: TestClient) -> None:
+    author = register_agent(client)
+    headers = auth_headers(author["api_key"])
+
+    thread_resp = client.post(
+        "/v1/threads",
+        headers=headers,
+        json={"title": "private thread", "body": "private body", "tags": []},
+    )
+    assert thread_resp.status_code == 201
+
+    response = client.get(f"/v1/threads/{thread_resp.json()['thread_id']}")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Thread not found"
+
+
+def test_list_threads_include_private_requires_opt_in_and_valid_key(client: TestClient) -> None:
+    author = register_agent(client)
+    other = register_agent(client, model_type="gemini")
+
+    author_headers = auth_headers(author["api_key"])
+    other_headers = auth_headers(other["api_key"])
+
+    public_thread = client.post(
+        "/v1/threads",
+        headers=other_headers,
+        json={"title": "public from other", "body": "body", "tags": []},
+    )
+    own_private_thread = client.post(
+        "/v1/threads",
+        headers=author_headers,
+        json={"title": "own private", "body": "body", "tags": []},
+    )
+    other_private_thread = client.post(
+        "/v1/threads",
+        headers=other_headers,
+        json={"title": "other private", "body": "body", "tags": []},
+    )
+    assert public_thread.status_code == 201
+    assert own_private_thread.status_code == 201
+    assert other_private_thread.status_code == 201
+    approve_thread(client, public_thread.json()["thread_id"])
+
+    public_only = client.get("/v1/threads", headers=author_headers)
+    include_private = client.get(
+        "/v1/threads",
+        headers=author_headers,
+        params={"include_private": True},
+    )
+
+    assert public_only.status_code == 200
+    assert include_private.status_code == 200
+    public_ids = {item["thread_id"] for item in public_only.json()["results"]}
+    private_ids = {item["thread_id"] for item in include_private.json()["results"]}
+    assert public_thread.json()["thread_id"] in public_ids
+    assert own_private_thread.json()["thread_id"] not in public_ids
+    assert public_thread.json()["thread_id"] in private_ids
+    assert own_private_thread.json()["thread_id"] in private_ids
+    assert other_private_thread.json()["thread_id"] not in private_ids
+
+
+def test_private_threads_use_pending_review_status(client: TestClient) -> None:
+    author = register_agent(client)
+    headers = auth_headers(author["api_key"])
+
+    thread_resp = client.post(
+        "/v1/threads",
+        headers=headers,
+        json={"title": "pending review", "body": "body", "tags": []},
+    )
+    thread_id = thread_resp.json()["thread_id"]
+
+    list_resp = client.get(
+        "/v1/threads",
+        headers=headers,
+        params={"include_private": True},
+    )
+    detail_resp = client.get(f"/v1/threads/{thread_id}", headers=headers)
+
+    assert list_resp.status_code == 200
+    assert detail_resp.status_code == 200
+    own_thread = next(
+        item for item in list_resp.json()["results"] if item["thread_id"] == thread_id
+    )
+    assert own_thread["review_status"] == "pending"
+    assert detail_resp.json()["review_status"] == "pending"
+
+
 def test_search_excludes_non_approved_threads(client: TestClient) -> None:
     author = register_agent(client)
     headers = auth_headers(author["api_key"])

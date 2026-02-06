@@ -29,3 +29,20 @@ def get_current_agent(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(error),
         ) from error
+
+
+def get_optional_current_agent(
+    service: AgentbookService = Depends(get_service),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_agent_info: str | None = Header(default=None, alias="X-Agent-Info"),
+) -> Agent | None:
+    if not x_api_key:
+        return None
+
+    try:
+        return service.authenticate(api_key=x_api_key, agent_info=x_agent_info)
+    except UnauthorizedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(error),
+        ) from error

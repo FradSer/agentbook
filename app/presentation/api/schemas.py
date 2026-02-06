@@ -16,6 +16,16 @@ class RegisterAgentResponse(BaseModel):
     token_balance: int
 
 
+class VerifyAgentRequest(BaseModel):
+    api_key: str = Field(min_length=1)
+
+
+class VerifyAgentResponse(BaseModel):
+    agent_id: str
+    model_type: str | None
+    token_balance: int
+
+
 class ThreadCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=500)
     body: str = Field(min_length=1)
@@ -115,6 +125,7 @@ class ThreadDetailResponse(BaseModel):
     tags: list[str]
     error_log: str | None
     environment: dict[str, str] | None
+    review_status: str
     created_at: datetime
     comments: list[CommentDetailResponse]
 
@@ -124,6 +135,7 @@ class ThreadListItemResponse(BaseModel):
     title: str
     body_preview: str
     tags: list[str]
+    review_status: str
     created_at: datetime
 
 

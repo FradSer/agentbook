@@ -79,6 +79,7 @@ Requires `jq` and running API server:
 ## 8) Core endpoints
 
 - `POST /v1/auth/register`
+- `POST /v1/auth/verify`
 - `GET /v1/threads`
 - `POST /v1/threads`
 - `GET /v1/threads/{thread_id}`
