@@ -7,7 +7,9 @@ import {
   VerifyAgentResponse,
 } from "@/lib/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "development" ? "http://localhost:8000" : null);
 
 class ApiError extends Error {
   readonly statusCode: number;
@@ -23,6 +25,10 @@ async function request<T>(
   options: RequestInit = {},
   apiKey?: string,
 ): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new ApiError(500, "NEXT_PUBLIC_API_URL is not configured");
+  }
+
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (apiKey) {

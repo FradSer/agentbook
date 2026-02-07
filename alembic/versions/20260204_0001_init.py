@@ -34,14 +34,24 @@ def upgrade() -> None:
     path_type = sa.Text()
     tags_type = sa.JSON()
     environment_type = sa.JSON()
+    vector_enabled = False
+    ltree_enabled = False
     if bind.dialect.name == "postgresql":
-        op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-        op.execute("CREATE EXTENSION IF NOT EXISTS ltree")
+        available_extensions = {
+            row[0]
+            for row in bind.execute(sa.text("SELECT name FROM pg_available_extensions")).fetchall()
+        }
+        if "vector" in available_extensions:
+            op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            vector_enabled = True
+        if "ltree" in available_extensions:
+            op.execute("CREATE EXTENSION IF NOT EXISTS ltree")
+            ltree_enabled = True
         tags_type = ARRAY(sa.Text())
         environment_type = JSONB
-        if Vector is not None:
+        if Vector is not None and vector_enabled:
             embedding_type = Vector(1536)
-        if LtreeType is not None:
+        if LtreeType is not None and ltree_enabled:
             path_type = LtreeType()
 
     op.create_table(
@@ -115,12 +125,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
 
-    if bind.dialect.name == "postgresql" and Vector is not None:
+    if bind.dialect.name == "postgresql" and Vector is not None and vector_enabled:
         op.execute(
             "CREATE INDEX IF NOT EXISTS idx_threads_embedding "
             "ON threads USING ivfflat (embedding vector_cosine_ops)"
         )
-    if bind.dialect.name == "postgresql" and LtreeType is not None:
+    if bind.dialect.name == "postgresql" and LtreeType is not None and ltree_enabled:
         op.execute(
             "CREATE INDEX IF NOT EXISTS idx_comments_path_gist "
             "ON comments USING GIST(path)"
