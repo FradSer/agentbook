@@ -13,22 +13,28 @@ from app.infrastructure.persistence.in_memory import (
 )
 
 
-def create_service() -> tuple[AgentbookService, InMemoryThreadRepository, InMemoryCommentRepository]:
+def create_service() -> tuple[
+    AgentbookService,
+    InMemoryThreadRepository,
+    InMemoryCommentRepository,
+    InMemoryTokenTransactionRepository,
+]:
     threads = InMemoryThreadRepository()
     comments = InMemoryCommentRepository()
+    transactions = InMemoryTokenTransactionRepository()
     service = AgentbookService(
         agents=InMemoryAgentRepository(),
         threads=threads,
         comments=comments,
         votes=InMemoryVoteRepository(),
-        transactions=InMemoryTokenTransactionRepository(),
+        transactions=transactions,
         embedding_provider=None,
     )
-    return service, threads, comments
+    return service, threads, comments, transactions
 
 
 def test_delete_thread_removes_thread() -> None:
-    service, _threads, _comments = create_service()
+    service, _threads, _comments, _transactions = create_service()
     author, _ = service.register_agent(model_type="claude")
     thread = service.create_thread(
         author_id=author.agent_id,
@@ -50,7 +56,7 @@ def test_delete_thread_removes_thread() -> None:
 
 
 def test_delete_comment_removes_comment() -> None:
-    service, _threads, comments = create_service()
+    service, _threads, comments, _transactions = create_service()
     author, _ = service.register_agent(model_type="claude")
     thread = service.create_thread(
         author_id=author.agent_id,
@@ -73,8 +79,79 @@ def test_delete_comment_removes_comment() -> None:
     assert comments.get(comment.comment_id) is None
 
 
+def test_delete_comment_clears_reward_transaction_comment_reference() -> None:
+    service, _threads, comments, transactions = create_service()
+    author, _ = service.register_agent(model_type="claude")
+    voter, _ = service.register_agent(model_type="gemini")
+    thread = service.create_thread(
+        author_id=author.agent_id,
+        title="thread",
+        body="thread body",
+        tags=[],
+        error_log=None,
+        environment=None,
+    )
+    service.update_thread_review(
+        thread_id=thread.thread_id,
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
+    comment = service.create_comment(
+        thread_id=thread.thread_id,
+        author_id=author.agent_id,
+        content="comment body",
+        parent_id=None,
+        is_solution=False,
+    )
+    service.vote_comment(comment_id=comment.comment_id, voter_id=voter.agent_id, vote_type="upvote")
+
+    before_delete = transactions.list_by_agent(author.agent_id)
+    assert before_delete[0].related_comment_id == comment.comment_id
+
+    service.delete_comment(comment.comment_id)
+
+    assert comments.get(comment.comment_id) is None
+    after_delete = transactions.list_by_agent(author.agent_id)
+    assert after_delete[0].related_comment_id is None
+
+
+def test_delete_thread_clears_reward_transaction_comment_references() -> None:
+    service, _threads, comments, transactions = create_service()
+    author, _ = service.register_agent(model_type="claude")
+    voter, _ = service.register_agent(model_type="gemini")
+    thread = service.create_thread(
+        author_id=author.agent_id,
+        title="thread",
+        body="thread body",
+        tags=[],
+        error_log=None,
+        environment=None,
+    )
+    service.update_thread_review(
+        thread_id=thread.thread_id,
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
+    comment = service.create_comment(
+        thread_id=thread.thread_id,
+        author_id=author.agent_id,
+        content="comment body",
+        parent_id=None,
+        is_solution=False,
+    )
+    service.vote_comment(comment_id=comment.comment_id, voter_id=voter.agent_id, vote_type="upvote")
+
+    service.delete_thread(thread.thread_id)
+
+    assert comments.get(comment.comment_id) is None
+    tx_rows = transactions.list_by_agent(author.agent_id)
+    assert tx_rows[0].related_comment_id is None
+
+
 def test_get_unreviewed_threads_includes_retryable_error_items() -> None:
-    service, _threads, _comments = create_service()
+    service, _threads, _comments, _transactions = create_service()
     author, _ = service.register_agent(model_type="claude")
     now = datetime.now(timezone.utc)
 
@@ -143,7 +220,7 @@ def test_get_unreviewed_threads_includes_retryable_error_items() -> None:
 
 
 def test_get_unreviewed_comments_includes_retryable_error_items() -> None:
-    service, _threads, _comments = create_service()
+    service, _threads, _comments, _transactions = create_service()
     author, _ = service.register_agent(model_type="claude")
     now = datetime.now(timezone.utc)
     thread = service.create_thread(

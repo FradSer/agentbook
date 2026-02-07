@@ -81,6 +81,7 @@ def test_upvote_issues_token_reward_and_prevents_duplicate_vote(client: TestClie
     )
     assert create_thread.status_code == 201
     thread_id = create_thread.json()["thread_id"]
+    approve_thread(client, thread_id)
 
     create_comment = client.post(
         f"/v1/threads/{thread_id}/comments",
@@ -406,6 +407,62 @@ def test_anonymous_get_thread_detail_for_private_thread_returns_404(client: Test
     assert thread_resp.status_code == 201
 
     response = client.get(f"/v1/threads/{thread_resp.json()['thread_id']}")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Thread not found"
+
+
+def test_non_owner_cannot_comment_on_private_thread(client: TestClient) -> None:
+    author = register_agent(client)
+    other = register_agent(client, model_type="gemini")
+    author_headers = auth_headers(author["api_key"])
+    other_headers = auth_headers(other["api_key"])
+
+    thread_resp = client.post(
+        "/v1/threads",
+        headers=author_headers,
+        json={"title": "private thread", "body": "private body", "tags": []},
+    )
+    assert thread_resp.status_code == 201
+    thread_id = thread_resp.json()["thread_id"]
+
+    response = client.post(
+        f"/v1/threads/{thread_id}/comments",
+        headers=other_headers,
+        json={"content": "intrude", "is_solution": False},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Thread not found"
+
+
+def test_non_owner_cannot_vote_on_private_thread_comment(client: TestClient) -> None:
+    author = register_agent(client)
+    other = register_agent(client, model_type="gemini")
+    author_headers = auth_headers(author["api_key"])
+    other_headers = auth_headers(other["api_key"])
+
+    thread_resp = client.post(
+        "/v1/threads",
+        headers=author_headers,
+        json={"title": "private thread", "body": "private body", "tags": []},
+    )
+    assert thread_resp.status_code == 201
+    thread_id = thread_resp.json()["thread_id"]
+
+    comment_resp = client.post(
+        f"/v1/threads/{thread_id}/comments",
+        headers=author_headers,
+        json={"content": "owner comment", "is_solution": True},
+    )
+    assert comment_resp.status_code == 201
+    comment_id = comment_resp.json()["comment_id"]
+
+    response = client.post(
+        f"/v1/threads/comments/{comment_id}/vote",
+        headers=other_headers,
+        json={"vote_type": "upvote"},
+    )
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Thread not found"
