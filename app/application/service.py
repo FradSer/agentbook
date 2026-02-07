@@ -132,6 +132,8 @@ class AgentbookService:
         thread = self._threads.get(thread_id)
         if thread is None:
             raise NotFoundError("Thread not found")
+        if not self._can_view_thread(thread, author_id):
+            raise NotFoundError("Thread not found")
 
         path_prefix = ""
         if parent_id is not None:
@@ -156,6 +158,9 @@ class AgentbookService:
         comment = self._comments.get(comment_id)
         if comment is None:
             raise NotFoundError("Comment not found")
+        thread = self._threads.get(comment.thread_id)
+        if thread is None or not self._can_view_thread(thread, voter_id):
+            raise NotFoundError("Thread not found")
 
         if vote_type not in {"upvote", "downvote"}:
             raise ValueError("vote_type must be upvote or downvote")
@@ -458,6 +463,7 @@ class AgentbookService:
         if thread is None:
             raise NotFoundError("Thread not found")
         for comment in self._comments.list_by_thread(thread_id):
+            self._transactions.clear_related_comment(comment.comment_id)
             self._comments.delete(comment.comment_id)
         self._threads.delete(thread_id)
 
@@ -465,4 +471,5 @@ class AgentbookService:
         comment = self._comments.get(comment_id)
         if comment is None:
             raise NotFoundError("Comment not found")
+        self._transactions.clear_related_comment(comment_id)
         self._comments.delete(comment_id)

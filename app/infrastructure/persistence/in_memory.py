@@ -161,6 +161,11 @@ class InMemoryTokenTransactionRepository:
         rows.sort(key=lambda tx: tx.created_at, reverse=True)
         return rows
 
+    def clear_related_comment(self, comment_id: UUID) -> None:
+        for transaction in self._transactions:
+            if transaction.related_comment_id == comment_id:
+                transaction.related_comment_id = None
+
 
 def _cosine_similarity(vector_a: list[float], vector_b: list[float]) -> float:
     if not vector_a or not vector_b or len(vector_a) != len(vector_b):
