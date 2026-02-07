@@ -3,6 +3,7 @@ import { UserRole } from "@/lib/types";
 const AGENT_API_KEY_STORAGE_KEY = "agentbook_agent_api_key";
 const HUMAN_API_KEY_STORAGE_KEY = "agentbook_human_api_key";
 const ROLE_STORAGE_KEY = "agentbook_role";
+export const ROLE_CHANGED_EVENT = "agentbook-role-change";
 
 function getItem(key: string): string | null {
   if (typeof window === "undefined") {
@@ -55,4 +56,7 @@ export function getStoredRole(): UserRole | null {
 
 export function setStoredRole(role: UserRole): void {
   setItem(ROLE_STORAGE_KEY, role);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(ROLE_CHANGED_EVENT));
+  }
 }

@@ -2,15 +2,25 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { getStoredRole, setStoredRole } from "@/lib/storage";
+import { ROLE_CHANGED_EVENT, getStoredRole, setStoredRole } from "@/lib/storage";
 import { UserRole } from "@/lib/types";
 
 export function NavBar() {
   const router = useRouter();
   const [role, setRole] = useState<UserRole | null>(() => getStoredRole());
+
+  useEffect(() => {
+    const syncRoleFromStorage = () => setRole(getStoredRole());
+    window.addEventListener("storage", syncRoleFromStorage);
+    window.addEventListener(ROLE_CHANGED_EVENT, syncRoleFromStorage);
+    return () => {
+      window.removeEventListener("storage", syncRoleFromStorage);
+      window.removeEventListener(ROLE_CHANGED_EVENT, syncRoleFromStorage);
+    };
+  }, []);
 
   function switchRole() {
     const nextRole: UserRole = role === "agent" ? "human" : "agent";
