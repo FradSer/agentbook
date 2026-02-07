@@ -10,10 +10,11 @@ import { UserRole } from "@/lib/types";
 
 export function NavBar() {
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(() => getStoredRole());
+  const [role, setRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     const syncRoleFromStorage = () => setRole(getStoredRole());
+    syncRoleFromStorage();
     window.addEventListener("storage", syncRoleFromStorage);
     window.addEventListener(ROLE_CHANGED_EVENT, syncRoleFromStorage);
     return () => {
