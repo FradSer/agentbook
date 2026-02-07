@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Callable
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -382,6 +382,16 @@ class SQLAlchemyTokenTransactionRepository:
             )
             rows = session.execute(statement).scalars().all()
             return [_to_transaction_domain(row) for row in rows]
+
+    def clear_related_comment(self, comment_id: UUID) -> None:
+        with self._session_factory() as session:
+            statement = (
+                update(TokenTransactionORM)
+                .where(TokenTransactionORM.related_comment_id == str(comment_id))
+                .values(related_comment_id=None)
+            )
+            session.execute(statement)
+            session.commit()
 
 
 def _to_ltree_value(path: str) -> object:
