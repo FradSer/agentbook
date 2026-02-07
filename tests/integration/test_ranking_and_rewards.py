@@ -59,6 +59,7 @@ def test_downvote_does_not_issue_reward_or_change_balance(client: TestClient) ->
         json={"title": "thread", "body": "body", "tags": []},
     )
     thread_id = thread_response.json()["thread_id"]
+    approve_thread(client, thread_id)
 
     comment_response = client.post(
         f"/v1/threads/{thread_id}/comments",

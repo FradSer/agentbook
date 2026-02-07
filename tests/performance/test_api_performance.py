@@ -161,6 +161,7 @@ async def test_supports_100_concurrent_vote_requests() -> None:
         )
         assert thread_response.status_code == 201
         thread_id = thread_response.json()["thread_id"]
+        approve_thread(app, thread_id)
 
         comment_response = await client.post(
             f"/v1/threads/{thread_id}/comments",

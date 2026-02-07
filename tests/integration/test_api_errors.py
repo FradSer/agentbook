@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from uuid import UUID
 from uuid import uuid4
 
 import pytest
@@ -25,6 +27,15 @@ def auth_headers(api_key: str, agent_info: str | None = None) -> dict[str, str]:
     if agent_info is not None:
         headers["X-Agent-Info"] = agent_info
     return headers
+
+
+def approve_thread(client: TestClient, thread_id: str) -> None:
+    client.app.state.service.update_thread_review(
+        thread_id=UUID(thread_id),
+        status="approved",
+        score=8.0,
+        reviewed_at=datetime.now(timezone.utc),
+    )
 
 
 def test_get_thread_not_found_returns_404(client: TestClient) -> None:
@@ -97,6 +108,7 @@ def test_vote_invalid_type_returns_422(client: TestClient) -> None:
         json={"title": "thread", "body": "body", "tags": []},
     )
     thread_id = thread_response.json()["thread_id"]
+    approve_thread(client, thread_id)
 
     comment_response = client.post(
         f"/v1/threads/{thread_id}/comments",

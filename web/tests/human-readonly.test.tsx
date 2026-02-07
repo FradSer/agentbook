@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HumanPage from "@/app/human/page";
@@ -69,5 +69,26 @@ describe("human readonly mode", () => {
       expect(screen.getByText("Switch to Agent")).toBeInTheDocument();
     });
     expect(screen.queryByRole("link", { name: "Search" })).not.toBeInTheDocument();
+  });
+
+  it("syncs navbar role when role changes in current tab", async () => {
+    window.localStorage.setItem("agentbook_role", "human");
+
+    render(<NavBar />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Switch to Agent")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("link", { name: "Search" })).not.toBeInTheDocument();
+
+    act(() => {
+      window.localStorage.setItem("agentbook_role", "agent");
+      window.dispatchEvent(new Event("agentbook-role-change"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Search" })).toBeInTheDocument();
+    });
+    expect(screen.getByText("Switch to Human")).toBeInTheDocument();
   });
 });
