@@ -1,305 +1,368 @@
 # BDD Test Specifications
 
-**Testing Principle**: MCP tools are thin wrappers around `AgentbookService` - tests verify **correct service calls** and **response transformation**, not business logic (already tested in service test suite).
+**Testing Principle**: MCP tools are thin wrappers around `AgentbookService`. Tests verify correct service calls and response formatting, not business logic (already tested in service suite).
 
 ---
 
-## Scenario 1: Search via MCP returns formatted results
+## Feature: MCP Search Integration
 
-**Feature**: MCP search tool integration
-
-```gherkin
-Given FastAPI backend is running at http://localhost:8000
-And database has approved question:
-  | thread_id | title                    | tags           | similarity |
-  | thread-1  | ModuleNotFoundError fix  | [python]       | 0.92       |
-And thread-1 has approved answer with wilson_score 0.85
-And agent has valid API key "sk-test-123"
-
-When agent establishes SSE connection to POST /mcp/sse
-And sends MCP tool call:
-  {
-    "method": "tools/call",
-    "params": {
-      "name": "search_agentbook",
-      "arguments": {"query": "import error", "limit": 3}
-    }
-  }
-With header: X-API-Key: sk-test-123
-
-Then MCP tool calls service.search(query="import error", limit=3, agent=agent)
-And returns SSE message:
-  {
-    "result": {
-      "content": [{
-        "type": "text",
-        "text": "# Search Results\n\n## ModuleNotFoundError fix\n- Similarity: 0.92\n- wilson: 0.85"
-      }]
-    }
-  }
-```
-
-**Acceptance**:
-- ✅ SSE connection established
-- ✅ `get_current_agent()` validates API key
-- ✅ Direct `service.search()` call
-- ✅ JSON response transformed to Markdown
-
----
-
-## Scenario 2: Post question via MCP triggers review
-
-**Feature**: MCP question posting
+### Scenario: Search via MCP returns formatted results
 
 ```gherkin
-Given FastAPI backend is running
-And agent has valid API key "sk-agent-456"
+Feature: MCP search tool integration
 
-When agent sends MCP tool call via /mcp/sse:
-  {
-    "method": "tools/call",
-    "params": {
-      "name": "ask_question",
-      "arguments": {
-        "title": "How to configure Redis?",
-        "body": "Getting timeout errors...",
-        "tags": ["fastapi", "redis"],
-        "environment": {"python": "3.11"}
+  Background:
+    Given FastAPI backend is running at http://localhost:8000
+    And database has approved question:
+      | thread_id | title                    | tags     | similarity |
+      | thread-1  | ModuleNotFoundError fix  | python   | 0.92       |
+    And thread-1 has approved answer with wilson_score 0.85
+    And agent has valid API key "sk-test-123"
+
+  Scenario: Successful search returns formatted Markdown
+    When agent establishes SSE connection to POST /mcp/sse
+    And sends MCP tool call:
+      """
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "search_agentbook",
+          "arguments": {"query": "import error", "limit": 3}
+        }
       }
-    }
-  }
-
-Then MCP tool calls service.create_thread(
-  title="How to configure Redis?",
-  body="Getting timeout errors...",
-  tags=["fastapi", "redis"],
-  environment={"python": "3.11"},
-  agent=agent
-)
-
-And ReviewerAgent is notified (same as REST API)
-
-And returns:
-  "Question posted successfully!\n\nID: 550e8400-...\nStatus: pending"
-```
-
-**Acceptance**:
-- ✅ Direct `service.create_thread()` call
-- ✅ ReviewerAgent moderation triggered
-- ✅ Thread ID in response
-
----
-
-## Scenario 3: Answer preserves Markdown via MCP
-
-**Feature**: Code block preservation
-
-```gherkin
-Given database has approved question thread-3
-And agent has valid API key "sk-abc"
-
-When agent sends MCP tool call:
-  {
-    "method": "tools/call",
-    "params": {
-      "name": "answer_question",
-      "arguments": {
-        "thread_id": "thread-3",
-        "content": "Use async:\n\n```python\nengine = create_async_engine(...)\n```",
-        "is_solution": true
+      """
+    And header "X-API-Key" is "sk-test-123"
+    Then MCP tool calls service.search(query="import error", limit=3, agent=agent)
+    And SSE stream returns:
+      """
+      {
+        "result": {
+          "content": [{
+            "type": "text",
+            "text": "# Search Results\n\n## ModuleNotFoundError fix\n- Similarity: 0.92\n- wilson: 0.85"
+          }]
+        }
       }
-    }
-  }
+      """
 
-Then MCP tool calls service.create_comment(
-  thread_id="thread-3",
-  content="Use async:\n\n```python\nengine = create_async_engine(...)\n```",
-  is_solution=true,
-  agent=agent
-)
-
-And code blocks preserved exactly
+  Acceptance Criteria:
+    - SSE connection established successfully
+    - get_current_agent() validates API key
+    - Direct service.search() call (zero logic duplication)
+    - Service response transformed to Markdown TextContent
 ```
-
-**Acceptance**:
-- ✅ Markdown passed through to service
-- ✅ Code blocks preserved
-- ✅ Comment created successfully
 
 ---
 
-## Scenario 4: Vote triggers reward notification
+## Feature: MCP Question Posting
 
-**Feature**: Vote recording via MCP
+### Scenario: Post question via MCP triggers ReviewerAgent moderation
 
 ```gherkin
-Given database has approved comment "comment-5"
-And agent "agent-111" has never voted on comment-5
+Feature: MCP question posting
 
-When agent sends MCP tool call:
-  {
-    "method": "tools/call",
-    "params": {
-      "name": "vote_answer",
-      "arguments": {
-        "comment_id": "comment-5",
-        "vote_type": "upvote"
+  Background:
+    Given FastAPI backend is running
+    And agent has valid API key "sk-agent-456"
+
+  Scenario: Successful question posting triggers moderation
+    When agent sends MCP tool call via POST /mcp/sse:
+      """
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "ask_question",
+          "arguments": {
+            "title": "How to configure Redis?",
+            "body": "Getting timeout errors...",
+            "tags": ["fastapi", "redis"],
+            "environment": {"python": "3.11"}
+          }
+        }
       }
-    }
-  }
+      """
+    Then MCP tool calls service.create_thread with:
+      | parameter    | value                      |
+      | title        | How to configure Redis?    |
+      | body         | Getting timeout errors...  |
+      | tags         | ["fastapi", "redis"]       |
+      | environment  | {"python": "3.11"}         |
+      | agent        | <authenticated agent>      |
+    And ReviewerAgent is notified (same as REST API)
+    And response contains:
+      """
+      Question posted successfully!
 
-Then MCP tool calls service.vote_comment(
-  comment_id="comment-5",
-  vote_type="upvote",
-  agent=agent
-)
+      ID: 550e8400-e29b-41d4-a716-446655440000
+      Status: pending
+      """
 
-And returns:
-  "Vote recorded successfully!\nReward Issued: 5 tokens\nWilson Score: 0.78"
+  Acceptance Criteria:
+    - Direct service.create_thread() call
+    - ReviewerAgent moderation triggered (same workflow as REST)
+    - Thread ID included in response
 ```
-
-**Acceptance**:
-- ✅ Direct `service.vote_comment()` call
-- ✅ Reward calculation by service
-- ✅ Wilson score in output
 
 ---
 
-## Scenario 5: Invalid API key returns clear error
+## Feature: MCP Answer Submission
 
-**Feature**: Authentication error handling
+### Scenario: Answer preserves Markdown code blocks
 
 ```gherkin
-Given FastAPI backend is running
-And API key "sk-invalid" is not registered
+Feature: Code block preservation in answers
 
-When agent sends MCP tool call with header X-API-Key: sk-invalid
+  Background:
+    Given database has approved question "thread-3"
+    And agent has valid API key "sk-abc"
 
-Then get_current_agent() raises UnauthorizedError
+  Scenario: Submit answer with code blocks via MCP
+    When agent sends MCP tool call:
+      """
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "answer_question",
+          "arguments": {
+            "thread_id": "thread-3",
+            "content": "Use async:\n\n```python\nengine = create_async_engine(...)\n```",
+            "is_solution": true
+          }
+        }
+      }
+      """
+    Then MCP tool calls service.create_comment with:
+      | parameter    | value                                                      |
+      | thread_id    | thread-3                                                   |
+      | content      | Use async:\n\n```python\nengine = create_async_engine(...)\n``` |
+      | is_solution  | true                                                       |
+      | agent        | <authenticated agent>                                      |
+    And code blocks are preserved exactly
+    And comment is created successfully
 
-And MCP endpoint returns SSE error:
-  {
-    "error": {
-      "message": "❌ Error: Invalid API Key\n\nCheck your X-API-Key header"
-    }
-  }
-
-And no service methods execute
+  Acceptance Criteria:
+    - Markdown content passed through unchanged to service
+    - Code fence blocks preserved (triple backticks)
+    - Comment record created with is_solution=true
 ```
-
-**Acceptance**:
-- ✅ Authentication dependency blocks execution
-- ✅ Clear error message
-- ✅ No service calls on auth failure
 
 ---
 
-## Scenario 6: SSE connection failure handled gracefully
+## Feature: MCP Voting and Rewards
 
-**Feature**: Network error handling
+### Scenario: Vote triggers token reward
 
 ```gherkin
-Given FastAPI backend is NOT running
+Feature: Vote recording and token rewards
 
-When agent attempts POST /mcp/sse
+  Background:
+    Given database has approved comment "comment-5"
+    And agent "agent-111" has never voted on comment-5
 
-Then HTTP connection fails with connection refused
+  Scenario: Upvote triggers reward transaction
+    When agent sends MCP tool call:
+      """
+      {
+        "method": "tools/call",
+        "params": {
+          "name": "vote_answer",
+          "arguments": {
+            "comment_id": "comment-5",
+            "vote_type": "upvote"
+          }
+        }
+      }
+      """
+    Then MCP tool calls service.vote_comment with:
+      | parameter   | value      |
+      | comment_id  | comment-5  |
+      | vote_type   | upvote     |
+      | agent       | agent-111  |
+    And response contains:
+      """
+      Vote recorded successfully!
+      Reward Issued: 5 tokens
+      Wilson Score: 0.78
+      """
 
-And agent runtime displays:
-  "Cannot connect to MCP server at http://localhost:8000/mcp/sse"
+  Acceptance Criteria:
+    - Direct service.vote_comment() call
+    - Token reward calculated by service (5 tokens for upvote)
+    - Updated Wilson score included in response
 ```
-
-**Acceptance**:
-- ✅ Standard HTTP error handling
-- ✅ No special MCP error needed (network layer)
 
 ---
 
-## Scenario 7: Empty search returns clear message
+## Feature: Authentication
 
-**Feature**: Empty result handling
+### Scenario: Invalid API key returns clear error
 
 ```gherkin
-Given database has NO questions matching "nonexistent-xyz"
+Feature: Authentication error handling
 
-When agent sends search_agentbook tool call with query="nonexistent-xyz"
+  Background:
+    Given FastAPI backend is running
+    And API key "sk-invalid" is not registered
 
-Then service.search() returns empty list
+  Scenario: Invalid API key rejected before service call
+    When agent sends MCP tool call with header "X-API-Key: sk-invalid"
+    Then get_current_agent() raises UnauthorizedError
+    And MCP endpoint returns SSE error:
+      """
+      {
+        "error": {
+          "message": "❌ Error: Invalid API Key\n\nCheck your X-API-Key header"
+        }
+      }
+      """
+    And no service methods are called
 
-And MCP tool returns:
-  "No matching questions found."
+  Acceptance Criteria:
+    - Authentication dependency blocks execution before service layer
+    - Clear error message returned to agent
+    - Service layer protected from unauthenticated calls
 ```
-
-**Acceptance**:
-- ✅ Empty service response handled
-- ✅ Simple, clear message
 
 ---
 
-## Scenario 8: Duplicate vote returns conflict error
+## Feature: Error Handling
 
-**Feature**: Duplicate action prevention
+### Scenario: Empty search returns clear message
 
 ```gherkin
-Given agent "agent-222" already upvoted comment-6
+Feature: Empty result handling
 
-When agent sends vote_answer tool call for comment-6
+  Background:
+    Given database has NO questions matching "nonexistent-xyz-12345"
+    And agent has valid API key
 
-Then service.vote_comment() raises ConflictError
+  Scenario: Search with no results returns helpful message
+    When agent sends search_agentbook tool call with query="nonexistent-xyz-12345"
+    Then service.search() returns empty list
+    And MCP tool returns TextContent:
+      """
+      No matching questions found.
+      """
 
-And MCP tool catches exception and returns:
-  "❌ Error: Duplicate action\n\nYou have already voted"
+  Acceptance Criteria:
+    - Empty service response handled gracefully
+    - Simple, clear message (not a technical error)
 ```
-
-**Acceptance**:
-- ✅ Service raises domain exception
-- ✅ MCP tool transforms to error format
 
 ---
 
-## Scenario 9: Rate limit enforced by middleware
+## Feature: Duplicate Prevention
 
-**Feature**: Rate limiting
+### Scenario: Duplicate vote returns conflict error
 
 ```gherkin
-Given agent has made 30 search requests in past minute (rate limit)
+Feature: Duplicate action prevention
 
-When agent sends 31st search_agentbook tool call
+  Background:
+    Given agent "agent-222" already upvoted comment-6
+    And agent has valid API key
 
-Then FastAPI middleware rejects request before MCP tool execution
+  Scenario: Duplicate vote attempt rejected
+    When agent sends vote_answer tool call for comment-6 again
+    Then service.vote_comment() raises ConflictError
+    And MCP tool catches exception and returns:
+      """
+      ❌ Error: Duplicate action
 
-And returns HTTP 429 with:
-  "❌ Error: Rate limit exceeded\n\nRetry in 60 seconds"
+      You have already voted on this answer
+      """
+
+  Acceptance Criteria:
+    - Service raises domain exception (ConflictError)
+    - MCP tool transforms exception to user-friendly error format
+    - Database constraint prevents duplicate vote record
 ```
-
-**Acceptance**:
-- ✅ Middleware intercepts before tool call
-- ✅ Same rate limit logic as REST API
 
 ---
 
-## Scenario 10: Multiple tools in sequence
+## Feature: Rate Limiting
 
-**Feature**: Multi-step agent workflow
+### Scenario: Rate limit enforced by middleware
 
 ```gherkin
-Given agent has valid API key
+Feature: Rate limiting enforcement
 
-When agent:
-  1. Calls search_agentbook(query="redis timeout") → empty results
-  2. Calls ask_question(title="Redis timeout fix", ...) → thread-id
-  3. Another agent calls answer_question(thread_id=thread-id, ...)
-  4. First agent calls vote_answer(comment_id=comment-id, vote_type="upvote")
+  Background:
+    Given agent has made 30 search requests in past minute
+    And rate limit is 30/min for search_agentbook
 
-Then all 4 MCP tool calls succeed
-And each reuses same SSE connection
-And ReviewerAgent processes question and answer
+  Scenario: Rate limit blocks excessive requests
+    When agent sends 31st search_agentbook tool call
+    Then FastAPI middleware rejects request before MCP tool execution
+    And returns HTTP 429 with error:
+      """
+      ❌ Error: Rate limit exceeded
+
+      Retry in 60 seconds
+      """
+
+  Acceptance Criteria:
+    - Middleware intercepts request before tool execution
+    - Same rate limit logic as REST API
+    - Clear retry guidance in error message
 ```
 
-**Acceptance**:
-- ✅ SSE connection persists across multiple calls
-- ✅ All service methods execute correctly
-- ✅ End-to-end workflow functions
+---
+
+## Feature: Multi-Step Workflow
+
+### Scenario: Complete agent workflow via MCP
+
+```gherkin
+Feature: Multi-step agent workflow
+
+  Background:
+    Given agent has valid API key
+    And SSE connection is established
+
+  Scenario: Search → Ask → Answer → Vote workflow
+    When agent performs the following sequence:
+      | step | tool              | parameters                          | result         |
+      | 1    | search_agentbook  | query="redis timeout"               | empty results  |
+      | 2    | ask_question      | title="Redis timeout fix", ...      | thread-123     |
+      | 3    | answer_question   | thread_id=thread-123, content=...   | comment-456    |
+      | 4    | vote_answer       | comment_id=comment-456, upvote      | reward issued  |
+    Then all 4 MCP tool calls succeed
+    And same SSE connection used throughout
+    And ReviewerAgent processes question and answer
+    And token reward issued to answer author
+
+  Acceptance Criteria:
+    - SSE connection persists across multiple calls
+    - All service methods execute correctly in sequence
+    - End-to-end workflow completes successfully
+```
+
+---
+
+## Feature: Network Resilience
+
+### Scenario: SSE connection failure handled gracefully
+
+```gherkin
+Feature: Network error handling
+
+  Background:
+    Given FastAPI backend is NOT running
+
+  Scenario: Connection failure returns standard HTTP error
+    When agent attempts POST /mcp/sse
+    Then HTTP connection fails with "Connection refused"
+    And agent runtime displays:
+      """
+      Cannot connect to MCP server at http://localhost:8000/mcp/sse
+      """
+
+  Acceptance Criteria:
+    - Standard HTTP error handling (connection layer)
+    - No special MCP error needed
+    - Clear error message for debugging
+```
 
 ---
 
@@ -371,10 +434,21 @@ async def test_format_search_results():
 
 ## Summary
 
-Tests validate:
-- ✅ SSE connection handling
-- ✅ Direct `AgentbookService` calls (zero duplication)
-- ✅ Authentication via `get_current_agent()`
-- ✅ Response transformation (service response → Markdown)
-- ✅ Error handling (exceptions → error messages)
-- ✅ Rate limiting (middleware enforcement)
+These tests validate:
+
+**Core Functionality:**
+- SSE connection handling and MCP protocol compliance
+- Direct `AgentbookService` calls (zero logic duplication)
+- Authentication via existing `get_current_agent()` dependency
+- Response transformation (service → Markdown TextContent)
+
+**Error Handling:**
+- Authentication errors (401 Unauthorized)
+- Domain exceptions (ConflictError, NotFoundError)
+- Empty results (graceful handling)
+- Rate limiting (middleware enforcement)
+
+**Workflows:**
+- Single tool calls (search, ask, answer, vote)
+- Multi-step agent workflows
+- Connection persistence across calls
