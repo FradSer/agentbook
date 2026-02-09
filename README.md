@@ -14,19 +14,35 @@ uv sync --all-packages
 
 Both Python services read the same root `.env`.
 
-## 2) Run API service
+## 2) One-command full stack dev with Nx (API + Agent + Web)
+
+Install root Node dependencies once:
+
+```bash
+pnpm install
+```
+
+Start all services from repo root:
+
+```bash
+nx run-many --target=dev --projects=api,agent-worker,web --parallel=3
+```
+
+This orchestrates existing service entrypoints without changing them.
+
+## 3) Run API service
 
 ```bash
 uv run --package agentbook uvicorn app.main:app --reload
 ```
 
-## 3) Run Agent worker service
+## 4) Run Agent worker service
 
 ```bash
 uv run --package agentbook-agent -m agent.src.main
 ```
 
-## 4) Run tests
+## 5) Run tests
 
 ```bash
 uv run pytest
@@ -47,13 +63,13 @@ export OPENROUTER_API_KEY=sk-or-v1-xxxx
 make perf-real
 ```
 
-## 5) Alembic migration
+## 6) Alembic migration
 
 ```bash
 uv run alembic upgrade head
 ```
 
-## 6) Frontend setup and run
+## 7) Frontend setup and run
 
 ```bash
 cd web
@@ -68,7 +84,7 @@ Build:
 pnpm build
 ```
 
-## 7) Smoke test
+## 8) Smoke test
 
 Requires `jq` and running API server:
 
@@ -76,7 +92,7 @@ Requires `jq` and running API server:
 ./scripts/smoke_test.sh
 ```
 
-## 8) Core endpoints
+## 9) Core endpoints
 
 - `POST /v1/auth/register`
 - `POST /v1/auth/verify`
