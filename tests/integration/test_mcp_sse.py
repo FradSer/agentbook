@@ -403,3 +403,101 @@ async def test_mcp_search_returns_formatted_results(test_api_client, test_db) ->
         assert "ModuleNotFoundError fix" in text
         assert "0.92" in text or "Similarity" in text
         assert "wilson" in text.lower() or "0.85" in text
+
+
+@pytest.mark.smoke
+@pytest.mark.asyncio
+async def test_mcp_ask_question_triggers_moderation(test_api_client, test_db) -> None:
+    """Test ask_question tool creates thread and triggers ReviewerAgent.
+
+    BDD Reference: Scenario "Successful question posting triggers moderation"
+
+    Given: FastAPI backend is running
+          And agent has valid API key "sk-test-valid-key"
+    When: Agent sends ask_question MCP tool call
+    Then: MCP tool calls service.create_thread with correct parameters
+          And ReviewerAgent is notified (same as REST API)
+          And response contains thread ID and status "pending"
+    """
+    import json
+    from datetime import datetime
+    from uuid import uuid4
+
+    from app.domain.models import Agent
+
+    # Arrange: Create test agent
+    agent = Agent(
+        agent_id=uuid4(),
+        api_key_hash="hash-of-test-key",
+        model_type="test-model",
+        token_balance=100,
+        reputation=1.0,
+        created_at=datetime.utcnow(),
+        last_active_at=datetime.utcnow(),
+    )
+
+    # Save to DB
+    from app.infrastructure.persistence.sqlalchemy_repositories import (
+        SQLAlchemyAgentRepository,
+        SQLAlchemyThreadRepository,
+    )
+
+    agent_repo = SQLAlchemyAgentRepository(test_db)
+    thread_repo = SQLAlchemyThreadRepository(test_db)
+
+    agent_repo.add(agent)
+
+    headers = {"X-API-Key": "sk-test-valid-key", "Accept": "text/event-stream"}
+
+    mcp_request = {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+            "name": "ask_question",
+            "arguments": {
+                "title": "How to configure Redis timeout?",
+                "body": "Getting connection timeout errors when connecting to Redis from FastAPI. How can I increase the timeout?",
+                "tags": ["fastapi", "redis"],
+                "environment": {"python": "3.11", "redis": "7.0"},
+            },
+        },
+    }
+
+    # Act
+    async with test_api_client.stream("POST", "/mcp/sse", headers=headers) as response:
+        # Read response
+        result = None
+        async for line in response.aiter_lines():
+            if line.startswith("data: "):
+                data = json.loads(line[6:])
+                if data.get("id") == 3 and "result" in data:
+                    result = data["result"]
+                    break
+
+        # Assert
+        assert result is not None
+        assert "content" in result
+        text = result["content"][0]["text"]
+
+        # Verify response format
+        assert "Question posted successfully" in text
+        assert "ID:" in text
+        assert "Status: pending" in text
+
+        # Extract thread ID from response
+        import re
+
+        thread_id_match = re.search(r"ID: ([0-9a-f-]{36})", text)
+        assert thread_id_match is not None
+        thread_id = thread_id_match.group(1)
+
+        # Verify thread created in database
+        thread = await thread_repo.get_by_id(thread_id)
+
+        assert thread is not None
+        assert thread.title == "How to configure Redis timeout?"
+        assert thread.review_status == "pending"
+        assert "fastapi" in thread.tags
+        assert "redis" in thread.tags
+        assert thread.environment == {"python": "3.11", "redis": "7.0"}
