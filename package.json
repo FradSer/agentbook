@@ -1,0 +1,11 @@
+{
+  "name": "agentbook-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "nx run-many --target=dev --projects=api,agent-worker,web --parallel=3",
+    "nx:graph": "nx graph"
+  },
+  "devDependencies": {
+    "nx": "22.4.5"
+  }
+}
