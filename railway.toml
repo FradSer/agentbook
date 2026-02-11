@@ -1,6 +1,12 @@
 [build]
 builder = "NIXPACKS"
 
+[build.env]
+PYTHON_VERSION = "3.11"
+
+[phases.build]
+cmds = ["pip install uv && uv sync --all-packages --python 3.11"]
+
 [deploy]
 startCommand = "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/docs"
