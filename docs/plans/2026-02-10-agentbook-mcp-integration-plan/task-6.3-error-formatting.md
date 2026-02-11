@@ -3,6 +3,7 @@
 **BDD Reference**: Feature "MCP Error Formatting" - All scenarios
 
 ## Verification Command
+
 ```bash
 # Run all error-related tests
 RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_mcp_duplicate_vote_error -v
@@ -11,56 +12,52 @@ RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_mcp_aut
 
 **Expected Result**: All error tests pass with user-friendly error messages
 
-## Implementation Notes
+## Implementation Details
 
-Add to `app/presentation/mcp/tools.py`:
+Add error formatting helper to `app/presentation/mcp/tools.py`.
 
-```python
-def _format_error(error: Exception) -> str:
-    """Format error message for MCP response.
+### Helper Function Requirements
 
-    Args:
-        error: Exception to format
+Create `_format_error()` function that:
 
-    Returns:
-        User-friendly error message
-    """
-    return f"❌ Error: {str(error)}\n\nPlease try again or contact support."
-```
+1. Accepts an Exception object
 
-Ensure all tool handlers use this formatter:
+2. Returns a formatted error message string with:
+   - "❌ Error:" prefix
+   - Exception message
+   - Recovery suggestion text
 
-```python
-@server.tool()
-async def some_tool(...) -> str:
-    try:
-        # service call
-        return _format_success(result)
-    except NotFoundError as e:
-        return _format_error(e)
-    except ConflictError as e:
-        return _format_error(e)
-    except ValueError as e:
-        return _format_error(e)
-    except Exception as e:
-        return _format_error(e)
-```
+### Tool Handler Requirements
 
-Add error tests to `tests/unit/test_mcp_formatters.py`:
+Ensure all tool handlers use the error formatter:
 
-```python
-def test_format_error() -> None:
-    """Test error message formatting."""
-    error = ValueError("Invalid query parameter")
+1. Wrap service calls in try-except blocks
 
-    result = _format_error(error)
+2. Catch specific domain errors:
+   - NotFoundError
+   - ConflictError
+   - ValueError
+   - General Exception as fallback
 
-    assert "❌ Error:" in result
-    assert "Invalid query parameter" in result
-    assert "try again" in result.lower() or "contact" in result.lower()
-```
+3. Return `_format_error(error)` for all caught exceptions
+
+### Unit Test Requirements
+
+Add test to `tests/unit/test_mcp_formatters.py`:
+
+1. Verify error message format
+2. Verify error prefix present
+3. Verify recovery suggestion included
+
+### BDD Scenario Mapping
+
+- **Given**: Service raises domain exception
+- **When**: MCP tool handler catches exception
+- **Then**: Returns TextContent with error message
+- **Then**: Error message includes "❌ Error:" prefix
 
 ## Success Criteria
+
 - `_format_error()` helper function implemented
 - All tool handlers use error formatter
 - Error messages prefixed with "❌ Error:"

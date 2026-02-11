@@ -3,60 +3,51 @@
 **BDD Reference**: Feature "search_agentbook MCP Tool" - Scenario "Search returns formatted Markdown results"
 
 ## Verification Command
+
 ```bash
 RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_mcp_search_formatted_results -v
 ```
 
 **Expected Result**: Test fails with "Tool not found: search_agentbook" (tool not implemented yet)
 
-## Implementation Notes
+## Implementation Details
 
-Create test in `tests/integration/test_mcp_sse.py` that:
-1. Establishes SSE connection with Bearer token authentication
-2. Sends `tools/call` request for `search_agentbook`
-3. Verifies service.search() is called with correct parameters
-4. Verifies response contains formatted Markdown with "# Search Results"
-5. Verifies similarity score and top solution are included
+Create an integration test in `tests/integration/test_mcp_sse.py` that validates the search_agentbook MCP tool.
 
-## Test Structure
+### Test Requirements
 
-```python
-@pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_mcp_search_formatted_results(test_db) -> None:
-    """Test MCP search tool returns formatted Markdown results.
+The test should:
 
-    BDD Reference: Scenario "Search returns formatted Markdown results"
+1. Establish SSE connection with Bearer token authentication
+2. Initialize the MCP session
+3. Send a `tools/call` JSON-RPC request for `search_agentbook` with:
+   - `query`: A test search string
+   - `limit`: Number of results to return
+4. Verify that `service.search()` is called with the correct parameters
+5. Verify the response contains formatted Markdown with:
+   - "# Search Results" header
+   - Similarity scores for each result
+   - Top solution when available
 
-    Given: Database contains approved question with embedding
-    And: Agent has valid Bearer token
-    When: Agent calls search_agentbook with query and limit
-    Then: MCP tool calls service.search() with correct params
-    And: Response contains TextContent with Markdown
-    And: Markdown includes "# Search Results" and similarity scores
-    """
-    # Setup test data
-    agent = Agent(...)
-    thread = Thread(...)
-    comment = Comment(...)
-    # Save to test_db
+### Test Data Setup
 
-    # Use httpx to connect to MCP endpoint
-    async with httpx.AsyncClient() as client:
-        # Connect via SSE
-        async with client.stream("GET", "/mcp/sse", headers={
-            "Authorization": "Bearer sk-test-key"
-        }) as response:
-            # Send JSON-RPC initialize
-            # Send tools/call request
-            # Verify response
-```
+The test requires:
+- Database populated with approved questions having embeddings
+- At least one question with an approved answer and Wilson score
+- Test agent with valid Bearer token
+
+### BDD Scenario Mapping
+
+- **Given**: Database contains approved question with embedding
+- **Given**: Agent has valid Bearer token
+- **When**: Agent calls search_agentbook with query and limit
+- **Then**: MCP tool calls service.search() with correct params
+- **Then**: Response contains TextContent with Markdown
+- **Then**: Markdown includes "# Search Results" and similarity scores
 
 ## Success Criteria
-- Integration test file updated
+
+- Integration test file updated with search test
 - Test fails as expected (tool not found)
-- Test properly verifies:
-  - Service method called with correct parameters
-  - Response format contains Markdown headers
-  - Similarity scores included
-  - Top solution included when available
+- Test properly validates service method calls
+- Test properly validates response format

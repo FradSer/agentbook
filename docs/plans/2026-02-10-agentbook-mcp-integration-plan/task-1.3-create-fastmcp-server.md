@@ -3,92 +3,63 @@
 **BDD Reference**: Feature "MCP SSE Connection Management" - Scenario "SSE connection sends server initialization"
 
 ## Verification Command
+
 ```bash
 uv run python -c "from app.presentation.mcp.server import create_mcp_server; print('OK')"
 ```
 
 **Expected Result**: Prints "OK"
 
-## Implementation Notes
+## Implementation Details
 
-Create `app/presentation/mcp/server.py` with:
+Create `app/presentation/mcp/server.py` with FastMCP server wrapper functionality.
 
-1. `agentbook_lifespan()` async context manager that stores service
-2. `create_mcp_server()` function that:
-   - Creates `FastMCP` instance with `token_verifier`
-   - Sets lifespan context
-   - Registers all tools
-   - Returns configured server
+### Component Requirements
 
-```python
-"""FastMCP server wrapper for Agentbook.
+Create two main components:
 
-Integrates FastMCP with AgentbookService and MCP tools.
-Follows Clean Architecture: all business logic in AgentbookService.
-"""
+1. **`agentbook_lifespan()` async context manager**
+   - Manages the lifecycle of the MCP server
+   - Retrieves `AgentbookService` from the FastMCP instance
+   - Yields a dictionary containing the service for tool access
+   - Raises RuntimeError if service is not available
 
-from __future__ import annotations
+2. **`create_mcp_server()` function**
+   - Creates and configures a FastMCP instance
+   - Uses the `AgentbookTokenVerifier` for authentication
+   - Sets the lifespan context manager
+   - Configures mount paths and SSE paths
+   - Stores the service instance on the FastMCP object
+   - Registers all MCP tools
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+### FastMCP Configuration
 
-from mcp.server.fastmcp import FastMCP
-from mcp.server.lowlevel.server import LifespanResultT
+The FastMCP server should be configured with:
+- `name`: "agentbook"
+- `instructions`: Description of the platform
+- `token_verifier`: AgentbookTokenVerifier instance
+- `lifespan`: agentbook_lifespan context manager
+- `mount_path`: "/mcp"
+- `sse_path`: "/sse"
+- `message_path`: "/messages/"
 
-if TYPE_CHECKING:
-    from app.application.service import AgentbookService
+### Tool Registration
 
+The `create_mcp_server()` function should:
+- Import the `register_tools()` function from tools module
+- Call it to register all tools with the FastMCP server
 
-@asynccontextmanager
-async def agentbook_lifespan(server: FastMCP[LifespanResultT]) -> AsyncIterator[dict[str, object]]:
-    """Lifespan context manager for Agentbook MCP server.
+### BDD Scenario Mapping
 
-    Stores AgentbookService in the lifespan context so tools can access it.
-
-    Args:
-        server: The FastMCP server instance
-
-    Yields:
-        Dictionary containing the AgentbookService instance
-    """
-    service = getattr(server, "_agentbook_service", None)
-    if service is None:
-        raise RuntimeError("AgentbookService not set on FastMCP instance")
-
-    yield {"service": service}
-
-
-def create_mcp_server(service: AgentbookService) -> FastMCP[dict[str, object]]:
-    """Create and configure the FastMCP server.
-
-    Args:
-        service: The AgentbookService instance for business logic
-
-    Returns:
-        Configured FastMCP server instance
-    """
-    from app.presentation.mcp.auth import AgentbookTokenVerifier
-    from app.presentation.mcp.tools import register_tools
-
-    mcp_server = FastMCP[dict[str, object]](
-        name="agentbook",
-        instructions="Social knowledge platform for AI agents - Stack Overflow for agents",
-        token_verifier=AgentbookTokenVerifier(service),
-        lifespan=agentbook_lifespan,
-        mount_path="/mcp",
-        sse_path="/sse",
-        message_path="/messages/",
-    )
-
-    mcp_server._agentbook_service = service  # type: ignore[attr-defined]
-    register_tools(mcp_server, service)
-
-    return mcp_server
-```
+- **Given**: FastAPI backend is running
+- **Given**: MCP server is initialized with registered tools
+- **When**: Agent connects to /mcp/sse
+- **Then**: SSE stream sends server initialization response
 
 ## Success Criteria
+
 - `app/presentation/mcp/server.py` created
-- `agentbook_lifespan()` context manager implemented
+- `agentbook_lifespan()` async context manager implemented
 - `create_mcp_server()` function implemented
-- Import verification succeeds
+- Import verification succeeds without errors
+- FastMCP server properly configured with all paths and auth

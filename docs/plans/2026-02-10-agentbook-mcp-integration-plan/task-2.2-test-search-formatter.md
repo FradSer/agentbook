@@ -3,106 +3,61 @@
 **BDD Reference**: Feature "search_agentbook MCP Tool" - Scenario "Search returns formatted Markdown results"
 
 ## Verification Command
+
 ```bash
 uv run pytest tests/unit/test_mcp_formatters.py::test_format_search_results -v
 ```
 
 **Expected Result**: Test fails with "ModuleNotFoundError" (formatting function not implemented yet)
 
-## Implementation Notes
+## Implementation Details
 
-Create test in `tests/unit/test_mcp_formatters.py`:
+Create unit tests in `tests/unit/test_mcp_formatters.py` for the search results formatting function.
 
-```python
-def test_format_search_results() -> None:
-    """Test Markdown formatting of search results.
+### Test Requirements
 
-    BDD Reference: Scenario "Search returns formatted Markdown results"
-    """
-    results = [
-        {
-            "thread_id": "550e8400-e29b-41d4-a716-446655440000",
-            "title": "How to fix ModuleNotFoundError?",
-            "tags": ["python", "import"],
-            "similarity_score": 0.92,
-            "created_at": "2026-02-07T10:00:00Z",
-            "top_solution": {
-                "wilson_score": 0.85,
-                "content_preview": "Install the package: `pip install module-name`"
-            }
-        }
-    ]
+Create tests that verify the `_format_search_results()` function handles:
 
-    result = _format_search_results(results)
+1. **Normal case with results**
+   - Input: List of search results with thread_id, title, tags, similarity_score, and top_solution
+   - Expected output: Markdown with "# Search Results" header, result details, and top solution
 
-    assert "# Search Results" in result
-    assert "## How to fix ModuleNotFoundError?" in result
-    assert "- ID: 550e8400-e29b-41d4-a716-446655440000" in result
-    assert "- Tags: python, import" in result
-    assert "- Similarity: 0.92" in result
-    assert "**Top Solution**" in result
-    assert "wilson: 0.85" in result
-    assert "Install the package:" in result
-    assert "Found 1 matching question(s)." in result
+2. **Empty results**
+   - Input: Empty list
+   - Expected output: "No matching questions found."
 
+3. **Results without top solution**
+   - Input: Results with no top_solution field or None value
+   - Expected output: Results displayed without "Top Solution" section
 
-def test_format_search_results_empty() -> None:
-    """Test formatting when no results found."""
-    result = _format_search_results([])
+4. **Multiple results**
+   - Input: Multiple search results
+   - Expected output: All results displayed in order with proper formatting
 
-    assert result == "No matching questions found."
+### Formatting Requirements
 
+The formatted output should include:
+- "# Search Results" header
+- For each result:
+  - "## {title}" subheader
+  - "- ID: {thread_id}"
+  - "- Tags: {comma-separated tags}"
+  - "- Similarity: {score:.2f}"
+  - "**Top Solution** (wilson: {score:.2f}):" if solution exists
+  - Solution content preview if available
+- "---" separator and "Found {count} matching question(s)." at the end
 
-def test_format_search_results_no_solution() -> None:
-    """Test formatting for thread without top solution."""
-    results = [
-        {
-            "thread_id": "thread-1",
-            "title": "Unsolved question",
-            "tags": ["python"],
-            "similarity_score": 0.75,
-            "created_at": "2026-02-07T10:00:00Z",
-            "top_solution": None
-        }
-    ]
+### BDD Scenario Mapping
 
-    result = _format_search_results(results)
-
-    assert "# Search Results" in result
-    assert "## Unsolved question" in result
-    assert "**Top Solution**" not in result
-
-
-def test_format_search_results_multiple() -> None:
-    """Test formatting with multiple search results."""
-    results = [
-        {
-            "thread_id": "thread-1",
-            "title": "Question 1",
-            "tags": ["python"],
-            "similarity_score": 0.95,
-            "created_at": "2026-02-07T10:00:00Z",
-            "top_solution": None
-        },
-        {
-            "thread_id": "thread-2",
-            "title": "Question 2",
-            "tags": ["fastapi"],
-            "similarity_score": 0.82,
-            "created_at": "2026-02-07T11:00:00Z",
-            "top_solution": None
-        }
-    ]
-
-    result = _format_search_results(results)
-
-    assert "## Question 1" in result
-    assert "## Question 2" in result
-    assert "Found 2 matching question(s)." in result
-```
+- **Given**: Search returns results with similarity scores
+- **When**: Formatter processes search results
+- **Then**: Output contains Markdown with "# Search Results"
+- **Then**: Similarity scores displayed with 2 decimal places
+- **Then**: Results ordered by similarity descending
 
 ## Success Criteria
-- Unit test file updated
-- Test fails as expected (function not found)
+
+- Unit test file created or updated
+- Test fails as expected (function not yet implemented)
 - Test covers: normal case, empty results, no solution, multiple results
-- Test verifies Markdown formatting is correct
+- Test verifies Markdown formatting correctness

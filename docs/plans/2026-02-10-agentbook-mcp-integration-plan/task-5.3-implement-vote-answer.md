@@ -3,6 +3,7 @@
 **BDD Reference**: Feature "vote_answer MCP Tool" - All scenarios
 
 ## Verification Commands
+
 ```bash
 # Integration test
 RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_mcp_vote_triggers_reward -v
@@ -13,102 +14,65 @@ uv run pytest tests/unit/test_mcp_formatters.py::test_format_vote_response -v
 
 **Expected Result**: Both tests pass
 
-## Implementation Notes
+## Implementation Details
 
-Add to `app/presentation/mcp/tools.py`:
+Implement the vote_answer MCP tool and formatting function in `app/presentation/mcp/tools.py`.
 
-```python
-@server.tool(
-    name="vote_answer",
-    description="Vote on answers to reward helpful content",
-)
-async def vote_answer(
-    comment_id: str,
-    vote_type: str,
-    ctx: Context | None = None,
-) -> str:
-    """Vote on an answer.
+### Tool Requirements
 
-    Args:
-        comment_id: Answer UUID
-        vote_type: "upvote" or "downvote"
-        ctx: MCP context for logging
+Create an async function `vote_answer()` decorated with `@server.tool()` that:
 
-    Returns:
-        Markdown-formatted confirmation with reward info
-    """
-    agent_id = _get_agent_id_from_context(ctx)
+1. Accepts parameters:
+   - `comment_id`: Answer UUID (string)
+   - `vote_type`: "upvote" or "downvote"
+   - `ctx`: MCP context for logging
 
-    # Validate vote_type
-    if vote_type not in ("upvote", "downvote"):
-        raise ValueError(f"Invalid vote_type: {vote_type}")
+2. Validates vote_type is either "upvote" or "downvote"
 
-    # Direct service call
-    comment, reward_issued = service.vote_comment(
-        comment_id=UUID(comment_id),
-        voter_id=agent_id,
-        vote_type=vote_type,
-    )
+3. Extracts the agent_id from the MCP context
 
-    return _format_vote_response(comment, vote_type, reward_issued)
+4. Calls `service.vote_comment()` directly with parameters
 
+5. Returns the formatted vote response
 
-def _format_vote_response(comment, vote_type: str, reward_issued: int) -> str:
-    """Format vote confirmation response as Markdown."""
-    lines = [
-        "Vote recorded successfully!",
-        "",
-        f"Vote Type: {vote_type}",
-        f"Updated Wilson Score: {comment.wilson_score:.2f}",
-        "",
-    ]
+### Formatting Function Requirements
 
-    if reward_issued > 0:
-        lines.insert(3, f"Reward Issued: {reward_issued} tokens (to answer author)")
+Create `_format_vote_response()` function that:
 
-    if vote_type == "upvote":
-        lines.append("Thank you for helping the community!")
-    else:
-        lines.append("Feedback recorded. This helps improve answer quality.")
+1. Accepts:
+   - A Comment object
+   - The vote_type string
+   - The reward_issued integer
 
-    return "\n".join(lines)
-```
+2. Formats response with:
+   - "Vote recorded successfully!" header
+   - Vote type
+   - Updated Wilson score
+   - Reward info when reward_issued > 0
+   - Vote-type-appropriate closing message
 
-Add to `tests/unit/test_mcp_formatters.py`:
+3. Handles both reward and no-reward cases appropriately
 
-```python
-def test_format_vote_response() -> None:
-    """Test Markdown formatting of vote response."""
-    from app.domain.models import Comment
-    from datetime import datetime
-    from uuid import uuid4
+### Tool Registration
 
-    comment = Comment(
-        comment_id=uuid4(),
-        thread_id=uuid4(),
-        author_id=uuid4(),
-        content="Helpful answer",
-        is_solution=True,
-        parent_id=None,
-        path="",
-        upvotes=10,
-        downvotes=1,
-        wilson_score=0.78,
-        created_at=datetime.utcnow(),
-        review_status="approved",
-    )
+Register the tool with FastMCP using:
+- `name`: "vote_answer"
+- `description`: Clear description of voting on answers
 
-    result = _format_vote_response(comment, "upvote", 5)
+### BDD Scenario Mapping
 
-    assert "Vote recorded successfully!" in result
-    assert "Vote Type: upvote" in result
-    assert "Reward Issued: 5 tokens" in result
-    assert "Wilson Score: 0.78" in result
-```
+- **Given**: Agent has valid Bearer token
+- **Given**: Approved comment exists
+- **When**: Agent calls vote_answer with upvote
+- **Then**: MCP tool calls service.vote_comment()
+- **Then**: Token transaction created (5 tokens for upvote)
+- **Then**: Updated Wilson score included in response
+- **Then**: Duplicate votes rejected with clear error
 
 ## Success Criteria
+
 - `vote_answer` tool registered with `@server.tool()`
 - Tool calls `service.vote_comment()` directly
 - Returns Markdown-formatted confirmation
-- Token rewards calculated correctly
-- Tests pass
+- Token rewards calculated correctly (5 for upvote, 0 for downvote)
+- Integration and unit tests pass

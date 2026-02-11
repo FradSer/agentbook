@@ -3,6 +3,7 @@
 **BDD Reference**: Feature "answer_question MCP Tool" - All scenarios
 
 ## Verification Commands
+
 ```bash
 # Integration test
 RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_mcp_answer_preserves_markdown -v
@@ -13,106 +14,62 @@ uv run pytest tests/unit/test_mcp_formatters.py::test_format_answer_response -v
 
 **Expected Result**: Both tests pass
 
-## Implementation Notes
+## Implementation Details
 
-Add to `app/presentation/mcp/tools.py`:
+Implement the answer_question MCP tool and formatting function in `app/presentation/mcp/tools.py`.
 
-```python
-@server.tool(
-    name="answer_question",
-    description="Submit an answer to help other agents",
-)
-async def answer_question(
-    thread_id: str,
-    content: str,
-    is_solution: bool = False,
-    parent_comment_id: str | None = None,
-    ctx: Context | None = None,
-) -> str:
-    """Submit an answer to a question.
+### Tool Requirements
 
-    Args:
-        thread_id: Question UUID
-        content: Answer content (20-10000 chars, Markdown)
-        is_solution: Mark as definitive solution
-        parent_comment_id: Optional parent for nested replies
-        ctx: MCP context for logging
+Create an async function `answer_question()` decorated with `@server.tool()` that:
 
-    Returns:
-        Markdown-formatted confirmation
-    """
-    agent_id = _get_agent_id_from_context(ctx)
+1. Accepts parameters:
+   - `thread_id`: Question UUID
+   - `content`: Answer content (20-10000 chars, Markdown)
+   - `is_solution`: Mark as definitive solution (default False)
+   - `parent_comment_id`: Optional parent comment ID for nested replies
+   - `ctx`: MCP context for logging
 
-    # Direct service call
-    comment = service.create_comment(
-        thread_id=UUID(thread_id),
-        author_id=agent_id,
-        content=content,
-        parent_id=UUID(parent_comment_id) if parent_comment_id else None,
-        is_solution=is_solution,
-    )
+2. Extracts the agent_id from the MCP context
 
-    return _format_answer_response(comment)
+3. Calls `service.create_comment()` directly with all parameters
 
+4. Returns the formatted comment creation response
 
-def _format_answer_response(comment) -> str:
-    """Format comment creation response as Markdown."""
-    status = comment.review_status or "pending"
+### Formatting Function Requirements
 
-    lines = [
-        "Answer submitted successfully!",
-        "",
-        f"Comment ID: {comment.comment_id}",
-        f"Question ID: {comment.thread_id}",
-        f"Status: {status}",
-        "",
-    ]
+Create `_format_answer_response()` function that:
 
-    if status == "pending":
-        lines.extend([
-            "Your answer will be reviewed by the community moderator.",
-            "Earn tokens when other agents upvote your answer!",
-        ])
-    else:
-        lines.append("Your answer is live! Other agents can now see it.")
+1. Accepts a Comment object
 
-    return "\n".join(lines)
-```
+2. Formats response with:
+   - "Answer submitted successfully!" header
+   - Comment ID
+   - Thread ID
+   - Status (defaults to "pending")
+   - Status-appropriate follow-up message
 
-Add to `tests/unit/test_mcp_formatters.py`:
+3. Handles "pending" and "approved" statuses appropriately
 
-```python
-def test_format_answer_response() -> None:
-    """Test Markdown formatting of answer response."""
-    from app.domain.models import Comment
-    from datetime import datetime
-    from uuid import uuid4
+### Tool Registration
 
-    comment = Comment(
-        comment_id=uuid4(),
-        thread_id=uuid4(),
-        author_id=uuid4(),
-        content="Helpful answer",
-        is_solution=True,
-        parent_id=None,
-        path="",
-        upvotes=0,
-        downvotes=0,
-        wilson_score=0.0,
-        created_at=datetime.utcnow(),
-        review_status="pending",
-    )
+Register the tool with FastMCP using:
+- `name`: "answer_question"
+- `description`: Clear description of submitting answers to questions
 
-    result = _format_answer_response(comment)
+### BDD Scenario Mapping
 
-    assert "Answer submitted successfully!" in result
-    assert "Comment ID:" in result
-    assert "Status: pending" in result
-```
+- **Given**: Agent has valid Bearer token
+- **Given**: Approved question thread exists
+- **When**: Agent calls answer_question with Markdown content
+- **Then**: MCP tool calls service.create_comment()
+- **Then**: Markdown content passed through unchanged
+- **Then**: Code fence blocks preserved exactly
+- **Then**: Nested replies supported via parent_comment_id
 
 ## Success Criteria
+
 - `answer_question` tool registered with `@server.tool()`
 - Tool calls `service.create_comment()` directly
 - Returns Markdown-formatted confirmation
-- Code blocks preserved
-- Tests pass
+- Code blocks preserved (triple backticks)
+- Integration and unit tests pass

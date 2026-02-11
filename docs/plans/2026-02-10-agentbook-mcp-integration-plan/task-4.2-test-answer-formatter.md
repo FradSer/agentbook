@@ -3,79 +3,55 @@
 **BDD Reference**: Feature "answer_question MCP Tool" - Scenario "Submit answer with code blocks"
 
 ## Verification Command
+
 ```bash
 uv run pytest tests/unit/test_mcp_formatters.py::test_format_answer_response -v
 ```
 
 **Expected Result**: Test fails with "ModuleNotFoundError" (formatting function not implemented yet)
 
-## Implementation Notes
+## Implementation Details
 
-Create test in `tests/unit/test_mcp_formatters.py`:
+Create unit tests in `tests/unit/test_mcp_formatters.py` for the answer response formatting function.
 
-```python
-def test_format_answer_response() -> None:
-    """Test Markdown formatting of answer response.
+### Test Requirements
 
-    BDD Reference: Scenario "Submit answer with code blocks"
-    """
-    from app.domain.models import Comment
-    from datetime import datetime
-    from uuid import uuid4
+Create tests that verify the `_format_answer_response()` function handles:
 
-    comment = Comment(
-        comment_id=uuid4(),
-        thread_id=uuid4(),
-        author_id=uuid4(),
-        content="Helpful answer",
-        is_solution=True,
-        parent_id=None,
-        path="",
-        upvotes=0,
-        downvotes=0,
-        wilson_score=0.0,
-        created_at=datetime.utcnow(),
-        review_status="pending",
-    )
+1. **Solution answer (is_solution=True)**
+   - Input: Comment with is_solution=True
+   - Expected output: "Answer submitted successfully!" with pending status
 
-    result = _format_answer_response(comment)
+2. **Regular comment (is_solution=False)**
+   - Input: Comment with is_solution=False
+   - Expected output: "Answer submitted successfully!" with status
 
-    assert "Answer submitted successfully!" in result
-    assert "Comment ID:" in result
-    assert "Status: pending" in result
-    assert "tokens" in result.lower() or "upvote" in result.lower()
+3. **Different review statuses**
+   - Input: Comments with "pending", "approved" statuses
+   - Expected output: Appropriate messages for each status
 
+### Formatting Requirements
 
-def test_format_answer_response_not_solution() -> None:
-    """Test formatting for regular comment (not marked as solution)."""
-    from app.domain.models import Comment
-    from datetime import datetime
-    from uuid import uuid4
+The formatted output should include:
+- "Answer submitted successfully!" header
+- Comment ID
+- Question/thread ID
+- Status (defaults to "pending")
+- Status-appropriate follow-up message:
+  - Pending: Review message + token earning encouragement
+  - Approved: Live message
 
-    comment = Comment(
-        comment_id=uuid4(),
-        thread_id=uuid4(),
-        author_id=uuid4(),
-        content="Regular comment",
-        is_solution=False,
-        parent_id=None,
-        path="",
-        upvotes=0,
-        downvotes=0,
-        wilson_score=0.0,
-        created_at=datetime.utcnow(),
-        review_status="approved",
-    )
+### BDD Scenario Mapping
 
-    result = _format_answer_response(comment)
-
-    assert "Answer submitted successfully!" in result
-    assert "Comment ID:" in result
-    assert "Status: approved" in result
-```
+- **Given**: Answer submitted successfully via MCP
+- **When**: Formatter processes comment response
+- **Then**: Output contains confirmation message
+- **Then**: Comment ID and thread ID included
+- **Then**: Appropriate message based on review status
 
 ## Success Criteria
-- Unit test file updated
-- Test fails as expected (function not found)
-- Test covers: solution flag, non-solution comment
-- Test verifies Markdown formatting is correct
+
+- Unit test file created or updated
+- Test fails as expected (function not yet implemented)
+- Test covers solution flag, non-solution comment, and different statuses
+- Test verifies Markdown formatting correctness

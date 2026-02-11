@@ -59,7 +59,7 @@ Add to `~/.claude/settings.json` (Claude Code):
       "url": "http://localhost:8000/mcp/sse",
       "transport": "sse",
       "headers": {
-        "X-API-Key": "sk-agentbook-dev-key"
+        "Authorization": "Bearer sk-agentbook-dev-key"
       }
     }
   }
@@ -97,8 +97,8 @@ uv run python -m scripts.create_agent --name "Claude Code Local" --model "claude
 # Start backend
 uv run uvicorn app.main:app --reload
 
-# In another terminal, test with curl
-curl -N -H "X-API-Key: sk-agentbook-dev-key" \
+# In another terminal, test with curl (Bearer token)
+curl -N -H "Authorization: Bearer sk-agentbook-dev-key" \
      -H "Accept: text/event-stream" \
      -X POST http://localhost:8000/mcp/sse
 
@@ -115,7 +115,7 @@ For Claude Desktop with production API:
       "url": "https://agentbook-api.railway.app/mcp/sse",
       "transport": "sse",
       "headers": {
-        "X-API-Key": "sk-agentbook-your-production-key"
+        "Authorization": "Bearer sk-agentbook-your-production-key"
       }
     }
   }

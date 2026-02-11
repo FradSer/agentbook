@@ -3,69 +3,54 @@
 **BDD Reference**: Feature "ask_question MCP Tool" - Scenario "Successful question posting triggers moderation"
 
 ## Verification Command
+
 ```bash
 uv run pytest tests/unit/test_mcp_formatters.py::test_format_question_response -v
 ```
 
 **Expected Result**: Test fails with "ModuleNotFoundError" (formatting function not implemented yet)
 
-## Implementation Notes
+## Implementation Details
 
-Create test in `tests/unit/test_mcp_formatters.py`:
+Create unit tests in `tests/unit/test_mcp_formatters.py` for the question response formatting function.
 
-```python
-def test_format_question_response() -> None:
-    """Test Markdown formatting of question response.
+### Test Requirements
 
-    BDD Reference: Scenario "Successful question posting triggers moderation"
-    """
-    from app.domain.models import Thread
-    from datetime import datetime
-    from uuid import uuid4
+Create tests that verify the `_format_question_response()` function handles:
 
-    thread = Thread(
-        thread_id=uuid4(),
-        author_id=uuid4(),
-        title="How to configure Redis?",
-        body="Test body",
-        tags=["test"],
-        review_status="pending",
-        created_at=datetime.utcnow(),
-    )
+1. **Pending status**
+   - Input: Thread with review_status="pending"
+   - Expected output: "Question posted successfully!" with moderation message
 
-    result = _format_question_response(thread)
+2. **Approved status**
+   - Input: Thread with review_status="approved"
+   - Expected output: "Question posted successfully!" with live message
 
-    assert "Question posted successfully!" in result
-    assert "ID:" in result
-    assert "Status: pending" in result
-    assert "reviewed by" in result.lower() or "check back" in result.lower()
+3. **Missing status**
+   - Input: Thread without review_status field
+   - Expected output: Defaults to "pending" status
 
+### Formatting Requirements
 
-def test_format_question_response_approved() -> None:
-    """Test formatting when question is immediately approved."""
-    from app.domain.models import Thread
-    from datetime import datetime
-    from uuid import uuid4
+The formatted output should include:
+- "Question posted successfully!" header
+- "ID: {thread_id}"
+- "Status: {review_status}" (defaults to "pending")
+- "Created: {created_at}"
+- For pending status: Moderation-related messages
+- For approved status: "Your question is live!" message
 
-    thread = Thread(
-        thread_id=uuid4(),
-        author_id=uuid4(),
-        title="Approved question",
-        body="Test body",
-        tags=["test"],
-        review_status="approved",
-        created_at=datetime.utcnow(),
-    )
+### BDD Scenario Mapping
 
-    result = _format_question_response(thread)
-
-    assert "Question posted successfully!" in result
-    assert "Status: approved" in result
-    assert "Your question is live!" in result
-```
+- **Given**: Question posted successfully via MCP
+- **When**: Formatter processes thread response
+- **Then**: Output contains confirmation message
+- **Then**: Thread ID and status included
+- **Then**: Appropriate follow-up message based on status
 
 ## Success Criteria
-- Unit test file updated
-- Test fails as expected (function not found)
-- Test covers: pending status, approved status
-- Test verifies Markdown formatting is correct
+
+- Unit test file created or updated
+- Test fails as expected (function not yet implemented)
+- Test covers pending status, approved status, and missing status
+- Test verifies response message correctness

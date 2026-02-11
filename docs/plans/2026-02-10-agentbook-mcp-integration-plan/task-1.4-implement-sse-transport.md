@@ -3,89 +3,60 @@
 **BDD Reference**: Feature "MCP SSE Connection Management" - Scenario "Successful SSE connection establishment"
 
 ## Verification Command
+
 ```bash
 RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_sse_connection_established -v
 ```
 
 **Expected Result**: Task 1.1 test passes
 
-## Implementation Notes
+## Implementation Details
 
-### 1. Create `app/presentation/mcp/router.py`
+Implement SSE transport by creating the router module and integrating it with FastAPI.
 
-```python
-"""FastAPI router for mounting MCP Starlette app.
+### File 1: Create `app/presentation/mcp/router.py`
 
-Integrates FastMCP's SSE and message endpoints into the FastAPI application.
-"""
+Create a FastAPI router for mounting the MCP Starlette application.
 
-from __future__ import annotations
+**Requirements:**
+- Create an `APIRouter` with prefix "/mcp"
+- Implement a `mount_mcp_app()` function that:
+  - Accepts a FastAPI router and FastMCP server instance
+  - Gets the SSE Starlette app from the FastMCP server
+  - Mounts the Starlette app onto the router at root path
 
-from fastapi import APIRouter
-from typing import TYPE_CHECKING
+### File 2: Update `app/main.py`
 
-if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+Integrate the MCP server into the FastAPI application.
 
+**Requirements:**
+- Import `mcp_router` and `mount_mcp_server` from `app.presentation.mcp.router`
+- Import `create_mcp_server` from `app.presentation.mcp.server`
+- In `create_app()` function:
+  - Include the mcp_router in the app
+  - Create the MCP server using the app's service
+  - Mount the MCP app onto the router
 
-mcp_router = APIRouter(prefix="/mcp")
+### File 3: Update `app/presentation/mcp/__init__.py`
 
+Export the router for external use.
 
-def mount_mcp_app(router: APIRouter, mcp_server: FastMCP) -> None:
-    """Mount the FastMCP Starlette app onto the FastAPI router.
+**Requirements:**
+- Export `mcp_router` in `__all__`
+- Import from the router module
 
-    This function is called during app initialization in app/main.py.
+### BDD Scenario Mapping
 
-    Args:
-        router: FastAPI router to mount the MCP app onto
-        mcp_server: Configured FastMCP server instance
-    """
-    starlette_app = mcp_server.sse_app()
-    router.mount("", starlette_app, name="mcp")
-```
-
-### 2. Update `app/main.py`
-
-Import and mount MCP server:
-
-```python
-from app.presentation.mcp.router import mcp_router, mount_mcp_server
-from app.presentation.mcp.server import create_mcp_server
-
-def create_app() -> FastAPI:
-    app = FastAPI(...)
-    # ... existing CORS and service setup ...
-
-    # Include existing API routes
-    app.include_router(api_router)
-
-    # Include and mount MCP routes
-    app.include_router(mcp_router)
-    mcp_server = create_mcp_server(app.state.service)
-    mount_mcp_app(mcp_router, mcp_server)
-
-    return app
-```
-
-### 3. Update `app/presentation/mcp/__init__.py`
-
-```python
-"""MCP (Model Context Protocol) presentation layer.
-
-This module provides SSE-based MCP endpoints for agent runtime integration.
-Follows Clean Architecture: all business logic is delegated to AgentbookService.
-"""
-
-from __future__ import annotations
-
-__all__ = ["mcp_router"]
-
-from app.presentation.mcp.router import mcp_router
-```
+- **Given**: FastAPI backend is running
+- **When**: Agent sends GET request to /mcp/sse with Authorization header
+- **Then**: Connection returns HTTP 200 OK
+- **Then**: Response has correct SSE headers
+- **Then**: SSE stream sends endpoint event
 
 ## Success Criteria
+
 - `app/presentation/mcp/router.py` created
 - `app/main.py` updated to mount MCP server
-- `app/presentation/mcp/__init__.py` updated
+- `app/presentation/mcp/__init__.py` updated with exports
 - Task 1.1 test passes
-- SSE connection can be established at `/mcp/sse`
+- SSE connection accessible at `/mcp/sse`

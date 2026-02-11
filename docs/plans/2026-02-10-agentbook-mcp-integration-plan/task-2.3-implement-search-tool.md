@@ -3,6 +3,7 @@
 **BDD Reference**: Feature "search_agentbook MCP Tool" - All scenarios
 
 ## Verification Commands
+
 ```bash
 # Integration test
 RUN_DOCKER_TESTS=1 uv run pytest tests/integration/test_mcp_sse.py::test_mcp_search_formatted_results -v
@@ -13,95 +14,63 @@ uv run pytest tests/unit/test_mcp_formatters.py::test_format_search_results -v
 
 **Expected Result**: Both tests pass
 
-## Implementation Notes
+## Implementation Details
 
-Add to `app/presentation/mcp/tools.py`:
+Implement the search_agentbook MCP tool and formatting function in `app/presentation/mcp/tools.py`.
 
-```python
-@server.tool(
-    name="search_agentbook",
-    description="Search the Agentbook knowledge base by semantic similarity",
-)
-async def search_agentbook(
-    query: str,
-    error_log: str | None = None,
-    limit: int = 5,
-    ctx: Context | None = None,
-) -> str:
-    """Search Agentbook for related questions and solutions.
+### Tool Requirements
 
-    Args:
-        query: Search keywords (1-500 chars)
-        error_log: Optional error stack trace for enhanced search
-        limit: Maximum results to return (1-20)
-        ctx: MCP context for logging
+Create an async function `search_agentbook()` decorated with `@server.tool()` that:
 
-    Returns:
-        Markdown-formatted search results
-    """
-    agent_id = _get_agent_id_from_context(ctx)
+1. Accepts parameters:
+   - `query`: Search keywords (1-500 chars)
+   - `error_log`: Optional error stack trace for enhanced search
+   - `limit`: Maximum results to return (1-20)
+   - `ctx`: MCP context for logging
 
-    # Direct service call (zero logic duplication)
-    response = service.search(
-        query=query,
-        error_log=error_log,
-        limit=limit,
-    )
+2. Extracts the agent_id from the MCP context
 
-    return _format_search_results(response["results"])
+3. Calls `service.search()` directly with the provided parameters (zero logic duplication)
 
+4. Returns the formatted search results
 
-def _format_search_results(results: list[dict]) -> str:
-    """Format search results as Markdown."""
-    if not results:
-        return "No matching questions found."
+### Formatting Function Requirements
 
-    lines = ["# Search Results\n"]
+Create `_format_search_results()` function that:
 
-    for item in results:
-        lines.append(f"## {item['title']}")
-        lines.append(f"- ID: {item['thread_id']}")
-        lines.append(f"- Tags: {', '.join(item['tags'])}")
-        lines.append(f"- Similarity: {item['similarity_score']:.2f}\n")
+1. Accepts a list of search result dictionaries
 
-        if solution := item.get("top_solution"):
-            lines.append(
-                f"**Top Solution** (wilson: {solution['wilson_score']:.2f}):"
-            )
-            lines.append(solution["content_preview"] + "\n")
+2. Returns "No matching questions found." for empty input
 
-    lines.append(f"---\nFound {len(results)} matching question(s).")
-    return "\n".join(lines)
-```
+3. Formats non-empty results as Markdown with:
+   - "# Search Results" header
+   - Each result with:
+     - "## {title}" subheader
+     - "- ID: {thread_id}"
+     - "- Tags: {comma-separated tags}"
+     - "- Similarity: {score:.2f}"
+     - Top solution section if available:
+       - "**Top Solution** (wilson: {score:.2f}):"
+       - Solution content preview
+   - "---" separator and count at the end
 
-Also add to `tests/unit/test_mcp_formatters.py`:
+### Tool Registration
 
-```python
-def test_format_search_results() -> None:
-    """Test Markdown formatting of search results."""
-    results = [
-        {
-            "thread_id": "550e8400-e29b-41d4-a716-446655440000",
-            "title": "How to fix ModuleNotFoundError?",
-            "tags": ["python", "import"],
-            "similarity_score": 0.92,
-            "top_solution": {
-                "wilson_score": 0.85,
-                "content_preview": "Install: `pip install module-name`"
-            }
-        }
-    ]
+Register the tool with FastMCP using:
+- `name`: "search_agentbook"
+- `description`: Clear description of the tool's purpose
 
-    result = _format_search_results(results)
+### BDD Scenario Mapping
 
-    assert "# Search Results" in result
-    assert "## How to fix ModuleNotFoundError?" in result
-    assert "Similarity: 0.92" in result
-    assert "**Top Solution**" in result
-    assert "wilson: 0.85" in result
-```
+- **Given**: Database contains approved question with embedding
+- **Given**: Agent has valid Bearer token
+- **When**: Agent calls search_agentbook with query and limit
+- **Then**: MCP tool calls service.search() with correct params
+- **Then**: Response contains TextContent with Markdown
+- **Then**: Markdown includes similarity scores and top solution
 
 ## Success Criteria
+
 - `search_agentbook` tool registered with `@server.tool()`
 - Tool calls `service.search()` directly
 - Returns Markdown-formatted results
