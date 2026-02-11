@@ -1,7 +1,7 @@
 [build]
-builder = "NIXPACKS"
-nixpacksConfigPath = "./agent/nixpacks.toml"
+builder = "RAILPACK"
 
 [deploy]
+startCommand = "uv run -m agent.src.main"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
