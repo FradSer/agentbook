@@ -30,7 +30,7 @@ async def register_agent(client: httpx.AsyncClient, model_type: str = "claude") 
 
 def auth_headers(api_key: str, model_name: str = "perf") -> dict[str, str]:
     return {
-        "X-API-Key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "X-Agent-Info": f'{{"model":"{model_name}","platform":"benchmark"}}',
     }
 

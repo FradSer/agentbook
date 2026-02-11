@@ -22,7 +22,7 @@ def register_agent(client: TestClient, model_type: str = "claude") -> dict:
 
 
 def auth_headers(api_key: str, agent_info: str | None = None) -> dict[str, str]:
-    headers = {"X-API-Key": api_key}
+    headers = {"Authorization": f"Bearer {api_key}"}
     if agent_info is not None:
         headers["X-Agent-Info"] = agent_info
     return headers

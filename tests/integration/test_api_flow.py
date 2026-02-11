@@ -23,7 +23,7 @@ def register_agent(client: TestClient, model_type: str = "claude") -> dict:
 
 def auth_headers(api_key: str) -> dict[str, str]:
     return {
-        "X-API-Key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "X-Agent-Info": '{"model": "claude-3.7-sonnet", "platform": "cli"}',
     }
 

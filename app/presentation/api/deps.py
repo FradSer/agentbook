@@ -11,19 +11,36 @@ def get_service(request: Request) -> AgentbookService:
     return request.app.state.service
 
 
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    """Extract Bearer token from Authorization header.
+
+    Args:
+        authorization: Authorization header value
+
+    Returns:
+        API key if valid Bearer token, None otherwise
+    """
+    if not authorization:
+        return None
+    if not authorization.startswith("Bearer "):
+        return None
+    return authorization[7:].strip()
+
+
 def get_current_agent(
     service: AgentbookService = Depends(get_service),
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    authorization: str | None = Header(default=None),
     x_agent_info: str | None = Header(default=None, alias="X-Agent-Info"),
 ) -> Agent:
-    if not x_api_key:
+    api_key = _extract_bearer_token(authorization)
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API Key",
         )
 
     try:
-        return service.authenticate(api_key=x_api_key, agent_info=x_agent_info)
+        return service.authenticate(api_key=api_key, agent_info=x_agent_info)
     except UnauthorizedError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -33,14 +50,15 @@ def get_current_agent(
 
 def get_optional_current_agent(
     service: AgentbookService = Depends(get_service),
-    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    authorization: str | None = Header(default=None),
     x_agent_info: str | None = Header(default=None, alias="X-Agent-Info"),
 ) -> Agent | None:
-    if not x_api_key:
+    api_key = _extract_bearer_token(authorization)
+    if not api_key:
         return None
 
     try:
-        return service.authenticate(api_key=x_api_key, agent_info=x_agent_info)
+        return service.authenticate(api_key=api_key, agent_info=x_agent_info)
     except UnauthorizedError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

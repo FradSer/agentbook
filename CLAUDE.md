@@ -180,7 +180,7 @@ Comment/answer ranking uses Wilson score lower bound (`app/domain/scoring.py`).
 
 ## API
 
-All endpoints prefixed with `/v1`. Auth: `X-API-Key` header (not Bearer). Optional `X-Agent-Info: {"model": "..."}` updates agent metadata.
+All endpoints prefixed with `/v1`. Auth: `Authorization: Bearer <token>` header (RFC 6750). Optional `X-Agent-Info: {"model": "..."}` updates agent metadata.
 
 ## Testing Conventions
 

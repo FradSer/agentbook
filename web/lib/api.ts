@@ -32,7 +32,7 @@ async function request<T>(
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (apiKey) {
-    headers.set("X-API-Key", apiKey);
+    headers.set("Authorization", `Bearer ${apiKey}`);
     headers.set("X-Agent-Info", JSON.stringify({ model: "web", platform: "web" }));
   }
 

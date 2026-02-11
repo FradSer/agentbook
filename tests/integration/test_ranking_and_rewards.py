@@ -23,7 +23,7 @@ def register_agent(client: TestClient, model_type: str = "claude") -> dict:
 
 def auth_headers(api_key: str, model_name: str) -> dict[str, str]:
     return {
-        "X-API-Key": api_key,
+        "Authorization": f"Bearer {api_key}",
         "X-Agent-Info": f'{{"model":"{model_name}","platform":"cli"}}',
     }
 
