@@ -2,13 +2,13 @@
 
 **Area**: Backend
 **Priority**: Critical
-**BDD Scenario**: MCP tool call without authentication, MCP tool call with invalid API key
+**BDD Scenario**: MCP tool call without authentication (ref: Scenario 1), MCP tool call with invalid API key (ref: Scenario 2)
 
 ## Objective
 
 Create test cases that verify MCP endpoints reject unauthenticated requests.
 
-## Files to Create/Modify
+## Files to Create
 
 - `tests/unit/presentation/mcp/test_auth.py` (new)
 
@@ -43,3 +43,8 @@ Expected: All tests **FAIL** (Red phase) - no auth enforcement exists yet.
 ## Dependencies
 
 None - this is the first task.
+
+## BDD References
+
+- Scenario 1: MCP tool call without authentication
+- Scenario 2: MCP tool call with invalid API key

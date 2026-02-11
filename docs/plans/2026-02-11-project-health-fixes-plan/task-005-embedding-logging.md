@@ -2,7 +2,7 @@
 
 **Area**: Backend
 **Priority**: Medium
-**BDD Scenario**: Embedding failure is logged
+**BDD Scenario**: Embedding failure is logged (ref: Scenario 1)
 
 ## Objective
 
@@ -25,7 +25,7 @@ In the embedding error handling code:
    - Indicate fallback is being used
 
 Example pattern:
-```
+```python
 except Exception as e:
     logger.warning(f"Embedding failed, using fallback: {e}")
     return None
@@ -42,4 +42,8 @@ Expected: Tests pass. Manual verification by checking logs when OpenRouter is un
 
 ## Dependencies
 
-- Task 004 (backend config changes done)
+None - independent change
+
+## BDD References
+
+- Feature: All errors are logged - Scenario 1

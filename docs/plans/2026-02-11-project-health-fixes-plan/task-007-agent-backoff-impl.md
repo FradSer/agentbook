@@ -2,7 +2,7 @@
 
 **Area**: Agent
 **Priority**: Critical
-**BDD Scenario**: All backoff scenarios
+**BDD Scenario**: All backoff scenarios (ref: Scenarios 1-4)
 
 ## Objective
 
@@ -10,13 +10,14 @@ Add exponential backoff to agent main loop error handling.
 
 ## Files to Modify
 
+- `agent/src/backoff.py` (new)
 - `agent/src/main.py`
 
 ## What to Implement
 
 ### 1. Create BackoffState Dataclass
 
-Add a dataclass to track backoff state:
+Create `agent/src/backoff.py` with `BackoffState` dataclass:
 - `retry_count: int = 0`
 - `base_delay: float = 60.0`
 - `max_delay: float = 3600.0`
@@ -26,8 +27,8 @@ Add a dataclass to track backoff state:
 
 In the `main()` function:
 
-1. Create `BackoffState` instance before the main loop
-2. In the exception handler (around line 259):
+1. Import and create `BackoffState` instance before the main loop
+2. In the exception handler:
    - Call `backoff.increment()`
    - Get delay from `backoff.get_delay()`
    - Log error with retry count and delay
@@ -49,4 +50,8 @@ Expected: All tests **PASS** (Green phase).
 
 ## Dependencies
 
-- Task 006 (tests must exist first)
+**task-006-agent-backoff-tests.md** - Tests must exist first
+
+## BDD References
+
+- Feature: Agent recovers from errors with exponential backoff - Scenarios 1, 2, 3, 4

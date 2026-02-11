@@ -2,7 +2,7 @@
 
 **Area**: Agent
 **Priority**: Critical
-**BDD Scenario**: First error uses base delay, Second error doubles delay, Delay caps at maximum, Success resets backoff
+**BDD Scenario**: First error uses base delay (ref: Scenario 1), Second error doubles delay (ref: Scenario 2), Delay caps at maximum (ref: Scenario 3), Success resets backoff (ref: Scenario 4)
 
 ## Objective
 
@@ -48,4 +48,8 @@ Expected: All tests **FAIL** (Red phase) - BackoffState not implemented yet.
 
 ## Dependencies
 
-- Task 005 (backend changes done)
+None - independent test file
+
+## BDD References
+
+- Feature: Agent recovers from errors with exponential backoff - Scenarios 1, 2, 3, 4

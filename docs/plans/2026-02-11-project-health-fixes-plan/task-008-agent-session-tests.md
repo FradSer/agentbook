@@ -2,7 +2,7 @@
 
 **Area**: Agent
 **Priority**: High
-**BDD Scenario**: Session is closed after cycle, Session is closed on error
+**BDD Scenario**: Session is closed after cycle (ref: Scenario 1), Session is closed on error (ref: Scenario 2)
 
 ## Objective
 
@@ -40,4 +40,8 @@ Expected: All tests **FAIL** (Red phase) - context manager not used yet.
 
 ## Dependencies
 
-- Task 007 (backoff implemented)
+None - independent test file
+
+## BDD References
+
+- Feature: SQLAlchemy sessions are properly managed - Scenarios 1, 2

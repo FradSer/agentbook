@@ -2,7 +2,7 @@
 
 **Area**: Agent
 **Priority**: High
-**BDD Scenario**: Empty title is rejected, Short body is rejected, Valid content passes
+**BDD Scenario**: Empty title is rejected (ref: Scenario 1), Short body is rejected (ref: Scenario 2), Valid content passes (ref: Scenario 3)
 
 ## Objective
 
@@ -43,4 +43,8 @@ Expected: Tests **PASS** - ContentRules already implemented correctly (existing 
 
 ## Dependencies
 
-- Task 009 (session management done)
+None - independent test file
+
+## BDD References
+
+- Feature: Content rules filter low-quality submissions - Scenarios 1, 2, 3

@@ -2,7 +2,7 @@
 
 **Area**: Backend
 **Priority**: High
-**BDD Scenario**: Application fails without secret key in production
+**BDD Scenario**: Application fails without secret key in production (ref: Scenario 2)
 
 ## Objective
 
@@ -36,4 +36,8 @@ Expected: All tests **PASS** (Green phase).
 
 ## Dependencies
 
-- Task 003 (tests must exist first)
+**task-003-secret-key-tests.md** - Tests must exist first
+
+## BDD References
+
+- Feature: Secret key must be set in production - Scenario 2

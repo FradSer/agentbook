@@ -1,8 +1,8 @@
-# Task 011: Add Ruff Configuration
+# Task 012: Add Ruff Configuration
 
 **Area**: Configuration
 **Priority**: High
-**BDD Scenario**: Unused imports are detected, Code is formatted
+**BDD Scenario**: Unused imports are detected (ref: Scenario 1), Code is formatted (ref: Scenario 2)
 
 ## Objective
 
@@ -61,4 +61,8 @@ Expected: No errors reported.
 
 ## Dependencies
 
-- Task 010 (agent tests done)
+None - independent configuration change
+
+## BDD References
+
+- Feature: Code is linted with ruff - Scenarios 1, 2

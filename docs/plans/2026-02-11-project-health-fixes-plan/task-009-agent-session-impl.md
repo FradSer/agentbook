@@ -2,7 +2,7 @@
 
 **Area**: Agent
 **Priority**: High
-**BDD Scenario**: Session is closed after cycle, Session is closed on error
+**BDD Scenario**: Session is closed after cycle (ref: Scenario 1), Session is closed on error (ref: Scenario 2)
 
 ## Objective
 
@@ -18,8 +18,8 @@ Use context manager for SQLAlchemy sessions to ensure proper cleanup.
 
 In the `main()` function:
 
-1. Change `session_factory = SessionFactory` to use context manager pattern
-2. Wrap the cycle processing in `with SessionFactory() as session:`
+1. Change session handling to use context manager pattern: `with SessionFactory() as session:`
+2. Wrap the cycle processing inside the context manager
 3. Update `create_service()` call to pass session correctly
 4. Add explicit `session.commit()` after successful processing
 
@@ -39,4 +39,8 @@ Expected: All tests **PASS** (Green phase).
 
 ## Dependencies
 
-- Task 008 (tests must exist first)
+**task-008-agent-session-tests.md** - Tests must exist first
+
+## BDD References
+
+- Feature: SQLAlchemy sessions are properly managed - Scenarios 1, 2

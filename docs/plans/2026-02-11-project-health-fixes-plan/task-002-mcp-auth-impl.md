@@ -2,7 +2,7 @@
 
 **Area**: Backend
 **Priority**: Critical
-**BDD Scenario**: MCP tool call with valid API key, MCP tool uses authenticated agent for writes
+**BDD Scenario**: MCP tool call with valid API key (ref: Scenario 3), MCP tool uses authenticated agent for writes (ref: Scenario 4)
 
 ## Objective
 
@@ -22,7 +22,7 @@ Change `api_key_prefix` default from `"sk-agentbook-"` to `"ak_"` to match confi
 
 ### 2. Enforce Auth on SSE Endpoint (router.py)
 
-- Remove the placeholder agent creation (lines 34-39)
+- Remove the placeholder agent creation
 - Add authentication check in `handle_sse()`:
   - Extract agent from `request.state.mcp_agent` (set by middleware)
   - Return 401 if no authenticated agent
@@ -47,4 +47,9 @@ Expected: All tests **PASS** (Green phase).
 
 ## Dependencies
 
-- Task 001 (tests must exist first)
+**task-001-mcp-auth-tests.md** - Tests must exist first
+
+## BDD References
+
+- Scenario 3: MCP tool call with valid API key
+- Scenario 4: MCP tool uses authenticated agent for writes

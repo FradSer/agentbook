@@ -1,4 +1,4 @@
-# Task 012: Fix Railway Configuration
+# Task 013: Fix Railway Configuration
 
 **Area**: Configuration
 **Priority**: Medium
@@ -48,4 +48,8 @@ Expected: No errors.
 
 ## Dependencies
 
-- Task 011 (ruff config done)
+None - independent configuration change
+
+## BDD References
+
+None - infrastructure configuration

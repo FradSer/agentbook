@@ -1,4 +1,4 @@
-# Task 018: Final Verification
+# Task 022: Final Verification
 
 **Area**: All
 **Priority**: Required
@@ -53,4 +53,8 @@ cd web && pnpm lint
 
 ## Dependencies
 
-- Task 017 (dead code removed)
+**task-021-dead-code.md** - Dead code removed first
+
+## BDD References
+
+All BDD scenarios in the design specs

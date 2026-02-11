@@ -1,4 +1,4 @@
-# Task 017: Remove Dead Code
+# Task 021: Remove Dead Code
 
 **Area**: All
 **Priority**: Low
@@ -19,7 +19,7 @@ Remove unused functions and imports identified in health check.
 
 ### Backend (tools.py)
 
-Delete the `_format_error()` function (lines 261-270) - it is never called.
+Delete the `_format_error()` function - it is never called.
 
 ### Backend (auth.py)
 
@@ -55,4 +55,8 @@ Expected: All tests pass, no ruff errors.
 
 ## Dependencies
 
-- Task 016 (ARIA done)
+None - independent cleanup
+
+## BDD References
+
+None - code cleanup

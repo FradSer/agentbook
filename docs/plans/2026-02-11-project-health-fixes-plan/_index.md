@@ -36,7 +36,7 @@ Address all critical, high, medium, and low priority issues across Backend, Agen
 - **TDD Required**: Write failing tests before implementation
 - **One Task Per File**: Each task modifies specific files
 - **Verification Required**: Each task has explicit verification steps
-- **Sequential Dependencies**: Tasks must be completed in order
+- **Minimal Dependencies**: Only true technical prerequisites are declared
 
 ## Design Reference
 
@@ -59,23 +59,27 @@ Address all critical, high, medium, and low priority issues across Backend, Agen
 - [Task 008: Write Agent Session Management Tests](./task-008-agent-session-tests.md)
 - [Task 009: Implement Agent Session Management](./task-009-agent-session-impl.md)
 - [Task 010: Write Agent Content Rules Tests](./task-010-agent-content-tests.md)
+- [Task 011: Implement Agent Content Rules Tests](./task-011-agent-content-impl.md)
 
 ### Configuration Tasks (High/Medium)
 
-- [Task 011: Add Ruff Configuration](./task-011-ruff-config.md)
-- [Task 012: Fix Railway Configuration](./task-012-railway-config.md)
-- [Task 013: Add CORS Warning](./task-013-cors-warning.md)
+- [Task 012: Add Ruff Configuration](./task-012-ruff-config.md)
+- [Task 013: Fix Railway Configuration](./task-013-railway-config.md)
+- [Task 014: Add CORS Warning](./task-014-cors-warning.md)
 
 ### Frontend Tasks (Medium/Low)
 
-- [Task 014: Add Frontend Type Safety](./task-014-frontend-types.md)
-- [Task 015: Add Frontend Accessibility Labels](./task-015-frontend-a11y.md)
-- [Task 016: Add Frontend ARIA Live Regions](./task-016-frontend-aria.md)
+- [Task 015: Add Frontend Type Safety](./task-015-frontend-types.md)
+- [Task 016: Write Frontend Form Labels Tests](./task-016-frontend-a11y-tests.md)
+- [Task 017: Implement Frontend Form Labels](./task-017-frontend-a11y-impl.md)
+- [Task 018: Implement Frontend ARIA Live Regions](./task-018-frontend-aria.md)
+- [Task 019: Write Frontend Page Tests](./task-019-frontend-page-tests.md)
+- [Task 020: Implement Frontend Page Tests](./task-020-frontend-page-impl.md)
 
 ### Cleanup Tasks (Low)
 
-- [Task 017: Remove Dead Code](./task-017-dead-code.md)
-- [Task 018: Final Verification](./task-018-verify-all.md)
+- [Task 021: Remove Dead Code](./task-021-dead-code.md)
+- [Task 022: Final Verification](./task-022-verify-all.md)
 
 ## Success Criteria
 
@@ -85,17 +89,17 @@ Address all critical, high, medium, and low priority issues across Backend, Agen
 | Secret key required in production | Task 004 tests pass |
 | Agent recovers with backoff | Task 007 tests pass |
 | Sessions properly managed | Task 009 tests pass |
-| Code passes ruff linting | Task 011 verification |
-| Frontend builds successfully | Task 014-016 verification |
-| All tests pass | Task 018 verification |
+| Code passes ruff linting | Task 012 verification |
+| Frontend builds successfully | Task 015-020 verification |
+| All tests pass | Task 022 verification |
 
 ## Estimated Scope
 
 | Area | Tasks | Files Changed |
 |------|-------|---------------|
 | Backend | 5 | 5 files |
-| Agent | 5 | 3 files + 3 test files |
+| Agent | 6 | 4 files + 3 test files |
 | Config | 3 | 2 files |
-| Frontend | 3 | 4 files |
+| Frontend | 6 | 6 files + 3 test files |
 | Cleanup | 2 | 4 files |
-| **Total** | **18** | **21 files** |
+| **Total** | **22** | **24 files** |

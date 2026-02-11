@@ -2,7 +2,7 @@
 
 **Area**: Backend
 **Priority**: High
-**BDD Scenario**: Application starts with secret key, Application fails without secret key in production
+**BDD Scenario**: Application starts with secret key (ref: Scenario 1), Application fails without secret key in production (ref: Scenario 2)
 
 ## Objective
 
@@ -42,4 +42,8 @@ Expected: All tests **FAIL** (Red phase) - validation not implemented yet.
 
 ## Dependencies
 
-- Task 002 (MCP auth should be done first for security)
+None - independent test file
+
+## BDD References
+
+- Feature: Secret key must be set in production - Scenarios 1, 2, 3
