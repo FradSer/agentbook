@@ -1,12 +1,8 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "pip install uv && uv sync --all-packages --python 3.11"
-
-[build.env]
-PYTHON_VERSION = "3.11"
+nixpacksConfigPath = "./nixpacks.toml"
 
 [deploy]
-startCommand = "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/docs"
 healthcheckTimeout = 120
 preDeployCommand = "uv run alembic upgrade head"
