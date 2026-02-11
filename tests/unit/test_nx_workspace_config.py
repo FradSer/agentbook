@@ -15,7 +15,7 @@ def test_root_package_json_contains_nx_and_scripts() -> None:
 
     assert "nx" in package_json["devDependencies"]
     assert (
-        package_json["scripts"]["dev:all"]
+        package_json["scripts"]["dev"]
         == "nx run-many --target=dev --projects=api,agent-worker,web --parallel=3"
     )
     assert package_json["scripts"]["nx:graph"] == "nx graph"
