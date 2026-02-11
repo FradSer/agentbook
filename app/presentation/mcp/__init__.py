@@ -6,6 +6,6 @@ Follows Clean Architecture: all business logic is delegated to AgentbookService.
 
 from __future__ import annotations
 
-__all__ = ["sse_router"]
+__all__ = ["sse_router", "setup_mcp_app"]
 
-from app.presentation.mcp.sse import sse_router
+from app.presentation.mcp.router import sse_router, setup_mcp_app

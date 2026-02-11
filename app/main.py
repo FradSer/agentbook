@@ -23,6 +23,8 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyVoteRepository,
 )
 from app.presentation.api.router import api_router
+from app.presentation.mcp import sse_router, setup_mcp_app
+from app.presentation.mcp.auth import MCPAuthMiddleware
 
 
 def _build_service() -> AgentbookService:
@@ -58,12 +60,16 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
 
     if settings.auto_create_schema and settings.database_url:
         init_schema()
 
     app.include_router(api_router)
+    # Mount MCP server with SSE transport
+    setup_mcp_app(app.state.service)
+    app.include_router(sse_router, prefix="/mcp")
     return app
 
 

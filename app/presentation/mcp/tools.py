@@ -1,71 +1,61 @@
 """MCP tools for Agentbook.
 
-Thin wrappers around AgentbookService for MCP protocol.
+Thin wrappers around AgentbookService for MCP protocol using low-level Server API.
+Follows Clean Architecture: delegates all business logic to AgentbookService.
 """
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Any
 from uuid import UUID
 
-from fastapi import Depends
 from mcp.server import Server
-from mcp.types import TextContent
+from mcp.types import Tool
 
 from app.application.service import AgentbookService
 from app.domain.models import Agent
-from app.presentation.api.deps import get_current_agent, get_service
 
 
-def register_mcp_tools(server: Server) -> None:
-    """Register all MCP tools with the server."""
+def register_tools(server: Server) -> None:
+    """Register all MCP tools with the low-level Server.
+
+    Args:
+        server: MCP Server instance
+    """
 
     @server.call_tool()
     async def search_agentbook(
         query: str,
-        agent: Annotated[Agent, Depends(get_current_agent)],
-        service: Annotated[AgentbookService, Depends(get_service)],
         error_log: str | None = None,
         limit: int = 5,
-    ) -> list[TextContent]:
+    ) -> list[Any]:
         """Search Agentbook knowledge base for related questions.
 
         Args:
             query: Search keywords (1-500 chars)
             error_log: Optional error log for enhanced search
             limit: Max results to return (1-20)
-            agent: Authenticated agent (injected)
-            service: Service layer (injected)
 
         Returns:
-            Formatted search results as Markdown
+            Formatted search results as list of TextContent
         """
-        try:
-            # Direct service call (zero logic duplication)
-            search_response = service.search(
-                query=query,
-                error_log=error_log,
-                limit=limit,
-            )
-
-            # Format as Markdown
-            formatted_text = _format_search_results(search_response["results"])
-
-            return [TextContent(type="text", text=formatted_text)]
-
-        except Exception as e:
-            return [TextContent(type="text", text=_format_error(e))]
+        # Get service from server context (injected during setup)
+        service = server._service
+        search_response = service.search(
+            query=query,
+            error_log=error_log,
+            limit=limit,
+        )
+        return [{"type": "text", "text": _format_search_results(search_response["results"])}]
 
     @server.call_tool()
     async def ask_question(
         title: str,
         body: str,
         tags: list[str],
-        agent: Annotated[Agent, Depends(get_current_agent)],
-        service: Annotated[AgentbookService, Depends(get_service)],
         error_log: str | None = None,
         environment: dict[str, str] | None = None,
-    ) -> list[TextContent]:
+    ) -> list[Any]:
         """Post new question to Agentbook.
 
         Args:
@@ -74,46 +64,36 @@ def register_mcp_tools(server: Server) -> None:
             tags: Tags (1-5, lowercase-hyphen only)
             error_log: Optional error stack trace
             environment: Optional env info (e.g., {"python": "3.11"})
-            agent: Authenticated agent (injected)
-            service: Service layer (injected)
 
         Returns:
-            Thread creation confirmation as Markdown
+            Thread creation confirmation as list of TextContent
         """
-        try:
-            # Direct service call (zero logic duplication)
-            thread = service.create_thread(
-                author_id=agent.agent_id,
-                title=title,
-                body=body,
-                tags=tags,
-                error_log=error_log,
-                environment=environment,
-            )
+        service = server._service
+        agent = server._agent
 
-            # Format response
-            thread_dict = {
-                "thread_id": str(thread.thread_id),
-                "title": thread.title,
-                "review_status": thread.review_status,
-                "created_at": thread.created_at.isoformat() if thread.created_at else None,
-            }
-            formatted_text = _format_question_response(thread_dict)
-
-            return [TextContent(type="text", text=formatted_text)]
-
-        except Exception as e:
-            return [TextContent(type="text", text=_format_error(e))]
+        thread = service.create_thread(
+            author_id=agent.agent_id,
+            title=title,
+            body=body,
+            tags=tags,
+            error_log=error_log,
+            environment=environment,
+        )
+        thread_dict = {
+            "thread_id": str(thread.thread_id),
+            "title": thread.title,
+            "review_status": thread.review_status,
+            "created_at": thread.created_at.isoformat() if thread.created_at else None,
+        }
+        return [{"type": "text", "text": _format_question_response(thread_dict)}]
 
     @server.call_tool()
     async def answer_question(
         thread_id: str,
         content: str,
-        agent: Annotated[Agent, Depends(get_current_agent)],
-        service: Annotated[AgentbookService, Depends(get_service)],
         is_solution: bool = False,
         parent_comment_id: str | None = None,
-    ) -> list[TextContent]:
+    ) -> list[Any]:
         """Submit answer to help other agents.
 
         Args:
@@ -121,93 +101,67 @@ def register_mcp_tools(server: Server) -> None:
             content: Answer content (20-10000 chars, Markdown)
             is_solution: Mark as definitive solution
             parent_comment_id: Optional parent for nested replies
-            agent: Authenticated agent (injected)
-            service: Service layer (injected)
 
         Returns:
-            Comment creation confirmation as Markdown
+            Comment creation confirmation as list of TextContent
         """
-        try:
-            # Direct service call (zero logic duplication)
-            comment = service.create_comment(
-                thread_id=UUID(thread_id),
-                author_id=agent.agent_id,
-                content=content,  # Pass through unchanged (preserves Markdown)
-                parent_id=UUID(parent_comment_id) if parent_comment_id else None,
-                is_solution=is_solution,
-            )
+        service = server._service
+        agent = server._agent
 
-            # Format response
-            comment_dict = {
-                "comment_id": str(comment.comment_id),
-                "thread_id": str(comment.thread_id),
-                "is_solution": comment.is_solution,
-                "review_status": comment.review_status,
-                "created_at": comment.created_at.isoformat() if comment.created_at else None,
-            }
-            formatted_text = _format_answer_response(comment_dict)
-
-            return [TextContent(type="text", text=formatted_text)]
-
-        except Exception as e:
-            return [TextContent(type="text", text=_format_error(e))]
+        comment = service.create_comment(
+            thread_id=UUID(thread_id),
+            author_id=agent.agent_id,
+            content=content,
+            parent_id=UUID(parent_comment_id) if parent_comment_id else None,
+            is_solution=is_solution,
+        )
+        comment_dict = {
+            "comment_id": str(comment.comment_id),
+            "thread_id": str(comment.thread_id),
+            "is_solution": comment.is_solution,
+            "review_status": comment.review_status,
+            "created_at": comment.created_at.isoformat() if comment.created_at else None,
+        }
+        return [{"type": "text", "text": _format_answer_response(comment_dict)}]
 
     @server.call_tool()
     async def vote_answer(
         comment_id: str,
         vote_type: str,
-        agent: Annotated[Agent, Depends(get_current_agent)],
-        service: Annotated[AgentbookService, Depends(get_service)],
-    ) -> list[TextContent]:
+    ) -> list[Any]:
         """Vote on answers to reward helpful content.
 
         Args:
             comment_id: Answer UUID
             vote_type: "upvote" or "downvote"
-            agent: Authenticated agent (injected)
-            service: Service layer (injected)
 
         Returns:
-            Vote confirmation with reward info as Markdown
+            Vote confirmation with reward info as list of TextContent
         """
-        try:
-            # Validate vote_type
-            if vote_type not in ("upvote", "downvote"):
-                raise ValueError(f"Invalid vote_type: {vote_type}")
+        if vote_type not in ("upvote", "downvote"):
+            raise ValueError(f"Invalid vote_type: {vote_type}")
 
-            # Direct service call (zero logic duplication)
-            comment, reward_issued = service.vote_comment(
-                comment_id=UUID(comment_id),
-                voter_id=agent.agent_id,
-                vote_type=vote_type,
-            )
+        service = server._service
+        agent = server._agent
 
-            # Format response
-            vote_data = {
-                "vote_type": vote_type,
-                "comment": {
-                    "comment_id": str(comment.comment_id),
-                    "wilson_score": comment.wilson_score,
-                },
-                "reward_issued": reward_issued,
-            }
-            formatted_text = _format_vote_response(vote_data)
-
-            return [TextContent(type="text", text=formatted_text)]
-
-        except Exception as e:
-            return [TextContent(type="text", text=_format_error(e))]
+        comment, reward_issued = service.vote_comment(
+            comment_id=UUID(comment_id),
+            voter_id=agent.agent_id,
+            vote_type=vote_type,
+        )
+        vote_data = {
+            "vote_type": vote_type,
+            "comment": {
+                "comment_id": str(comment.comment_id),
+                "wilson_score": comment.wilson_score,
+            },
+            "reward_issued": reward_issued,
+        }
+        return [{"type": "text", "text": _format_vote_response(vote_data)}]
 
 
 def _format_search_results(results: list[dict]) -> str:
-    """Transform service search results to Markdown.
-
-    Args:
-        results: List of search results from service.search()
-
-    Returns:
-        Markdown-formatted text
-    """
+    """Transform service search results to Markdown."""
     if not results:
         return "No matching questions found."
 
@@ -220,7 +174,6 @@ def _format_search_results(results: list[dict]) -> str:
         lines.append(f"- Similarity: {item['similarity_score']:.2f}")
         lines.append(f"- Created: {item['created_at']}\n")
 
-        # Include top solution if available
         if solution := item.get("top_solution"):
             lines.append(
                 f"**Top Solution** (wilson: {solution['wilson_score']:.2f}, "
@@ -233,15 +186,7 @@ def _format_search_results(results: list[dict]) -> str:
 
 
 def _format_vote_response(vote_data: dict) -> str:
-    """Format vote confirmation response as Markdown.
-
-    Args:
-        vote_data: Vote result from service.vote_comment()
-                  {vote_type, comment, reward_issued}
-
-    Returns:
-        Markdown-formatted confirmation
-    """
+    """Format vote confirmation response as Markdown."""
     vote_type = vote_data["vote_type"]
     comment = vote_data["comment"]
     reward = vote_data.get("reward_issued", 0)
@@ -266,14 +211,7 @@ def _format_vote_response(vote_data: dict) -> str:
 
 
 def _format_answer_response(comment: dict) -> str:
-    """Format comment creation response as Markdown.
-
-    Args:
-        comment: Comment object from service.create_comment()
-
-    Returns:
-        Markdown-formatted confirmation
-    """
+    """Format comment creation response as Markdown."""
     status = comment.get("review_status") or "pending"
 
     lines = [
@@ -297,14 +235,7 @@ def _format_answer_response(comment: dict) -> str:
 
 
 def _format_question_response(thread: dict) -> str:
-    """Format thread creation response as Markdown.
-
-    Args:
-        thread: Thread object from service.create_thread()
-
-    Returns:
-        Markdown-formatted confirmation
-    """
+    """Format thread creation response as Markdown."""
     status = thread.get("review_status") or "pending"
 
     lines = [
@@ -336,4 +267,4 @@ def _format_error(error: Exception) -> str:
     Returns:
         User-friendly error message
     """
-    return f"❌ Error: {str(error)}\n\nPlease try again or contact support."
+    return f"Error: {str(error)}\n\nPlease try again or contact support."
