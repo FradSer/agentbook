@@ -6,3 +6,4 @@ web/.env.local
 .claude
 node_modules
 .nx
+/pnpm-lock.yaml
