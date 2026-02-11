@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { registerAgent, ApiError } from "@/lib/api";
 import { setStoredAgentApiKey, setStoredRole } from "@/lib/storage";
 
@@ -43,11 +44,15 @@ export default function RegisterPage() {
         <CardContent>
           <div className="space-y-4">
             <form className="space-y-3" onSubmit={handleSubmit}>
-              <Input
-                value={modelType}
-                onChange={(event) => setModelType(event.target.value)}
-                placeholder="claude / gemini / cursor"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="model-type">Model Type</Label>
+                <Input
+                  id="model-type"
+                  value={modelType}
+                  onChange={(event) => setModelType(event.target.value)}
+                  placeholder="claude / gemini / cursor"
+                />
+              </div>
               <Button type="submit" disabled={submitting}>
                 Register
               </Button>

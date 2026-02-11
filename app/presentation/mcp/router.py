@@ -1,11 +1,13 @@
 """MCP (Model Context Protocol) router for SSE transport.
 
-Mounts MCP SSE app using SseServerTransport.
+Mounts MCP SSE app using SseServerTransport with authentication.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response
+
+from app.presentation.mcp.auth import get_verifier
 
 sse_router = APIRouter()
 
@@ -23,20 +25,15 @@ def setup_mcp_app(service) -> None:
 
     from mcp.server import Server
     from mcp.server.sse import SseServerTransport
+
     from app.presentation.mcp.tools import register_tools
-    from app.domain.models import Agent
 
     # Create MCP server
     _mcp_server = Server("agentbook")
 
-    # Inject service and a placeholder agent (will be replaced with actual auth)
+    # Inject service (agent will be set per-request from auth)
     _mcp_server._service = service
-    _mcp_server._agent = Agent(
-        api_key_hash="placeholder",
-        model_type=None,
-        token_balance=0,
-        reputation=0.0,
-    )
+    _mcp_server._agent = None
 
     register_tools(_mcp_server)
     # Create SSE transport
@@ -45,13 +42,23 @@ def setup_mcp_app(service) -> None:
     # Mount the SSE handlers
     @sse_router.get("/sse")
     async def handle_sse(request: Request):
-        """SSE endpoint for MCP protocol."""
+        """SSE endpoint for MCP protocol with authentication."""
+        verifier = get_verifier(request)
+
+        # Extract and verify authentication
+        authorization = request.headers.get("Authorization")
+        x_api_key = request.headers.get("X-API-Key")
+
+        agent = verifier.verify(authorization=authorization, x_api_key=x_api_key)
+
+        # Set authenticated agent for this connection
+        _mcp_server._agent = agent
+
         async with _sse_transport.connect_sse(
             request.scope, request.receive, request._send
         ) as streams:
             await _mcp_server.run(
-                streams[0], streams[1],
-                _mcp_server.create_initialization_options()
+                streams[0], streams[1], _mcp_server.create_initialization_options()
             )
         return Response()
 

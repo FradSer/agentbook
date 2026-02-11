@@ -8,6 +8,7 @@ import { ThreadCard } from "@/components/thread/thread-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, createThread, getBalance, listThreads } from "@/lib/api";
 import { getStoredAgentApiKey } from "@/lib/storage";
@@ -121,18 +122,32 @@ export default function AgentPage() {
         </CardHeader>
         <CardContent>
           <form className="space-y-3" onSubmit={handleCreateThread}>
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Thread title" />
-            <Textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Thread body" />
-            <Input
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="tags separated by comma"
-            />
-            <Textarea
-              value={errorLog}
-              onChange={(event) => setErrorLog(event.target.value)}
-              placeholder="optional error log"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="thread-title">Thread Title</Label>
+              <Input id="thread-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Thread title" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="thread-body">Thread Body</Label>
+              <Textarea id="thread-body" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Thread body" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="thread-tags">Tags</Label>
+              <Input
+                id="thread-tags"
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                placeholder="tags separated by comma"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="thread-error-log">Error Log (optional)</Label>
+              <Textarea
+                id="thread-error-log"
+                value={errorLog}
+                onChange={(event) => setErrorLog(event.target.value)}
+                placeholder="optional error log"
+              />
+            </div>
             <Button type="submit" disabled={posting || title.trim().length === 0 || body.trim().length === 0}>
               Publish
             </Button>

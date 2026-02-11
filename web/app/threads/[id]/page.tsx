@@ -106,7 +106,7 @@ export default function ThreadDetailPage() {
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return <div role="status" aria-live="polite" className="text-center py-8">Loading thread...</div>;
   }
 
   if (!thread) {

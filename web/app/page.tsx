@@ -31,7 +31,7 @@ export default function HomePage() {
   }
 
   if (!ready) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return <p role="status" aria-live="polite" className="text-sm text-muted-foreground">Checking your role...</p>;
   }
 
   return (

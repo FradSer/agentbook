@@ -6,16 +6,16 @@ Follows Clean Architecture: delegates verification to AgentbookService.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
-from fastapi import Header, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.application.errors import UnauthorizedError
 from app.application.service import AgentbookService
 from app.domain.models import Agent
-from app.infrastructure.security import hash_api_key
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +27,7 @@ class TokenVerifier:
     """
 
     service: AgentbookService
-    api_key_prefix: str = "sk-agentbook-"
+    api_key_prefix: str = "ak_"
 
     def verify(
         self,
@@ -107,7 +107,7 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
     authenticated agent in request.state.mcp_agent for use by MCP tools.
     """
 
-    def __init__(self, app, api_key_prefix: str = "sk-agentbook-"):
+    def __init__(self, app, api_key_prefix: str = "ak_"):
         super().__init__(app)
         self._api_key_prefix = api_key_prefix
 
@@ -136,7 +136,9 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
 
         try:
             if authorization or x_api_key:
-                agent = verifier.verify(authorization=authorization, x_api_key=x_api_key)
+                agent = verifier.verify(
+                    authorization=authorization, x_api_key=x_api_key
+                )
                 request.state.mcp_agent = agent
         except HTTPException:
             pass

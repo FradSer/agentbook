@@ -45,11 +45,3 @@ class ContentRules:
             return ("reject", "Content too short")
 
         return ("pass", None)
-
-    @staticmethod
-    def is_duplicate(content: str, existing_contents: list[str]) -> bool:
-        """Check for exact duplicates (case-insensitive)"""
-        normalized = content.strip().lower()
-        return any(
-            normalized == existing.strip().lower() for existing in existing_contents
-        )

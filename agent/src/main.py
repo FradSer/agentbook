@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # Load config (which loads .env)
 from agent.src.config import settings  # noqa: E402
@@ -14,7 +14,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
+
+from agent.src.backoff import BackoffState
 from agent.src.reviewer_agent import create_reviewer_agent
 from agent.src.rules import ContentRules
 from app.application.service import AgentbookService
@@ -29,9 +31,12 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
 )
 
 
-def create_service(session_factory) -> AgentbookService:
-    """Initialize AgentbookService with repositories"""
+def create_service(session: Session) -> AgentbookService:
+    """Initialize AgentbookService with repositories using a session"""
     embedding_provider = resolve_embedding_provider() or FallbackEmbeddingProvider()
+
+    def session_factory():
+        return session
 
     return AgentbookService(
         agents=SQLAlchemyAgentRepository(session_factory),
@@ -54,7 +59,9 @@ async def _run_agent_review(agent, prompt: str):
 
 async def review_threads(agent, service) -> int:
     """Review unreviewed threads"""
-    retry_error_before = datetime.now(timezone.utc) - timedelta(seconds=settings.agent_poll_interval)
+    retry_error_before = datetime.now(UTC) - timedelta(
+        seconds=settings.agent_poll_interval
+    )
     threads = service.get_unreviewed_threads(
         limit=settings.agent_batch_size,
         retry_error_before=retry_error_before,
@@ -70,7 +77,7 @@ async def review_threads(agent, service) -> int:
                 thread_id=thread.thread_id,
                 status="rejected",
                 score=0.0,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
             service.delete_thread(thread.thread_id)
             continue
@@ -94,7 +101,7 @@ Use the exact `thread_id` above when calling the tool.
                     thread_id=thread.thread_id,
                     status="error",
                     score=0.0,
-                    reviewed_at=datetime.now(timezone.utc),
+                    reviewed_at=datetime.now(UTC),
                 )
                 continue
             logger.info(f"Reviewed thread {thread.thread_id}: {response}")
@@ -104,14 +111,16 @@ Use the exact `thread_id` above when calling the tool.
                 thread_id=thread.thread_id,
                 status="error",
                 score=0.0,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
     return len(threads)
 
 
 async def review_comments(agent, service) -> int:
     """Review unreviewed comments"""
-    retry_error_before = datetime.now(timezone.utc) - timedelta(seconds=settings.agent_poll_interval)
+    retry_error_before = datetime.now(UTC) - timedelta(
+        seconds=settings.agent_poll_interval
+    )
     comments = service.get_unreviewed_comments(
         limit=settings.agent_batch_size,
         retry_error_before=retry_error_before,
@@ -127,7 +136,7 @@ async def review_comments(agent, service) -> int:
                 comment_id=comment.comment_id,
                 status="rejected",
                 score=0.0,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
             service.delete_comment(comment.comment_id)
             continue
@@ -145,12 +154,14 @@ Use the exact `comment_id` above when calling the tool.
             response = await _run_agent_review(agent, prompt)
             response_status = str(getattr(response, "status", "")).lower()
             if "error" in response_status:
-                logger.error(f"Agent failed for comment {comment.comment_id}: {response}")
+                logger.error(
+                    f"Agent failed for comment {comment.comment_id}: {response}"
+                )
                 service.update_comment_review(
                     comment_id=comment.comment_id,
                     status="error",
                     score=0.0,
-                    reviewed_at=datetime.now(timezone.utc),
+                    reviewed_at=datetime.now(UTC),
                 )
                 continue
             logger.info(f"Reviewed comment {comment.comment_id}: {response}")
@@ -160,7 +171,7 @@ Use the exact `comment_id` above when calling the tool.
                 comment_id=comment.comment_id,
                 status="error",
                 score=0.0,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
     return len(comments)
 
@@ -228,21 +239,27 @@ def main():
     engine = create_engine(settings.database_url)
     SessionFactory = sessionmaker(bind=engine)
 
+    backoff = BackoffState(base_delay=settings.agent_poll_interval)
+
     while True:
         try:
-            session_factory = SessionFactory
-            service = create_service(session_factory)
-            agent = create_reviewer_agent(service)
+            with SessionFactory() as session:
+                service = create_service(session)
+                agent = create_reviewer_agent(service)
 
-            logger.info("Starting review cycle")
-            cycle_metrics = asyncio.run(run_cycle_until_idle(agent, service))
-            logger.info(
-                "Review cycle complete. processed=%s iterations=%s elapsed=%.1fs drained=%s",
-                cycle_metrics["processed"],
-                cycle_metrics["iterations"],
-                cycle_metrics["elapsed_seconds"],
-                cycle_metrics["drained"],
-            )
+                logger.info("Starting review cycle")
+                cycle_metrics = asyncio.run(run_cycle_until_idle(agent, service))
+                logger.info(
+                    "Review cycle complete. processed=%s iterations=%s elapsed=%.1fs drained=%s",
+                    cycle_metrics["processed"],
+                    cycle_metrics["iterations"],
+                    cycle_metrics["elapsed_seconds"],
+                    cycle_metrics["drained"],
+                )
+                session.commit()
+
+            backoff.reset()
+
             if cycle_metrics["drained"]:
                 logger.info(f"Sleeping {settings.agent_poll_interval}s")
                 time.sleep(settings.agent_poll_interval)
@@ -258,6 +275,10 @@ def main():
             break
         except Exception as e:
             logger.error(f"Error in main loop: {e}")
+            backoff.increment()
+            delay = backoff.get_delay()
+            logger.info(f"Sleeping {delay}s before retry (backoff)")
+            time.sleep(delay)
 
 
 if __name__ == "__main__":

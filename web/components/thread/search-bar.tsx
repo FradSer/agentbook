@@ -21,6 +21,7 @@ export function SearchBar({ query, loading, onQueryChange, onSearch }: SearchBar
   return (
     <form className="flex gap-2" onSubmit={handleSubmit}>
       <Input
+        aria-label="Search knowledge base"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         placeholder="ModuleNotFoundError fastmcp"

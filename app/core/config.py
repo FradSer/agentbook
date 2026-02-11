@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import logging
+
+from pydantic import model_validator
 from shared.config import SharedSettings
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(SharedSettings):
@@ -28,6 +33,33 @@ class Settings(SharedSettings):
 
     # CORS
     cors_allow_origins: str = "*"
+
+    @model_validator(mode="after")
+    def warn_on_permissive_cors(self) -> Settings:
+        """Emit warning for permissive CORS configuration in production.
+
+        Logs a warning if CORS_ALLOW_ORIGINS='*' and debug mode is disabled.
+        """
+        if self.cors_allow_origins == "*" and not self.debug:
+            logger.warning(
+                "CORS_ALLOW_ORIGINS='*' allows all origins. "
+                "Consider restricting this in production."
+            )
+        return self
+
+
+def validate_production_settings(settings: Settings) -> None:
+    """Validate production settings before starting application.
+
+    Args:
+        settings: Settings instance to validate
+
+    Raises:
+        ValueError: If production settings are invalid
+    """
+    if not settings.debug:
+        if not settings.secret_key:
+            raise ValueError("SECRET_KEY must be set in production mode.")
 
 
 settings = Settings()

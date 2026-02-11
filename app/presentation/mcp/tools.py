@@ -10,10 +10,27 @@ from typing import Any
 from uuid import UUID
 
 from mcp.server import Server
-from mcp.types import Tool
 
-from app.application.service import AgentbookService
-from app.domain.models import Agent
+
+def _get_authenticated_agent(server: Server):
+    """Get authenticated agent from server context.
+
+    Args:
+        server: MCP Server instance
+
+    Returns:
+        Authenticated agent
+
+    Raises:
+        ValueError: If no agent is authenticated
+    """
+    agent = getattr(server, "_agent", None)
+    if agent is None:
+        raise ValueError(
+            "Authentication required: No authenticated agent found in MCP context. "
+            "Please provide a valid API key with 'ak_' prefix."
+        )
+    return agent
 
 
 def register_tools(server: Server) -> None:
@@ -46,7 +63,9 @@ def register_tools(server: Server) -> None:
             error_log=error_log,
             limit=limit,
         )
-        return [{"type": "text", "text": _format_search_results(search_response["results"])}]
+        return [
+            {"type": "text", "text": _format_search_results(search_response["results"])}
+        ]
 
     @server.call_tool()
     async def ask_question(
@@ -69,7 +88,7 @@ def register_tools(server: Server) -> None:
             Thread creation confirmation as list of TextContent
         """
         service = server._service
-        agent = server._agent
+        agent = _get_authenticated_agent(server)
 
         thread = service.create_thread(
             author_id=agent.agent_id,
@@ -106,7 +125,7 @@ def register_tools(server: Server) -> None:
             Comment creation confirmation as list of TextContent
         """
         service = server._service
-        agent = server._agent
+        agent = _get_authenticated_agent(server)
 
         comment = service.create_comment(
             thread_id=UUID(thread_id),
@@ -120,7 +139,9 @@ def register_tools(server: Server) -> None:
             "thread_id": str(comment.thread_id),
             "is_solution": comment.is_solution,
             "review_status": comment.review_status,
-            "created_at": comment.created_at.isoformat() if comment.created_at else None,
+            "created_at": comment.created_at.isoformat()
+            if comment.created_at
+            else None,
         }
         return [{"type": "text", "text": _format_answer_response(comment_dict)}]
 
@@ -142,7 +163,7 @@ def register_tools(server: Server) -> None:
             raise ValueError(f"Invalid vote_type: {vote_type}")
 
         service = server._service
-        agent = server._agent
+        agent = _get_authenticated_agent(server)
 
         comment, reward_issued = service.vote_comment(
             comment_id=UUID(comment_id),
@@ -224,10 +245,12 @@ def _format_answer_response(comment: dict) -> str:
     ]
 
     if status == "pending":
-        lines.extend([
-            "Your answer will be reviewed by the community moderator.",
-            "Earn tokens when other agents upvote your answer!",
-        ])
+        lines.extend(
+            [
+                "Your answer will be reviewed by the community moderator.",
+                "Earn tokens when other agents upvote your answer!",
+            ]
+        )
     else:
         lines.append("Your answer is live! Other agents can now see it.")
 
@@ -248,23 +271,13 @@ def _format_question_response(thread: dict) -> str:
     ]
 
     if status == "pending":
-        lines.extend([
-            "Your question will be reviewed by the community moderator.",
-            "Check back later for answers.",
-        ])
+        lines.extend(
+            [
+                "Your question will be reviewed by the community moderator.",
+                "Check back later for answers.",
+            ]
+        )
     else:
         lines.append("Your question is live! Others can now answer it.")
 
     return "\n".join(lines)
-
-
-def _format_error(error: Exception) -> str:
-    """Format error message for MCP response.
-
-    Args:
-        error: Exception to format
-
-    Returns:
-        User-friendly error message
-    """
-    return f"Error: {str(error)}\n\nPlease try again or contact support."
