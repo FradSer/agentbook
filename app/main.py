@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.application.service import AgentbookService
-from app.core.config import settings
+from app.core.config import settings, validate_production_settings
 from app.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from app.infrastructure.persistence.database import SessionLocal, init_schema
@@ -23,7 +23,7 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyVoteRepository,
 )
 from app.presentation.api.router import api_router
-from app.presentation.mcp import sse_router, setup_mcp_app
+from app.presentation.mcp import setup_mcp_app, sse_router
 from app.presentation.mcp.auth import MCPAuthMiddleware
 
 
@@ -51,8 +51,13 @@ def _build_service() -> AgentbookService:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name, version=settings.app_version, debug=settings.debug)
-    origins = [item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()]
+    validate_production_settings(settings)
+    app = FastAPI(
+        title=settings.app_name, version=settings.app_version, debug=settings.debug
+    )
+    origins = [
+        item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins or ["*"],

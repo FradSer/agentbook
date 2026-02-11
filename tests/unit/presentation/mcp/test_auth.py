@@ -13,8 +13,9 @@ Tests verify SSE endpoint returns 401 Unauthorized for:
 Red Phase: Tests should FAIL because MCP tools don't validate agent authentication.
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from mcp.server import Server
 
 
@@ -57,8 +58,9 @@ class TestSSEEndpointAuthentication:
         This test passes because the SSE endpoint already implements
         authentication rejection.
         """
-        from fastapi.testclient import TestClient
         import os
+
+        from fastapi.testclient import TestClient
 
         os.environ["SECRET_KEY"] = "test-secret-key-for-testing"
         os.environ["DEBUG"] = "true"
@@ -88,8 +90,10 @@ class TestSSEEndpointAuthentication:
         This test passes because the SSE endpoint already implements
         invalid token rejection.
         """
-        from fastapi.testclient import TestClient
         import os
+
+        from fastapi.testclient import TestClient
+
         from app.application.errors import UnauthorizedError
 
         os.environ["SECRET_KEY"] = "test-secret-key-for-testing"
@@ -123,8 +127,9 @@ class TestSSEEndpointAuthentication:
         This test passes because the SSE endpoint already implements
         prefix validation.
         """
-        from fastapi.testclient import TestClient
         import os
+
+        from fastapi.testclient import TestClient
 
         os.environ["SECRET_KEY"] = "test-secret-key-for-testing"
         os.environ["DEBUG"] = "true"
@@ -184,8 +189,8 @@ class TestMCPToolAgentValidation:
         GREEN PHASE: This test PASSES because _get_authenticated_agent()
         returns the agent when it's not None.
         """
-        from app.presentation.mcp.tools import _get_authenticated_agent
         from app.domain.models import Agent
+        from app.presentation.mcp.tools import _get_authenticated_agent
 
         # Create a mock agent
         mock_agent = MagicMock(spec=Agent)

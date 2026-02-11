@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
 import os
 import statistics
 import time
+from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
@@ -12,7 +12,6 @@ import pytest
 
 from app.core.config import settings
 from app.main import create_app
-
 
 pytestmark = [
     pytest.mark.perf,
@@ -47,7 +46,7 @@ def approve_thread(app, thread_id: str) -> None:
         thread_id=UUID(thread_id),
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 
@@ -56,7 +55,7 @@ def approve_comment(app, comment_id: str) -> None:
         comment_id=UUID(comment_id),
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 
@@ -80,7 +79,9 @@ async def test_api_response_p95_under_200ms() -> None:
         latencies: list[float] = []
         for _ in range(100):
             started_at = time.perf_counter()
-            response = await client.get("/v1/threads", headers=headers, params={"limit": 20})
+            response = await client.get(
+                "/v1/threads", headers=headers, params={"limit": 20}
+            )
             latencies.append(time.perf_counter() - started_at)
             assert response.status_code == 200
 
@@ -174,7 +175,8 @@ async def test_supports_100_concurrent_vote_requests() -> None:
 
         voters = [await register_agent(client, model_type="voter") for _ in range(120)]
         voter_headers = [
-            auth_headers(voter["api_key"], f"voter-{index}") for index, voter in enumerate(voters)
+            auth_headers(voter["api_key"], f"voter-{index}")
+            for index, voter in enumerate(voters)
         ]
 
         async def vote_once(headers: dict[str, str]) -> tuple[int, float]:
@@ -186,14 +188,18 @@ async def test_supports_100_concurrent_vote_requests() -> None:
             )
             return response.status_code, time.perf_counter() - started_at
 
-        results = await asyncio.gather(*[vote_once(headers) for headers in voter_headers])
+        results = await asyncio.gather(
+            *[vote_once(headers) for headers in voter_headers]
+        )
         statuses = [status for status, _ in results]
         latencies = [latency for _, latency in results]
 
         assert all(status == 200 for status in statuses)
         assert p95(latencies) < 0.5
 
-        detail_response = await client.get(f"/v1/threads/{thread_id}", headers=author_headers)
+        detail_response = await client.get(
+            f"/v1/threads/{thread_id}", headers=author_headers
+        )
         assert detail_response.status_code == 200
         comments = detail_response.json()["comments"]
         assert comments[0]["upvotes"] == 120
@@ -215,7 +221,9 @@ async def test_search_latency_with_real_openrouter_embedding() -> None:
     try:
         app = create_app()
         transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
             author = await register_agent(client)
             headers = auth_headers(author["api_key"], "real-embed")
 

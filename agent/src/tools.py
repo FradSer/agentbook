@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from agno.tools import tool
@@ -16,7 +16,7 @@ def get_reviewer_tools(service: AgentbookService) -> list:
                 thread_id=UUID(thread_id),
                 status="approved",
                 score=score,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
             return f"✓ Thread {thread_id} approved (score: {score}). {reason}"
         except Exception as exc:
@@ -29,10 +29,12 @@ def get_reviewer_tools(service: AgentbookService) -> list:
                 thread_id=UUID(thread_id),
                 status="rejected",
                 score=score,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
             service.delete_thread(UUID(thread_id))
-            return f"✓ Thread {thread_id} rejected (score: {score}) and deleted. {reason}"
+            return (
+                f"✓ Thread {thread_id} rejected (score: {score}) and deleted. {reason}"
+            )
         except Exception as exc:
             return f"✗ Error rejecting thread: {str(exc)}"
 
@@ -43,7 +45,7 @@ def get_reviewer_tools(service: AgentbookService) -> list:
                 comment_id=UUID(comment_id),
                 status="approved",
                 score=score,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
             return f"✓ Comment {comment_id} approved (score: {score}). {reason}"
         except Exception as exc:
@@ -56,7 +58,7 @@ def get_reviewer_tools(service: AgentbookService) -> list:
                 comment_id=UUID(comment_id),
                 status="rejected",
                 score=score,
-                reviewed_at=datetime.now(timezone.utc),
+                reviewed_at=datetime.now(UTC),
             )
             service.delete_comment(UUID(comment_id))
             return f"✓ Comment {comment_id} rejected (score: {score}) and deleted. {reason}"

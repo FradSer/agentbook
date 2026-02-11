@@ -28,10 +28,11 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
 )
 from app.main import create_app
 
-
 pytestmark = [
     pytest.mark.smoke,
-    pytest.mark.skipif(os.getenv("RUN_DOCKER_TESTS") != "1", reason="Set RUN_DOCKER_TESTS=1"),
+    pytest.mark.skipif(
+        os.getenv("RUN_DOCKER_TESTS") != "1", reason="Set RUN_DOCKER_TESTS=1"
+    ),
 ]
 
 
@@ -84,10 +85,12 @@ def test_sse_connection_established(client: TestClient) -> None:
     with client.stream("GET", "/mcp/sse") as response:
         # Assert
         assert response.status_code == 200, "SSE endpoint should return 200 OK"
-        assert response.headers["content-type"].startswith("text/event-stream"), \
+        assert response.headers["content-type"].startswith("text/event-stream"), (
             "SSE endpoint should return text/event-stream content type"
-        assert response.headers.get("cache-control") == "no-cache", \
+        )
+        assert response.headers.get("cache-control") == "no-cache", (
             "SSE should disable caching"
+        )
 
 
 def test_sse_connection_with_bearer_token(client: TestClient, test_agent) -> None:
@@ -160,7 +163,9 @@ def test_sse_connection_with_invalid_token_fails(client: TestClient) -> None:
 # ============================================================================
 
 
-def test_mcp_search_returns_formatted_results(client: TestClient, test_db, test_agent) -> None:
+def test_mcp_search_returns_formatted_results(
+    client: TestClient, test_db, test_agent
+) -> None:
     """Scenario: Successful search returns formatted Markdown results
 
     BDD Reference: Feature "search_agentbook MCP Tool"
@@ -303,7 +308,9 @@ def test_mcp_search_empty_returns_helpful_message(client: TestClient) -> None:
 # ============================================================================
 
 
-def test_mcp_ask_question_triggers_moderation(client: TestClient, test_db, test_agent) -> None:
+def test_mcp_ask_question_triggers_moderation(
+    client: TestClient, test_db, test_agent
+) -> None:
     """Scenario: Successful question posting triggers moderation
 
     BDD Reference: Feature "ask_question MCP Tool"
@@ -343,7 +350,9 @@ def test_mcp_ask_question_triggers_moderation(client: TestClient, test_db, test_
     assert thread.environment == {"python": "3.11", "redis": "7.0"}
 
 
-def test_mcp_ask_question_with_error_log(client: TestClient, test_db, test_agent) -> None:
+def test_mcp_ask_question_with_error_log(
+    client: TestClient, test_db, test_agent
+) -> None:
     """Scenario: Question with error_log is stored
 
     BDD Reference: Feature "ask_question MCP Tool"
@@ -852,7 +861,9 @@ def test_mcp_not_found_error_comment(client: TestClient, test_db, test_agent) ->
     assert response.json()["detail"] == "Comment not found"
 
 
-def test_mcp_validation_error_invalid_vote_type(client: TestClient, test_db, test_agent) -> None:
+def test_mcp_validation_error_invalid_vote_type(
+    client: TestClient, test_db, test_agent
+) -> None:
     """Scenario: Validation errors for invalid parameters
 
     BDD Reference: Feature "MCP Error Formatting"
@@ -1064,7 +1075,9 @@ Also add retry logic for resilience.""",
     assert "socket_timeout" in updated_comment.content
 
 
-def test_mcp_e2e_search_finds_existing_solution(client: TestClient, test_db, test_agent) -> None:
+def test_mcp_e2e_search_finds_existing_solution(
+    client: TestClient, test_db, test_agent
+) -> None:
     """Scenario: Search finds existing solution, no question needed
 
     BDD Reference: Feature "Multi-Step Agent Workflow via MCP"
@@ -1095,7 +1108,7 @@ def test_mcp_e2e_search_finds_existing_solution(client: TestClient, test_db, tes
         comment_id=comment_id,
         thread_id=thread.thread_id,
         author_id=test_agent.agent_id,
-        content="Install using: `pip install \"mcp[cli]\"`",
+        content='Install using: `pip install "mcp[cli]"`',
         is_solution=True,
         parent_id=None,
         path=comment_id.hex,

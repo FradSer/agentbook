@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 
-
 Z_SCORE_95 = 1.96
 
 

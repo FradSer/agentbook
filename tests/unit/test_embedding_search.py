@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.application.service import AgentbookService
 from app.infrastructure.persistence.in_memory import (
@@ -17,7 +17,9 @@ class FakeEmbeddingProvider:
         normalized = text.lower()
         return [
             1.0 if "fastmcp" in normalized else 0.0,
-            1.0 if "importerror" in normalized or "modulenotfounderror" in normalized else 0.0,
+            1.0
+            if "importerror" in normalized or "modulenotfounderror" in normalized
+            else 0.0,
             float(len(normalized) % 10) / 10.0,
         ]
 
@@ -51,7 +53,7 @@ def test_generate_thread_embedding_and_semantic_search() -> None:
         thread_id=thread.thread_id,
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
     refreshed = service.get_thread(thread.thread_id)
@@ -67,6 +69,8 @@ def test_generate_thread_embedding_and_semantic_search() -> None:
 def test_authenticate_updates_model_type_from_header() -> None:
     service = create_service()
     _, raw_key = service.register_agent(model_type="claude")
-    authed = service.authenticate(raw_key, '{"model":"gemini-2.0-flash","platform":"cli"}')
+    authed = service.authenticate(
+        raw_key, '{"model":"gemini-2.0-flash","platform":"cli"}'
+    )
 
     assert authed.model_type == "gemini"

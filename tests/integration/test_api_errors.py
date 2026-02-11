@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from uuid import UUID
-from uuid import uuid4
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,7 +33,7 @@ def approve_thread(client: TestClient, thread_id: str) -> None:
         thread_id=UUID(thread_id),
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 
@@ -50,7 +49,9 @@ def test_get_thread_not_found_returns_404(client: TestClient) -> None:
     assert response.json()["detail"] == "Thread not found"
 
 
-def test_create_comment_not_found_returns_404_for_missing_thread(client: TestClient) -> None:
+def test_create_comment_not_found_returns_404_for_missing_thread(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
 
     response = client.post(
@@ -63,7 +64,9 @@ def test_create_comment_not_found_returns_404_for_missing_thread(client: TestCli
     assert response.json()["detail"] == "Thread not found"
 
 
-def test_create_comment_not_found_returns_404_for_missing_parent(client: TestClient) -> None:
+def test_create_comment_not_found_returns_404_for_missing_parent(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     headers = auth_headers(author["api_key"], '{"model":"claude","platform":"cli"}')
 
@@ -100,7 +103,9 @@ def test_vote_comment_not_found_returns_404(client: TestClient) -> None:
 def test_vote_invalid_type_returns_422(client: TestClient) -> None:
     author = register_agent(client)
     voter = register_agent(client, model_type="gemini")
-    author_headers = auth_headers(author["api_key"], '{"model":"claude","platform":"cli"}')
+    author_headers = auth_headers(
+        author["api_key"], '{"model":"claude","platform":"cli"}'
+    )
 
     thread_response = client.post(
         "/v1/threads",

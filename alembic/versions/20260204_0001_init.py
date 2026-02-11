@@ -1,15 +1,16 @@
 """init schema
 
 Revision ID: 20260204_0001
-Revises: 
+Revises:
 Create Date: 2026-02-04 23:40:00
 """
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+
+from alembic import op
 
 try:
     from pgvector.sqlalchemy import Vector
@@ -39,7 +40,9 @@ def upgrade() -> None:
     if bind.dialect.name == "postgresql":
         available_extensions = {
             row[0]
-            for row in bind.execute(sa.text("SELECT name FROM pg_available_extensions")).fetchall()
+            for row in bind.execute(
+                sa.text("SELECT name FROM pg_available_extensions")
+            ).fetchall()
         }
         if "vector" in available_extensions:
             op.execute("CREATE EXTENSION IF NOT EXISTS vector")
@@ -68,7 +71,12 @@ def upgrade() -> None:
     op.create_table(
         "threads",
         sa.Column("thread_id", sa.String(length=36), primary_key=True),
-        sa.Column("author_id", sa.String(length=36), sa.ForeignKey("agents.agent_id"), nullable=False),
+        sa.Column(
+            "author_id",
+            sa.String(length=36),
+            sa.ForeignKey("agents.agent_id"),
+            nullable=False,
+        ),
         sa.Column("title", sa.String(length=500), nullable=False),
         sa.Column("body", sa.Text(), nullable=False),
         sa.Column("tags", tags_type, nullable=False),
@@ -87,11 +95,23 @@ def upgrade() -> None:
             sa.ForeignKey("threads.thread_id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("author_id", sa.String(length=36), sa.ForeignKey("agents.agent_id"), nullable=False),
-        sa.Column("parent_id", sa.String(length=36), sa.ForeignKey("comments.comment_id"), nullable=True),
+        sa.Column(
+            "author_id",
+            sa.String(length=36),
+            sa.ForeignKey("agents.agent_id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "parent_id",
+            sa.String(length=36),
+            sa.ForeignKey("comments.comment_id"),
+            nullable=True,
+        ),
         sa.Column("path", path_type, nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("is_solution", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "is_solution", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("upvotes", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("downvotes", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("wilson_score", sa.Float(), nullable=False, server_default="0"),
@@ -107,20 +127,37 @@ def upgrade() -> None:
             sa.ForeignKey("comments.comment_id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("voter_id", sa.String(length=36), sa.ForeignKey("agents.agent_id"), nullable=False),
+        sa.Column(
+            "voter_id",
+            sa.String(length=36),
+            sa.ForeignKey("agents.agent_id"),
+            nullable=False,
+        ),
         sa.Column("vote_type", sa.String(length=10), nullable=False),
         sa.Column("voted_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint("vote_type IN ('upvote', 'downvote')", name="ck_votes_vote_type"),
+        sa.CheckConstraint(
+            "vote_type IN ('upvote', 'downvote')", name="ck_votes_vote_type"
+        ),
         sa.UniqueConstraint("comment_id", "voter_id", name="uq_votes_comment_voter"),
     )
 
     op.create_table(
         "token_transactions",
         sa.Column("tx_id", sa.String(length=36), primary_key=True),
-        sa.Column("agent_id", sa.String(length=36), sa.ForeignKey("agents.agent_id"), nullable=False),
+        sa.Column(
+            "agent_id",
+            sa.String(length=36),
+            sa.ForeignKey("agents.agent_id"),
+            nullable=False,
+        ),
         sa.Column("amount", sa.Integer(), nullable=False),
         sa.Column("tx_type", sa.String(length=50), nullable=False),
-        sa.Column("related_comment_id", sa.String(length=36), sa.ForeignKey("comments.comment_id"), nullable=True),
+        sa.Column(
+            "related_comment_id",
+            sa.String(length=36),
+            sa.ForeignKey("comments.comment_id"),
+            nullable=True,
+        ),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
@@ -137,7 +174,9 @@ def upgrade() -> None:
         )
 
     op.create_index("idx_comments_wilson", "comments", ["wilson_score"], unique=False)
-    op.create_index("idx_votes_comment_voter", "votes", ["comment_id", "voter_id"], unique=False)
+    op.create_index(
+        "idx_votes_comment_voter", "votes", ["comment_id", "voter_id"], unique=False
+    )
 
 
 def downgrade() -> None:

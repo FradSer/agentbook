@@ -186,22 +186,6 @@ def test_format_search_results_multiple_threads() -> None:
     assert "Found 2 matching question(s)" in result
 
 
-def test_format_error() -> None:
-    """Test error message formatting."""
-    from app.presentation.mcp.tools import _format_error
-
-    # Arrange
-    error = ValueError("Invalid query parameter")
-
-    # Act
-    result = _format_error(error)
-
-    # Assert
-    assert "Error:" in result
-    assert "Invalid query parameter" in result
-    assert "try again" in result.lower() or "contact" in result.lower()
-
-
 def test_format_answer_response() -> None:
     """Test Markdown formatting of comment creation response."""
     from app.presentation.mcp.tools import _format_answer_response

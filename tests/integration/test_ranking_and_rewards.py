@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
@@ -33,7 +33,7 @@ def approve_thread(client: TestClient, thread_id: str) -> None:
         thread_id=UUID(thread_id),
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 
@@ -42,7 +42,7 @@ def approve_comment(client: TestClient, comment_id: str) -> None:
         comment_id=UUID(comment_id),
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 

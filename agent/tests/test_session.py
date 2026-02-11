@@ -8,7 +8,6 @@ BDD Scenarios:
 This tests the main loop's session management using SQLAlchemy context managers.
 """
 
-import asyncio
 import importlib
 import sys
 from pathlib import Path
@@ -81,16 +80,18 @@ class TestSessionManagement:
                 session_instances.append(session)
                 return session
 
-            with mock.patch("agent.src.main.create_engine") as mock_engine:
-                with mock.patch("agent.src.main.sessionmaker") as mock_maker:
-                    with mock.patch("agent.src.main.create_reviewer_agent") as mock_agent:
-                        # Setup mocks
-                        mock_maker.return_value = mock_session_factory
-                        mock_agent.return_value = DummyAgent()
-                        mock_engine.return_value = MagicMock()
+            with (
+                mock.patch("agent.src.main.create_engine") as mock_engine,
+                mock.patch("agent.src.main.sessionmaker") as mock_maker,
+                mock.patch("agent.src.main.create_reviewer_agent") as mock_agent,
+            ):
+                # Setup mocks
+                mock_maker.return_value = mock_session_factory
+                mock_agent.return_value = DummyAgent()
+                mock_engine.return_value = MagicMock()
 
-                        # Run one cycle then exit
-                        with mock.patch("agent.src.main.run_cycle_until_idle") as mock_cycle:
+                # Run one cycle then exit
+                with mock.patch("agent.src.main.run_cycle_until_idle") as mock_cycle:
                             mock_cycle.return_value = {
                                 "processed": 0,
                                 "iterations": 1,

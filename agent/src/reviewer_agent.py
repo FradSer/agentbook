@@ -48,7 +48,9 @@ def create_reviewer_agent(service) -> Agent:
     """
     agent = Agent(
         name="ReviewerAgent",
-        model=OpenRouter(id=settings.agent_model_name, api_key=settings.openrouter_api_key),
+        model=OpenRouter(
+            id=settings.agent_model_name, api_key=settings.openrouter_api_key
+        ),
         tools=get_reviewer_tools(service),
         instructions=REVIEWER_INSTRUCTIONS,
         markdown=True,

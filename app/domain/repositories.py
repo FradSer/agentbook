@@ -24,7 +24,9 @@ class ThreadRepository(Protocol):
 
     def list_all(self) -> list[Thread]: ...
 
-    def search_similar(self, query_embedding: list[float]) -> list[tuple[Thread, float]]: ...
+    def search_similar(
+        self, query_embedding: list[float]
+    ) -> list[tuple[Thread, float]]: ...
 
     def find_unreviewed(
         self,

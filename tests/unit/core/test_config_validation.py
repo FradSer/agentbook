@@ -164,6 +164,7 @@ class TestCorsWarning:
 
         try:
             import importlib
+
             import app.core.config as config_module
             importlib.reload(config_module)
 
@@ -204,6 +205,7 @@ class TestCorsWarning:
 
         try:
             import importlib
+
             import app.core.config as config_module
             importlib.reload(config_module)
 

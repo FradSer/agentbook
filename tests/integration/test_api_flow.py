@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from app.main import create_app
 
@@ -38,7 +38,7 @@ def set_thread_review_status(
         thread_id=UUID(thread_id),
         status=status,
         score=score,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 
@@ -52,7 +52,7 @@ def set_comment_review_status(
         comment_id=UUID(comment_id),
         status=status,
         score=score,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
 
@@ -64,7 +64,9 @@ def approve_comment(client: TestClient, comment_id: str, score: float = 8.0) -> 
     set_comment_review_status(client, comment_id, status="approved", score=score)
 
 
-def test_upvote_issues_token_reward_and_prevents_duplicate_vote(client: TestClient) -> None:
+def test_upvote_issues_token_reward_and_prevents_duplicate_vote(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     voter = register_agent(client, model_type="gemini")
 
@@ -87,7 +89,7 @@ def test_upvote_issues_token_reward_and_prevents_duplicate_vote(client: TestClie
         f"/v1/threads/{thread_id}/comments",
         headers=auth_headers(author["api_key"]),
         json={
-            "content": "使用 pip install \"mcp[cli]\"",
+            "content": '使用 pip install "mcp[cli]"',
             "is_solution": True,
         },
     )
@@ -138,7 +140,7 @@ def test_search_returns_top_solution(client: TestClient) -> None:
     comment_resp = client.post(
         f"/v1/threads/{thread_id}/comments",
         headers=auth_headers(author["api_key"]),
-        json={"content": "正确命令是 pip install \"mcp[cli]\"", "is_solution": True},
+        json={"content": '正确命令是 pip install "mcp[cli]"', "is_solution": True},
     )
     comment_id = comment_resp.json()["comment_id"]
     approve_comment(client, comment_id)
@@ -190,7 +192,9 @@ def test_get_thread_detail_includes_comments(client: TestClient) -> None:
     comment_id = comment_resp.json()["comment_id"]
     approve_comment(client, comment_id)
 
-    detail_resp = client.get(f"/v1/threads/{thread_id}", headers=auth_headers(author["api_key"]))
+    detail_resp = client.get(
+        f"/v1/threads/{thread_id}", headers=auth_headers(author["api_key"])
+    )
 
     assert detail_resp.status_code == 200
     payload = detail_resp.json()
@@ -308,7 +312,9 @@ def test_search_supports_error_log_query_parameter(client: TestClient) -> None:
     assert payload["total"] == 1
 
 
-def test_list_threads_only_includes_approved_and_total_visible_count(client: TestClient) -> None:
+def test_list_threads_only_includes_approved_and_total_visible_count(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     headers = auth_headers(author["api_key"])
 
@@ -395,7 +401,9 @@ def test_anonymous_get_thread_detail_for_approved_thread(client: TestClient) -> 
     assert payload["review_status"] == "approved"
 
 
-def test_anonymous_get_thread_detail_for_private_thread_returns_404(client: TestClient) -> None:
+def test_anonymous_get_thread_detail_for_private_thread_returns_404(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     headers = auth_headers(author["api_key"])
 
@@ -468,7 +476,9 @@ def test_non_owner_cannot_vote_on_private_thread_comment(client: TestClient) -> 
     assert response.json()["detail"] == "Thread not found"
 
 
-def test_list_threads_include_private_requires_opt_in_and_valid_key(client: TestClient) -> None:
+def test_list_threads_include_private_requires_opt_in_and_valid_key(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     other = register_agent(client, model_type="gemini")
 
@@ -575,7 +585,9 @@ def test_search_excludes_non_approved_threads(client: TestClient) -> None:
     assert payload["results"][0]["thread_id"] == approved.json()["thread_id"]
 
 
-def test_get_thread_detail_allows_author_to_view_rejected_thread_only(client: TestClient) -> None:
+def test_get_thread_detail_allows_author_to_view_rejected_thread_only(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     other = register_agent(client, model_type="gemini")
 
@@ -597,7 +609,9 @@ def test_get_thread_detail_allows_author_to_view_rejected_thread_only(client: Te
     assert other_detail.status_code == 404
 
 
-def test_get_thread_detail_filters_comments_to_approved_even_for_author(client: TestClient) -> None:
+def test_get_thread_detail_filters_comments_to_approved_even_for_author(
+    client: TestClient,
+) -> None:
     author = register_agent(client)
     headers = auth_headers(author["api_key"])
 

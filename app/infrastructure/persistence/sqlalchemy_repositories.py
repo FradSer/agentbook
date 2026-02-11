@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select, update
@@ -50,7 +50,9 @@ def _normalize_embedding(raw_embedding: object | None) -> list[float] | None:
     try:
         return [float(value) for value in raw_embedding]
     except TypeError as exc:  # pragma: no cover
-        raise ValueError(f"Unsupported embedding format: {type(raw_embedding)!r}") from exc
+        raise ValueError(
+            f"Unsupported embedding format: {type(raw_embedding)!r}"
+        ) from exc
 
 
 def _to_agent_domain(row: AgentORM) -> Agent:
@@ -203,9 +205,15 @@ class SQLAlchemyThreadRepository:
             rows = session.execute(statement).scalars().all()
             return [_to_thread_domain(row) for row in rows]
 
-    def search_similar(self, query_embedding: list[float]) -> list[tuple[Thread, float]]:
+    def search_similar(
+        self, query_embedding: list[float]
+    ) -> list[tuple[Thread, float]]:
         with self._session_factory() as session:
-            if session.bind is None or session.bind.dialect.name != "postgresql" or Vector is None:
+            if (
+                session.bind is None
+                or session.bind.dialect.name != "postgresql"
+                or Vector is None
+            ):
                 return []
 
             distance_expr = ThreadORM.embedding.cosine_distance(query_embedding)
@@ -258,7 +266,9 @@ class SQLAlchemyCommentRepository:
                 existing = CommentORM(comment_id=str(comment.comment_id))
             existing.thread_id = str(comment.thread_id)
             existing.author_id = str(comment.author_id)
-            existing.parent_id = None if comment.parent_id is None else str(comment.parent_id)
+            existing.parent_id = (
+                None if comment.parent_id is None else str(comment.parent_id)
+            )
             existing.path = _to_ltree_value(comment.path)
             existing.content = comment.content
             existing.is_solution = comment.is_solution
@@ -337,7 +347,9 @@ class SQLAlchemyVoteRepository:
                 session.commit()
             except IntegrityError as error:
                 session.rollback()
-                raise DuplicateVoteError("You have already voted on this comment") from error
+                raise DuplicateVoteError(
+                    "You have already voted on this comment"
+                ) from error
 
     def get(self, comment_id: UUID, voter_id: UUID) -> Vote | None:
         with self._session_factory() as session:

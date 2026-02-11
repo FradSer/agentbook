@@ -7,7 +7,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _assert_uv_run_import(command: list[str]) -> None:
-    result = subprocess.run(command, cwd="/tmp", capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        command, cwd="/tmp", capture_output=True, text=True, check=False
+    )
     assert result.returncode == 0, (
         "Command failed:\n"
         f"{' '.join(command)}\n"

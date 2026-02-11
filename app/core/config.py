@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from pydantic import model_validator
+
 from shared.config import SharedSettings
 
 logger = logging.getLogger(__name__)

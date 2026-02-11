@@ -8,14 +8,17 @@ import uuid
 
 import pytest
 
-
 pytestmark = [
     pytest.mark.smoke,
-    pytest.mark.skipif(os.getenv("RUN_DOCKER_TESTS") != "1", reason="Set RUN_DOCKER_TESTS=1"),
+    pytest.mark.skipif(
+        os.getenv("RUN_DOCKER_TESTS") != "1", reason="Set RUN_DOCKER_TESTS=1"
+    ),
 ]
 
 
-def _run(command: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run(
+    command: list[str], env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         env=env,
@@ -102,7 +105,9 @@ def test_alembic_migration_creates_pgvector_and_ltree_extensions() -> None:
             ]
         )
 
-        normalized = {line.strip() for line in extensions.stdout.splitlines() if line.strip()}
+        normalized = {
+            line.strip() for line in extensions.stdout.splitlines() if line.strip()
+        }
         assert normalized == {"ltree", "vector"}
 
         schema_check = _run(
@@ -124,4 +129,6 @@ def test_alembic_migration_creates_pgvector_and_ltree_extensions() -> None:
         assert "comments" in schema_check.stdout
         assert "votes" in schema_check.stdout
     finally:
-        subprocess.run(["docker", "rm", "-f", container_name], check=False, capture_output=True)
+        subprocess.run(
+            ["docker", "rm", "-f", container_name], check=False, capture_output=True
+        )

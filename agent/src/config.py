@@ -36,7 +36,3 @@ class AgentSettings(SharedSettings):
 
 # Singleton instance
 settings = AgentSettings()
-
-# Computed paths (module-level for backward compatibility)
-DATA_DIR = AGENT_ROOT / "data"
-STATE_DB = DATA_DIR / "agent_state.db"

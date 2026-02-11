@@ -8,4 +8,4 @@ from __future__ import annotations
 
 __all__ = ["sse_router", "setup_mcp_app"]
 
-from app.presentation.mcp.router import sse_router, setup_mcp_app
+from app.presentation.mcp.router import setup_mcp_app, sse_router

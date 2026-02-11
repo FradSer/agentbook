@@ -40,7 +40,9 @@ def verify_agent(
     try:
         agent = service.authenticate(api_key=payload.api_key)
     except UnauthorizedError as error:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(error)) from error
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(error)
+        ) from error
     return VerifyAgentResponse(
         agent_id=str(agent.agent_id),
         model_type=agent.model_type,

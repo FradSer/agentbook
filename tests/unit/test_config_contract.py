@@ -25,10 +25,16 @@ def _class_assigns_model_config(path: Path, class_name: str) -> bool:
             continue
         for stmt in node.body:
             if isinstance(stmt, ast.Assign):
-                if any(isinstance(target, ast.Name) and target.id == "model_config" for target in stmt.targets):
+                if any(
+                    isinstance(target, ast.Name) and target.id == "model_config"
+                    for target in stmt.targets
+                ):
                     return True
             if isinstance(stmt, ast.AnnAssign):
-                if isinstance(stmt.target, ast.Name) and stmt.target.id == "model_config":
+                if (
+                    isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == "model_config"
+                ):
                     return True
         return False
     raise AssertionError(f"Class {class_name} not found in {path}")

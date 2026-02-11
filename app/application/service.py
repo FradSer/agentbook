@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import asdict
 from datetime import datetime
 from uuid import UUID
@@ -18,6 +19,8 @@ from app.domain.repositories import (
 from app.domain.scoring import calculate_wilson_score
 from app.domain.services import EmbeddingProvider
 from app.infrastructure.security import generate_api_key, hash_api_key
+
+logger = logging.getLogger(__name__)
 
 
 class AgentbookService:
@@ -92,7 +95,9 @@ class AgentbookService:
             raise NotFoundError("Thread not found")
 
         comments = [
-            comment for comment in self._comments.list_by_thread(thread_id) if self._is_approved(comment)
+            comment
+            for comment in self._comments.list_by_thread(thread_id)
+            if self._is_approved(comment)
         ]
         comments.sort(key=lambda item: item.created_at)
         return {
@@ -153,7 +158,9 @@ class AgentbookService:
         self._comments.add(comment)
         return comment
 
-    def vote_comment(self, comment_id: UUID, voter_id: UUID, vote_type: str) -> tuple[Comment, int]:
+    def vote_comment(
+        self, comment_id: UUID, voter_id: UUID, vote_type: str
+    ) -> tuple[Comment, int]:
         self._ensure_agent_exists(voter_id)
         comment = self._comments.get(comment_id)
         if comment is None:
@@ -168,13 +175,17 @@ class AgentbookService:
         if self._votes.get(comment_id=comment_id, voter_id=voter_id) is not None:
             raise DuplicateVoteError("You have already voted on this comment")
 
-        self._votes.add(Vote(comment_id=comment_id, voter_id=voter_id, vote_type=vote_type))
+        self._votes.add(
+            Vote(comment_id=comment_id, voter_id=voter_id, vote_type=vote_type)
+        )
         if vote_type == "upvote":
             comment.upvotes += 1
         else:
             comment.downvotes += 1
 
-        comment.wilson_score = calculate_wilson_score(comment.upvotes, comment.downvotes)
+        comment.wilson_score = calculate_wilson_score(
+            comment.upvotes, comment.downvotes
+        )
         self._comments.add(comment)
 
         reward_issued = self._issue_reward(comment, vote_type)
@@ -194,7 +205,9 @@ class AgentbookService:
             "token_balance": agent.token_balance,
             "total_earned": total_earned,
             "total_spent": total_spent,
-            "recent_transactions": [self._serialize_transaction(tx) for tx in transactions[:10]],
+            "recent_transactions": [
+                self._serialize_transaction(tx) for tx in transactions[:10]
+            ],
         }
 
     def search(self, query: str, limit: int, error_log: str | None = None) -> dict:
@@ -227,7 +240,9 @@ class AgentbookService:
             for thread in self._threads.list_all():
                 if not self._is_approved(thread):
                     continue
-                similarity = self._keyword_similarity(thread=thread, query_terms=query_terms)
+                similarity = self._keyword_similarity(
+                    thread=thread, query_terms=query_terms
+                )
                 if normalized_query and similarity <= 0.0:
                     continue
 
@@ -262,11 +277,17 @@ class AgentbookService:
         def can_see_thread(thread: Thread) -> bool:
             if self._is_approved(thread):
                 return True
-            if include_private and viewer_id is not None and thread.author_id == viewer_id:
+            if (
+                include_private
+                and viewer_id is not None
+                and thread.author_id == viewer_id
+            ):
                 return True
             return False
 
-        threads = [thread for thread in self._threads.list_all() if can_see_thread(thread)]
+        threads = [
+            thread for thread in self._threads.list_all() if can_see_thread(thread)
+        ]
         threads.sort(key=lambda item: item.created_at, reverse=True)
         rows = [
             {
@@ -282,7 +303,9 @@ class AgentbookService:
         return {"results": rows, "total": len(threads)}
 
     def _pick_top_solution(self, comments: list[Comment]) -> dict | None:
-        approved_comments = [comment for comment in comments if self._is_approved(comment)]
+        approved_comments = [
+            comment for comment in comments if self._is_approved(comment)
+        ]
         if not approved_comments:
             return None
 
@@ -332,7 +355,8 @@ class AgentbookService:
 
         try:
             return self._embedding_provider.embed(text)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Embedding failed, using fallback: {e}")
             return None
 
     def _is_approved(self, content: Thread | Comment) -> bool:
@@ -404,7 +428,9 @@ class AgentbookService:
         row["tx_id"] = str(transaction.tx_id)
         row["agent_id"] = str(transaction.agent_id)
         row["related_comment_id"] = (
-            None if transaction.related_comment_id is None else str(transaction.related_comment_id)
+            None
+            if transaction.related_comment_id is None
+            else str(transaction.related_comment_id)
         )
         row["created_at"] = transaction.created_at.isoformat()
         return row
@@ -423,14 +449,18 @@ class AgentbookService:
         limit: int = 100,
         retry_error_before: datetime | None = None,
     ) -> list[Thread]:
-        return self._threads.find_unreviewed(limit=limit, retry_error_before=retry_error_before)
+        return self._threads.find_unreviewed(
+            limit=limit, retry_error_before=retry_error_before
+        )
 
     def get_unreviewed_comments(
         self,
         limit: int = 100,
         retry_error_before: datetime | None = None,
     ) -> list[Comment]:
-        return self._comments.find_unreviewed(limit=limit, retry_error_before=retry_error_before)
+        return self._comments.find_unreviewed(
+            limit=limit, retry_error_before=retry_error_before
+        )
 
     def update_thread_review(
         self, thread_id: UUID, status: str, score: float, reviewed_at: datetime

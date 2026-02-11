@@ -1,8 +1,7 @@
-import asyncio
 import importlib
 import sys
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -24,7 +23,11 @@ class DrainService:
     def get_unreviewed_threads(self, limit: int, retry_error_before=None):
         self.thread_fetches += 1
         if self.thread_fetches == 1:
-            return [SimpleNamespace(thread_id=uuid4(), title="valid title", body="valid thread body")]
+            return [
+                SimpleNamespace(
+                    thread_id=uuid4(), title="valid title", body="valid thread body"
+                )
+            ]
         return []
 
     def get_unreviewed_comments(self, limit: int, retry_error_before=None):
@@ -88,7 +91,9 @@ class TestAsyncCycle(unittest.IsolatedAsyncioTestCase):
         service = DrainService()
         agent = DummyAsyncAgent()
 
-        metrics = await main_module.run_cycle_until_idle(agent, service, max_cycle_seconds=10, continue_delay_seconds=0)
+        metrics = await main_module.run_cycle_until_idle(
+            agent, service, max_cycle_seconds=10, continue_delay_seconds=0
+        )
 
         self.assertGreaterEqual(service.thread_fetches, 2)
         self.assertEqual(metrics["processed"], 1)
@@ -103,9 +108,13 @@ class TestAsyncCycle(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(service.retry_error_before)
         cutoff = service.retry_error_before
         self.assertIsNotNone(cutoff.tzinfo)
-        delta = datetime.now(timezone.utc) - cutoff
-        self.assertGreaterEqual(delta, timedelta(seconds=main_module.settings.agent_poll_interval - 5))
-        self.assertLessEqual(delta, timedelta(seconds=main_module.settings.agent_poll_interval + 5))
+        delta = datetime.now(UTC) - cutoff
+        self.assertGreaterEqual(
+            delta, timedelta(seconds=main_module.settings.agent_poll_interval - 5)
+        )
+        self.assertLessEqual(
+            delta, timedelta(seconds=main_module.settings.agent_poll_interval + 5)
+        )
 
 
 if __name__ == "__main__":

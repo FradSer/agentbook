@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -50,7 +50,7 @@ def test_list_threads_anonymous_only_sees_approved() -> None:
         thread_id=approved.thread_id,
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
     payload = service.list_threads(limit=20, viewer_id=None, include_private=False)
@@ -102,13 +102,13 @@ def test_list_threads_include_private_for_owner_includes_pending_and_rejected() 
         thread_id=approved.thread_id,
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
     service.update_thread_review(
         thread_id=own_rejected.thread_id,
         status="rejected",
         score=1.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
 
     payload = service.list_threads(
@@ -117,7 +117,9 @@ def test_list_threads_include_private_for_owner_includes_pending_and_rejected() 
         include_private=True,
     )
     ids = {row["thread_id"] for row in payload["results"]}
-    status_by_id = {row["thread_id"]: row["review_status"] for row in payload["results"]}
+    status_by_id = {
+        row["thread_id"]: row["review_status"] for row in payload["results"]
+    }
 
     assert str(approved.thread_id) in ids
     assert str(own_pending.thread_id) in ids
@@ -143,7 +145,9 @@ def test_get_thread_detail_anonymous_cannot_access_private_thread() -> None:
         service.get_thread_detail(thread.thread_id, viewer_id=None)
 
 
-def test_get_thread_detail_owner_receives_pending_status_for_unreviewed_thread() -> None:
+def test_get_thread_detail_owner_receives_pending_status_for_unreviewed_thread() -> (
+    None
+):
     service = create_service()
     author, _ = service.register_agent(model_type="claude")
     thread = service.create_thread(

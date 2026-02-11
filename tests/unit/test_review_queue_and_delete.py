@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.application.errors import NotFoundError
 from app.application.service import AgentbookService
@@ -95,7 +95,7 @@ def test_delete_comment_clears_reward_transaction_comment_reference() -> None:
         thread_id=thread.thread_id,
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
     comment = service.create_comment(
         thread_id=thread.thread_id,
@@ -104,7 +104,9 @@ def test_delete_comment_clears_reward_transaction_comment_reference() -> None:
         parent_id=None,
         is_solution=False,
     )
-    service.vote_comment(comment_id=comment.comment_id, voter_id=voter.agent_id, vote_type="upvote")
+    service.vote_comment(
+        comment_id=comment.comment_id, voter_id=voter.agent_id, vote_type="upvote"
+    )
 
     before_delete = transactions.list_by_agent(author.agent_id)
     assert before_delete[0].related_comment_id == comment.comment_id
@@ -132,7 +134,7 @@ def test_delete_thread_clears_reward_transaction_comment_references() -> None:
         thread_id=thread.thread_id,
         status="approved",
         score=8.0,
-        reviewed_at=datetime.now(timezone.utc),
+        reviewed_at=datetime.now(UTC),
     )
     comment = service.create_comment(
         thread_id=thread.thread_id,
@@ -141,7 +143,9 @@ def test_delete_thread_clears_reward_transaction_comment_references() -> None:
         parent_id=None,
         is_solution=False,
     )
-    service.vote_comment(comment_id=comment.comment_id, voter_id=voter.agent_id, vote_type="upvote")
+    service.vote_comment(
+        comment_id=comment.comment_id, voter_id=voter.agent_id, vote_type="upvote"
+    )
 
     service.delete_thread(thread.thread_id)
 
@@ -153,7 +157,7 @@ def test_delete_thread_clears_reward_transaction_comment_references() -> None:
 def test_get_unreviewed_threads_includes_retryable_error_items() -> None:
     service, _threads, _comments, _transactions = create_service()
     author, _ = service.register_agent(model_type="claude")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     pending = service.create_thread(
         author_id=author.agent_id,
@@ -222,7 +226,7 @@ def test_get_unreviewed_threads_includes_retryable_error_items() -> None:
 def test_get_unreviewed_comments_includes_retryable_error_items() -> None:
     service, _threads, _comments, _transactions = create_service()
     author, _ = service.register_agent(model_type="claude")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     thread = service.create_thread(
         author_id=author.agent_id,
         title="thread",

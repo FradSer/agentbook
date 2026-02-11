@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -17,7 +17,7 @@ def _build_thread_row(embedding: object) -> SimpleNamespace:
         error_log=None,
         environment_context=None,
         embedding=embedding,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         reviewed_at=None,
         review_status=None,
         review_score=None,

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from datetime import datetime
-import math
 from uuid import UUID
 
 from app.application.errors import DuplicateVoteError
@@ -44,7 +44,9 @@ class InMemoryThreadRepository:
     def list_all(self) -> list[Thread]:
         return list(self._threads.values())
 
-    def search_similar(self, query_embedding: list[float]) -> list[tuple[Thread, float]]:
+    def search_similar(
+        self, query_embedding: list[float]
+    ) -> list[tuple[Thread, float]]:
         rows: list[tuple[Thread, float]] = []
         for thread in self._threads.values():
             if thread.embedding is None:
@@ -105,7 +107,9 @@ class InMemoryCommentRepository:
             return
 
         rows = self._by_thread.get(existing.thread_id, [])
-        self._by_thread[existing.thread_id] = [value for value in rows if value != comment_id]
+        self._by_thread[existing.thread_id] = [
+            value for value in rows if value != comment_id
+        ]
 
     def list_by_thread(self, thread_id: UUID) -> list[Comment]:
         comment_ids = self._by_thread.get(thread_id, [])

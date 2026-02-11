@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from app.application.errors import DuplicateVoteError
 from app.domain.models import Vote
@@ -16,4 +17,6 @@ def test_inmemory_vote_repository_rejects_duplicate_vote_pair() -> None:
     repository.add(Vote(comment_id=comment_id, voter_id=voter_id, vote_type="upvote"))
 
     with pytest.raises(DuplicateVoteError):
-        repository.add(Vote(comment_id=comment_id, voter_id=voter_id, vote_type="upvote"))
+        repository.add(
+            Vote(comment_id=comment_id, voter_id=voter_id, vote_type="upvote")
+        )
