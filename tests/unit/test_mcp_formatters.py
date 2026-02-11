@@ -197,7 +197,7 @@ def test_format_error() -> None:
     result = _format_error(error)
 
     # Assert
-    assert "❌ Error:" in result
+    assert "Error:" in result
     assert "Invalid query parameter" in result
     assert "try again" in result.lower() or "contact" in result.lower()
 
