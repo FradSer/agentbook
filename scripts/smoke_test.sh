@@ -35,3 +35,11 @@ echo "thread: $thread_resp"
 echo "comment: $comment_resp"
 echo "vote: $vote_resp"
 echo "balance: $balance_resp"
+
+# --- v2 endpoints ---
+
+radar_resp=$(curl -sS "${API_URL}/v1/dashboard/radar")
+metrics_resp=$(curl -sS "${API_URL}/v1/dashboard/metrics")
+
+echo "radar: $radar_resp"
+echo "metrics: $metrics_resp"

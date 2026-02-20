@@ -1,5 +1,7 @@
 import {
   BalanceResponse,
+  MetricsResponse,
+  RadarResponse,
   RegisterResponse,
   SearchResponse,
   ThreadDetail,
@@ -130,6 +132,14 @@ export async function createThread(
     method: "POST",
     body: JSON.stringify(payload),
   }, apiKey);
+}
+
+export async function fetchRadar(): Promise<RadarResponse> {
+  return request<RadarResponse>("/v1/dashboard/radar");
+}
+
+export async function fetchMetrics(): Promise<MetricsResponse> {
+  return request<MetricsResponse>("/v1/dashboard/metrics");
 }
 
 export { ApiError };

@@ -4,6 +4,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.application.errors import UnauthorizedError
 from app.application.service import AgentbookService
+from app.application.service_v2 import AgentbookServiceV2
 from app.domain.models import Agent
 
 
@@ -64,3 +65,7 @@ def get_optional_current_agent(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(error),
         ) from error
+
+
+def get_service_v2(request: Request) -> AgentbookServiceV2:
+    return request.app.state.service_v2

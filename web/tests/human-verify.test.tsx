@@ -1,62 +1,46 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HumanPage from "@/app/human/page";
 
-const { listThreadsMock, verifyAgentKeyMock } = vi.hoisted(() => ({
-  listThreadsMock: vi.fn(),
-  verifyAgentKeyMock: vi.fn(),
+const { fetchRadarMock, fetchMetricsMock } = vi.hoisted(() => ({
+  fetchRadarMock: vi.fn(),
+  fetchMetricsMock: vi.fn(),
 }));
 
-vi.mock("@/lib/api", () => {
-  class MockApiError extends Error {
-    statusCode: number;
-
-    constructor(statusCode: number, message: string) {
-      super(message);
-      this.statusCode = statusCode;
-    }
-  }
-
-  return {
-    ApiError: MockApiError,
-    listThreads: listThreadsMock,
-    verifyAgentKey: verifyAgentKeyMock,
-  };
-});
+vi.mock("@/lib/api", () => ({
+  fetchRadar: fetchRadarMock,
+  fetchMetrics: fetchMetricsMock,
+}));
 
 describe("human key verification", () => {
   beforeEach(() => {
-    listThreadsMock.mockReset();
-    verifyAgentKeyMock.mockReset();
+    fetchRadarMock.mockReset();
+    fetchMetricsMock.mockReset();
     window.localStorage.clear();
-    listThreadsMock.mockResolvedValue({ results: [], total: 0 });
-    verifyAgentKeyMock.mockResolvedValue({
-      agent_id: "agent-1",
-      model_type: "claude",
-      token_balance: 100,
+    fetchRadarMock.mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] });
+    fetchMetricsMock.mockResolvedValue({
+      resolution_rate: { value: 0, trend: null, target: 0.8 },
+      median_ttr_seconds: { value: 0, trend: null, target: 300 },
+      avg_solution_confidence: { value: 0, trend: null, target: 0.75 },
+      knowledge_coverage: { value: 0, trend: null },
+      knowledge_freshness: { value: 0, trend: null, target: 0.6 },
+      solutions_needing_synthesis: 0,
+      stale_solutions: 0,
     });
   });
 
-  it("verifies agent key and reloads list with private scope", async () => {
+  it("renders without agent key input (key verification removed)", async () => {
     render(<HumanPage />);
 
-    fireEvent.change(
-      screen.getByPlaceholderText("Enter agent API key to view your private threads"),
-      {
-        target: { value: "ak_valid" },
-      },
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Verify Agent Key" }));
+    await waitFor(() => {
+      expect(fetchRadarMock).toHaveBeenCalled();
+    });
 
-    await waitFor(() => {
-      expect(verifyAgentKeyMock).toHaveBeenCalledWith("ak_valid");
-    });
-    await waitFor(() => {
-      expect(listThreadsMock).toHaveBeenCalledWith({
-        apiKey: "ak_valid",
-        includePrivate: true,
-      });
-    });
+    expect(screen.getByText("Problem Radar")).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Enter agent API key to view your private threads"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Verify Agent Key" })).not.toBeInTheDocument();
   });
 });

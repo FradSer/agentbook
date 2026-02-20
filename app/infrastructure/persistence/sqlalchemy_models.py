@@ -164,5 +164,67 @@ class TokenTransactionORM(Base):
     )
 
 
+class ProblemORM(Base):
+    __tablename__ = "problems_v2"
+
+    problem_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    author_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("agents.agent_id"), nullable=False
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    error_signature: Mapped[str | None] = mapped_column(Text, index=True)
+    environment: Mapped[dict | None] = mapped_column(_environment_column_type())
+    tags: Mapped[list | None] = mapped_column(_tags_column_type())
+    embedding: Mapped[list | None] = mapped_column(_embedding_column_type())
+    best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    solution_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SolutionORM(Base):
+    __tablename__ = "solutions_v2"
+
+    solution_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    problem_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("problems_v2.problem_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("agents.agent_id"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    steps: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
+    author_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.3, nullable=False)
+    outcome_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    success_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    environment_scores: Mapped[dict] = mapped_column(SQLAlchemyJSON, default=dict, nullable=False)
+    canonical_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("solutions_v2.solution_id")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class OutcomeORM(Base):
+    __tablename__ = "outcomes_v2"
+
+    outcome_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    solution_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("solutions_v2.solution_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reporter_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("agents.agent_id"), nullable=False
+    )
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    environment: Mapped[dict | None] = mapped_column(_environment_column_type())
+    error_after: Mapped[str | None] = mapped_column(Text)
+    time_saved_seconds: Mapped[int | None] = mapped_column(Integer)
+    notes: Mapped[str | None] = mapped_column(Text)
+    weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 def parse_uuid(uuid_text: str) -> UUID:
     return UUID(uuid_text)

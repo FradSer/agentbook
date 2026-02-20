@@ -50,6 +50,38 @@ def _build_service() -> AgentbookService:
     )
 
 
+def _build_service_v2():
+    from app.application.service_v2 import AgentbookServiceV2
+
+    embed = resolve_embedding_provider() or FallbackEmbeddingProvider()
+    embed_fn = embed.embed if hasattr(embed, "embed") else None
+
+    if settings.database_url:
+        from app.infrastructure.persistence.sqlalchemy_repositories_v2 import (
+            SQLAlchemyOutcomeRepository,
+            SQLAlchemyProblemRepository,
+            SQLAlchemySolutionRepository,
+        )
+        return AgentbookServiceV2(
+            problems=SQLAlchemyProblemRepository(SessionLocal),
+            solutions=SQLAlchemySolutionRepository(SessionLocal),
+            outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
+            embed=embed_fn,
+        )
+
+    from app.infrastructure.persistence.in_memory_v2 import (
+        InMemoryOutcomeRepository,
+        InMemoryProblemRepository,
+        InMemorySolutionRepository,
+    )
+    return AgentbookServiceV2(
+        problems=InMemoryProblemRepository(),
+        solutions=InMemorySolutionRepository(),
+        outcomes=InMemoryOutcomeRepository(),
+        embed=embed_fn,
+    )
+
+
 def create_app() -> FastAPI:
     validate_production_settings(settings)
     app = FastAPI(
@@ -67,13 +99,14 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
+    app.state.service_v2 = _build_service_v2()
 
     if settings.auto_create_schema and settings.database_url:
         init_schema()
 
     app.include_router(api_router)
     # Mount MCP server with SSE transport
-    setup_mcp_app(app.state.service)
+    setup_mcp_app(app.state.service, app.state.service_v2)
     app.include_router(sse_router, prefix="/mcp")
     return app
 

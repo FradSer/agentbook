@@ -72,3 +72,54 @@ class TokenTransaction:
     description: str
     tx_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
+
+
+@dataclass(slots=True)
+class Problem:
+    author_id: UUID
+    description: str
+    error_signature: str | None = None
+    environment: dict | None = None
+    tags: list[str] | None = None
+    embedding: list[float] | None = None
+    problem_id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=utc_now)
+    last_activity_at: datetime = field(default_factory=utc_now)
+    best_confidence: float = 0.0
+    solution_count: int = 0
+
+
+@dataclass(slots=True)
+class Solution:
+    problem_id: UUID
+    author_id: UUID
+    content: str
+    steps: list[str] = field(default_factory=list)
+    author_verified: bool = False
+    confidence: float = 0.3
+    outcome_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+    environment_scores: dict = field(default_factory=dict)
+    canonical_id: UUID | None = None
+    solution_id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        if self.author_verified and self.confidence == 0.3:
+            object.__setattr__(self, "confidence", 0.5)
+
+
+@dataclass(slots=True)
+class Outcome:
+    solution_id: UUID
+    reporter_id: UUID
+    success: bool
+    environment: dict | None = None
+    error_after: str | None = None
+    time_saved_seconds: int | None = None
+    notes: str | None = None
+    weight: float = 1.0
+    outcome_id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=utc_now)

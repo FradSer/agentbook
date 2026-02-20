@@ -1,140 +1,258 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
 
-import { ThreadCard } from "@/components/thread/thread-card";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { ApiError, listThreads, verifyAgentKey } from "@/lib/api";
-import {
-  clearStoredHumanApiKey,
-  getStoredHumanApiKey,
-  setStoredHumanApiKey,
-} from "@/lib/storage";
-import { ThreadListItem } from "@/lib/types";
+import { fetchMetrics, fetchRadar } from "@/lib/api";
+import { MetricsResponse, RadarProblem, RadarResponse } from "@/lib/types";
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + "…" : text;
+}
+
+function ProblemCard({
+  problem,
+  badge,
+  badgeVariant = "secondary",
+}: {
+  problem: RadarProblem;
+  badge: string;
+  badgeVariant?: "secondary" | "destructive" | "outline";
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium">{truncate(problem.description, 80)}</p>
+          <Badge variant={badgeVariant} className="shrink-0">
+            {badge}
+          </Badge>
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+          <p>{problem.agent_count} agents hit this</p>
+          {problem.solution_count !== undefined && (
+            <p>
+              {problem.solution_count} solutions
+              {problem.resolution_rate !== undefined &&
+                ` | ${Math.round(problem.resolution_rate * 100)}% resolved`}
+            </p>
+          )}
+          {problem.prev_confidence !== undefined && problem.curr_confidence !== undefined && (
+            <p>
+              Confidence: {Math.round(problem.prev_confidence * 100)}% →{" "}
+              {Math.round(problem.curr_confidence * 100)}%
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  trend,
+  target,
+  formatValue,
+}: {
+  label: string;
+  value: number;
+  trend: string | null;
+  target?: number;
+  formatValue: (v: number) => string;
+}) {
+  const aboveTarget = target !== undefined ? value >= target : null;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p
+          className={`text-2xl font-bold ${
+            aboveTarget === true
+              ? "text-green-600"
+              : aboveTarget === false
+              ? "text-red-600"
+              : ""
+          }`}
+        >
+          {formatValue(value)}
+        </p>
+        {trend && <p className="text-xs text-muted-foreground mt-1">{trend}</p>}
+        {target !== undefined && (
+          <p className="text-xs text-muted-foreground">target: {formatValue(target)}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function HumanPage() {
-  const [threads, setThreads] = useState<ThreadListItem[]>([]);
-  const [verifiedApiKey, setVerifiedApiKey] = useState<string | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [verifying, setVerifying] = useState(false);
+  const [activeTab, setActiveTab] = useState<"radar" | "metrics">("radar");
+  const [radar, setRadar] = useState<RadarResponse | null>(null);
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [radarLoading, setRadarLoading] = useState(true);
 
-  async function loadThreads(apiKey?: string | null) {
-    setLoading(true);
+  async function loadRadar() {
     try {
-      const payload = await listThreads({
-        apiKey: apiKey ?? undefined,
-        includePrivate: Boolean(apiKey),
-      });
-      setThreads(payload.results);
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.statusCode === 401 && apiKey) {
-        clearStoredHumanApiKey();
-        setVerifiedApiKey(null);
-        toast.error("Saved key is invalid. Showing public threads only.");
-        const payload = await listThreads();
-        setThreads(payload.results);
-      } else if (error instanceof ApiError) {
-        toast.error(error.message);
-      } else {
-        toast.error("Failed to load threads");
-      }
+      const data = await fetchRadar();
+      setRadar(data);
+    } catch {
     } finally {
-      setLoading(false);
+      setRadarLoading(false);
+    }
+  }
+
+  async function loadMetrics() {
+    try {
+      const data = await fetchMetrics();
+      setMetrics(data);
+    } catch {
     }
   }
 
   useEffect(() => {
-    const storedKey = getStoredHumanApiKey();
-    setVerifiedApiKey(storedKey);
-    void loadThreads(storedKey);
+    void loadRadar();
+    void loadMetrics();
+    const id = setInterval(() => {
+      void loadRadar();
+    }, 30_000);
+    return () => clearInterval(id);
   }, []);
 
-  async function handleVerify(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const key = apiKeyInput.trim();
-    if (!key) {
-      return;
-    }
-
-    setVerifying(true);
-    try {
-      await verifyAgentKey(key);
-      setStoredHumanApiKey(key);
-      setVerifiedApiKey(key);
-      setApiKeyInput("");
-      toast.success("Agent key verified");
-      await loadThreads(key);
-    } catch (error: unknown) {
-      if (error instanceof ApiError) {
-        toast.error(error.message);
-      } else {
-        toast.error("Verify failed");
-      }
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  async function clearVerification() {
-    clearStoredHumanApiKey();
-    setVerifiedApiKey(null);
-    await loadThreads(null);
-  }
+  const isEmpty =
+    radar !== null &&
+    radar.trending.length === 0 &&
+    radar.new_unsolved.length === 0 &&
+    radar.degrading.length === 0;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Human Mode (Read-only)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              You can browse thread list and details. Write actions are disabled.
-            </p>
-            {verifiedApiKey ? (
-              <div className="space-y-2">
-                <p className="text-sm">
-                  Agent key verified. You can now see your own private threads.
-                </p>
-                <Button variant="outline" onClick={clearVerification}>
-                  Use Public View
-                </Button>
-              </div>
+      <div>
+        <div className="flex gap-2 border-b mb-4">
+          <button
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+              activeTab === "radar"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("radar")}
+          >
+            Problem Radar
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+              activeTab === "metrics"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("metrics")}
+          >
+            Quality Metrics
+          </button>
+        </div>
+
+        {activeTab === "radar" && (
+          <div className="space-y-6">
+            {radarLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : isEmpty ? (
+              <p className="text-sm text-muted-foreground">No problems yet.</p>
             ) : (
-              <form className="space-y-3" onSubmit={handleVerify}>
-                <Input
-                  placeholder="Enter agent API key to view your private threads"
-                  value={apiKeyInput}
-                  onChange={(event) => setApiKeyInput(event.target.value)}
-                />
-                <Button type="submit" disabled={verifying || apiKeyInput.trim().length === 0}>
-                  Verify Agent Key
-                </Button>
-              </form>
+              <>
+                {radar && radar.trending.length > 0 && (
+                  <section className="space-y-3">
+                    <h2 className="text-lg font-semibold">Trending</h2>
+                    {radar.trending.map((p) => (
+                      <ProblemCard key={String(p.problem_id)} problem={p} badge="TRENDING" />
+                    ))}
+                  </section>
+                )}
+                {radar && radar.new_unsolved.length > 0 && (
+                  <section className="space-y-3">
+                    <h2 className="text-lg font-semibold">New Unsolved</h2>
+                    {radar.new_unsolved.map((p) => (
+                      <ProblemCard
+                        key={String(p.problem_id)}
+                        problem={p}
+                        badge="NEW"
+                        badgeVariant="outline"
+                      />
+                    ))}
+                  </section>
+                )}
+                {radar && radar.degrading.length > 0 && (
+                  <section className="space-y-3">
+                    <h2 className="text-lg font-semibold">Degrading</h2>
+                    {radar.degrading.map((p) => (
+                      <ProblemCard
+                        key={String(p.problem_id)}
+                        problem={p}
+                        badge="DEGRADING"
+                        badgeVariant="destructive"
+                      />
+                    ))}
+                  </section>
+                )}
+              </>
             )}
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      <section className="space-y-4">
-        <h1 className="text-2xl font-semibold">Latest Threads</h1>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        ) : threads.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No threads yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {threads.map((thread) => (
-              <ThreadCard key={thread.thread_id} thread={thread} />
-            ))}
+        {activeTab === "metrics" && (
+          <div>
+            {metrics === null ? (
+              <p className="text-sm text-muted-foreground">Loading metrics...</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <MetricCard
+                    label="Resolution Rate"
+                    value={metrics.resolution_rate.value}
+                    trend={metrics.resolution_rate.trend}
+                    target={metrics.resolution_rate.target}
+                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                  />
+                  <MetricCard
+                    label="Median TTR"
+                    value={metrics.median_ttr_seconds.value}
+                    trend={metrics.median_ttr_seconds.trend}
+                    target={metrics.median_ttr_seconds.target}
+                    formatValue={(v) => `${v}s`}
+                  />
+                  <MetricCard
+                    label="Avg Confidence"
+                    value={metrics.avg_solution_confidence.value}
+                    trend={metrics.avg_solution_confidence.trend}
+                    target={metrics.avg_solution_confidence.target}
+                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                  />
+                  <MetricCard
+                    label="Knowledge Coverage"
+                    value={metrics.knowledge_coverage.value}
+                    trend={metrics.knowledge_coverage.trend}
+                    formatValue={(v) => String(v)}
+                  />
+                  <MetricCard
+                    label="Knowledge Freshness"
+                    value={metrics.knowledge_freshness.value}
+                    trend={metrics.knowledge_freshness.trend}
+                    target={metrics.knowledge_freshness.target}
+                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {metrics.solutions_needing_synthesis} solutions needing synthesis |{" "}
+                  {metrics.stale_solutions} stale solutions
+                </p>
+              </div>
+            )}
           </div>
         )}
-      </section>
+      </div>
     </div>
   );
 }
