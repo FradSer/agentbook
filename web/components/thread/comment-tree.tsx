@@ -1,9 +1,8 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { CheckCircle2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CommentDetail } from "@/lib/types";
 import { VoteButtons } from "@/components/thread/vote-buttons";
 
@@ -37,7 +36,12 @@ function buildTree(comments: CommentDetail[]): CommentNode[] {
     roots.push(node);
   });
 
-  roots.sort((a, b) => b.wilson_score - a.wilson_score);
+  // Accepted answers first, then by wilson score
+  roots.sort((a, b) => {
+    if (a.is_solution && !b.is_solution) return -1;
+    if (!a.is_solution && b.is_solution) return 1;
+    return b.wilson_score - a.wilson_score;
+  });
   return roots;
 }
 
@@ -50,35 +54,67 @@ function CommentNodeItem({
   depth: number;
   onVote?: (commentId: string, voteType: "upvote" | "downvote") => Promise<void>;
 }) {
+  const isAccepted = node.is_solution;
+
   return (
     <div className="space-y-3">
-      <Card>
-        <CardHeader>
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>{formatDistanceToNow(new Date(node.created_at), { addSuffix: true })}</span>
-              {node.is_solution ? <Badge>Solution</Badge> : null}
-            </div>
-            {onVote ? (
-              <VoteButtons
-                upvotes={node.upvotes}
-                downvotes={node.downvotes}
-                wilsonScore={node.wilson_score}
-                onVote={(voteType) => onVote(node.comment_id, voteType)}
-              />
-            ) : (
-              <span className="text-sm text-muted-foreground">
-                {node.upvotes - node.downvotes} · {(node.wilson_score * 100).toFixed(1)}%
+      <div
+        className={`flex gap-4 rounded-lg border p-4 ${
+          isAccepted
+            ? "border-green-300 bg-green-50"
+            : "border-border bg-background"
+        }`}
+      >
+        {/* Vote column */}
+        <div className="flex shrink-0 flex-col items-center">
+          {onVote ? (
+            <VoteButtons
+              upvotes={node.upvotes}
+              downvotes={node.downvotes}
+              wilsonScore={node.wilson_score}
+              onVote={(voteType) => onVote(node.comment_id, voteType)}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-0.5 py-1">
+              <span className={`w-8 text-center text-base font-semibold tabular-nums ${
+                node.upvotes - node.downvotes > 0
+                  ? "text-green-600"
+                  : node.upvotes - node.downvotes < 0
+                    ? "text-red-500"
+                    : "text-muted-foreground"
+              }`}>
+                {node.upvotes - node.downvotes}
               </span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p>{node.content}</p>
-        </CardContent>
-      </Card>
+            </div>
+          )}
+          {/* Accepted checkmark */}
+          {isAccepted && (
+            <CheckCircle2
+              className="mt-2 h-6 w-6 text-green-600"
+              aria-label="Accepted answer"
+            />
+          )}
+        </div>
+
+        {/* Content column */}
+        <div className="min-w-0 flex-1 space-y-2">
+          {isAccepted && (
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+              ✓ Accepted Answer
+            </p>
+          )}
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{node.content}</p>
+          <p className="text-xs text-muted-foreground">
+            answered {formatDistanceToNow(new Date(node.created_at), { addSuffix: true })}
+          </p>
+        </div>
+      </div>
+
       {node.children.length > 0 ? (
-        <div className="space-y-3 border-l pl-4" style={{ marginLeft: depth * 8 }}>
+        <div
+          className="space-y-3 border-l-2 border-muted pl-4"
+          style={{ marginLeft: Math.min(depth * 16, 48) }}
+        >
           {node.children.map((child) => (
             <CommentNodeItem key={child.comment_id} node={child} depth={depth + 1} onVote={onVote} />
           ))}
@@ -92,7 +128,11 @@ export function CommentTree({ comments, onVote }: CommentTreeProps) {
   const roots = buildTree(comments);
 
   if (roots.length === 0) {
-    return <p className="text-sm text-muted-foreground">No comments yet.</p>;
+    return (
+      <div className="rounded-lg border py-8 text-center text-sm text-muted-foreground">
+        No answers yet. Be the first to answer!
+      </div>
+    );
   }
 
   return (

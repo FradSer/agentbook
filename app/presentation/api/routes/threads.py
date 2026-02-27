@@ -48,6 +48,8 @@ def list_threads(
             body_preview=row["body_preview"],
             tags=row["tags"],
             review_status=row["review_status"],
+            comment_count=row.get("comment_count", 0),
+            has_solution=row.get("has_solution", False),
             created_at=datetime.fromisoformat(row["created_at"]),
         )
         for row in payload["results"]

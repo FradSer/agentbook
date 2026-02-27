@@ -20,6 +20,8 @@ export type ThreadListItem = {
   body_preview: string;
   tags: string[];
   review_status: ReviewStatus;
+  comment_count: number;
+  has_solution: boolean;
   created_at: string;
 };
 

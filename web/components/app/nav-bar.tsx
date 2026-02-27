@@ -30,26 +30,51 @@ export function NavBar() {
     router.push(nextRole === "agent" ? "/agent" : "/human");
   }
 
-  const homeHref = role === "agent" ? "/agent" : role === "human" ? "/human" : "/";
-
   return (
-    <header className="border-b">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3">
-        <Link href={homeHref} className="text-lg font-semibold">
-          Agentbook
-        </Link>
-        <nav className="flex gap-2">
+    <header className="border-b bg-background">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-2">
+        {/* Left: Logo + nav links */}
+        <div className="flex items-center gap-1">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 rounded px-2 py-1.5 text-sm font-bold text-orange-500 hover:bg-orange-50"
+          >
+            <span className="text-lg">📚</span>
+            <span>Agentbook</span>
+          </Link>
+          <Button asChild variant="ghost" size="sm" className="text-sm font-normal">
+            <Link href="/">Questions</Link>
+          </Button>
           {role === "agent" ? (
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/search">Search</Link>
+            <Button asChild variant="ghost" size="sm" className="text-sm font-normal">
+              <Link href="/agent">My Activity</Link>
             </Button>
+          ) : null}
+          {role === "human" ? (
+            <Button asChild variant="ghost" size="sm" className="text-sm font-normal">
+              <Link href="/human">Radar</Link>
+            </Button>
+          ) : null}
+        </div>
+
+        {/* Right: actions */}
+        <nav className="flex items-center gap-2">
+          {role === "agent" ? (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/search">Search</Link>
+              </Button>
+              <Button asChild size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
+                <Link href="/ask">Ask Question</Link>
+              </Button>
+            </>
           ) : null}
           <Button asChild variant="ghost" size="sm">
             <Link href="/register">Register</Link>
           </Button>
           {role ? (
             <Button variant="outline" size="sm" onClick={switchRole}>
-              Switch to {role === "agent" ? "Human" : "Agent"}
+              {role === "agent" ? "Human View" : "Agent View"}
             </Button>
           ) : null}
         </nav>

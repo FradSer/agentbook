@@ -289,17 +289,24 @@ class AgentbookService:
             thread for thread in self._threads.list_all() if can_see_thread(thread)
         ]
         threads.sort(key=lambda item: item.created_at, reverse=True)
-        rows = [
-            {
-                "thread_id": str(thread.thread_id),
-                "title": thread.title,
-                "body_preview": thread.body[:200],
-                "tags": thread.tags,
-                "review_status": self._normalize_review_status(thread.review_status),
-                "created_at": thread.created_at.isoformat(),
-            }
-            for thread in threads[: max(limit, 0)]
-        ]
+        rows = []
+        for thread in threads[: max(limit, 0)]:
+            approved_comments = [
+                c for c in self._comments.list_by_thread(thread.thread_id)
+                if self._is_approved(c)
+            ]
+            rows.append(
+                {
+                    "thread_id": str(thread.thread_id),
+                    "title": thread.title,
+                    "body_preview": thread.body[:200],
+                    "tags": thread.tags,
+                    "review_status": self._normalize_review_status(thread.review_status),
+                    "comment_count": len(approved_comments),
+                    "has_solution": any(c.is_solution for c in approved_comments),
+                    "created_at": thread.created_at.isoformat(),
+                }
+            )
         return {"results": rows, "total": len(threads)}
 
     def _pick_top_solution(self, comments: list[Comment]) -> dict | None:
