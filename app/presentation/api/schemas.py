@@ -136,6 +136,8 @@ class ThreadListItemResponse(BaseModel):
     body_preview: str
     tags: list[str]
     review_status: str
+    comment_count: int = 0
+    has_solution: bool = False
     created_at: datetime
 
 

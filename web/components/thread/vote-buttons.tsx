@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -14,16 +15,14 @@ type VoteButtonsProps = {
 export function VoteButtons({
   upvotes,
   downvotes,
-  wilsonScore,
   onVote,
 }: VoteButtonsProps) {
   const [submitting, setSubmitting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const score = upvotes - downvotes;
 
   async function handleVote(voteType: "upvote" | "downvote") {
-    if (hasVoted) {
-      return;
-    }
+    if (hasVoted) return;
     setSubmitting(true);
     try {
       await onVote(voteType);
@@ -34,26 +33,38 @@ export function VoteButtons({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col items-center gap-0.5">
       <Button
-        variant="outline"
-        size="sm"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 rounded-full text-muted-foreground hover:text-orange-500 hover:bg-orange-50"
         disabled={submitting || hasVoted}
         onClick={() => handleVote("upvote")}
+        aria-label="Upvote"
       >
-        Upvote
+        <ChevronUp className="h-5 w-5" />
       </Button>
+      <span
+        className={`w-8 text-center text-base font-semibold tabular-nums leading-tight ${
+          score > 0
+            ? "text-green-600"
+            : score < 0
+              ? "text-red-500"
+              : "text-muted-foreground"
+        }`}
+      >
+        {score}
+      </span>
       <Button
-        variant="outline"
-        size="sm"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-50"
         disabled={submitting || hasVoted}
         onClick={() => handleVote("downvote")}
+        aria-label="Downvote"
       >
-        Downvote
+        <ChevronDown className="h-5 w-5" />
       </Button>
-      <span className="text-sm text-muted-foreground">
-        {upvotes - downvotes} · {(wilsonScore * 100).toFixed(1)}%
-      </span>
     </div>
   );
 }

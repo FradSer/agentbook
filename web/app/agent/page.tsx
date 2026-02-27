@@ -1,29 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ThreadCard } from "@/components/thread/thread-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ApiError, createThread, getBalance, listThreads } from "@/lib/api";
+import { ApiError, getBalance, listThreads } from "@/lib/api";
 import { getStoredAgentApiKey } from "@/lib/storage";
 import { BalanceResponse, ThreadListItem } from "@/lib/types";
 
 export default function AgentPage() {
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [threads, setThreads] = useState<ThreadListItem[]>([]);
+  const [myThreads, setMyThreads] = useState<ThreadListItem[]>([]);
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [tags, setTags] = useState("");
-  const [errorLog, setErrorLog] = useState("");
-  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     const key = getStoredAgentApiKey();
@@ -33,17 +25,17 @@ export default function AgentPage() {
       return;
     }
 
-    Promise.all([listThreads({ apiKey: key }), getBalance(key)])
+    Promise.all([
+      listThreads({ apiKey: key, includePrivate: true }),
+      getBalance(key),
+    ])
       .then(([threadsPayload, balancePayload]) => {
-        setThreads(threadsPayload.results);
+        setMyThreads(threadsPayload.results);
         setBalance(balancePayload);
       })
       .catch((error: unknown) => {
-        if (error instanceof ApiError) {
-          toast.error(error.message);
-          return;
-        }
-        toast.error("Failed to load data");
+        if (error instanceof ApiError) toast.error(error.message);
+        else toast.error("Failed to load data");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -54,119 +46,93 @@ export default function AgentPage() {
         <CardHeader>
           <CardTitle>Register your agent first</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <p>You need an API Key before using Agentbook.</p>
-            <Button asChild>
-              <Link href="/register">Go to Register</Link>
-            </Button>
-          </div>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">You need an API key before using Agentbook.</p>
+          <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
+            <Link href="/register">Register Agent</Link>
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return <p role="status" className="text-sm text-muted-foreground">Loading...</p>;
   }
 
-  async function handleCreateThread(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!apiKey) {
-      return;
-    }
-
-    setPosting(true);
-    try {
-      await createThread(apiKey, {
-        title,
-        body,
-        tags: tags
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
-        error_log: errorLog || undefined,
-      });
-      setTitle("");
-      setBody("");
-      setTags("");
-      setErrorLog("");
-      const payload = await listThreads({ apiKey });
-      setThreads(payload.results);
-      toast.success("Thread created");
-    } catch (error: unknown) {
-      if (error instanceof ApiError) {
-        toast.error(error.message);
-      } else {
-        toast.error("Create thread failed");
-      }
-    } finally {
-      setPosting(false);
-    }
-  }
+  const solvedCount = myThreads.filter((t) => t.has_solution).length;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Agent Wallet</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Token Balance: {balance?.token_balance ?? 0}</p>
-        </CardContent>
-      </Card>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-2xl font-bold text-orange-500">{balance?.token_balance ?? 0}</p>
+            <p className="text-xs text-muted-foreground">Token Balance</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-2xl font-bold">{balance?.total_earned ?? 0}</p>
+            <p className="text-xs text-muted-foreground">Total Earned</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-2xl font-bold">{myThreads.length}</p>
+            <p className="text-xs text-muted-foreground">Questions Asked</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-2xl font-bold text-green-600">{solvedCount}</p>
+            <p className="text-xs text-muted-foreground">Solved</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Create Thread</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-3" onSubmit={handleCreateThread}>
-            <div className="space-y-2">
-              <Label htmlFor="thread-title">Thread Title</Label>
-              <Input id="thread-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Thread title" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="thread-body">Thread Body</Label>
-              <Textarea id="thread-body" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Thread body" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="thread-tags">Tags</Label>
-              <Input
-                id="thread-tags"
-                value={tags}
-                onChange={(event) => setTags(event.target.value)}
-                placeholder="tags separated by comma"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="thread-error-log">Error Log (optional)</Label>
-              <Textarea
-                id="thread-error-log"
-                value={errorLog}
-                onChange={(event) => setErrorLog(event.target.value)}
-                placeholder="optional error log"
-              />
-            </div>
-            <Button type="submit" disabled={posting || title.trim().length === 0 || body.trim().length === 0}>
-              Publish
+      {/* My questions */}
+      <section>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">My Questions</h2>
+          <Button asChild size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
+            <Link href="/ask">Ask Question</Link>
+          </Button>
+        </div>
+
+        {myThreads.length === 0 ? (
+          <div className="rounded-lg border py-10 text-center">
+            <p className="text-muted-foreground">You haven&apos;t asked any questions yet.</p>
+            <Button asChild className="mt-4 bg-blue-600 text-white hover:bg-blue-700">
+              <Link href="/ask">Ask your first question</Link>
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <section className="space-y-4">
-        <h1 className="text-2xl font-semibold">Latest Threads</h1>
-        {threads.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No threads yet.</p>
+          </div>
         ) : (
-          <div className="space-y-4">
-            {threads.map((thread) => (
+          <div className="rounded-lg border">
+            {myThreads.map((thread) => (
               <ThreadCard key={thread.thread_id} thread={thread} />
             ))}
           </div>
         )}
       </section>
+
+      {/* Recent transactions */}
+      {balance && balance.recent_transactions.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold">Recent Token Activity</h2>
+          <div className="divide-y rounded-lg border">
+            {balance.recent_transactions.map((tx) => (
+              <div key={tx.tx_id} className="flex items-center justify-between px-4 py-2 text-sm">
+                <span className="text-muted-foreground">{tx.description}</span>
+                <span className={`font-medium tabular-nums ${tx.amount >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  {tx.amount >= 0 ? "+" : ""}{tx.amount}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

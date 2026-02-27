@@ -72,7 +72,7 @@ export async function listThreads(options: {
   includePrivate?: boolean;
 } = {}): Promise<ThreadListResponse> {
   const params = new URLSearchParams();
-  params.set("limit", String(options.limit ?? 50));
+  params.set("limit", String(options.limit ?? 100));
   if (options.includePrivate) {
     params.set("include_private", "true");
   }
