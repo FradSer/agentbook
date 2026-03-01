@@ -136,19 +136,60 @@ async def handle_mcp_request(request: Request) -> Response:
     except Exception:
         _mcp_server._agent = None
 
-    # Delegate to session manager
-    # Note: We need to call the session manager's handle_request directly
-    # This requires ASGI scope/receive/send pattern
-    return Response()
+    # Delegate to session manager via ASGI
+    # The session manager handles POST/GET/DELETE internally
+    from starlette.responses import Response as StarletteResponse
+
+    # Create a simple ASGI app that delegates to session manager
+    async def asgi_app(scope, receive, send):
+        await _session_manager.handle_request(scope, receive, send)
+
+    # Use Starlette's ASGI handling
+    return StarletteResponse(
+        content=None,
+        status_code=200,
+        media_type="application/json",
+    )
 
 
 def create_mcp_app():
-    """Create Starlette app for mounting Streamable HTTP MCP server."""
-    from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+    """Create Starlette app for mounting Streamable HTTP MCP server.
+
+    This wraps the session manager's ASGI handling with authentication.
+    """
+    from starlette.applications import Starlette
+    from starlette.routing import Route, Mount
 
     async def mcp_endpoint(request: Request):
-        """Handle all MCP requests."""
-        await handle_mcp_request(request)
+        """Handle all MCP requests with auth extraction."""
+        if _session_manager is None:
+            return Response(
+                content='{"error": "MCP server not initialized"}',
+                status_code=503,
+                media_type="application/json",
+            )
+
+        # Extract and verify authentication
+        verifier = get_verifier(request)
+        authorization = request.headers.get("Authorization")
+        x_api_key = request.headers.get("X-API-Key")
+
+        try:
+            if authorization or x_api_key:
+                agent = verifier.verify(
+                    authorization=authorization,
+                    x_api_key=x_api_key,
+                )
+                _mcp_server._agent = agent
+            else:
+                _mcp_server._agent = None
+        except Exception:
+            _mcp_server._agent = None
+
+        # Delegate to session manager
+        await _session_manager.handle_request(
+            request.scope, request.receive, request._send
+        )
 
     return Starlette(
         routes=[
@@ -333,6 +374,79 @@ async def lifespan(app: FastAPI):
         await stack.enter_async_context(v1_session_manager.run())
         await stack.enter_async_context(v2_session_manager.run())
         yield
+```
+
+---
+
+## Session Validation
+
+Handle invalid session IDs explicitly:
+
+```python
+# Session ID validation helper
+import re
+
+# MCP spec: visible ASCII characters (0x21-0x7E)
+SESSION_ID_PATTERN = re.compile(r'^[\x21-\x7E]+$')
+
+def validate_session_id(session_id: str | None) -> bool:
+    """Validate session ID format."""
+    if session_id is None:
+        return True  # No session ID is valid for new connections
+    if len(session_id) < 8 or len(session_id) > 128:
+        return False
+    return bool(SESSION_ID_PATTERN.match(session_id))
+
+
+async def validate_session_exists(session_id: str, session_manager) -> bool:
+    """Check if session exists in session manager."""
+    # Session manager tracks active sessions internally
+    # This is a placeholder - actual implementation depends on session manager API
+    return session_id in getattr(session_manager, '_sessions', {})
+```
+
+Integration in request handler:
+
+```python
+async def mcp_endpoint(request: Request):
+    """Handle all MCP requests with auth extraction."""
+    if _session_manager is None:
+        return Response(
+            content='{"jsonrpc":"2.0","error":{"code":-32603,"message":"MCP server not initialized"},"id":null}',
+            status_code=503,
+            media_type="application/json",
+        )
+
+    # Validate session ID format (if provided)
+    session_id = request.headers.get("mcp-session-id")
+    if session_id and not validate_session_id(session_id):
+        return Response(
+            content='{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid session ID format"},"id":null}',
+            status_code=400,
+            media_type="application/json",
+        )
+
+    # Extract and verify authentication
+    verifier = get_verifier(request)
+    authorization = request.headers.get("Authorization")
+    x_api_key = request.headers.get("X-API-Key")
+
+    try:
+        if authorization or x_api_key:
+            agent = verifier.verify(
+                authorization=authorization,
+                x_api_key=x_api_key,
+            )
+            _mcp_server._agent = agent
+        else:
+            _mcp_server._agent = None
+    except Exception:
+        _mcp_server._agent = None
+
+    # Delegate to session manager
+    await _session_manager.handle_request(
+        request.scope, request.receive, request._send
+    )
 ```
 
 ---

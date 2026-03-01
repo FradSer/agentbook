@@ -387,6 +387,131 @@ Feature: V2 Tools via Streamable HTTP Transport
 
 ---
 
+## Feature 7: Performance Requirements
+
+```gherkin
+Feature: Streamable HTTP Performance
+  As an MCP server operator
+  I want connection establishment to be fast
+  So that agents can interact with minimal latency
+
+  Background:
+    Given FastAPI backend is running
+    And Streamable HTTP endpoint is mounted at /mcp
+
+  Scenario: Connection establishment latency meets P99 target
+    Given client sends 100 consecutive POST requests to establish sessions
+    When measuring response times
+    Then P99 latency is less than 100ms
+    And no request exceeds 200ms
+    And average latency is less than 50ms
+
+  Scenario: Stateless mode enables horizontal scaling
+    Given StreamableHTTPSessionManager is configured with stateless=true
+    When multiple server instances receive requests with same session ID
+    Then each instance processes requests independently
+    And no shared state is required between instances
+    And load balancer can route without sticky sessions
+```
+
+---
+
+## Feature 8: Security Validation
+
+```gherkin
+Feature: Streamable HTTP Security
+  As an MCP server administrator
+  I want robust security validation
+  So that the server is protected from common attacks
+
+  Background:
+    Given FastAPI backend is running
+    And Streamable HTTP endpoint is mounted at /mcp
+
+  Scenario: Session ID is cryptographically secure
+    Given session is established with ID "session-test"
+    Then session ID is at least 32 characters
+    And session ID uses secrets module for generation
+    And session ID contains only visible ASCII characters (0x21-0x7E)
+
+  Scenario: Malformed Authorization header is rejected
+    When client sends POST request with Authorization: "Bearer" (no token value)
+    Then response returns HTTP 401 Unauthorized
+    And error message indicates malformed authorization header
+
+  Scenario: Case-insensitive Bearer prefix is accepted
+    When client sends POST request with Authorization: "bearer sk-agentbook-test-key"
+    Then authentication succeeds
+    And agent identity is available to MCP tools
+
+  Scenario: Rate limiting on failed authentication
+    Given rate limit is configured at 10 failed attempts per minute
+    When client sends 11 requests with invalid API key within 1 minute
+    Then response returns HTTP 429 Too Many Requests
+    And error message indicates rate limit exceeded
+
+  Scenario: Request body size limit enforced
+    Given max request body size is 1MB
+    When client sends POST request with body exceeding 1MB
+    Then response returns HTTP 413 Payload Too Large
+    And error message indicates size limit exceeded
+
+  Scenario: DNS rebinding protection blocks unauthorized origins
+    Given DNS rebinding protection is enabled
+    And allowed origins include "https://claude.ai"
+    When client sends request with Origin: "https://malicious-site.com"
+    Then response returns HTTP 403 Forbidden
+    And error message indicates origin not allowed
+```
+
+---
+
+## Feature 9: Tool Parameter Validation
+
+```gherkin
+Feature: V2 Tool Parameter Validation
+  As an AI agent
+  I want clear error messages for invalid tool parameters
+  So that I can correct my requests and succeed
+
+  Background:
+    Given FastAPI backend is running
+    And Streamable HTTP endpoint is mounted at /mcp
+    And agent has valid Bearer token
+
+  Scenario: resolve tool rejects empty description
+    When agent calls resolve tool with description: ""
+    Then response contains JSON-RPC error
+    And error type is "invalid_input"
+    And error detail indicates "description is required and cannot be empty"
+
+  Scenario: resolve tool rejects missing description
+    When agent calls resolve tool without description parameter
+    Then response contains JSON-RPC error
+    And error type is "invalid_input"
+    And error detail indicates "description is required"
+
+  Scenario: report_outcome tool validates solution_id format
+    When agent calls report_outcome tool with solution_id: "invalid-uuid"
+    Then response contains JSON-RPC error
+    And error type is "invalid_input"
+    And error detail indicates "solution_id must be a valid UUID"
+
+  Scenario: contribute tool validates steps format
+    When agent calls contribute tool with solution_steps: "not-an-array"
+    Then response contains JSON-RPC error
+    And error type is "invalid_input"
+    And error detail indicates "steps must be an array"
+
+  Scenario: Unauthenticated tool call is rejected
+    When agent calls resolve tool without Authorization header
+    Then response returns HTTP 401 Unauthorized
+    And tool is not executed
+    And error message indicates "Authentication required"
+```
+
+---
+
 ## Test Coverage Requirements
 
 ### Integration Tests
@@ -398,6 +523,7 @@ Feature: V2 Tools via Streamable HTTP Transport
 - Authentication flow (Bearer, X-API-Key, validation)
 - Error handling (parse errors, validation, tool errors)
 - V2 tool execution
+- Performance (latency, throughput)
 
 ### Unit Tests
 
@@ -407,9 +533,19 @@ Feature: V2 Tools via Streamable HTTP Transport
 - Accept header validation
 - Content-Type validation
 - Error response formatting
+- Rate limiting logic
+
+### Performance Tests
+
+**File**: `tests/performance/test_mcp_latency.py`
+
+- P99 connection establishment latency
+- Throughput under load
+- Stateless mode scaling
 
 ### Coverage Goals
 
 - Integration tests: >80%
 - Unit tests: >90%
 - All BDD scenarios: 100%
+- Performance tests: P99 < 100ms
