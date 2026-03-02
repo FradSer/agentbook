@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from pydantic import model_validator
 
@@ -31,6 +32,12 @@ class Settings(SharedSettings):
 
     # CORS
     cors_allow_origins: str = "*"
+
+    # MCP Transport Configuration
+    mcp_transport: Literal["streamable_http", "sse", "both"] = "both"
+    mcp_stateless: bool = True
+    mcp_json_response: bool = True
+    mcp_session_timeout: int = 3600  # 1 hour
 
     @model_validator(mode="after")
     def warn_on_permissive_cors(self) -> Settings:

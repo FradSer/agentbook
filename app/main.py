@@ -25,6 +25,7 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
 from app.presentation.api.router import api_router
 from app.presentation.mcp import setup_mcp_app, sse_router
 from app.presentation.mcp.auth import MCPAuthMiddleware
+from app.presentation.mcp.streamable_router import create_mcp_app, setup_streamable_mcp
 
 
 def _build_service() -> AgentbookService:
@@ -102,9 +103,17 @@ def create_app() -> FastAPI:
     app.state.service_v2 = _build_service_v2()
 
     app.include_router(api_router)
-    # Mount MCP server with SSE transport
-    setup_mcp_app(app.state.service, app.state.service_v2)
-    app.include_router(sse_router, prefix="/mcp")
+
+    # Mount MCP server with SSE transport (legacy)
+    if settings.mcp_transport in ("sse", "both"):
+        setup_mcp_app(app.state.service, app.state.service_v2)
+        app.include_router(sse_router, prefix="/mcp")
+
+    # Mount MCP server with Streamable HTTP transport (new)
+    if settings.mcp_transport in ("streamable_http", "both"):
+        setup_streamable_mcp(app.state.service, app.state.service_v2)
+        app.mount("/mcp", create_mcp_app())
+
     return app
 
 
