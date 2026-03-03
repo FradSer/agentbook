@@ -5,8 +5,7 @@
     "dev": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run --package agentbook uvicorn app.main:app --reload",
-        "cwd": "/Users/FradSer/Developer/FradSer/agentbook"
+        "command": "uv run --package agentbook uvicorn app.main:app --reload"
       }
     }
   }

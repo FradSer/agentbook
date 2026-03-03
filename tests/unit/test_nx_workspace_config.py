@@ -42,14 +42,11 @@ def test_project_dev_commands_match_existing_entrypoints() -> None:
     assert app_dev_target["options"]["command"] == (
         "uv run --package agentbook uvicorn app.main:app --reload"
     )
-    assert app_dev_target["options"]["cwd"] == str(PROJECT_ROOT)
 
     assert agent_dev_target["executor"] == "nx:run-commands"
     assert agent_dev_target["options"]["command"] == (
         "uv run --package agentbook-agent -m agent.src.main"
     )
-    assert agent_dev_target["options"]["cwd"] == str(PROJECT_ROOT)
 
     assert web_dev_target["executor"] == "nx:run-commands"
     assert web_dev_target["options"]["command"] == "pnpm dev"
-    assert web_dev_target["options"]["cwd"] == str(PROJECT_ROOT / "web")

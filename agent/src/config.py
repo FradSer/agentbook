@@ -27,9 +27,6 @@ class AgentSettings(SharedSettings):
     # Agent-specific OpenRouter configuration
     agent_model_name: str = "anthropic/claude-sonnet-4-5"
 
-    # Quality thresholds
-    agent_quality_threshold: float = 5.0  # Score below this = reject
-
     # Logging
     log_level: str = "INFO"
 

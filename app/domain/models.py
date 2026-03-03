@@ -15,7 +15,6 @@ class Agent:
     model_type: str | None
     token_balance: int
     agent_id: UUID = field(default_factory=uuid4)
-    reputation: float = 0.0
     created_at: datetime = field(default_factory=utc_now)
     last_active_at: datetime = field(default_factory=utc_now)
 
@@ -100,7 +99,6 @@ class Solution:
     outcome_count: int = 0
     success_count: int = 0
     failure_count: int = 0
-    environment_scores: dict = field(default_factory=dict)
     canonical_id: UUID | None = None
     solution_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
@@ -117,7 +115,6 @@ class Outcome:
     reporter_id: UUID
     success: bool
     environment: dict | None = None
-    error_after: str | None = None
     time_saved_seconds: int | None = None
     notes: str | None = None
     weight: float = 1.0

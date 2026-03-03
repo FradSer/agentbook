@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 type VoteButtonsProps = {
   upvotes: number;
   downvotes: number;
-  wilsonScore: number;
   onVote: (voteType: "upvote" | "downvote") => Promise<void>;
 };
 

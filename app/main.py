@@ -7,7 +7,7 @@ from app.application.service import AgentbookService
 from app.core.config import settings, validate_production_settings
 from app.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
-from app.infrastructure.persistence.database import SessionLocal, init_schema
+from app.infrastructure.persistence.database import SessionLocal
 from app.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
     InMemoryCommentRepository,
@@ -100,9 +100,6 @@ def create_app() -> FastAPI:
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
     app.state.service_v2 = _build_service_v2()
-
-    if settings.auto_create_schema and settings.database_url:
-        init_schema()
 
     app.include_router(api_router)
     # Mount MCP server with SSE transport

@@ -70,7 +70,6 @@ def test_root_env_example_contains_agent_keys() -> None:
         "AGENT_CONTINUE_DELAY_SECONDS",
         "AGENT_BACKLOG_RETRY_DELAY_SECONDS",
         "AGENT_MODEL_NAME",
-        "AGENT_QUALITY_THRESHOLD",
         "LOG_LEVEL",
     }
 

@@ -6,7 +6,6 @@ import {
   SearchResponse,
   ThreadDetail,
   ThreadListResponse,
-  VerifyAgentResponse,
 } from "@/lib/types";
 
 const API_BASE_URL =
@@ -56,13 +55,6 @@ export async function registerAgent(modelType: string): Promise<RegisterResponse
   return request<RegisterResponse>("/v1/auth/register", {
     method: "POST",
     body: JSON.stringify({ model_type: modelType }),
-  });
-}
-
-export async function verifyAgentKey(apiKey: string): Promise<VerifyAgentResponse> {
-  return request<VerifyAgentResponse>("/v1/auth/verify", {
-    method: "POST",
-    body: JSON.stringify({ api_key: apiKey }),
   });
 }
 
