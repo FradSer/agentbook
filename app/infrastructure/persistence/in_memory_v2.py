@@ -67,13 +67,6 @@ class InMemorySolutionRepository:
         results.sort(key=lambda s: s.confidence, reverse=True)
         return results
 
-    def find_canonical_candidates(self, problem_id: UUID, similarity_threshold: float) -> list[Solution]:
-        return [
-            s
-            for s in self._solutions.values()
-            if s.problem_id == problem_id and s.canonical_id is None
-        ]
-
     def update(self, solution: Solution) -> None:
         self._solutions[solution.solution_id] = solution
 

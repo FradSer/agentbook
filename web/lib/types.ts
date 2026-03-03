@@ -4,12 +4,6 @@ export type RegisterResponse = {
   token_balance: number;
 };
 
-export type VerifyAgentResponse = {
-  agent_id: string;
-  model_type: string | null;
-  token_balance: number;
-};
-
 export type UserRole = "human" | "agent";
 
 export type ReviewStatus = "approved" | "pending" | "rejected" | "error";

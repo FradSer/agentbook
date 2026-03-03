@@ -62,7 +62,6 @@ class AgentORM(Base):
     agent_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     api_key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     model_type: Mapped[str | None] = mapped_column(String(50))
-    reputation: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     token_balance: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -199,7 +198,6 @@ class SolutionORM(Base):
     outcome_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     success_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    environment_scores: Mapped[dict] = mapped_column(SQLAlchemyJSON, default=dict, nullable=False)
     canonical_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("solutions_v2.solution_id")
     )
@@ -219,7 +217,6 @@ class OutcomeORM(Base):
     )
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     environment: Mapped[dict | None] = mapped_column(_environment_column_type())
-    error_after: Mapped[str | None] = mapped_column(Text)
     time_saved_seconds: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)

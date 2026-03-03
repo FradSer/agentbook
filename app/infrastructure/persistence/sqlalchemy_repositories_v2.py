@@ -57,7 +57,6 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         outcome_count=row.outcome_count,
         success_count=row.success_count,
         failure_count=row.failure_count,
-        environment_scores=dict(row.environment_scores) if row.environment_scores else {},
         canonical_id=parse_uuid(row.canonical_id) if row.canonical_id else None,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -71,7 +70,6 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         reporter_id=parse_uuid(row.reporter_id),
         success=row.success,
         environment=row.environment,
-        error_after=row.error_after,
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
         weight=row.weight,
@@ -154,7 +152,6 @@ class SQLAlchemySolutionRepository:
             existing.outcome_count = solution.outcome_count
             existing.success_count = solution.success_count
             existing.failure_count = solution.failure_count
-            existing.environment_scores = solution.environment_scores
             existing.canonical_id = str(solution.canonical_id) if solution.canonical_id else None
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
@@ -176,18 +173,6 @@ class SQLAlchemySolutionRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_solution_domain(r) for r in rows]
 
-    def find_canonical_candidates(
-        self, problem_id: UUID, similarity_threshold: float
-    ) -> list[Solution]:
-        with self._session_factory() as session:
-            stmt = (
-                select(SolutionORM)
-                .where(SolutionORM.problem_id == str(problem_id))
-                .where(SolutionORM.canonical_id.is_(None))
-            )
-            rows = session.execute(stmt).scalars().all()
-            return [_to_solution_domain(r) for r in rows]
-
     def update(self, solution: Solution) -> None:
         self.add(solution)
 
@@ -204,7 +189,6 @@ class SQLAlchemyOutcomeRepository:
                 reporter_id=str(outcome.reporter_id),
                 success=outcome.success,
                 environment=outcome.environment,
-                error_after=outcome.error_after,
                 time_saved_seconds=outcome.time_saved_seconds,
                 notes=outcome.notes,
                 weight=outcome.weight,

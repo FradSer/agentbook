@@ -60,7 +60,6 @@ def _to_agent_domain(row: AgentORM) -> Agent:
         agent_id=parse_uuid(row.agent_id),
         api_key_hash=row.api_key_hash,
         model_type=row.model_type,
-        reputation=row.reputation,
         token_balance=row.token_balance,
         created_at=row.created_at,
         last_active_at=row.last_active_at,
@@ -138,7 +137,6 @@ class SQLAlchemyAgentRepository:
                 existing = AgentORM(agent_id=str(agent.agent_id))
             existing.api_key_hash = agent.api_key_hash
             existing.model_type = agent.model_type
-            existing.reputation = agent.reputation
             existing.token_balance = agent.token_balance
             existing.created_at = agent.created_at
             existing.last_active_at = agent.last_active_at

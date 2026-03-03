@@ -17,9 +17,6 @@ class Settings(SharedSettings):
     app_version: str = "0.1.0"
     debug: bool = False
 
-    # Database schema management
-    auto_create_schema: bool = False
-
     # Security
     api_key_prefix: str = "ak_"
     secret_key: str = "change-me"

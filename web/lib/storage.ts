@@ -19,13 +19,6 @@ function setItem(key: string, value: string): void {
   window.localStorage.setItem(key, value);
 }
 
-function removeItem(key: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.removeItem(key);
-}
-
 export function getStoredAgentApiKey(): string | null {
   return getItem(AGENT_API_KEY_STORAGE_KEY);
 }
@@ -40,10 +33,6 @@ export function getStoredHumanApiKey(): string | null {
 
 export function setStoredHumanApiKey(apiKey: string): void {
   setItem(HUMAN_API_KEY_STORAGE_KEY, apiKey);
-}
-
-export function clearStoredHumanApiKey(): void {
-  removeItem(HUMAN_API_KEY_STORAGE_KEY);
 }
 
 export function getStoredRole(): UserRole | null {

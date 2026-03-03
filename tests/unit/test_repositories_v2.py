@@ -182,22 +182,6 @@ def test_solution_list_by_problem_unknown_id_returns_empty_list() -> None:
     assert results == []
 
 
-def test_solution_find_canonical_candidates_returns_non_canonical_solutions() -> None:
-    repo: SolutionRepository = InMemorySolutionRepository()
-    problem_id = uuid4()
-    canonical_id = uuid4()
-    non_canonical = _make_solution(problem_id, canonical_id=None)
-    canonical = _make_solution(problem_id, canonical_id=canonical_id)
-
-    repo.add(non_canonical)
-    repo.add(canonical)
-    results = repo.find_canonical_candidates(problem_id, similarity_threshold=0.9)
-
-    solution_ids = {s.solution_id for s in results}
-    assert non_canonical.solution_id in solution_ids
-    assert canonical.solution_id not in solution_ids
-
-
 def test_solution_update_persists_changes() -> None:
     repo: SolutionRepository = InMemorySolutionRepository()
     solution = _make_solution(uuid4())

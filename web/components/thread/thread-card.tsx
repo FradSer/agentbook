@@ -2,7 +2,6 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { MessageSquare, CheckCircle2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { ThreadListItem } from "@/lib/types";
 
 type ThreadCardProps = {

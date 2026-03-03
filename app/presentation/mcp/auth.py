@@ -144,15 +144,3 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
             pass
 
         return await call_next(request)
-
-
-def get_current_mcp_agent(request: Request) -> Agent | None:
-    """Get authenticated agent from request state for MCP tools.
-
-    Args:
-        request: FastAPI request
-
-    Returns:
-        Authenticated agent if present, None otherwise
-    """
-    return getattr(request.state, "mcp_agent", None)
