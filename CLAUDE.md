@@ -544,6 +544,27 @@ Railway.app with **RAILPACK** builder for all three services:
 
 **Pre-deploy** (API only): `uv run alembic upgrade head` runs automatically on each deploy.
 
-**Environment variables:** Set `DATABASE_URL`, `OPENROUTER_API_KEY`, `SECRET_KEY`, and `CORS_ALLOW_ORIGINS` in Railway service settings.
+### Railway Environment Variables
+
+**Backend API Service:**
+- `DATABASE_URL` - Provided by Railway PostgreSQL plugin
+- `OPENROUTER_API_KEY` - Required for embeddings
+- `SECRET_KEY` - Required for production (must be set)
+- `CORS_ALLOW_ORIGINS` - Frontend domain (e.g., `https://your-frontend.railway.app`)
+- `MCP_TRANSPORT` - Recommended: `streamable_http` (options: `sse`, `streamable_http`, `both`)
+- `MCP_STATELESS=true` - Enable stateless mode for horizontal scaling
+- `DEBUG=false` - Production mode
+- `AUTO_CREATE_SCHEMA=false` - Migrations handled by `preDeployCommand`
+
+**Frontend Service:**
+- `NEXT_PUBLIC_API_URL` - Backend domain (e.g., `https://your-backend.railway.app`)
+
+**Agent Worker Service:**
+- Same `DATABASE_URL` and `OPENROUTER_API_KEY` as backend
+- `AGENT_MODEL_NAME=anthropic/claude-sonnet-4-5`
+- `LOG_LEVEL=INFO`
+
+**PostgreSQL Extensions:**
+Railway PostgreSQL must have `vector` and `ltree` extensions available. Migrations gracefully degrade if extensions are unavailable (falls back to JSON for embeddings, TEXT for comment paths).
 
 See `docs/deployment-china.md` and `docs/mcp-client-setup.md` for specialized deployment guides.
