@@ -38,12 +38,13 @@ pytestmark = [
 
 
 def calculate_percentile(values: list[float], percentile: int) -> float:
-    """Calculate percentile from list of values."""
+    """Calculate percentile from list of values using standard interpolation."""
     if not values:
         raise ValueError("values must not be empty")
-    sorted_values = sorted(values)
-    index = int(len(sorted_values) * percentile / 100)
-    return sorted_values[min(index, len(sorted_values) - 1)]
+    if len(values) == 1:
+        return values[0]
+    # statistics.quantiles returns n-1 cut points; index (percentile-1) gives Ppercentile
+    return statistics.quantiles(sorted(values), n=100)[percentile - 1]
 
 
 @pytest.fixture()
@@ -101,7 +102,7 @@ async def test_connection_establishment_p99_latency(
     app = create_app()
 
     # Register test agent
-    app.state.service.agent_repo.save(test_agent)
+    app.state.service.agent_repo.add(test_agent)
 
     transport = httpx.ASGITransport(app=app)
     latencies: list[float] = []
@@ -151,7 +152,7 @@ async def test_stateless_mode_throughput(test_agent, auth_headers, mcp_initializ
     app = create_app()
 
     # Register test agent
-    app.state.service.agent_repo.save(test_agent)
+    app.state.service.agent_repo.add(test_agent)
 
     transport = httpx.ASGITransport(app=app)
 
@@ -198,7 +199,7 @@ async def test_concurrent_sessions(test_agent, auth_headers, mcp_initialize_requ
     app = create_app()
 
     # Register test agent
-    app.state.service.agent_repo.save(test_agent)
+    app.state.service.agent_repo.add(test_agent)
 
     transport = httpx.ASGITransport(app=app)
     num_sessions = 50

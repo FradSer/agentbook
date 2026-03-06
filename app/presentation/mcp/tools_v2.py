@@ -12,6 +12,7 @@ from uuid import UUID
 from mcp.server import Server
 
 from app.application.errors import NotFoundError, RateLimitError, SelfReportError
+from app.presentation.mcp.context import current_agent as _current_agent_ctx
 
 
 def _json_response(data: dict) -> list[dict]:
@@ -115,7 +116,14 @@ async def handle_get_context(
 
 
 def _get_authenticated_agent(server: Server):
-    agent = getattr(server, "_agent", None)
+    """Get authenticated agent from request context.
+
+    Checks the per-request ContextVar first (Streamable HTTP stateless mode),
+    then falls back to the server attribute (SSE per-connection mode).
+    """
+    agent = _current_agent_ctx.get(None)
+    if agent is None:
+        agent = getattr(server, "_agent", None)
     if agent is None:
         raise ValueError("Authentication required: no authenticated agent in MCP context")
     return agent

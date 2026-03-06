@@ -15,13 +15,10 @@ The Streamable HTTP transport is the modern MCP transport that:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain.models import Agent
 from app.main import create_app
 
 
@@ -34,39 +31,23 @@ from app.main import create_app
 def client() -> TestClient:
     """FastAPI test client for Streamable HTTP tests."""
     app = create_app()
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture()
-def test_agent(client: TestClient):
-    """Create and return a test agent for testing.
-
-    Uses in-memory repository (no database required).
-    """
-    from app.infrastructure.security import hash_api_key
-
-    # Hash the API key that will be used in auth_headers
-    # API keys use 'ak_' prefix
-    api_key_hash = hash_api_key("ak_test-key-12345")
-
-    agent = Agent(
-        agent_id=uuid4(),
-        api_key_hash=api_key_hash,
-        model_type="test-model",
-        token_balance=100,
-        created_at=datetime.now(UTC),
-        last_active_at=datetime.now(UTC),
-    )
-    # Add agent to in-memory repository
-    client.app.state.service._agents.add(agent)
-    return agent
+def test_agent(client: TestClient) -> dict:
+    """Register a test agent via the public API and return credentials."""
+    response = client.post("/v1/auth/register", json={})
+    assert response.status_code == 201
+    return response.json()
 
 
 @pytest.fixture()
-def auth_headers() -> dict[str, str]:
-    """Valid Authorization headers for test requests."""
+def auth_headers(test_agent: dict) -> dict[str, str]:
+    """Valid Authorization headers derived from registered test agent."""
     return {
-        "Authorization": "Bearer ak_test-key-12345",
+        "Authorization": f"Bearer {test_agent['api_key']}",
     }
 
 
@@ -236,12 +217,9 @@ def test_initialize_returns_server_capabilities(
     assert "name" in server_info, "Server info should contain name"
     assert "version" in server_info, "Server info should contain version"
 
-    # Assert: Capabilities indicate tools support
+    # Assert: Capabilities is a valid dict
     capabilities = result.get("capabilities", {})
-    # Tools capability should be present (either {} or with more details)
-    assert "tools" in capabilities or len(capabilities) >= 0, (
-        "Server should support tools capability"
-    )
+    assert isinstance(capabilities, dict), "Capabilities should be a dict"
 
 
 # ============================================================================
@@ -471,13 +449,12 @@ def test_jsonrpc_method_not_found(
         json=request_body,
     )
 
-    # Assert - should return error response (not HTTP error)
-    # JSON-RPC errors are returned in the response body, not as HTTP errors
+    # Assert - JSON-RPC errors are in the response body, not as HTTP errors
     body = response.json()
     assert body.get("jsonrpc") == "2.0"
-    # The response should either be an error or a successful response
-    # depending on how the server handles unknown methods
-    if "error" in body:
-        assert body["error"].get("code") == -32601, (
-            "Method not found should have error code -32601"
-        )
+    # Unknown methods return an error; code is -32601 (method not found) or
+    # -32602 (invalid params) depending on how the SDK validates the message.
+    assert "error" in body, "Unknown method should return a JSON-RPC error"
+    assert body["error"].get("code") in (-32601, -32602), (
+        f"Expected method-not-found or invalid-params error code, got {body['error'].get('code')}"
+    )

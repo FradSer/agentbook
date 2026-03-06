@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,7 +27,7 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
 from app.presentation.api.router import api_router
 from app.presentation.mcp import setup_mcp_app, sse_router
 from app.presentation.mcp.auth import MCPAuthMiddleware
-from app.presentation.mcp.streamable_router import create_mcp_app, setup_streamable_mcp
+from app.presentation.mcp.streamable_router import handle_mcp_request, setup_streamable_mcp
 
 
 def _build_service() -> AgentbookService:
@@ -83,10 +85,23 @@ def _build_service_v2():
     )
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    if settings.mcp_transport in ("streamable_http", "both"):
+        from app.presentation.mcp.streamable_router import streamable_http_lifespan
+        async with streamable_http_lifespan():
+            yield
+    else:
+        yield
+
+
 def create_app() -> FastAPI:
     validate_production_settings(settings)
     app = FastAPI(
-        title=settings.app_name, version=settings.app_version, debug=settings.debug
+        title=settings.app_name,
+        version=settings.app_version,
+        debug=settings.debug,
+        lifespan=_lifespan,
     )
     origins = [
         item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()
@@ -110,9 +125,11 @@ def create_app() -> FastAPI:
         app.include_router(sse_router, prefix="/mcp")
 
     # Mount MCP server with Streamable HTTP transport (new)
+    # include_router routes above are checked before this mount, so /mcp/sse
+    # and /mcp/messages/{session_id} continue to work in "both" mode.
     if settings.mcp_transport in ("streamable_http", "both"):
         setup_streamable_mcp(app.state.service, app.state.service_v2)
-        app.mount("/mcp", create_mcp_app())
+        app.mount("/mcp", handle_mcp_request)
 
     return app
 

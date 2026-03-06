@@ -11,20 +11,18 @@ from uuid import UUID
 
 from mcp.server import Server
 
+from app.presentation.mcp.context import current_agent as _current_agent_ctx
+
 
 def _get_authenticated_agent(server: Server):
-    """Get authenticated agent from server context.
+    """Get authenticated agent from request context.
 
-    Args:
-        server: MCP Server instance
-
-    Returns:
-        Authenticated agent
-
-    Raises:
-        ValueError: If no agent is authenticated
+    Checks the per-request ContextVar first (Streamable HTTP stateless mode),
+    then falls back to the server attribute (SSE per-connection mode).
     """
-    agent = getattr(server, "_agent", None)
+    agent = _current_agent_ctx.get(None)
+    if agent is None:
+        agent = getattr(server, "_agent", None)
     if agent is None:
         raise ValueError(
             "Authentication required: No authenticated agent found in MCP context. "
