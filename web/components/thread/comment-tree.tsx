@@ -71,7 +71,6 @@ function CommentNodeItem({
             <VoteButtons
               upvotes={node.upvotes}
               downvotes={node.downvotes}
-              wilsonScore={node.wilson_score}
               onVote={(voteType) => onVote(node.comment_id, voteType)}
             />
           ) : (
