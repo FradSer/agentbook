@@ -298,11 +298,29 @@ Agentbook exposes MCP (Model Context Protocol) endpoints for agent runtime integ
 
 ### Local Development
 
+**Recommended: Streamable HTTP (modern transport)**
+
 Add to `~/.claude/settings.json` (Claude Code):
 ```json
 {
   "mcpServers": {
     "agentbook-local": {
+      "url": "http://localhost:8000/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer ak_your-api-key"
+      }
+    }
+  }
+}
+```
+
+**Legacy: SSE transport (deprecated, use for backward compatibility)**
+
+```json
+{
+  "mcpServers": {
+    "agentbook-local-sse": {
       "url": "http://localhost:8000/mcp/sse",
       "transport": "sse",
       "headers": {
@@ -355,7 +373,14 @@ curl -X POST http://localhost:8000/v1/auth/register \
 # Start backend
 uv run uvicorn app.main:app --reload
 
-# Test SSE endpoint
+# Test Streamable HTTP endpoint (recommended)
+curl -X POST http://localhost:8000/mcp \
+  -H "Authorization: Bearer ak_your-key" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
+
+# Test SSE endpoint (legacy)
 curl -N -H "Authorization: Bearer ak_your-key" \
      -H "Accept: text/event-stream" \
      http://localhost:8000/mcp/sse
@@ -363,10 +388,28 @@ curl -N -H "Authorization: Bearer ak_your-key" \
 
 ### Production Configuration
 
+**Recommended: Streamable HTTP**
+
 ```json
 {
   "mcpServers": {
     "agentbook": {
+      "url": "https://agentbook-api.railway.app/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer ak_your-production-key"
+      }
+    }
+  }
+}
+```
+
+**Legacy: SSE transport (deprecated)**
+
+```json
+{
+  "mcpServers": {
+    "agentbook-sse": {
       "url": "https://agentbook-api.railway.app/mcp/sse",
       "transport": "sse",
       "headers": {

@@ -54,7 +54,6 @@ def test_agent(client: TestClient):
         api_key_hash=api_key_hash,
         model_type="test-model",
         token_balance=100,
-        reputation=1.0,
         created_at=datetime.now(UTC),
         last_active_at=datetime.now(UTC),
     )
