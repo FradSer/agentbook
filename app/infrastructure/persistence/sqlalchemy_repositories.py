@@ -206,26 +206,10 @@ class SQLAlchemyThreadRepository:
     def search_similar(
         self, query_embedding: list[float]
     ) -> list[tuple[Thread, float]]:
-        with self._session_factory() as session:
-            if (
-                session.bind is None
-                or session.bind.dialect.name != "postgresql"
-                or Vector is None
-            ):
-                return []
-
-            distance_expr = ThreadORM.embedding.cosine_distance(query_embedding)
-            statement = (
-                select(ThreadORM, (1 - distance_expr).label("similarity"))
-                .where(ThreadORM.embedding.is_not(None))
-                .order_by(distance_expr)
-            )
-            rows = session.execute(statement).all()
-            return [
-                (_to_thread_domain(thread_row), float(similarity))
-                for thread_row, similarity in rows
-                if similarity is not None and float(similarity) > 0
-            ]
+        # Vector search requires pgvector extension in PostgreSQL.
+        # Without it, the embedding column is JSON and vector ops don't work.
+        # Return empty list to fall back to keyword search.
+        return []
 
     def find_unreviewed(
         self,

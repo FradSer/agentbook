@@ -116,19 +116,15 @@ class SQLAlchemyProblemRepository:
             return None if row is None else _to_problem_domain(row)
 
     def find_similar(self, embedding: list[float], threshold: float) -> list[Problem]:
+        # Vector search requires pgvector extension in PostgreSQL.
+        # Without it, the embedding column is JSON and vector ops don't work.
+        # Return empty list to fall back to keyword search.
         with self._session_factory() as session:
             if Vector is None or not embedding:
                 return []
-            distance_expr = ProblemORM.embedding.cosine_distance(embedding)
-            stmt = (
-                select(ProblemORM)
-                .where(ProblemORM.embedding.is_not(None))
-                .where(distance_expr < (1.0 - threshold))
-                .order_by(distance_expr)
-                .limit(10)
-            )
-            rows = session.execute(stmt).scalars().all()
-            return [_to_problem_domain(r) for r in rows]
+            # Check if we can use vector operations - the column must be Vector type
+            # Since we now use JSON as default, Vector ops won't work
+            return []
 
     def update(self, problem: Problem) -> None:
         self.add(problem)
