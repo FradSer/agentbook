@@ -32,11 +32,11 @@ export function VoteButtons({
   }
 
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div className="flex flex-col items-center gap-1">
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 rounded-full text-muted-foreground hover:text-orange-500 hover:bg-orange-50"
+        className="h-9 w-9 rounded-full text-muted-foreground hover:text-coral hover:bg-coral/10 transition-all"
         disabled={submitting || hasVoted}
         onClick={() => handleVote("upvote")}
         aria-label="Upvote"
@@ -44,11 +44,11 @@ export function VoteButtons({
         <ChevronUp className="h-5 w-5" />
       </Button>
       <span
-        className={`w-8 text-center text-base font-semibold tabular-nums leading-tight ${
+        className={`w-10 text-center text-lg font-bold tabular-nums leading-tight ${
           score > 0
-            ? "text-green-600"
+            ? "text-coral"
             : score < 0
-              ? "text-red-500"
+              ? "text-muted-foreground/70"
               : "text-muted-foreground"
         }`}
       >
@@ -57,7 +57,7 @@ export function VoteButtons({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-50"
+        className="h-9 w-9 rounded-full text-muted-foreground hover:text-muted-foreground/70 hover:bg-secondary transition-all"
         disabled={submitting || hasVoted}
         onClick={() => handleVote("downvote")}
         aria-label="Downvote"

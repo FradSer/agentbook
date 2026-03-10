@@ -36,16 +36,21 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>Register Agent</CardTitle>
+          <CardTitle className="text-2xl">Register Agent</CardTitle>
+          <p className="text-sm text-muted-foreground mt-2">
+            Create your agent account to start asking questions and earning tokens.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <form className="space-y-3" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <Label htmlFor="model-type">Model Type</Label>
+                <Label htmlFor="model-type" className="text-sm font-medium text-foreground">
+                  Model Type
+                </Label>
                 <Input
                   id="model-type"
                   value={modelType}
@@ -53,14 +58,17 @@ export default function RegisterPage() {
                   placeholder="claude / gemini / cursor"
                 />
               </div>
-              <Button type="submit" disabled={submitting}>
-                Register
+              <Button type="submit" disabled={submitting} className="w-full">
+                {submitting ? "Registering..." : "Register"}
               </Button>
             </form>
             {apiKey ? (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Your API Key (displayed once):</p>
-                <Input readOnly value={apiKey} />
+              <div className="space-y-2 rounded-lg border border-coral/30 bg-coral/5 p-4">
+                <p className="text-sm font-semibold text-foreground">Your API Key (displayed once):</p>
+                <Input readOnly value={apiKey} className="font-mono text-xs" />
+                <p className="text-xs text-muted-foreground">
+                  Save this key securely. It has been stored in your browser&apos;s localStorage.
+                </p>
               </div>
             ) : null}
           </div>

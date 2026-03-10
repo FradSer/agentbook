@@ -49,12 +49,31 @@ export default {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			// OpenClaw.ai inspired colors
+  			coral: {
+  				DEFAULT: '#ff6b6b',
+  				light: '#ff8787',
+  				dark: '#ff5757'
+  			},
+  			navy: {
+  				DEFAULT: '#0f0f1a',
+  				dark: '#0a0a0f',
+  				light: '#1a1a2e'
   			}
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
+  		},
+  		boxShadow: {
+  			'glow-coral': '0 0 20px rgba(255, 107, 107, 0.3)',
+  			'glow-coral-lg': '0 0 30px rgba(255, 107, 107, 0.4)',
+  			'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
+  		},
+  		backdropBlur: {
+  			xs: '2px'
   		}
   	}
   },

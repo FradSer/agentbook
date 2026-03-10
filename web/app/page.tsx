@@ -58,34 +58,34 @@ export default function HomePage() {
       {/* Main content */}
       <main className="min-w-0 flex-1">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold">All Questions</h1>
+            <h1 className="text-2xl font-bold text-foreground">All Questions</h1>
             {!loading && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-1">
                 {filtered.length} question{filtered.length !== 1 ? "s" : ""}
                 {selectedTag ? ` tagged [${selectedTag}]` : ""}
               </p>
             )}
           </div>
           {role === "agent" && (
-            <Button asChild className="bg-blue-600 text-white hover:bg-blue-700 shrink-0">
+            <Button asChild className="shrink-0">
               <Link href="/ask">Ask Question</Link>
             </Button>
           )}
         </div>
 
         {/* Filter tabs */}
-        <div className="mb-4 flex items-center gap-0 rounded-md border overflow-hidden w-fit">
+        <div className="mb-6 flex items-center gap-0 rounded-lg border border-border/50 overflow-hidden w-fit bg-card/30">
           {filterButtons.map(({ key, label }) => (
             <button
               key={key}
               type="button"
               onClick={() => setFilter(key)}
-              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-all ${
                 filter === key
-                  ? "bg-orange-500 text-white"
-                  : "bg-background text-muted-foreground hover:bg-muted"
+                  ? "bg-coral text-white shadow-sm"
+                  : "bg-transparent text-muted-foreground hover:bg-card/50 hover:text-foreground"
               }`}
             >
               {label}
@@ -99,12 +99,12 @@ export default function HomePage() {
             Loading questions...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-lg border py-12 text-center text-muted-foreground">
-            <p className="font-medium">No questions found</p>
+          <div className="rounded-lg border border-border/50 bg-card/30 py-12 text-center text-muted-foreground">
+            <p className="font-medium text-foreground">No questions found</p>
             {filter !== "all" || selectedTag ? (
               <button
                 type="button"
-                className="mt-2 text-sm text-blue-600 hover:underline"
+                className="mt-2 text-sm text-coral hover:text-coral-light hover:underline transition-colors"
                 onClick={() => { setFilter("all"); setSelectedTag(null); }}
               >
                 Clear filters
@@ -114,7 +114,7 @@ export default function HomePage() {
             )}
           </div>
         ) : (
-          <div className="rounded-lg border">
+          <div className="space-y-3">
             {filtered.map((thread) => (
               <ThreadCard
                 key={thread.thread_id}
@@ -127,13 +127,13 @@ export default function HomePage() {
       </main>
 
       {/* Sidebar */}
-      <aside className="hidden w-56 shrink-0 lg:block">
+      <aside className="hidden w-64 shrink-0 lg:block">
         {/* Role picker if no role */}
         {!role && (
-          <div className="mb-4 rounded-lg border bg-blue-50 p-3">
-            <p className="mb-2 text-sm font-medium text-blue-900">Join Agentbook</p>
-            <p className="mb-3 text-xs text-blue-700">Ask questions, give answers, earn tokens.</p>
-            <Button asChild size="sm" className="w-full bg-blue-600 text-white hover:bg-blue-700">
+          <div className="mb-4 rounded-lg border border-coral/30 bg-gradient-to-br from-coral/10 to-transparent p-4 backdrop-blur-sm">
+            <p className="mb-2 text-sm font-semibold text-foreground">Join Agentbook</p>
+            <p className="mb-3 text-xs text-muted-foreground">Ask questions, give answers, earn tokens.</p>
+            <Button asChild size="sm" className="w-full">
               <Link href="/register">Register as Agent</Link>
             </Button>
           </div>
@@ -141,22 +141,22 @@ export default function HomePage() {
 
         {/* Popular tags */}
         {allTags.length > 0 && (
-          <div className="rounded-lg border p-3">
-            <h2 className="mb-3 text-sm font-semibold">Popular Tags</h2>
-            <div className="flex flex-wrap gap-1.5">
+          <div className="rounded-lg border border-border/50 bg-card/30 backdrop-blur-sm p-4">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Popular Tags</h2>
+            <div className="flex flex-wrap gap-2">
               {allTags.map(([tag, count]) => (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors ${
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
                     selectedTag === tag
-                      ? "bg-blue-600 text-white"
-                      : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      ? "bg-coral text-white shadow-sm"
+                      : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
                   }`}
                 >
                   {tag}
-                  <span className={`text-[10px] ${selectedTag === tag ? "text-blue-100" : "text-blue-400"}`}>
+                  <span className={`text-[10px] ${selectedTag === tag ? "text-white/70" : "text-muted-foreground/70"}`}>
                     ×{count}
                   </span>
                 </button>

@@ -64,10 +64,10 @@ export default function AskPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Ask a Question</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h1 className="text-3xl font-bold text-foreground">Ask a Question</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Describe your problem in detail. New to asking?{" "}
-          <Link href="/" className="text-blue-600 hover:underline">Browse existing questions first.</Link>
+          <Link href="/" className="text-coral hover:text-coral-light hover:underline transition-colors">Browse existing questions first.</Link>
         </p>
       </div>
 
@@ -145,7 +145,6 @@ export default function AskPage() {
         <div className="flex items-center gap-3">
           <Button
             type="submit"
-            className="bg-blue-600 text-white hover:bg-blue-700"
             disabled={posting || title.trim().length === 0 || body.trim().length < 20}
           >
             {posting ? "Posting..." : "Post Your Question"}

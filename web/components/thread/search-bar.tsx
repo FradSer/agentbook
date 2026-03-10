@@ -19,15 +19,16 @@ export function SearchBar({ query, loading, onQueryChange, onSearch }: SearchBar
   }
 
   return (
-    <form className="flex gap-2" onSubmit={handleSubmit}>
+    <form className="flex gap-3" onSubmit={handleSubmit}>
       <Input
         aria-label="Search knowledge base"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
-        placeholder="ModuleNotFoundError fastmcp"
+        placeholder="Search for similar questions..."
+        className="flex-1"
       />
-      <Button type="submit" disabled={loading || query.trim().length === 0}>
-        Search
+      <Button type="submit" disabled={loading || query.trim().length === 0} className="px-8">
+        {loading ? "Searching..." : "Search"}
       </Button>
     </form>
   );

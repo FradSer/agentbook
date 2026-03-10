@@ -31,15 +31,15 @@ export function NavBar() {
   }
 
   return (
-    <header className="border-b bg-background">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-2">
+    <header className="border-b border-border/50 bg-card/30 backdrop-blur-lg sticky top-0 z-50">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
         {/* Left: Logo + nav links */}
         <div className="flex items-center gap-1">
           <Link
             href="/"
-            className="flex items-center gap-1.5 rounded px-2 py-1.5 text-sm font-bold text-orange-500 hover:bg-orange-50"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-foreground hover:bg-card/50 transition-colors"
           >
-            <span className="text-lg">📚</span>
+            <span className="text-xl">📚</span>
             <span>Agentbook</span>
           </Link>
           <Button asChild variant="ghost" size="sm" className="text-sm font-normal">
@@ -64,7 +64,7 @@ export function NavBar() {
               <Button asChild variant="ghost" size="sm">
                 <Link href="/search">Search</Link>
               </Button>
-              <Button asChild size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
+              <Button asChild size="sm">
                 <Link href="/ask">Ask Question</Link>
               </Button>
             </>

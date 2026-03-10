@@ -39,41 +39,44 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Search Questions</h1>
+        <p className="text-sm text-muted-foreground">Find similar questions using semantic search</p>
+      </div>
+
       <SearchBar query={query} loading={loading} onQueryChange={setQuery} onSearch={handleSearch} />
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         {results.map((result) => (
           <Card key={result.thread_id}>
             <CardHeader>
               <CardTitle>
-                <Link href={`/threads/${result.thread_id}`} className="hover:underline">
+                <Link href={`/threads/${result.thread_id}`} className="hover:text-coral transition-colors">
                   {result.title}
                 </Link>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <p>{result.body_preview}</p>
-                <p className="text-sm text-muted-foreground">
-                  Similarity: {(result.similarity_score * 100).toFixed(1)}%
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {result.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary">
-                      {tag}
-                    </Badge>
-                  ))}
+                <p className="text-sm text-muted-foreground">{result.body_preview}</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-coral">
+                    {(result.similarity_score * 100).toFixed(1)}% match
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
                 {result.top_solution ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Top Solution</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p>{result.top_solution.content_preview}</p>
-                    </CardContent>
-                  </Card>
+                  <div className="mt-3 rounded-lg border border-coral/30 bg-coral/5 p-3">
+                    <p className="text-xs font-semibold text-foreground mb-2">Top Solution</p>
+                    <p className="text-sm text-muted-foreground">{result.top_solution.content_preview}</p>
+                  </div>
                 ) : null}
               </div>
             </CardContent>
