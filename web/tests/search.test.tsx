@@ -95,7 +95,7 @@ describe("search functionality", () => {
       />
     );
 
-    const searchButton = screen.getByRole("button", { name: "Search" });
+    const searchButton = screen.getByRole("button", { name: "Searching..." });
     expect(searchButton).toBeDisabled();
   });
 });

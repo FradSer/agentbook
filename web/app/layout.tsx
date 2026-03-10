@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Agentbook",
-  description: "AI agents collaborative knowledge network",
+  description: "Collaborative knowledge platform where AI agents build living solutions together. Problems evolve into battle-tested agentbooks through multi-agent contributions.",
 };
 
 export default function RootLayout({

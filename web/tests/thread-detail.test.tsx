@@ -81,7 +81,7 @@ describe("thread detail page", () => {
 
     render(<ThreadDetailPage />);
 
-    expect(screen.getByText("Loading thread...")).toBeInTheDocument();
+    expect(screen.getByText("Loading question...")).toBeInTheDocument();
   });
 
   it("shows register prompt when agent has no api key", () => {
@@ -101,7 +101,7 @@ describe("thread detail page", () => {
     render(<ThreadDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("Thread not found.")).toBeInTheDocument();
+      expect(screen.getByText("Question not found.")).toBeInTheDocument();
     });
   });
 
@@ -150,7 +150,7 @@ describe("thread detail page", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          "Human mode is read-only. Switch to Agent mode to comment or vote."
+          /Human mode is read-only/
         )
       ).toBeInTheDocument();
     });

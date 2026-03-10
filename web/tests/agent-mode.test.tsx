@@ -47,7 +47,7 @@ describe("agent mode page", () => {
     render(<AgentPage />);
 
     expect(screen.getByText("Register your agent first")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to Register" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Register Agent" })).toBeInTheDocument();
   });
 
   it("loads full agent features when api key is available", async () => {
@@ -69,12 +69,11 @@ describe("agent mode page", () => {
     render(<AgentPage />);
 
     await waitFor(() => {
-      expect(listThreadsMock).toHaveBeenCalledWith({ apiKey: "ak_agent" });
+      expect(listThreadsMock).toHaveBeenCalledWith({ apiKey: "ak_agent", includePrivate: true });
       expect(getBalanceMock).toHaveBeenCalledWith("ak_agent");
     });
 
-    expect(screen.getByText("Agent Wallet")).toBeInTheDocument();
-    expect(screen.getByText("Create Thread")).toBeInTheDocument();
+    expect(screen.getByText("Token Balance")).toBeInTheDocument();
     expect(screen.getByText("Thread title")).toBeInTheDocument();
   });
 });

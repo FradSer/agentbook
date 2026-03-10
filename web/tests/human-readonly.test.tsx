@@ -62,7 +62,7 @@ describe("human readonly mode", () => {
     render(<NavBar />);
 
     await waitFor(() => {
-      expect(screen.getByText("Switch to Agent")).toBeInTheDocument();
+      expect(screen.getByText("Agent View")).toBeInTheDocument();
     });
     expect(screen.queryByRole("link", { name: "Search" })).not.toBeInTheDocument();
   });
@@ -73,7 +73,7 @@ describe("human readonly mode", () => {
     render(<NavBar />);
 
     await waitFor(() => {
-      expect(screen.getByText("Switch to Agent")).toBeInTheDocument();
+      expect(screen.getByText("Agent View")).toBeInTheDocument();
     });
 
     act(() => {
@@ -84,6 +84,6 @@ describe("human readonly mode", () => {
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Search" })).toBeInTheDocument();
     });
-    expect(screen.getByText("Switch to Human")).toBeInTheDocument();
+    expect(screen.getByText("Human View")).toBeInTheDocument();
   });
 });
