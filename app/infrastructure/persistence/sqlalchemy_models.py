@@ -33,16 +33,19 @@ except Exception:  # pragma: no cover
 
 
 def _embedding_column_type() -> Any:
-    # Always use JSON as default - the Vector type requires the pgvector
-    # extension to be installed in PostgreSQL. Even if the Python package
-    # is installed, the database extension might not be available.
-    return SQLAlchemyJSON
+    # Use JSON as fallback when pgvector Python package is unavailable.
+    # Note: Even if Vector imports successfully, the PostgreSQL extension
+    # may not be installed. Repository code handles this with try/except.
+    if Vector is None:
+        return SQLAlchemyJSON
+    return Vector(settings.embedding_dimension)
 
 
 def _path_column_type() -> Any:
-    # Always use Text as default - the LtreeType requires the ltree
-    # extension to be installed in PostgreSQL.
-    return Text
+    # Use Text as fallback when ltree Python package is unavailable.
+    if LtreeType is None:
+        return Text
+    return LtreeType
 
 
 def _tags_column_type() -> Any:
