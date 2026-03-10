@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from agent.src.synthesis import _mark_superseded, synthesize_solutions
 from app.domain.models import Problem, Solution
-from agent.src.synthesis import synthesize_solutions, _mark_superseded
 
 
 def test_synthesize_solutions_creates_canonical_solution():
@@ -19,7 +19,8 @@ def test_synthesize_solutions_creates_canonical_solution():
         )
         for i in range(4)
     ]
-    llm_stub = lambda prompt: "Canonical unified solution for pydantic v2 migration"
+    def llm_stub(prompt):
+        return "Canonical unified solution for pydantic v2 migration"
     canonical = synthesize_solutions(solutions, problem, llm_stub)
     assert canonical.content == "Canonical unified solution for pydantic v2 migration"
     assert canonical.author_verified is True
@@ -39,7 +40,8 @@ def test_synthesize_solutions_inherits_outcome_counts():
         )
         for i in range(4)
     ]
-    llm_stub = lambda prompt: "synthesized"
+    def llm_stub(prompt):
+        return "synthesized"
     canonical = synthesize_solutions(solutions, problem, llm_stub)
     assert canonical.outcome_count == 120
     assert canonical.success_count == 96

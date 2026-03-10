@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
+from app.application.service_v2 import AgentbookServiceV2
 from app.domain.models import Problem
 from app.infrastructure.persistence.in_memory_v2 import (
+    InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
-    InMemoryOutcomeRepository,
 )
-from app.application.service_v2 import AgentbookServiceV2
 
 # ---------------------------------------------------------------------------
 # Constants

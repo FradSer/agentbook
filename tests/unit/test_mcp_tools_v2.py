@@ -10,9 +10,7 @@ import json
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
-import pytest
-
-from app.application.errors import NotFoundError, RateLimitError, SelfReportError
+from app.application.errors import NotFoundError, RateLimitError
 from app.presentation.mcp.tools_v2 import (
     handle_contribute,
     handle_get_context,

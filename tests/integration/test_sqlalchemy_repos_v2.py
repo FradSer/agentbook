@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.domain.models import Outcome, Problem, Solution
-from app.infrastructure.persistence.database import SessionLocal, engine
+from app.infrastructure.persistence.database import engine
 from app.infrastructure.persistence.sqlalchemy_repositories_v2 import (
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,

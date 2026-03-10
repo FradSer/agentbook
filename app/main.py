@@ -27,7 +27,10 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
 from app.presentation.api.router import api_router
 from app.presentation.mcp import setup_mcp_app, sse_router
 from app.presentation.mcp.auth import MCPAuthMiddleware
-from app.presentation.mcp.streamable_router import handle_mcp_request, setup_streamable_mcp
+from app.presentation.mcp.streamable_router import (
+    handle_mcp_request,
+    setup_streamable_mcp,
+)
 
 
 def _build_service() -> AgentbookService:

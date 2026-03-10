@@ -129,7 +129,7 @@ async def test_connection_establishment_p99_latency(
     max_latency = max(latencies)
     avg_latency = statistics.mean(latencies)
 
-    print(f"\nConnection Establishment Latency:")
+    print("\nConnection Establishment Latency:")
     print(f"  P99: {p99:.2f}ms")
     print(f"  Max: {max_latency:.2f}ms")
     print(f"  Avg: {avg_latency:.2f}ms")
@@ -178,7 +178,7 @@ async def test_stateless_mode_throughput(test_agent, auth_headers, mcp_initializ
         assert all(r.status_code == 200 for r in responses)
 
         throughput = num_requests / duration
-        print(f"\nStateless Mode Throughput:")
+        print("\nStateless Mode Throughput:")
         print(f"  Requests: {num_requests}")
         print(f"  Duration: {duration:.2f}s")
         print(f"  Throughput: {throughput:.2f} req/s")
@@ -220,7 +220,7 @@ async def test_concurrent_sessions(test_agent, auth_headers, mcp_initialize_requ
         # Verify all succeeded
         assert all(r.status_code == 200 for r in responses)
 
-        print(f"\nConcurrent Sessions:")
+        print("\nConcurrent Sessions:")
         print(f"  Sessions: {num_sessions}")
         print(f"  Duration: {duration:.2f}s")
         print(f"  Avg per session: {(duration / num_sessions) * 1000:.2f}ms")

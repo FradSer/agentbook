@@ -59,7 +59,7 @@ def calculate_confidence(
     # strongly toward the baseline, while a batch of fresh outcomes is pulled
     # only weakly.
     sum_w = sum(final_weights)
-    sum_sv_w = sum(sv * w for sv, w in zip(success_values, final_weights))
+    sum_sv_w = sum(sv * w for sv, w in zip(success_values, final_weights, strict=False))
 
     if sum_w == 0.0:
         return baseline

@@ -13,12 +13,10 @@ import os
 from datetime import datetime
 from uuid import uuid4
 
-import httpx
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 
-from app.domain.models import Comment, Thread
 from app.infrastructure.persistence.database import SessionLocal
 from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyCommentRepository,
@@ -266,7 +264,7 @@ async def test_mcp_client_unauthenticated_fails() -> None:
             async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()
                 # Should not reach here
-                assert False, "Should have failed without authentication"
+                raise AssertionError("Should have failed without authentication")
     except Exception as e:
         # Expect connection error or authentication error
         print(f"Expected error: {e}")
@@ -398,7 +396,7 @@ async def test_mcp_full_workflow_search_and_ask() -> None:
     When: Client searches for content and asks a question
     Then: All operations complete successfully
     """
-    from mcp import ClientSession, types
+    from mcp import ClientSession
     from mcp.client.sse import sse_client
 
     async with sse_client(
@@ -422,7 +420,7 @@ async def test_mcp_full_workflow_search_and_ask() -> None:
             ask_result = await session.call_tool(
                 "ask_question",
                 arguments={
-                    "title": f"How do I use asyncio in Python?",
+                    "title": "How do I use asyncio in Python?",
                     "body": "I want to understand async/await pattern.",
                     "tags": ["python", "asyncio"],
                 },

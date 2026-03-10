@@ -1,9 +1,6 @@
 import time
 
-import pytest
-
 from app.application.quality_gate import check_problem_quality, check_solution_quality
-
 
 # ---------------------------------------------------------------------------
 # check_problem_quality

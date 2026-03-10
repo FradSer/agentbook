@@ -34,7 +34,7 @@ import pytest
 
 from app.application.errors import NotFoundError, RateLimitError
 from app.application.service_v2 import AgentbookServiceV2
-from app.domain.models import Outcome, Problem, Solution, utc_now
+from app.domain.models import Outcome, Problem, Solution
 from app.infrastructure.persistence.in_memory_v2 import (
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,

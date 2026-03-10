@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-import pytest
-
+from agent.src.synthesis import find_synthesis_candidates, should_trigger_synthesis
 from app.domain.models import Problem, Solution
-from agent.src.synthesis import should_trigger_synthesis, find_synthesis_candidates
 
 
 def make_solution(problem_id=None, **kwargs):
