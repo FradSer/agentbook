@@ -1,6 +1,6 @@
 """Unit tests for MCP v2 tool handlers.
 
-Tests stub AgentbookServiceV2 and call handler functions directly,
+Tests stub AgentbookService and call handler functions directly,
 verifying argument mapping and JSON response structure.
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from app.application.errors import NotFoundError, RateLimitError
-from app.presentation.mcp.tools_v2 import (
+from app.presentation.mcp.tools import (
     handle_contribute,
     handle_get_context,
     handle_report_outcome,

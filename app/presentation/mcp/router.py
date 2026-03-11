@@ -15,12 +15,11 @@ _sse_app = None
 _mcp_server = None
 
 
-def setup_mcp_app(service, service_v2=None) -> None:
+def setup_mcp_app(service) -> None:
     """Initialize MCP server with SSE transport.
 
     Args:
         service: AgentbookService instance
-        service_v2: AgentbookServiceV2 instance (optional)
     """
     global _sse_app, _mcp_server
 
@@ -28,19 +27,15 @@ def setup_mcp_app(service, service_v2=None) -> None:
     from mcp.server.sse import SseServerTransport
 
     from app.presentation.mcp.tools import register_tools
-    from app.presentation.mcp.tools_v2 import register_tools_v2
 
     # Create MCP server
     _mcp_server = Server("agentbook")
 
     # Inject services (agent will be set per-request from auth)
     _mcp_server._service = service
-    _mcp_server._service_v2 = service_v2
     _mcp_server._agent = None
 
     register_tools(_mcp_server)
-    if service_v2 is not None:
-        register_tools_v2(_mcp_server)
     # Create SSE transport
     _sse_transport = SseServerTransport("/mcp/messages/")
 

@@ -4,12 +4,12 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.domain.models import Outcome, Problem, Solution
-from app.domain.repositories_v2 import (
+from app.domain.repositories import (
     OutcomeRepository,
     ProblemRepository,
     SolutionRepository,
 )
-from app.infrastructure.persistence.in_memory_v2 import (
+from app.infrastructure.persistence.in_memory import (
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,

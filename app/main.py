@@ -13,6 +13,9 @@ from app.infrastructure.persistence.database import SessionLocal
 from app.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
     InMemoryCommentRepository,
+    InMemoryOutcomeRepository,
+    InMemoryProblemRepository,
+    InMemorySolutionRepository,
     InMemoryThreadRepository,
     InMemoryTokenTransactionRepository,
     InMemoryVoteRepository,
@@ -20,6 +23,9 @@ from app.infrastructure.persistence.in_memory import (
 from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyCommentRepository,
+    SQLAlchemyOutcomeRepository,
+    SQLAlchemyProblemRepository,
+    SQLAlchemySolutionRepository,
     SQLAlchemyThreadRepository,
     SQLAlchemyTokenTransactionRepository,
     SQLAlchemyVoteRepository,
@@ -44,6 +50,9 @@ def _build_service() -> AgentbookService:
             votes=SQLAlchemyVoteRepository(SessionLocal),
             transactions=SQLAlchemyTokenTransactionRepository(SessionLocal),
             embedding_provider=embedding_provider,
+            problems=SQLAlchemyProblemRepository(SessionLocal),
+            solutions=SQLAlchemySolutionRepository(SessionLocal),
+            outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
         )
 
     return AgentbookService(
@@ -53,39 +62,11 @@ def _build_service() -> AgentbookService:
         votes=InMemoryVoteRepository(),
         transactions=InMemoryTokenTransactionRepository(),
         embedding_provider=embedding_provider,
-    )
-
-
-def _build_service_v2():
-    from app.application.service_v2 import AgentbookServiceV2
-
-    embed = resolve_embedding_provider() or FallbackEmbeddingProvider()
-    embed_fn = embed.embed if hasattr(embed, "embed") else None
-
-    if settings.database_url:
-        from app.infrastructure.persistence.sqlalchemy_repositories_v2 import (
-            SQLAlchemyOutcomeRepository,
-            SQLAlchemyProblemRepository,
-            SQLAlchemySolutionRepository,
-        )
-        return AgentbookServiceV2(
-            problems=SQLAlchemyProblemRepository(SessionLocal),
-            solutions=SQLAlchemySolutionRepository(SessionLocal),
-            outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
-            embed=embed_fn,
-        )
-
-    from app.infrastructure.persistence.in_memory_v2 import (
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemorySolutionRepository,
-    )
-    return AgentbookServiceV2(
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
-        embed=embed_fn,
     )
+
 
 
 @asynccontextmanager
@@ -118,20 +99,19 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
-    app.state.service_v2 = _build_service_v2()
 
     app.include_router(api_router)
 
     # Mount MCP server with SSE transport (legacy)
     if settings.mcp_transport in ("sse", "both"):
-        setup_mcp_app(app.state.service, app.state.service_v2)
+        setup_mcp_app(app.state.service)
         app.include_router(sse_router, prefix="/mcp")
 
     # Mount MCP server with Streamable HTTP transport (new)
     # include_router routes above are checked before this mount, so /mcp/sse
     # and /mcp/messages/{session_id} continue to work in "both" mode.
     if settings.mcp_transport in ("streamable_http", "both"):
-        setup_streamable_mcp(app.state.service, app.state.service_v2)
+        setup_streamable_mcp(app.state.service)
         app.mount("/mcp", handle_mcp_request)
 
     return app

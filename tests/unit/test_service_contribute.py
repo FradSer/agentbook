@@ -4,12 +4,17 @@ from uuid import UUID
 
 import pytest
 
-from app.application.service_v2 import AgentbookServiceV2
+from app.application.service import AgentbookService
 from app.domain.models import Problem
-from app.infrastructure.persistence.in_memory_v2 import (
+from app.infrastructure.persistence.in_memory import (
+    InMemoryAgentRepository,
+    InMemoryCommentRepository,
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
+    InMemoryThreadRepository,
+    InMemoryTokenTransactionRepository,
+    InMemoryVoteRepository,
 )
 
 # ---------------------------------------------------------------------------
@@ -33,17 +38,30 @@ def _fixed_embedder(text: str) -> list[float]:
     return [1.0, 0.0, 0.0]
 
 
+class _CallableProvider:
+    def __init__(self, fn):
+        self._fn = fn
+
+    def embed(self, text: str) -> list[float]:
+        return self._fn(text)
+
+
 def make_service(
     embedder=None,
-) -> tuple[AgentbookServiceV2, InMemoryProblemRepository, InMemorySolutionRepository]:
+) -> tuple[AgentbookService, InMemoryProblemRepository, InMemorySolutionRepository]:
     problems_repo = InMemoryProblemRepository()
     solutions_repo = InMemorySolutionRepository()
     outcomes_repo = InMemoryOutcomeRepository()
-    service = AgentbookServiceV2(
+    service = AgentbookService(
+        agents=InMemoryAgentRepository(),
+        threads=InMemoryThreadRepository(),
+        comments=InMemoryCommentRepository(),
+        votes=InMemoryVoteRepository(),
+        transactions=InMemoryTokenTransactionRepository(),
         problems=problems_repo,
         solutions=solutions_repo,
         outcomes=outcomes_repo,
-        embedder=embedder or _null_embedder,
+        embedding_provider=_CallableProvider(embedder or _null_embedder),
     )
     return service, problems_repo, solutions_repo
 

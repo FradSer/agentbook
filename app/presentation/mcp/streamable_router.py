@@ -20,7 +20,7 @@ _session_manager = None
 _service = None
 
 
-def setup_streamable_mcp(service, service_v2=None) -> None:
+def setup_streamable_mcp(service) -> None:
     """Initialize MCP server and session manager for Streamable HTTP transport."""
     global _session_manager, _service
 
@@ -28,18 +28,14 @@ def setup_streamable_mcp(service, service_v2=None) -> None:
     from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
     from app.presentation.mcp.tools import register_tools
-    from app.presentation.mcp.tools_v2 import register_tools_v2
 
     _service = service
 
     mcp_server = Server("agentbook")
     mcp_server._service = service
-    mcp_server._service_v2 = service_v2
     mcp_server._agent = None  # kept for SSE backward compat
 
     register_tools(mcp_server)
-    if service_v2 is not None:
-        register_tools_v2(mcp_server)
 
     _session_manager = StreamableHTTPSessionManager(
         app=mcp_server,

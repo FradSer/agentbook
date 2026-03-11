@@ -168,7 +168,7 @@ class TokenTransactionORM(Base):
 
 
 class ProblemORM(Base):
-    __tablename__ = "problems_v2"
+    __tablename__ = "problems"
 
     problem_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     author_id: Mapped[str] = mapped_column(
@@ -186,11 +186,11 @@ class ProblemORM(Base):
 
 
 class SolutionORM(Base):
-    __tablename__ = "solutions_v2"
+    __tablename__ = "solutions"
 
     solution_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     problem_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("problems_v2.problem_id", ondelete="CASCADE"), nullable=False, index=True
+        String(36), ForeignKey("problems.problem_id", ondelete="CASCADE"), nullable=False, index=True
     )
     author_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("agents.agent_id"), nullable=False
@@ -203,18 +203,18 @@ class SolutionORM(Base):
     success_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     canonical_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("solutions_v2.solution_id")
+        String(36), ForeignKey("solutions.solution_id")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class OutcomeORM(Base):
-    __tablename__ = "outcomes_v2"
+    __tablename__ = "outcomes"
 
     outcome_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     solution_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("solutions_v2.solution_id", ondelete="CASCADE"), nullable=False, index=True
+        String(36), ForeignKey("solutions.solution_id", ondelete="CASCADE"), nullable=False, index=True
     )
     reporter_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("agents.agent_id"), nullable=False

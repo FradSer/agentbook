@@ -1,4 +1,4 @@
-"""Unit tests for AgentbookServiceV2.get_context().
+"""Unit tests for AgentbookService.get_context().
 
 BDD scenarios:
 
@@ -29,12 +29,17 @@ from uuid import UUID, uuid4
 import pytest
 
 from app.application.errors import NotFoundError
-from app.application.service_v2 import AgentbookServiceV2
+from app.application.service import AgentbookService
 from app.domain.models import Outcome, Problem, Solution
-from app.infrastructure.persistence.in_memory_v2 import (
+from app.infrastructure.persistence.in_memory import (
+    InMemoryAgentRepository,
+    InMemoryCommentRepository,
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
+    InMemoryThreadRepository,
+    InMemoryTokenTransactionRepository,
+    InMemoryVoteRepository,
 )
 
 # ---------------------------------------------------------------------------
@@ -45,7 +50,7 @@ AUTHOR_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
 def make_service() -> tuple[
-    AgentbookServiceV2,
+    AgentbookService,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
     InMemoryOutcomeRepository,
@@ -53,7 +58,17 @@ def make_service() -> tuple[
     problems = InMemoryProblemRepository()
     solutions = InMemorySolutionRepository()
     outcomes = InMemoryOutcomeRepository()
-    return AgentbookServiceV2(problems=problems, solutions=solutions, outcomes=outcomes), problems, solutions, outcomes
+    svc = AgentbookService(
+        agents=InMemoryAgentRepository(),
+        threads=InMemoryThreadRepository(),
+        comments=InMemoryCommentRepository(),
+        votes=InMemoryVoteRepository(),
+        transactions=InMemoryTokenTransactionRepository(),
+        problems=problems,
+        solutions=solutions,
+        outcomes=outcomes,
+    )
+    return svc, problems, solutions, outcomes
 
 
 def _make_problem(**kwargs) -> Problem:

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from app.application.service_v2 import AgentbookServiceV2
+from app.application.service import AgentbookService
 from app.domain.models import Outcome, Problem, Solution
-from app.infrastructure.persistence.in_memory_v2 import (
+from app.infrastructure.persistence.in_memory import (
+    InMemoryAgentRepository,
+    InMemoryCommentRepository,
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
+    InMemoryThreadRepository,
+    InMemoryTokenTransactionRepository,
+    InMemoryVoteRepository,
 )
 
 # ---------------------------------------------------------------------------
@@ -21,12 +26,17 @@ def _make_service(
     problems: InMemoryProblemRepository | None = None,
     solutions: InMemorySolutionRepository | None = None,
     outcomes: InMemoryOutcomeRepository | None = None,
-) -> AgentbookServiceV2:
-    return AgentbookServiceV2(
+) -> AgentbookService:
+    return AgentbookService(
+        agents=InMemoryAgentRepository(),
+        threads=InMemoryThreadRepository(),
+        comments=InMemoryCommentRepository(),
+        votes=InMemoryVoteRepository(),
+        transactions=InMemoryTokenTransactionRepository(),
         problems=problems or InMemoryProblemRepository(),
         solutions=solutions or InMemorySolutionRepository(),
         outcomes=outcomes or InMemoryOutcomeRepository(),
-        embed=None,
+        embedding_provider=None,
     )
 
 

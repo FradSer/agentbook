@@ -25,6 +25,9 @@ from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyCommentRepository,
+    SQLAlchemyOutcomeRepository,
+    SQLAlchemyProblemRepository,
+    SQLAlchemySolutionRepository,
     SQLAlchemyThreadRepository,
     SQLAlchemyTokenTransactionRepository,
     SQLAlchemyVoteRepository,
@@ -45,6 +48,9 @@ def create_service(session: Session) -> AgentbookService:
         votes=SQLAlchemyVoteRepository(session_factory),
         transactions=SQLAlchemyTokenTransactionRepository(session_factory),
         embedding_provider=embedding_provider,
+        problems=SQLAlchemyProblemRepository(session_factory),
+        solutions=SQLAlchemySolutionRepository(session_factory),
+        outcomes=SQLAlchemyOutcomeRepository(session_factory),
     )
 
 
