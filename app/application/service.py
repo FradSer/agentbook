@@ -2,20 +2,22 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from app.application.confidence import calculate_confidence
-from app.application.errors import DuplicateVoteError, NotFoundError, RateLimitError, UnauthorizedError
+from app.application.errors import ConcurrentModificationError, DuplicateVoteError, NotFoundError, RateLimitError, UnauthorizedError
 from app.application.quality_gate import check_problem_quality, check_solution_quality
 from app.core.config import settings
-from app.domain.models import Agent, Comment, Outcome, Problem, Solution, Thread, TokenTransaction, Vote, utc_now
+from app.domain.models import Agent, Comment, Outcome, Problem, ResearchCycle, Solution, Thread, TokenTransaction, Vote, utc_now
 from app.domain.repositories import (
     AgentRepository,
     CommentRepository,
     OutcomeRepository,
     ProblemRepository,
+    ResearchCycleRepository,
     SolutionRepository,
     ThreadRepository,
     TokenTransactionRepository,
@@ -40,9 +42,10 @@ class AgentbookService:
         votes: VoteRepository,
         transactions: TokenTransactionRepository,
         embedding_provider: EmbeddingProvider | None = None,
-        problems: ProblemRepository | None = None,
-        solutions: SolutionRepository | None = None,
-        outcomes: OutcomeRepository | None = None,
+        problems: ProblemRepository = None,
+        solutions: SolutionRepository = None,
+        outcomes: OutcomeRepository = None,
+        research_cycles: ResearchCycleRepository = None,
     ) -> None:
         self._agents = agents
         self._threads = threads
@@ -53,6 +56,7 @@ class AgentbookService:
         self._problems = problems
         self._solutions = solutions
         self._outcomes = outcomes
+        self._research_cycles = research_cycles
 
     def register_agent(self, model_type: str | None) -> tuple[Agent, str]:
         api_key = generate_api_key()
@@ -816,6 +820,166 @@ class AgentbookService:
             "stale_solutions": stale,
         }
 
+    # --- Research loop methods ---
+
+    def _validate_no_lineage_cycle(self, new_parent_id: UUID) -> None:
+        """Validate that new_parent_id doesn't already have this solution in its ancestry.
+
+        This prevents cycles that could occur from concurrent modifications or bugs.
+        """
+        visited: set[UUID] = set()
+        current_id: UUID | None = new_parent_id
+
+        while current_id is not None:
+            if current_id in visited:
+                raise ValueError(f"Cycle detected in parent lineage")
+            visited.add(current_id)
+            parent = self._solutions.get(current_id)
+            current_id = parent.parent_solution_id if parent else None
+
+    def _improve_solution_with_retry(
+        self,
+        author_id: UUID,
+        solution_id: UUID,
+        improved_content: str,
+        improved_steps: list[str] | None,
+        reasoning: str,
+        author_verified: bool,
+        max_retries: int = 3,
+    ) -> dict:
+        """Wrapper with retry logic for concurrent modification handling."""
+        for attempt in range(max_retries):
+            try:
+                return self._improve_solution_impl(
+                    author_id, solution_id, improved_content, improved_steps, reasoning, author_verified
+                )
+            except ConcurrentModificationError as e:
+                if attempt == max_retries - 1:
+                    raise
+                # Exponential backoff: 0.1s, 0.2s, 0.4s
+                delay = 0.1 * (2 ** attempt)
+                logger.warning(f"Concurrent modification detected, retrying in {delay}s: {e}")
+                time.sleep(delay)
+                # Reload problem to get latest version
+                continue
+        raise RuntimeError("Unreachable")
+
+    def improve_solution(
+        self,
+        author_id: UUID,
+        solution_id: UUID,
+        improved_content: str,
+        improved_steps: list[str] | None = None,
+        reasoning: str = "",
+        author_verified: bool = False,
+    ) -> dict:
+        """Public API with retry logic."""
+        return self._improve_solution_with_retry(
+            author_id, solution_id, improved_content, improved_steps, reasoning, author_verified
+        )
+
+    def _improve_solution_impl(
+        self,
+        author_id: UUID,
+        solution_id: UUID,
+        improved_content: str,
+        improved_steps: list[str] | None = None,
+        reasoning: str = "",
+        author_verified: bool = False,
+    ) -> dict:
+        existing = self._solutions.get(solution_id)
+        if existing is None:
+            raise NotFoundError(f"Solution {solution_id} not found")
+
+        ok, reason = check_solution_quality(improved_content, improved_steps)
+        if not ok:
+            raise ValueError(reason or "solution_quality_check_failed")
+
+        problem = self._problems.get(existing.problem_id)
+        if problem is None:
+            raise NotFoundError(f"Problem {existing.problem_id} not found")
+
+        # Validate no cycle in parent's ancestry (prevents cycles from concurrent modifications)
+        self._validate_no_lineage_cycle(solution_id)
+
+        new_solution = Solution(
+            problem_id=existing.problem_id,
+            author_id=author_id,
+            content=improved_content,
+            steps=improved_steps or [],
+            author_verified=author_verified,
+            parent_solution_id=solution_id,
+        )
+        self._solutions.add(new_solution)
+
+        previous_best = problem.best_confidence
+        new_confidence = new_solution.confidence
+
+        if new_confidence >= existing.confidence:
+            # Hill-climbing: new is better or equal — mark old as superseded
+            object.__setattr__(existing, "canonical_id", new_solution.solution_id)
+            self._solutions.update(existing)
+            if new_confidence > problem.best_confidence:
+                problem.best_confidence = new_confidence
+                problem.solution_count += 1
+                self._problems.update(problem)
+            status = "improved"
+        else:
+            # New is worse — mark new as superseded by existing
+            object.__setattr__(new_solution, "canonical_id", solution_id)
+            self._solutions.update(new_solution)
+            problem.solution_count += 1
+            self._problems.update(problem)
+            status = "no_improvement"
+
+        if self._research_cycles is not None:
+            cycle = ResearchCycle(
+                problem_id=existing.problem_id,
+                researcher_id=author_id,
+                proposed_solution_id=new_solution.solution_id,
+                previous_best_confidence=previous_best,
+                new_confidence=new_confidence,
+                status=status,
+                reasoning=reasoning,
+            )
+            self._research_cycles.add(cycle)
+
+        return {
+            "status": status,
+            "solution_id": new_solution.solution_id,
+            "previous_confidence": previous_best,
+            "new_confidence": new_confidence,
+        }
+
+    def find_research_candidates(self, limit: int = 10) -> list[dict]:
+        candidates = self._problems.find_research_candidates(limit=limit)
+        return [_problem_to_dict(p) for p in candidates]
+
+    def get_solution_lineage(self, solution_id: UUID) -> list[dict]:
+        solution = self._solutions.get(solution_id)
+        if solution is None:
+            raise NotFoundError(f"Solution {solution_id} not found")
+
+        chain: list[Solution] = [solution]
+        visited: set[UUID] = {solution_id}
+        current = solution
+        while current.parent_solution_id is not None and current.parent_solution_id not in visited:
+            parent = self._solutions.get(current.parent_solution_id)
+            if parent is None:
+                break
+            visited.add(parent.solution_id)
+            chain.append(parent)
+            current = parent
+
+        chain.reverse()
+        return [_solution_to_dict(s) for s in chain]
+
+    def get_research_history(self, problem_id: UUID) -> list[dict]:
+        if self._research_cycles is None:
+            return []
+        cycles = self._research_cycles.list_by_problem(problem_id)
+        return [_research_cycle_to_dict(c) for c in cycles]
+
 
 def _problem_to_dict(p: Problem) -> dict:
     return {
@@ -841,7 +1005,23 @@ def _solution_to_dict(s: Solution) -> dict:
         "success_count": s.success_count,
         "failure_count": s.failure_count,
         "author_verified": s.author_verified,
+        "canonical_id": s.canonical_id,
+        "parent_solution_id": s.parent_solution_id,
         "created_at": s.created_at,
+    }
+
+
+def _research_cycle_to_dict(c: ResearchCycle) -> dict:
+    return {
+        "cycle_id": c.cycle_id,
+        "problem_id": c.problem_id,
+        "researcher_id": c.researcher_id,
+        "proposed_solution_id": c.proposed_solution_id,
+        "previous_best_confidence": c.previous_best_confidence,
+        "new_confidence": c.new_confidence,
+        "status": c.status,
+        "reasoning": c.reasoning,
+        "created_at": c.created_at,
     }
 
 

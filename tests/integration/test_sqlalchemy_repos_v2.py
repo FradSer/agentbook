@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.models import Outcome, Problem, Solution
 from app.infrastructure.persistence.database import engine
-from app.infrastructure.persistence.sqlalchemy_repositories_v2 import (
+from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
     SQLAlchemySolutionRepository,

@@ -9,12 +9,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.application.errors import DuplicateVoteError
-from app.domain.models import Agent, Comment, Outcome, Problem, Solution, Thread, TokenTransaction, Vote
+from app.domain.models import Agent, Comment, Outcome, Problem, ResearchCycle, Solution, Thread, TokenTransaction, Vote
 from app.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
     CommentORM,
     OutcomeORM,
     ProblemORM,
+    ResearchCycleORM,
     SolutionORM,
     ThreadORM,
     TokenTransactionORM,
@@ -428,6 +429,7 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         embedding=embedding,
         best_confidence=row.best_confidence,
         solution_count=row.solution_count,
+        version=row.version,
         created_at=row.created_at,
         last_activity_at=row.last_activity_at,
     )
@@ -446,6 +448,7 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         success_count=row.success_count,
         failure_count=row.failure_count,
         canonical_id=parse_uuid(row.canonical_id) if row.canonical_id else None,
+        parent_solution_id=parse_uuid(row.parent_solution_id) if row.parent_solution_id else None,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -482,6 +485,7 @@ class SQLAlchemyProblemRepository:
             existing.embedding = problem.embedding
             existing.best_confidence = problem.best_confidence
             existing.solution_count = problem.solution_count
+            existing.version = problem.version
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
             session.merge(existing)
@@ -526,7 +530,46 @@ class SQLAlchemyProblemRepository:
                 return []
 
     def update(self, problem: Problem) -> None:
-        self.add(problem)
+        """Update problem with optimistic locking."""
+        from app.application.errors import ConcurrentModificationError
+
+        with self._session_factory() as session:
+            existing = session.get(ProblemORM, str(problem.problem_id))
+            if existing is None:
+                raise ValueError(f"Problem {problem.problem_id} not found")
+
+            # Check version for optimistic locking
+            if existing.version != problem.version:
+                raise ConcurrentModificationError(
+                    f"Problem {problem.problem_id} was modified by another process. "
+                    f"Expected version {problem.version}, found {existing.version}"
+                )
+
+            # Update fields and increment version
+            existing.author_id = str(problem.author_id)
+            existing.description = problem.description
+            existing.error_signature = problem.error_signature
+            existing.environment = problem.environment
+            existing.tags = problem.tags
+            existing.embedding = problem.embedding
+            existing.best_confidence = problem.best_confidence
+            existing.solution_count = problem.solution_count
+            existing.version = problem.version + 1
+            existing.created_at = problem.created_at
+            existing.last_activity_at = problem.last_activity_at
+            session.merge(existing)
+            session.flush()
+
+    def find_research_candidates(self, limit: int = 10) -> list[Problem]:
+        with self._session_factory() as session:
+            # No solutions first, then low confidence
+            stmt = (
+                select(ProblemORM)
+                .order_by(ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc())
+                .limit(limit)
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_problem_domain(r) for r in rows]
 
 
 class SQLAlchemySolutionRepository:
@@ -548,6 +591,7 @@ class SQLAlchemySolutionRepository:
             existing.success_count = solution.success_count
             existing.failure_count = solution.failure_count
             existing.canonical_id = str(solution.canonical_id) if solution.canonical_id else None
+            existing.parent_solution_id = str(solution.parent_solution_id) if solution.parent_solution_id else None
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
             session.merge(existing)
@@ -570,6 +614,26 @@ class SQLAlchemySolutionRepository:
 
     def update(self, solution: Solution) -> None:
         self.add(solution)
+
+    def list_by_problem_ranked(self, problem_id: UUID) -> list[Solution]:
+        with self._session_factory() as session:
+            stmt = (
+                select(SolutionORM)
+                .where(SolutionORM.problem_id == str(problem_id))
+                .order_by(SolutionORM.canonical_id.is_(None).desc(), SolutionORM.confidence.desc())
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_solution_domain(r) for r in rows]
+
+    def find_superseded(self, problem_id: UUID) -> list[Solution]:
+        with self._session_factory() as session:
+            stmt = (
+                select(SolutionORM)
+                .where(SolutionORM.problem_id == str(problem_id))
+                .where(SolutionORM.canonical_id.is_not(None))
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_solution_domain(r) for r in rows]
 
 
 class SQLAlchemyOutcomeRepository:
@@ -609,5 +673,60 @@ class SQLAlchemyOutcomeRepository:
                 .select_from(OutcomeORM)
                 .where(OutcomeORM.reporter_id == str(reporter_id))
                 .where(OutcomeORM.created_at >= since)
+            )
+            return session.execute(stmt).scalar_one()
+
+
+def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
+    return ResearchCycle(
+        cycle_id=parse_uuid(row.cycle_id),
+        problem_id=parse_uuid(row.problem_id),
+        researcher_id=parse_uuid(row.researcher_id),
+        proposed_solution_id=parse_uuid(row.proposed_solution_id) if row.proposed_solution_id else None,
+        previous_best_confidence=row.previous_best_confidence,
+        new_confidence=row.new_confidence,
+        status=row.status,
+        reasoning=row.reasoning,
+        created_at=row.created_at,
+    )
+
+
+class SQLAlchemyResearchCycleRepository:
+    def __init__(self, session_factory: SessionFactory) -> None:
+        self._session_factory = session_factory
+
+    def add(self, cycle: ResearchCycle) -> None:
+        with self._session_factory() as session:
+            row = ResearchCycleORM(
+                cycle_id=str(cycle.cycle_id),
+                problem_id=str(cycle.problem_id),
+                researcher_id=str(cycle.researcher_id),
+                proposed_solution_id=str(cycle.proposed_solution_id) if cycle.proposed_solution_id else None,
+                previous_best_confidence=cycle.previous_best_confidence,
+                new_confidence=cycle.new_confidence,
+                status=cycle.status,
+                reasoning=cycle.reasoning,
+                created_at=cycle.created_at,
+            )
+            session.add(row)
+            session.flush()
+
+    def list_by_problem(self, problem_id: UUID) -> list[ResearchCycle]:
+        with self._session_factory() as session:
+            stmt = (
+                select(ResearchCycleORM)
+                .where(ResearchCycleORM.problem_id == str(problem_id))
+                .order_by(ResearchCycleORM.created_at.desc())
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_research_cycle_domain(r) for r in rows]
+
+    def count_by_researcher(self, researcher_id: UUID, since: datetime) -> int:
+        with self._session_factory() as session:
+            stmt = (
+                select(func.count())
+                .select_from(ResearchCycleORM)
+                .where(ResearchCycleORM.researcher_id == str(researcher_id))
+                .where(ResearchCycleORM.created_at >= since)
             )
             return session.execute(stmt).scalar_one()

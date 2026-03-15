@@ -297,25 +297,8 @@ def register_tools(server: Server) -> None:
         Returns:
             JSON response with status and solutions
         """
-        import json
-        from app.application.errors import NotFoundError, RateLimitError
-
         agent = _get_authenticated_agent(server)
-        service = server._service
-
-        if not description:
-            return [{"type": "text", "text": json.dumps({"error": "invalid_input", "detail": "description is required"}, default=str)}]
-        try:
-            result = service.resolve(
-                agent_id=agent.agent_id,
-                description=description,
-                error_signature=error_signature,
-                environment=environment,
-                auto_post=auto_post,
-            )
-            return [{"type": "text", "text": json.dumps(result, default=str)}]
-        except ValueError as exc:
-            return [{"type": "text", "text": json.dumps({"error": "invalid_input", "detail": str(exc)}, default=str)}]
+        return await handle_resolve(server._service, agent.agent_id, description, error_signature, environment, auto_post)
 
     @server.call_tool()
     async def contribute(
@@ -341,27 +324,8 @@ def register_tools(server: Server) -> None:
         Returns:
             JSON response with problem_id and solution_id
         """
-        import json
-
         agent = _get_authenticated_agent(server)
-        service = server._service
-
-        if not description:
-            return [{"type": "text", "text": json.dumps({"error": "invalid_input", "detail": "description is required"}, default=str)}]
-        try:
-            result = service.contribute(
-                author_id=agent.agent_id,
-                description=description,
-                error_signature=error_signature,
-                environment=environment,
-                tags=tags,
-                solution_content=solution_content,
-                solution_steps=solution_steps,
-                author_verified=author_verified,
-            )
-            return [{"type": "text", "text": json.dumps(result, default=str)}]
-        except ValueError as exc:
-            return [{"type": "text", "text": json.dumps({"error": "invalid_input", "detail": str(exc)}, default=str)}]
+        return await handle_contribute(server._service, agent.agent_id, description, error_signature, environment, tags, solution_content, solution_steps, author_verified)
 
     @server.call_tool()
     async def report_outcome(
@@ -383,28 +347,8 @@ def register_tools(server: Server) -> None:
         Returns:
             JSON response with outcome_id and updated confidence
         """
-        import json
-        from app.application.errors import NotFoundError, RateLimitError
-
         agent = _get_authenticated_agent(server)
-        service = server._service
-
-        if solution_id is None:
-            return [{"type": "text", "text": json.dumps({"error": "invalid_input", "detail": "solution_id is required"}, default=str)}]
-        try:
-            result = service.report_outcome(
-                reporter_id=agent.agent_id,
-                solution_id=solution_id,
-                success=success,
-                environment=environment,
-                notes=notes,
-                time_saved_seconds=time_saved_seconds,
-            )
-            return [{"type": "text", "text": json.dumps(result, default=str)}]
-        except RateLimitError:
-            return [{"type": "text", "text": json.dumps({"error": "rate_limit_exceeded"}, default=str)}]
-        except NotFoundError:
-            return [{"type": "text", "text": json.dumps({"error": "not_found"}, default=str)}]
+        return await handle_report_outcome(server._service, agent.agent_id, solution_id, success, environment, notes, time_saved_seconds)
 
     @server.call_tool()
     async def get_context(
@@ -420,19 +364,83 @@ def register_tools(server: Server) -> None:
         Returns:
             JSON response with context data
         """
-        import json
-        from app.application.errors import NotFoundError
-
         agent = _get_authenticated_agent(server)
-        service = server._service
+        return await handle_get_context(server._service, agent.agent_id, id, include)
 
-        if id is None:
-            return [{"type": "text", "text": json.dumps({"error": "invalid_input", "detail": "id is required"}, default=str)}]
+    @server.call_tool()
+    async def improve_solution(
+        solution_id: str | None = None,
+        improved_content: str | None = None,
+        improved_steps: list[str] | None = None,
+        reasoning: str = "",
+        author_verified: bool = False,
+    ) -> list[Any]:
+        """Propose an improved version of an existing solution (hill-climbing).
+
+        Args:
+            solution_id: UUID of the solution to improve (required)
+            improved_content: Improved solution content (required)
+            improved_steps: Optional list of steps
+            reasoning: Explanation of what was improved and why
+            author_verified: Mark as author-verified
+
+        Returns:
+            JSON with status (improved/no_improvement) and confidence delta
+        """
+        if not solution_id or not improved_content:
+            return _json_response({"error": "invalid_input", "detail": "solution_id and improved_content are required"})
+        agent = _get_authenticated_agent(server)
         try:
-            result = service.get_context(id=id, include=include)
-            return [{"type": "text", "text": json.dumps(result, default=str)}]
+            result = server._service.improve_solution(
+                author_id=agent.agent_id,
+                solution_id=UUID(solution_id),
+                improved_content=improved_content,
+                improved_steps=improved_steps,
+                reasoning=reasoning,
+                author_verified=author_verified,
+            )
+            return _json_response(result)
         except NotFoundError:
-            return [{"type": "text", "text": json.dumps({"error": "not_found"}, default=str)}]
+            return _json_response({"error": "not_found"})
+        except ValueError as exc:
+            return _json_response({"error": "invalid_input", "detail": str(exc)})
+
+    @server.call_tool()
+    async def get_solution_lineage(
+        solution_id: str | None = None,
+    ) -> list[Any]:
+        """View the evolution history of a solution back to its origin.
+
+        Args:
+            solution_id: UUID of the solution (required)
+
+        Returns:
+            JSON list of solutions from oldest ancestor to current
+        """
+        if not solution_id:
+            return _json_response({"error": "invalid_input", "detail": "solution_id is required"})
+        agent = _get_authenticated_agent(server)
+        try:
+            result = server._service.get_solution_lineage(UUID(solution_id))
+            return _json_response({"lineage": result})
+        except NotFoundError:
+            return _json_response({"error": "not_found"})
+
+    @server.call_tool()
+    async def get_research_candidates(
+        limit: int = 10,
+    ) -> list[Any]:
+        """Find problems that need research attention.
+
+        Args:
+            limit: Max number of candidates to return (default 10)
+
+        Returns:
+            JSON list of problems prioritized for research
+        """
+        _get_authenticated_agent(server)
+        result = server._service.find_research_candidates(limit=limit)
+        return _json_response({"candidates": result})
 
 
 def _format_search_results(results: list[dict]) -> str:

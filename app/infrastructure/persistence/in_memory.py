@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.application.errors import DuplicateVoteError
-from app.domain.models import Agent, Comment, Outcome, Problem, Solution, Thread, TokenTransaction, Vote
+from app.domain.models import Agent, Comment, Outcome, Problem, ResearchCycle, Solution, Thread, TokenTransaction, Vote
 from app.infrastructure.persistence.vector_utils import cosine_similarity
 
 
@@ -203,6 +203,17 @@ class InMemoryProblemRepository:
     def update(self, problem: Problem) -> None:
         self._problems[problem.problem_id] = problem
 
+    def find_research_candidates(self, limit: int = 10) -> list[Problem]:
+        all_problems = list(self._problems.values())
+        # Priority: no solutions > low confidence > degrading
+        no_solutions = [p for p in all_problems if p.solution_count == 0]
+        low_confidence = [
+            p for p in all_problems
+            if p.solution_count > 0 and p.best_confidence < 0.5
+        ]
+        candidates = no_solutions + low_confidence
+        return candidates[:limit]
+
 
 class InMemorySolutionRepository:
     def __init__(self) -> None:
@@ -222,6 +233,18 @@ class InMemorySolutionRepository:
     def update(self, solution: Solution) -> None:
         self._solutions[solution.solution_id] = solution
 
+    def list_by_problem_ranked(self, problem_id: UUID) -> list[Solution]:
+        results = [s for s in self._solutions.values() if s.problem_id == problem_id]
+        # canonical (no canonical_id) first, then by confidence desc
+        results.sort(key=lambda s: (s.canonical_id is not None, -s.confidence))
+        return results
+
+    def find_superseded(self, problem_id: UUID) -> list[Solution]:
+        return [
+            s for s in self._solutions.values()
+            if s.problem_id == problem_id and s.canonical_id is not None
+        ]
+
 
 class InMemoryOutcomeRepository:
     def __init__(self) -> None:
@@ -238,4 +261,24 @@ class InMemoryOutcomeRepository:
             1
             for o in self._outcomes
             if o.reporter_id == reporter_id and o.created_at >= since
+        )
+
+
+class InMemoryResearchCycleRepository:
+    def __init__(self) -> None:
+        self._cycles: list[ResearchCycle] = []
+
+    def add(self, cycle: ResearchCycle) -> None:
+        self._cycles.append(cycle)
+
+    def list_by_problem(self, problem_id: UUID) -> list[ResearchCycle]:
+        results = [c for c in self._cycles if c.problem_id == problem_id]
+        results.sort(key=lambda c: c.created_at, reverse=True)
+        return results
+
+    def count_by_researcher(self, researcher_id: UUID, since: datetime) -> int:
+        return sum(
+            1
+            for c in self._cycles
+            if c.researcher_id == researcher_id and c.created_at >= since
         )

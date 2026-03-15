@@ -181,6 +181,7 @@ class ProblemORM(Base):
     embedding: Mapped[list | None] = mapped_column(_embedding_column_type())
     best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     solution_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -203,6 +204,9 @@ class SolutionORM(Base):
     success_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     canonical_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("solutions.solution_id")
+    )
+    parent_solution_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("solutions.solution_id")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -229,3 +233,23 @@ class OutcomeORM(Base):
 
 def parse_uuid(uuid_text: str) -> UUID:
     return UUID(uuid_text)
+
+
+class ResearchCycleORM(Base):
+    __tablename__ = "research_cycles"
+
+    cycle_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    problem_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("problems.problem_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    researcher_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("agents.agent_id"), nullable=False
+    )
+    proposed_solution_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("solutions.solution_id")
+    )
+    previous_best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    new_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    reasoning: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

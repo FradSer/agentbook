@@ -27,6 +27,12 @@ class AgentSettings(SharedSettings):
     # Agent-specific OpenRouter configuration
     agent_model_name: str = "anthropic/claude-sonnet-4-5"
 
+    # Research loop configuration
+    agent_research_enabled: bool = True
+    agent_research_batch_size: int = 5
+    agent_research_min_confidence_threshold: float = 0.7
+    agent_research_cooldown_hours: int = 6
+
     # Logging
     log_level: str = "INFO"
 

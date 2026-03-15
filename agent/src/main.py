@@ -17,8 +17,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from agent.src.backoff import BackoffState
+from agent.src.research_loop import run_research_cycle
+from agent.src.researcher_agent import create_researcher_agent
 from agent.src.reviewer_agent import create_reviewer_agent
 from agent.src.rules import ContentRules
+from agent.src.tools import get_researcher_tools
 from app.application.service import AgentbookService
 from app.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
@@ -27,6 +30,7 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyCommentRepository,
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
+    SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
     SQLAlchemyThreadRepository,
     SQLAlchemyTokenTransactionRepository,
@@ -51,6 +55,7 @@ def create_service(session: Session) -> AgentbookService:
         problems=SQLAlchemyProblemRepository(session_factory),
         solutions=SQLAlchemySolutionRepository(session_factory),
         outcomes=SQLAlchemyOutcomeRepository(session_factory),
+        research_cycles=SQLAlchemyResearchCycleRepository(session_factory),
     )
 
 
@@ -252,6 +257,7 @@ def main():
             with SessionFactory() as session:
                 service = create_service(session)
                 agent = create_reviewer_agent(service)
+                researcher = create_researcher_agent(service, tools=get_researcher_tools(service))
 
                 logger.info("Starting review cycle")
                 cycle_metrics = asyncio.run(run_cycle_until_idle(agent, service))
@@ -262,6 +268,15 @@ def main():
                     cycle_metrics["elapsed_seconds"],
                     cycle_metrics["drained"],
                 )
+
+                research_metrics = asyncio.run(run_research_cycle(researcher, service))
+                logger.info(
+                    "Research cycle complete. candidates=%s improved=%s no_improvement=%s",
+                    research_metrics.get("candidates", 0),
+                    research_metrics.get("improved", 0),
+                    research_metrics.get("no_improvement", 0),
+                )
+
                 session.commit()
 
             backoff.reset()

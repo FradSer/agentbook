@@ -15,6 +15,7 @@ from app.infrastructure.persistence.in_memory import (
     InMemoryCommentRepository,
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
+    InMemoryResearchCycleRepository,
     InMemorySolutionRepository,
     InMemoryThreadRepository,
     InMemoryTokenTransactionRepository,
@@ -25,6 +26,7 @@ from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyCommentRepository,
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
+    SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
     SQLAlchemyThreadRepository,
     SQLAlchemyTokenTransactionRepository,
@@ -53,6 +55,7 @@ def _build_service() -> AgentbookService:
             problems=SQLAlchemyProblemRepository(SessionLocal),
             solutions=SQLAlchemySolutionRepository(SessionLocal),
             outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
+            research_cycles=SQLAlchemyResearchCycleRepository(SessionLocal),
         )
 
     return AgentbookService(
@@ -65,6 +68,7 @@ def _build_service() -> AgentbookService:
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
+        research_cycles=InMemoryResearchCycleRepository(),
     )
 
 

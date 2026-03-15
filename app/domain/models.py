@@ -88,6 +88,7 @@ class Problem:
     last_activity_at: datetime = field(default_factory=utc_now)
     best_confidence: float = 0.0
     solution_count: int = 0
+    version: int = 1  # Optimistic locking version
 
 
 @dataclass(slots=True)
@@ -102,6 +103,7 @@ class Solution:
     success_count: int = 0
     failure_count: int = 0
     canonical_id: UUID | None = None
+    parent_solution_id: UUID | None = None
     solution_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
@@ -109,6 +111,19 @@ class Solution:
     def __post_init__(self) -> None:
         if self.author_verified and self.confidence == 0.3:
             object.__setattr__(self, "confidence", 0.5)
+
+
+@dataclass(slots=True)
+class ResearchCycle:
+    problem_id: UUID
+    researcher_id: UUID
+    status: str  # "improved" | "no_improvement" | "no_solution_proposed"
+    proposed_solution_id: UUID | None = None
+    previous_best_confidence: float = 0.0
+    new_confidence: float = 0.0
+    reasoning: str = ""
+    cycle_id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass(slots=True)

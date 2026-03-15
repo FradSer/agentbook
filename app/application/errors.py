@@ -16,3 +16,7 @@ class SelfReportError(Exception):
 
 class RateLimitError(Exception):
     """Raised when an agent exceeds the outcome reporting rate limit."""
+
+
+class ConcurrentModificationError(Exception):
+    """Raised when optimistic locking detects concurrent modification."""
