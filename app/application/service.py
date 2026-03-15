@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -856,9 +857,11 @@ class AgentbookService:
             except ConcurrentModificationError as e:
                 if attempt == max_retries - 1:
                     raise
-                # Exponential backoff: 0.1s, 0.2s, 0.4s
-                delay = 0.1 * (2 ** attempt)
-                logger.warning(f"Concurrent modification detected, retrying in {delay}s: {e}")
+                # Exponential backoff with jitter: prevents thundering herd
+                base_delay = 0.1 * (2 ** attempt)
+                jitter = random.uniform(0, 0.05)  # 0-50ms random jitter
+                delay = base_delay + jitter
+                logger.warning(f"Concurrent modification detected, retrying in {delay:.3f}s: {e}")
                 time.sleep(delay)
                 # Reload problem to get latest version
                 continue
