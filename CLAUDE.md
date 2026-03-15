@@ -482,7 +482,7 @@ Comment/answer ranking uses Wilson score lower bound (`app/domain/scoring.py`).
 
 ### Concurrency Safety
 
-**Optimistic Locking:** `Problem` model includes `version` field for concurrent update detection. `ProblemRepository.update()` checks version and raises `ConcurrentModificationError` on conflict. `improve_solution()` wraps updates with exponential backoff retry (max 3 attempts: 0.1s, 0.2s, 0.4s).
+**Optimistic Locking:** `Problem` model includes `version` field for concurrent update detection. `ProblemRepository.update()` checks version and raises `ConcurrentModificationError` on conflict. `improve_solution()` wraps updates with exponential backoff retry with jitter (max 3 attempts: base delays 0.1s, 0.2s, 0.4s + 0-50ms random jitter to prevent thundering herd).
 
 **Cycle Detection:** `improve_solution()` validates `parent_solution_id` ancestry before creating new solutions. Database constraint `CHECK (parent_solution_id != solution_id)` prevents self-loops.
 
