@@ -131,3 +131,31 @@ def test_run_research_cycle_no_improvement_when_agent_says_no() -> None:
 
     result = asyncio.run(run_research_cycle(agent, service))
     assert result["no_improvement"] >= 0
+
+
+def test_find_research_candidates_cooldown_skips_recently_researched() -> None:
+    from datetime import datetime, timezone
+
+    from app.domain.models import ResearchCycle
+
+    service = _make_service()
+    result = service.contribute(
+        author_id=AUTHOR,
+        description="How to fix ImportError when using Docker containers in CI",
+        solution_content="Install the missing package with pip install",
+        solution_steps=["Run pip install <package>"],
+    )
+    problem_id = result["problem_id"]
+
+    # Record a recent research cycle for this problem
+    cycle = ResearchCycle(
+        problem_id=problem_id,
+        researcher_id=AUTHOR,
+        status="no_improvement",
+    )
+    service._research_cycles.add(cycle)
+
+    # With cooldown_hours=6, recently researched problem should be excluded
+    candidates = service.find_research_candidates(limit=10, cooldown_hours=6)
+    candidate_ids = [c["problem_id"] for c in candidates]
+    assert str(problem_id) not in candidate_ids

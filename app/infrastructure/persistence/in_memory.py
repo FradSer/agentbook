@@ -282,3 +282,9 @@ class InMemoryResearchCycleRepository:
             for c in self._cycles
             if c.researcher_id == researcher_id and c.created_at >= since
         )
+
+    def last_researched_at(self, problem_id: UUID) -> datetime | None:
+        cycles = [c for c in self._cycles if c.problem_id == problem_id]
+        if not cycles:
+            return None
+        return max(c.created_at for c in cycles)

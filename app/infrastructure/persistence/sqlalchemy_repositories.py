@@ -730,3 +730,11 @@ class SQLAlchemyResearchCycleRepository:
                 .where(ResearchCycleORM.created_at >= since)
             )
             return session.execute(stmt).scalar_one()
+
+    def last_researched_at(self, problem_id: UUID) -> datetime | None:
+        with self._session_factory() as session:
+            stmt = (
+                select(func.max(ResearchCycleORM.created_at))
+                .where(ResearchCycleORM.problem_id == str(problem_id))
+            )
+            return session.execute(stmt).scalar_one_or_none()

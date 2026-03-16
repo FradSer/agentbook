@@ -31,7 +31,10 @@ async def run_research_cycle(agent, service) -> dict:
     if not settings.agent_research_enabled:
         return {"skipped": True, "reason": "research disabled"}
 
-    candidates = service.find_research_candidates(limit=settings.agent_research_batch_size)
+    candidates = service.find_research_candidates(
+        limit=settings.agent_research_batch_size,
+        cooldown_hours=settings.agent_research_cooldown_hours,
+    )
     if not candidates:
         logger.info("No research candidates found")
         return {"candidates": 0, "improved": 0, "no_improvement": 0}
@@ -79,7 +82,7 @@ async def run_research_cycle(agent, service) -> dict:
                     f"Improved solution for problem {problem_id}: "
                     f"{result['previous_confidence']:.2f} -> {result['new_confidence']:.2f}"
                 )
-                _maybe_synthesize(service, UUID(str(problem_id)))
+                await _maybe_synthesize(service, UUID(str(problem_id)), agent)
             else:
                 no_improvement += 1
                 logger.info(f"Proposed solution did not improve confidence for problem {problem_id}")
@@ -95,7 +98,7 @@ async def run_research_cycle(agent, service) -> dict:
     }
 
 
-def _maybe_synthesize(service, problem_id: UUID) -> None:
+async def _maybe_synthesize(service, problem_id: UUID, agent) -> None:
     """Trigger synthesis if the problem has enough solutions to warrant it."""
     from agent.src.synthesis import SYSTEM_AGENT_ID, find_synthesis_candidates, synthesize_solutions
 
@@ -106,7 +109,6 @@ def _maybe_synthesize(service, problem_id: UUID) -> None:
             return
 
         # Rebuild domain Solution objects for synthesis check
-        from app.domain.models import Solution as SolutionModel
         solutions = [service._solutions.get(s["solution_id"]) for s in solutions_data]
         solutions = [s for s in solutions if s is not None and s.canonical_id is None]
 
@@ -123,9 +125,20 @@ def _maybe_synthesize(service, problem_id: UUID) -> None:
         if not candidates:
             return
 
+        # Build synthesis prompt and call LLM
+        synthesis_prompt = f"Problem: {problem.description}\n\n"
+        for i, s in enumerate(solutions, 1):
+            synthesis_prompt += f"Solution {i}:\n{s.content}\n\n"
+        synthesis_prompt += "Please synthesize these solutions into one comprehensive canonical solution."
+
+        try:
+            llm_result = await _run_agent(agent, synthesis_prompt)
+        except Exception as llm_exc:
+            logger.warning(f"LLM synthesis failed, falling back to concatenation: {llm_exc}")
+            llm_result = "\n\n".join(s.content for s in solutions[:3])
+
         def llm_fn(prompt: str) -> str:
-            # Synthesis without LLM: concatenate top solutions
-            return "\n\n".join(s.content for s in solutions[:3])
+            return llm_result
 
         synthesized = synthesize_solutions(solutions, problem, llm_fn)
         service._solutions.add(synthesized)

@@ -918,8 +918,17 @@ class AgentbookService:
         previous_best = problem.best_confidence
         new_confidence = new_solution.confidence
 
-        if new_confidence >= existing.confidence:
-            # Hill-climbing: new is better or equal — mark old as superseded
+        # Quality proxy: reject if new content is significantly shorter without more steps.
+        # This acts as a pre-filter against regressions before confidence-based hill-climbing.
+        new_step_count = len(improved_steps or [])
+        existing_step_count = len(existing.steps or [])
+        content_regression = (
+            len(improved_content) < len(existing.content) * 0.5
+            and new_step_count <= existing_step_count
+        )
+
+        if not content_regression and new_confidence > existing.confidence:
+            # Hill-climbing: new is strictly better — mark old as superseded
             object.__setattr__(existing, "canonical_id", new_solution.solution_id)
             self._solutions.update(existing)
             if new_confidence > problem.best_confidence:
@@ -928,7 +937,7 @@ class AgentbookService:
                 self._problems.update(problem)
             status = "improved"
         else:
-            # New is worse — mark new as superseded by existing
+            # New is worse, equal, or a content regression — mark new as superseded by existing
             object.__setattr__(new_solution, "canonical_id", solution_id)
             self._solutions.update(new_solution)
             problem.solution_count += 1
@@ -954,9 +963,20 @@ class AgentbookService:
             "new_confidence": new_confidence,
         }
 
-    def find_research_candidates(self, limit: int = 10) -> list[dict]:
-        candidates = self._problems.find_research_candidates(limit=limit)
-        return [_problem_to_dict(p) for p in candidates]
+    def find_research_candidates(self, limit: int = 10, cooldown_hours: int = 0) -> list[dict]:
+        fetch_limit = limit * 3 if cooldown_hours > 0 else limit
+        candidates = self._problems.find_research_candidates(limit=fetch_limit)
+        if cooldown_hours > 0 and self._research_cycles is not None:
+            cutoff = utc_now() - timedelta(hours=cooldown_hours)
+            filtered: list = []
+            for p in candidates:
+                last = self._research_cycles.last_researched_at(p.problem_id)
+                if last is None or last < cutoff:
+                    filtered.append(p)
+                if len(filtered) >= limit:
+                    break
+            return [_problem_to_dict(p) for p in filtered]
+        return [_problem_to_dict(p) for p in candidates[:limit]]
 
     def get_solution_lineage(self, solution_id: UUID) -> list[dict]:
         solution = self._solutions.get(solution_id)

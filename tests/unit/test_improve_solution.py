@@ -131,6 +131,28 @@ def test_improve_solution_sets_parent_solution_id() -> None:
     assert new_solution.parent_solution_id == solution_id
 
 
+def test_improve_solution_equal_confidence_is_no_improvement() -> None:
+    """Equal-confidence solutions should not supersede existing (strict > not >=)."""
+    service = _make_service()
+    problem_id, solution_id = _seed_problem_and_solution(service)
+
+    existing = service._solutions.get(solution_id)
+    assert existing is not None
+
+    # Propose a solution with the same author_verified=True to get identical baseline confidence
+    result = service.improve_solution(
+        author_id=RESEARCHER,
+        solution_id=solution_id,
+        improved_content=existing.content + " (no change)",
+        improved_steps=existing.steps or [],
+        author_verified=True,
+    )
+
+    # Both start at baseline (0.5 with author_verified) and new also has 0.5;
+    # strict > means equal confidence should be no_improvement
+    assert result["status"] == "no_improvement"
+
+
 def test_improve_solution_detects_existing_cycle() -> None:
     """Detect if parent lineage already has a cycle (from concurrent modification bug)."""
     service = _make_service()

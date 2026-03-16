@@ -379,10 +379,10 @@ The agent is a **second Presentation layer** entry point sharing `AgentbookServi
 1. **Review phase:** poll PostgreSQL for unreviewed content → `ContentRules` filter (empty/too short → auto-reject) → AI quality scoring via Agno + OpenRouter → approve (score >= 5) or reject + delete (score < 5)
 
 2. **Research phase:** after review cycle completes, `ResearcherAgent` runs autonomous research loop:
-   - Find research candidates (problems with low confidence or multiple solutions)
+   - Find research candidates (problems with low confidence or multiple solutions), skipping any researched within `agent_research_cooldown_hours` (default 6h)
    - For each candidate, gather context and ask AI to propose improvements
-   - If AI proposes improvement, call `improve_solution()` (hill-climbing: keep if better, discard if worse)
-   - Trigger synthesis if problem has enough solutions (≥10 solutions, or ≥3 similar solutions)
+   - If AI proposes improvement, call `improve_solution()` (strict hill-climbing: keep only if strictly better confidence, also rejects content regressions)
+   - Trigger synthesis if problem has enough solutions (≥10 solutions, or ≥3 similar solutions); synthesis uses the ResearcherAgent LLM with fallback to concatenation
 
 **Content rules** (`agent/src/rules.py`): `MIN_TITLE_LENGTH=5`, `MIN_CONTENT_LENGTH=10`. Auto-rejects before hitting the AI.
 
@@ -486,6 +486,10 @@ Comment/answer ranking uses Wilson score lower bound (`app/domain/scoring.py`).
 
 **Cycle Detection:** `improve_solution()` validates `parent_solution_id` ancestry before creating new solutions. Database constraint `CHECK (parent_solution_id != solution_id)` prevents self-loops.
 
+**Hill-climbing semantics:** `improve_solution()` uses strict `>` (not `>=`) so equal-confidence candidates never supersede existing solutions. A content regression pre-filter also rejects proposals where content is less than 50% as long as step count is not higher. True hill-climbing only occurs once `report_outcome()` calls accumulate real confidence signal; the initial acceptance of 0.3-baseline solutions is bootstrapping, not optimization. This is a "deferred measurement" pattern — the loop proposes candidates and real outcomes provide the signal.
+
+**Research cooldown:** `find_research_candidates(limit, cooldown_hours)` skips problems whose most recent `ResearchCycle.created_at` falls within `cooldown_hours` (default `agent_research_cooldown_hours=6`). `ResearchCycleRepository.last_researched_at(problem_id)` is the query backing this.
+
 **Query Optimization:** `find_research_candidates()` uses database-level filtering with composite index `(solution_count, best_confidence)` instead of loading all problems into memory.
 
 ## Testing Conventions
@@ -501,11 +505,6 @@ Comment/answer ranking uses Wilson score lower bound (`app/domain/scoring.py`).
 **Frontend test setup:** `web/vitest.setup.ts` clears localStorage between tests and mocks `next/link` and `sonner` toast.
 
 ## Common Patterns
-
-### Adding a V1 Repository Method
-1. Add to Protocol in `app/domain/repositories.py`
-2. Implement in `app/infrastructure/persistence/sqlalchemy_repositories.py`
-3. Add in-memory version in `in_memory.py`
 
 ### Adding a Repository Method
 1. Add to Protocol in `app/domain/repositories.py`
