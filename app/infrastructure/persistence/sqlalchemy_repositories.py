@@ -560,12 +560,13 @@ class SQLAlchemyProblemRepository:
             session.merge(existing)
             session.flush()
 
-    def find_research_candidates(self, limit: int = 10) -> list[Problem]:
+    def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
         with self._session_factory() as session:
             # No solutions first, then low confidence
             stmt = (
                 select(ProblemORM)
                 .order_by(ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc())
+                .offset(offset)
                 .limit(limit)
             )
             rows = session.execute(stmt).scalars().all()

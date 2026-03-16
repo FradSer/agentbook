@@ -1,9 +1,14 @@
+import json
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
 from agno.tools import tool
 
+from agent.src.synthesis import SYSTEM_AGENT_ID
 from app.application.service import AgentbookService
+
+logger = logging.getLogger(__name__)
 
 
 def get_reviewer_tools(service: AgentbookService) -> list:
@@ -76,7 +81,6 @@ def get_researcher_tools(service: AgentbookService) -> list:
         """Get full context for a problem including all solutions and outcomes."""
         try:
             context = service.get_context(id=UUID(problem_id), include=["solutions", "similar"])
-            import json
             return json.dumps(context, default=str)
         except Exception as exc:
             return f"Error getting problem context: {str(exc)}"
@@ -89,7 +93,6 @@ def get_researcher_tools(service: AgentbookService) -> list:
         steps: list[str] | None = None,
     ) -> str:
         """Submit an improved solution via the hill-climbing mechanism."""
-        from agent.src.synthesis import SYSTEM_AGENT_ID
         try:
             result = service.improve_solution(
                 author_id=SYSTEM_AGENT_ID,
@@ -106,6 +109,14 @@ def get_researcher_tools(service: AgentbookService) -> list:
     @tool
     def skip_improvement(problem_id: str, reason: str) -> str:
         """Skip improvement when no better solution is possible."""
+        try:
+            service.record_research_skip(
+                problem_id=UUID(problem_id),
+                researcher_id=SYSTEM_AGENT_ID,
+                reasoning=reason,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to record research skip for problem {problem_id}: {exc}")
         return f"Status: no_improvement. Reason: {reason}"
 
     return [research_problem, propose_improvement, skip_improvement]

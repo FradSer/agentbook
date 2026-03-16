@@ -933,16 +933,16 @@ class AgentbookService:
 
         if not content_regression and not content_bloat and new_confidence > existing.confidence:
             # Hill-climbing: new is strictly better — mark old as superseded
-            object.__setattr__(existing, "canonical_id", new_solution.solution_id)
+            existing.canonical_id = new_solution.solution_id
             self._solutions.update(existing)
+            problem.solution_count += 1
             if new_confidence > problem.best_confidence:
                 problem.best_confidence = new_confidence
-                problem.solution_count += 1
-                self._problems.update(problem)
+            self._problems.update(problem)
             status = "improved"
         else:
             # New is worse, equal, or a content regression — mark new as superseded by existing
-            object.__setattr__(new_solution, "canonical_id", solution_id)
+            new_solution.canonical_id = solution_id
             self._solutions.update(new_solution)
             problem.solution_count += 1
             self._problems.update(problem)
@@ -963,7 +963,8 @@ class AgentbookService:
         return {
             "status": status,
             "solution_id": new_solution.solution_id,
-            "previous_confidence": previous_best,
+            "previous_confidence": existing.confidence,
+            "previous_problem_best": previous_best,
             "new_confidence": new_confidence,
         }
 
@@ -992,6 +993,10 @@ class AgentbookService:
         total_failures = sum(s.failure_count for s in active)
         confidence = total_successes / total_outcomes if total_outcomes > 0 else 0.5
 
+        ok, reason = check_solution_quality(synthesized_content, None)
+        if not ok:
+            raise ValueError(reason or "synthesized_content_quality_check_failed")
+
         canonical = Solution(
             problem_id=problem_id,
             author_id=author_id,
@@ -1002,11 +1007,11 @@ class AgentbookService:
             failure_count=total_failures,
         )
         # Override confidence from __post_init__ (author_verified gives 0.5 baseline)
-        object.__setattr__(canonical, "confidence", max(confidence, canonical.confidence))
+        canonical.confidence = max(confidence, canonical.confidence)
         self._solutions.add(canonical)
 
         for s in active:
-            object.__setattr__(s, "canonical_id", canonical.solution_id)
+            s.canonical_id = canonical.solution_id
             self._solutions.update(s)
 
         if canonical.confidence > problem.best_confidence:
@@ -1020,19 +1025,47 @@ class AgentbookService:
         }
 
     def find_research_candidates(self, limit: int = 10, cooldown_hours: int = 0) -> list[dict]:
-        fetch_limit = limit * 3 if cooldown_hours > 0 else limit
-        candidates = self._problems.find_research_candidates(limit=fetch_limit)
-        if cooldown_hours > 0 and self._research_cycles is not None:
-            cutoff = utc_now() - timedelta(hours=cooldown_hours)
-            filtered: list = []
-            for p in candidates:
+        if cooldown_hours <= 0 or self._research_cycles is None:
+            candidates = self._problems.find_research_candidates(limit=limit)
+            return [_problem_to_dict(p) for p in candidates]
+        cutoff = utc_now() - timedelta(hours=cooldown_hours)
+        page_size = max(limit, 10)
+        offset = 0
+        filtered: list = []
+        while len(filtered) < limit:
+            batch = self._problems.find_research_candidates(limit=page_size, offset=offset)
+            if not batch:
+                break
+            for p in batch:
                 last = self._research_cycles.last_researched_at(p.problem_id)
                 if last is None or last < cutoff:
                     filtered.append(p)
-                if len(filtered) >= limit:
-                    break
-            return [_problem_to_dict(p) for p in filtered]
-        return [_problem_to_dict(p) for p in candidates[:limit]]
+                    if len(filtered) >= limit:
+                        break
+            offset += page_size
+        return [_problem_to_dict(p) for p in filtered]
+
+    def record_research_skip(
+        self,
+        problem_id: UUID,
+        researcher_id: UUID,
+        reasoning: str = "",
+    ) -> None:
+        if self._research_cycles is None:
+            return
+        problem = self._problems.get(problem_id)
+        if problem is None:
+            return
+        cycle = ResearchCycle(
+            problem_id=problem_id,
+            researcher_id=researcher_id,
+            proposed_solution_id=None,
+            previous_best_confidence=problem.best_confidence,
+            new_confidence=problem.best_confidence,
+            status="no_improvement",
+            reasoning=reasoning,
+        )
+        self._research_cycles.add(cycle)
 
     def get_solution_lineage(self, solution_id: UUID) -> list[dict]:
         solution = self._solutions.get(solution_id)
@@ -1112,6 +1145,7 @@ def _outcome_to_dict(o: Outcome) -> dict:
         "success": o.success,
         "environment": o.environment,
         "notes": o.notes,
+        "time_saved_seconds": o.time_saved_seconds,
         "weight": o.weight,
         "created_at": o.created_at,
     }

@@ -203,7 +203,7 @@ class InMemoryProblemRepository:
     def update(self, problem: Problem) -> None:
         self._problems[problem.problem_id] = problem
 
-    def find_research_candidates(self, limit: int = 10) -> list[Problem]:
+    def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
         all_problems = list(self._problems.values())
         # Priority: no solutions > low confidence > degrading
         no_solutions = [p for p in all_problems if p.solution_count == 0]
@@ -212,7 +212,7 @@ class InMemoryProblemRepository:
             if p.solution_count > 0 and p.best_confidence < 0.5
         ]
         candidates = no_solutions + low_confidence
-        return candidates[:limit]
+        return candidates[offset:offset + limit]
 
 
 class InMemorySolutionRepository:

@@ -41,7 +41,7 @@ Tiny improvement + ugly complexity = skip.
 """
 
 
-def create_researcher_agent(service, tools: list) -> Agent:
+def create_researcher_agent(tools: list) -> Agent:
     return Agent(
         model=OpenRouter(id=settings.agent_model_name),
         instructions=RESEARCHER_INSTRUCTIONS,

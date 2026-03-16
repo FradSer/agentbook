@@ -55,6 +55,9 @@ async def run_research_cycle(agent, service) -> dict:
             logger.debug(f"Problem {problem_id} has no solutions to improve")
             continue
 
+        # Sort by confidence descending so solutions[0] is the best (explicit, not implicit)
+        solutions = sorted(solutions, key=lambda s: s.get("confidence", 0), reverse=True)
+
         # Fetch outcomes for each solution to give the agent real signal
         outcomes_by_solution: dict[str, list[dict]] = {}
         for sol in solutions:
@@ -76,9 +79,15 @@ async def run_research_cycle(agent, service) -> dict:
                 improved += 1
                 logger.info(f"Improved solution for problem {problem_id}")
                 await _maybe_synthesize(service, UUID(str(problem_id)), agent)
-            else:
+            elif "Status: no_improvement" in response_text:
                 no_improvement += 1
                 logger.info(f"No improvement proposed for problem {problem_id}")
+            else:
+                logger.warning(
+                    f"Agent returned no recognisable tool call for problem {problem_id}: "
+                    f"{response_text[:200]!r}"
+                )
+                no_improvement += 1
 
         except Exception as exc:
             logger.error(f"Research cycle error for problem {problem_id}: {exc}")
@@ -92,27 +101,31 @@ async def run_research_cycle(agent, service) -> dict:
 
 
 async def _maybe_synthesize(service, problem_id: UUID, agent) -> None:
-    """Trigger synthesis if the problem has enough solutions to warrant it."""
+    """Trigger synthesis when enough solutions exist (≥10, or any with low confidence + outcomes)."""
     try:
         context = service.get_context(id=problem_id, include=["solutions"])
         solutions_data = context.get("solutions", [])
         active = [s for s in solutions_data if s.get("canonical_id") is None]
-        if len(active) < 2:
+
+        needs_synthesis = len(active) >= 10 or any(
+            s.get("confidence", 1.0) < 0.3 and s.get("outcome_count", 0) >= 10
+            for s in active
+        )
+        if not needs_synthesis:
             return
 
         problem_data = context.get("data", {})
-        synthesis_prompt = (
-            f"Problem: {problem_data.get('description', '')}\n\n"
-        )
-        for i, s in enumerate(active, 1):
-            synthesis_prompt += f"Solution {i}:\n{s.get('content', '')}\n\n"
+        synthesis_prompt = f"Problem: {problem_data.get('description', '')}\n\n"
+        for i, s in enumerate(active[:10], 1):
+            content_preview = s.get("content", "")[:500]
+            synthesis_prompt += f"Solution {i}:\n{content_preview}\n\n"
         synthesis_prompt += "Please synthesize these solutions into one comprehensive canonical solution."
 
         try:
             synthesized_content = await _run_agent(agent, synthesis_prompt)
         except Exception as llm_exc:
-            logger.warning(f"LLM synthesis failed, falling back to concatenation: {llm_exc}")
-            synthesized_content = "\n\n".join(s.get("content", "") for s in active[:3])
+            logger.warning(f"LLM synthesis failed for problem {problem_id}, skipping: {llm_exc}")
+            return
 
         from agent.src.synthesis import SYSTEM_AGENT_ID
         result = service.synthesize_solutions(
@@ -178,8 +191,3 @@ def _build_research_prompt(
         f"or skip_improvement(problem_id='{problem_id}', ...) if no improvement is possible."
     )
     return "\n".join(lines)
-
-
-def _get_system_agent_id(service) -> UUID:
-    from agent.src.synthesis import SYSTEM_AGENT_ID
-    return SYSTEM_AGENT_ID
