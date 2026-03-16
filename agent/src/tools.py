@@ -97,9 +97,15 @@ def get_researcher_tools(service: AgentbookService) -> list:
                 improved_content=improved_content,
                 improved_steps=steps,
                 reasoning=reasoning,
+                author_verified=True,
             )
             return f"Status: {result['status']}. Confidence: {result['previous_confidence']:.2f} -> {result['new_confidence']:.2f}"
         except Exception as exc:
             return f"Error proposing improvement: {str(exc)}"
 
-    return [research_problem, propose_improvement]
+    @tool
+    def skip_improvement(problem_id: str, reason: str) -> str:
+        """Skip improvement when no better solution is possible."""
+        return f"Status: no_improvement. Reason: {reason}"
+
+    return [research_problem, propose_improvement, skip_improvement]

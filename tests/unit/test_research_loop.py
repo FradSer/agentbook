@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 
-from agent.src.research_loop import _build_research_prompt, _parse_agent_response, run_research_cycle
+from agent.src.research_loop import _build_research_prompt, run_research_cycle
 from app.application.service import AgentbookService
 from app.domain.models import Agent
 from app.infrastructure.persistence.in_memory import (
@@ -42,39 +42,13 @@ def _make_service() -> AgentbookService:
 
 
 # ---------------------------------------------------------------------------
-# _parse_agent_response
-# ---------------------------------------------------------------------------
-
-
-def test_parse_no_improvement() -> None:
-    assert _parse_agent_response("NO_IMPROVEMENT: already optimal") is None
-
-
-def test_parse_improved_content() -> None:
-    text = (
-        "IMPROVED_CONTENT: Install the package and rebuild\n"
-        "STEPS: pip install pkg | docker build | docker run\n"
-        "REASONING: Added rebuild step"
-    )
-    result = _parse_agent_response(text)
-    assert result is not None
-    assert result["improved_content"] == "Install the package and rebuild"
-    assert result["steps"] == ["pip install pkg", "docker build", "docker run"]
-    assert result["reasoning"] == "Added rebuild step"
-
-
-def test_parse_missing_content_returns_none() -> None:
-    assert _parse_agent_response("REASONING: something") is None
-
-
-# ---------------------------------------------------------------------------
 # _build_research_prompt
 # ---------------------------------------------------------------------------
 
 
 def test_build_prompt_includes_problem_description() -> None:
-    problem = {"description": "ModuleNotFoundError in Docker", "error_signature": "ModuleNotFoundError"}
-    solutions = [{"confidence": 0.5, "content": "pip install pkg"}]
+    problem = {"description": "ModuleNotFoundError in Docker", "error_signature": "ModuleNotFoundError", "problem_id": "abc"}
+    solutions = [{"solution_id": "s1", "confidence": 0.5, "content": "pip install pkg"}]
     prompt = _build_research_prompt(problem, solutions)
     assert "ModuleNotFoundError in Docker" in prompt
     assert "ModuleNotFoundError" in prompt
@@ -82,14 +56,30 @@ def test_build_prompt_includes_problem_description() -> None:
 
 
 def test_build_prompt_includes_multiple_solutions() -> None:
-    problem = {"description": "Some problem"}
+    problem = {"description": "Some problem", "problem_id": "abc"}
     solutions = [
-        {"confidence": 0.7, "content": "Solution A"},
-        {"confidence": 0.4, "content": "Solution B"},
+        {"solution_id": "s1", "confidence": 0.7, "content": "Solution A"},
+        {"solution_id": "s2", "confidence": 0.4, "content": "Solution B"},
     ]
     prompt = _build_research_prompt(problem, solutions)
     assert "Solution A" in prompt
     assert "Solution B" in prompt
+
+
+def test_build_prompt_includes_outcome_data() -> None:
+    problem = {"description": "Some problem", "problem_id": "abc"}
+    solutions = [{"solution_id": "s1", "confidence": 0.5, "content": "pip install pkg"}]
+    outcomes_by_solution = {
+        "s1": [
+            {"success": True, "environment": {"os": "ubuntu"}, "notes": None},
+            {"success": True, "environment": {"os": "alpine"}, "notes": None},
+            {"success": False, "environment": {"os": "windows"}, "notes": "pip not found on PATH"},
+        ]
+    }
+    prompt = _build_research_prompt(problem, solutions, outcomes_by_solution)
+    assert "2 success" in prompt
+    assert "1 failure" in prompt
+    assert "pip not found on PATH" in prompt
 
 
 # ---------------------------------------------------------------------------
@@ -127,10 +117,29 @@ def test_run_research_cycle_no_improvement_when_agent_says_no() -> None:
     )
 
     agent = MagicMock()
-    agent.arun = AsyncMock(return_value="NO_IMPROVEMENT: already optimal")
+    # Agent calls skip_improvement tool which returns "Status: no_improvement..."
+    agent.arun = AsyncMock(return_value="Status: no_improvement. Reason: already optimal")
 
     result = asyncio.run(run_research_cycle(agent, service))
-    assert result["no_improvement"] >= 0
+    assert result["no_improvement"] >= 1
+
+
+def test_run_research_cycle_improved_when_agent_calls_propose() -> None:
+    """Agent calls propose_improvement tool; response contains 'Status: improved'."""
+    service = _make_service()
+    service.contribute(
+        author_id=AUTHOR,
+        description="How to fix ModuleNotFoundError in Docker containers",
+        solution_content="Install the missing package with pip install",
+        solution_steps=["Run pip install <package>"],
+    )
+
+    agent = MagicMock()
+    # Simulate agent having called propose_improvement tool which returned "Status: improved"
+    agent.arun = AsyncMock(return_value="Status: improved. Confidence: 0.30 -> 0.50")
+
+    result = asyncio.run(run_research_cycle(agent, service))
+    assert result["improved"] >= 1
 
 
 def test_find_research_candidates_cooldown_skips_recently_researched() -> None:
@@ -159,3 +168,208 @@ def test_find_research_candidates_cooldown_skips_recently_researched() -> None:
     candidates = service.find_research_candidates(limit=10, cooldown_hours=6)
     candidate_ids = [c["problem_id"] for c in candidates]
     assert str(problem_id) not in candidate_ids
+
+
+# ---------------------------------------------------------------------------
+# Cold-start bootstrapping
+# ---------------------------------------------------------------------------
+
+
+def test_cold_start_improvement_succeeds() -> None:
+    """Researcher with author_verified=True produces 0.5 baseline that beats 0.3."""
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+
+    service = _make_service()
+    result = service.contribute(
+        author_id=AUTHOR,
+        description="Cold start test problem with enough detail to pass quality gate",
+        solution_content="Basic solution that needs improvement for this test",
+        solution_steps=["Step one"],
+    )
+    solution_id = result["solution_id"]
+
+    # Existing solution has confidence=0.3 (not author_verified)
+    existing = service._solutions.get(UUID(str(solution_id)))
+    assert existing is not None
+    assert existing.confidence == pytest.approx(0.3)
+
+    # Researcher proposes with author_verified=True -> 0.5 baseline > 0.3
+    improve_result = service.improve_solution(
+        author_id=SYSTEM_AGENT_ID,
+        solution_id=UUID(str(solution_id)),
+        improved_content="Improved solution: install package with verification step",
+        improved_steps=["Run pip install <package>", "Verify with python -c 'import pkg'"],
+        reasoning="Added verification step",
+        author_verified=True,
+    )
+    assert improve_result["status"] == "improved"
+    assert improve_result["new_confidence"] == pytest.approx(0.5)
+
+
+# ---------------------------------------------------------------------------
+# Bloat filter
+# ---------------------------------------------------------------------------
+
+
+def test_bloat_filter_rejects_verbose_without_gain() -> None:
+    """2x length with <=0.05 confidence gain is rejected."""
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+
+    service = _make_service()
+    result = service.contribute(
+        author_id=AUTHOR,
+        description="Bloat filter test problem with sufficient description length",
+        solution_content="Short solution content here",
+        solution_steps=["Step one"],
+        author_verified=True,  # gives 0.5 confidence
+    )
+    solution_id = UUID(str(result["solution_id"]))
+
+    existing = service._solutions.get(solution_id)
+    assert existing is not None
+    assert existing.confidence == pytest.approx(0.5)
+
+    # Bloated content: 2x+ length, author_verified=True gives 0.5 (not > 0.5 + 0.05)
+    bloated = "Short solution content here " * 10  # >> 2x length
+    improve_result = service.improve_solution(
+        author_id=SYSTEM_AGENT_ID,
+        solution_id=solution_id,
+        improved_content=bloated,
+        reasoning="Verbose but no real gain",
+        author_verified=True,  # same 0.5 baseline -> not > existing 0.5
+    )
+    assert improve_result["status"] == "no_improvement"
+
+
+def test_bloat_filter_allows_verbose_with_significant_gain() -> None:
+    """2x length is allowed when confidence gain > 0.05."""
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+
+    service = _make_service()
+    result = service.contribute(
+        author_id=AUTHOR,
+        description="Bloat allow test problem with sufficient description",
+        solution_content="Short solution content here",
+        solution_steps=["Step one"],
+        # NOT author_verified -> confidence=0.3
+    )
+    solution_id = UUID(str(result["solution_id"]))
+
+    existing = service._solutions.get(solution_id)
+    assert existing is not None
+    assert existing.confidence == pytest.approx(0.3)
+
+    # Bloated content: 2x+ length, author_verified=True gives 0.5
+    # 0.5 > 0.3 + 0.05 = 0.35, so gain is 0.2 which is > 0.05 threshold
+    bloated = "Short solution content here " * 10
+    improve_result = service.improve_solution(
+        author_id=SYSTEM_AGENT_ID,
+        solution_id=solution_id,
+        improved_content=bloated,
+        reasoning="Verbose but significant gain from 0.3 to 0.5",
+        author_verified=True,
+    )
+    assert improve_result["status"] == "improved"
+
+
+# ---------------------------------------------------------------------------
+# synthesize_solutions service method
+# ---------------------------------------------------------------------------
+
+
+def test_synthesize_solutions_service_method() -> None:
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+    from app.domain.models import Solution
+
+    service = _make_service()
+    p_result = service.contribute(
+        author_id=AUTHOR,
+        description="Synthesis test problem with enough content to pass quality gate",
+        solution_content="First solution approach for synthesis testing",
+        solution_steps=["Step A"],
+    )
+    problem_id = UUID(str(p_result["problem_id"]))
+
+    # Add second solution directly to the same problem
+    second = Solution(
+        problem_id=problem_id,
+        author_id=AUTHOR,
+        content="Second solution approach for synthesis testing",
+        steps=["Step B"],
+    )
+    service._solutions.add(second)
+
+    result = service.synthesize_solutions(
+        problem_id=problem_id,
+        synthesized_content="Canonical synthesis of both approaches for testing",
+        author_id=SYSTEM_AGENT_ID,
+    )
+    assert result is not None
+    assert result["synthesized_from"] >= 2
+    assert "canonical_solution_id" in result
+
+
+def test_synthesize_solutions_returns_none_for_single_solution() -> None:
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+
+    service = _make_service()
+    p_result = service.contribute(
+        author_id=AUTHOR,
+        description="Single solution synthesis test with enough description",
+        solution_content="Only solution here for synthesis test",
+        solution_steps=["Step A"],
+    )
+    problem_id = p_result["problem_id"]
+
+    # Only one active solution — synthesize_solutions should return None
+    result = service.synthesize_solutions(
+        problem_id=UUID(str(problem_id)),
+        synthesized_content="Canonical content",
+        author_id=SYSTEM_AGENT_ID,
+    )
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Tool: skip_improvement
+# ---------------------------------------------------------------------------
+
+
+def test_skip_improvement_returns_status() -> None:
+    from agent.src.tools import get_researcher_tools
+
+    service = _make_service()
+    tools = get_researcher_tools(service)
+    skip_tool = next(t for t in tools if t.name == "skip_improvement")
+    result = skip_tool.entrypoint(problem_id="abc", reason="already optimal")
+    assert "Status: no_improvement" in result
+
+
+# ---------------------------------------------------------------------------
+# Tool: propose_improvement passes author_verified=True
+# ---------------------------------------------------------------------------
+
+
+def test_propose_improvement_passes_author_verified() -> None:
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+    from agent.src.tools import get_researcher_tools
+
+    service = _make_service()
+    p_result = service.contribute(
+        author_id=AUTHOR,
+        description="Tool test problem with enough description text",
+        solution_content="Basic solution for tool test",
+        solution_steps=["Step one"],
+    )
+    solution_id = str(p_result["solution_id"])
+
+    tools = get_researcher_tools(service)
+    propose_tool = next(t for t in tools if t.name == "propose_improvement")
+    result = propose_tool.entrypoint(
+        solution_id=solution_id,
+        improved_content="Better solution with verification for tool test",
+        reasoning="Improved with author_verified=True",
+        steps=["Step one", "Step two: verify"],
+    )
+    # author_verified=True gives 0.5 > 0.3 -> should be improved
+    assert "Status: improved" in result

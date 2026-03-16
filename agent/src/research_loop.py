@@ -24,9 +24,9 @@ async def run_research_cycle(agent, service) -> dict:
     """One iteration of the autonomous research loop.
 
     1. Find research candidates (problems needing improvement)
-    2. For each candidate, gather context and ask AI to propose improvement
-    3. If AI proposes improvement, call service.improve_solution()
-    4. Record result
+    2. For each candidate, gather context + outcomes and ask AI to propose improvement
+    3. Agent calls propose_improvement or skip_improvement tool directly
+    4. Parse tool return string for "Status: improved" / "Status: no_improvement"
     """
     if not settings.agent_research_enabled:
         return {"skipped": True, "reason": "research disabled"}
@@ -55,37 +55,30 @@ async def run_research_cycle(agent, service) -> dict:
             logger.debug(f"Problem {problem_id} has no solutions to improve")
             continue
 
-        best_solution = solutions[0]
-        solution_id = best_solution["solution_id"]
+        # Fetch outcomes for each solution to give the agent real signal
+        outcomes_by_solution: dict[str, list[dict]] = {}
+        for sol in solutions:
+            sol_id = str(sol["solution_id"])
+            try:
+                sol_context = service.get_context(id=UUID(sol_id), include=["outcomes"])
+                outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
+            except Exception:
+                outcomes_by_solution[sol_id] = []
 
-        prompt = _build_research_prompt(problem_dict, solutions)
+        prompt = _build_research_prompt(problem_dict, solutions, outcomes_by_solution)
 
         try:
             response_text = await _run_agent(agent, prompt)
-            parsed = _parse_agent_response(response_text)
 
-            if parsed is None or not parsed.get("improved_content"):
-                no_improvement += 1
-                logger.info(f"No improvement proposed for problem {problem_id}")
-                continue
-
-            result = service.improve_solution(
-                author_id=_get_system_agent_id(service),
-                solution_id=UUID(str(solution_id)),
-                improved_content=parsed["improved_content"],
-                improved_steps=parsed.get("steps"),
-                reasoning=parsed.get("reasoning", ""),
-            )
-            if result["status"] == "improved":
+            # Agent calls propose_improvement or skip_improvement tool directly.
+            # Both tools return strings containing "Status: improved" or "Status: no_improvement".
+            if "Status: improved" in response_text:
                 improved += 1
-                logger.info(
-                    f"Improved solution for problem {problem_id}: "
-                    f"{result['previous_confidence']:.2f} -> {result['new_confidence']:.2f}"
-                )
+                logger.info(f"Improved solution for problem {problem_id}")
                 await _maybe_synthesize(service, UUID(str(problem_id)), agent)
             else:
                 no_improvement += 1
-                logger.info(f"Proposed solution did not improve confidence for problem {problem_id}")
+                logger.info(f"No improvement proposed for problem {problem_id}")
 
         except Exception as exc:
             logger.error(f"Research cycle error for problem {problem_id}: {exc}")
@@ -100,58 +93,46 @@ async def run_research_cycle(agent, service) -> dict:
 
 async def _maybe_synthesize(service, problem_id: UUID, agent) -> None:
     """Trigger synthesis if the problem has enough solutions to warrant it."""
-    from agent.src.synthesis import SYSTEM_AGENT_ID, find_synthesis_candidates, synthesize_solutions
-
     try:
         context = service.get_context(id=problem_id, include=["solutions"])
         solutions_data = context.get("solutions", [])
-        if len(solutions_data) < 2:
+        active = [s for s in solutions_data if s.get("canonical_id") is None]
+        if len(active) < 2:
             return
 
-        # Rebuild domain Solution objects for synthesis check
-        solutions = [service._solutions.get(s["solution_id"]) for s in solutions_data]
-        solutions = [s for s in solutions if s is not None and s.canonical_id is None]
-
-        problem = service._problems.get(problem_id)
-        if problem is None or len(solutions) < 2:
-            return
-
-        # Simple similarity: always 0.0 (no embedding available in agent context)
-        candidates = find_synthesis_candidates(
-            [problem],
-            {problem_id: solutions},
-            lambda a, b: 0.0,
+        problem_data = context.get("data", {})
+        synthesis_prompt = (
+            f"Problem: {problem_data.get('description', '')}\n\n"
         )
-        if not candidates:
-            return
-
-        # Build synthesis prompt and call LLM
-        synthesis_prompt = f"Problem: {problem.description}\n\n"
-        for i, s in enumerate(solutions, 1):
-            synthesis_prompt += f"Solution {i}:\n{s.content}\n\n"
+        for i, s in enumerate(active, 1):
+            synthesis_prompt += f"Solution {i}:\n{s.get('content', '')}\n\n"
         synthesis_prompt += "Please synthesize these solutions into one comprehensive canonical solution."
 
         try:
-            llm_result = await _run_agent(agent, synthesis_prompt)
+            synthesized_content = await _run_agent(agent, synthesis_prompt)
         except Exception as llm_exc:
             logger.warning(f"LLM synthesis failed, falling back to concatenation: {llm_exc}")
-            llm_result = "\n\n".join(s.content for s in solutions[:3])
+            synthesized_content = "\n\n".join(s.get("content", "") for s in active[:3])
 
-        def llm_fn(prompt: str) -> str:
-            return llm_result
-
-        synthesized = synthesize_solutions(solutions, problem, llm_fn)
-        service._solutions.add(synthesized)
-        # Mark source solutions as superseded
-        for s in solutions:
-            object.__setattr__(s, "canonical_id", synthesized.solution_id)
-            service._solutions.update(s)
-        logger.info(f"Synthesized {len(solutions)} solutions for problem {problem_id}")
+        from agent.src.synthesis import SYSTEM_AGENT_ID
+        result = service.synthesize_solutions(
+            problem_id=problem_id,
+            synthesized_content=synthesized_content,
+            author_id=SYSTEM_AGENT_ID,
+        )
+        if result is not None:
+            logger.info(
+                f"Synthesized {result['synthesized_from']} solutions for problem {problem_id}"
+            )
     except Exception as exc:
         logger.warning(f"Synthesis skipped for problem {problem_id}: {exc}")
 
 
-def _build_research_prompt(problem: dict, solutions: list[dict]) -> str:
+def _build_research_prompt(
+    problem: dict,
+    solutions: list[dict],
+    outcomes_by_solution: dict[str, list[dict]] | None = None,
+) -> str:
     lines = [
         f"Problem: {problem['description']}",
         "",
@@ -160,9 +141,30 @@ def _build_research_prompt(problem: dict, solutions: list[dict]) -> str:
         lines.append(f"Error signature: {problem['error_signature']}")
         lines.append("")
 
-    lines.append(f"Current best solution (confidence: {solutions[0].get('confidence', 0):.2f}):")
-    lines.append(solutions[0].get("content", ""))
+    best = solutions[0]
+    best_id = str(best["solution_id"])
+    lines.append(f"Current best solution (confidence: {best.get('confidence', 0):.2f}):")
+    lines.append(best.get("content", ""))
     lines.append("")
+
+    if outcomes_by_solution:
+        outcomes = outcomes_by_solution.get(best_id, [])
+        if outcomes:
+            successes = sum(1 for o in outcomes if o.get("success"))
+            failures = len(outcomes) - successes
+            lines.append(f"Outcomes: {successes} success, {failures} failure(s)")
+            failure_notes = [
+                o.get("notes") for o in outcomes
+                if not o.get("success") and o.get("notes")
+            ]
+            if failure_notes:
+                lines.append("Failure notes:")
+                for note in failure_notes[:3]:
+                    lines.append(f"  - {note}")
+            envs = [o.get("environment") for o in outcomes if o.get("environment")]
+            if envs:
+                lines.append(f"Environments tested: {envs[:3]}")
+            lines.append("")
 
     if len(solutions) > 1:
         lines.append("Other solutions:")
@@ -170,34 +172,12 @@ def _build_research_prompt(problem: dict, solutions: list[dict]) -> str:
             lines.append(f"- (confidence: {sol.get('confidence', 0):.2f}) {sol.get('content', '')[:200]}")
         lines.append("")
 
-    lines.extend([
-        "Analyze the problem and existing solutions.",
-        "If you can propose a genuinely better solution, respond with:",
-        "IMPROVED_CONTENT: <your improved solution>",
-        "STEPS: <step1> | <step2> | ...",
-        "REASONING: <what you improved and why>",
-        "",
-        "If no improvement is possible, respond with:",
-        "NO_IMPROVEMENT: <brief reason>",
-    ])
+    problem_id = problem["problem_id"]
+    lines.append(
+        f"Use propose_improvement(solution_id='{best_id}', ...) to submit a better solution, "
+        f"or skip_improvement(problem_id='{problem_id}', ...) if no improvement is possible."
+    )
     return "\n".join(lines)
-
-
-def _parse_agent_response(text: str) -> dict | None:
-    if "NO_IMPROVEMENT" in text:
-        return None
-
-    result: dict = {}
-    for line in text.splitlines():
-        if line.startswith("IMPROVED_CONTENT:"):
-            result["improved_content"] = line[len("IMPROVED_CONTENT:"):].strip()
-        elif line.startswith("STEPS:"):
-            raw = line[len("STEPS:"):].strip()
-            result["steps"] = [s.strip() for s in raw.split("|") if s.strip()]
-        elif line.startswith("REASONING:"):
-            result["reasoning"] = line[len("REASONING:"):].strip()
-
-    return result if result.get("improved_content") else None
 
 
 def _get_system_agent_id(service) -> UUID:

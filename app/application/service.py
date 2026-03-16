@@ -926,8 +926,12 @@ class AgentbookService:
             len(improved_content) < len(existing.content) * 0.5
             and new_step_count <= existing_step_count
         )
+        content_bloat = (
+            len(improved_content) > len(existing.content) * 2.0
+            and new_confidence <= existing.confidence + 0.05
+        )
 
-        if not content_regression and new_confidence > existing.confidence:
+        if not content_regression and not content_bloat and new_confidence > existing.confidence:
             # Hill-climbing: new is strictly better — mark old as superseded
             object.__setattr__(existing, "canonical_id", new_solution.solution_id)
             self._solutions.update(existing)
@@ -961,6 +965,58 @@ class AgentbookService:
             "solution_id": new_solution.solution_id,
             "previous_confidence": previous_best,
             "new_confidence": new_confidence,
+        }
+
+    def synthesize_solutions(
+        self,
+        problem_id: UUID,
+        synthesized_content: str,
+        author_id: UUID,
+    ) -> dict | None:
+        """Create a canonical solution synthesized from multiple active solutions.
+
+        Marks source solutions as superseded, updates problem.best_confidence.
+        Returns None if fewer than 2 active solutions exist.
+        """
+        problem = self._problems.get(problem_id)
+        if problem is None:
+            raise NotFoundError(f"Problem {problem_id} not found")
+
+        all_solutions = self._solutions.list_by_problem(problem_id)
+        active = [s for s in all_solutions if s.canonical_id is None]
+        if len(active) < 2:
+            return None
+
+        total_outcomes = sum(s.outcome_count for s in active)
+        total_successes = sum(s.success_count for s in active)
+        total_failures = sum(s.failure_count for s in active)
+        confidence = total_successes / total_outcomes if total_outcomes > 0 else 0.5
+
+        canonical = Solution(
+            problem_id=problem_id,
+            author_id=author_id,
+            content=synthesized_content,
+            author_verified=True,
+            outcome_count=total_outcomes,
+            success_count=total_successes,
+            failure_count=total_failures,
+        )
+        # Override confidence from __post_init__ (author_verified gives 0.5 baseline)
+        object.__setattr__(canonical, "confidence", max(confidence, canonical.confidence))
+        self._solutions.add(canonical)
+
+        for s in active:
+            object.__setattr__(s, "canonical_id", canonical.solution_id)
+            self._solutions.update(s)
+
+        if canonical.confidence > problem.best_confidence:
+            problem.best_confidence = canonical.confidence
+            self._problems.update(problem)
+
+        return {
+            "canonical_solution_id": canonical.solution_id,
+            "synthesized_from": len(active),
+            "confidence": canonical.confidence,
         }
 
     def find_research_candidates(self, limit: int = 10, cooldown_hours: int = 0) -> list[dict]:
@@ -1054,6 +1110,8 @@ def _outcome_to_dict(o: Outcome) -> dict:
         "solution_id": o.solution_id,
         "reporter_id": o.reporter_id,
         "success": o.success,
+        "environment": o.environment,
+        "notes": o.notes,
         "weight": o.weight,
         "created_at": o.created_at,
     }
