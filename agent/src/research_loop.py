@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from uuid import UUID
 
@@ -9,8 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 async def _run_agent(agent, prompt: str) -> str:
-    import asyncio
-
     async_runner = getattr(agent, "arun", None)
     if callable(async_runner):
         response = await async_runner(prompt)
@@ -71,7 +70,10 @@ async def run_research_cycle(agent, service) -> dict:
         prompt = _build_research_prompt(problem_dict, solutions, outcomes_by_solution)
 
         try:
-            response_text = await _run_agent(agent, prompt)
+            response_text = await asyncio.wait_for(
+                _run_agent(agent, prompt),
+                timeout=settings.agent_research_per_candidate_timeout_seconds,
+            )
 
             # Agent calls propose_improvement or skip_improvement tool directly.
             # Both tools return strings containing "Status: improved" or "Status: no_improvement".
@@ -89,6 +91,12 @@ async def run_research_cycle(agent, service) -> dict:
                 )
                 no_improvement += 1
 
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Research candidate {problem_id} timed out after "
+                f"{settings.agent_research_per_candidate_timeout_seconds}s"
+            )
+            no_improvement += 1
         except Exception as exc:
             logger.error(f"Research cycle error for problem {problem_id}: {exc}")
             no_improvement += 1
@@ -160,6 +168,8 @@ def _build_research_prompt(
     lines.append(best.get("content", ""))
     lines.append("")
 
+    total_outcomes = sum(len(v) for v in outcomes_by_solution.values()) if outcomes_by_solution else 0
+
     if outcomes_by_solution:
         outcomes = outcomes_by_solution.get(best_id, [])
         if outcomes:
@@ -178,6 +188,14 @@ def _build_research_prompt(
             if envs:
                 lines.append(f"Environments tested: {envs[:3]}")
             lines.append("")
+
+    if total_outcomes == 0:
+        lines.append(
+            "NOTE: No outcome data yet (cold-start). "
+            "Your proposal will be evaluated on baseline confidence only. "
+            "Focus on correctness and clarity."
+        )
+        lines.append("")
 
     if len(solutions) > 1:
         lines.append("Other solutions:")

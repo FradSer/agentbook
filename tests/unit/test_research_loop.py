@@ -672,6 +672,98 @@ def test_maybe_synthesize_triggered_by_low_confidence_and_outcomes() -> None:
     assert len(canonical_solutions) >= 1
 
 
+# ---------------------------------------------------------------------------
+# Fix 1: Per-candidate timeout
+# ---------------------------------------------------------------------------
+
+
+def test_per_candidate_timeout_counts_as_no_improvement(monkeypatch) -> None:
+    """A hung LLM call times out and is counted as no_improvement, not a crash."""
+    import agent.src.research_loop as rl
+
+    monkeypatch.setattr(rl.settings, "agent_research_per_candidate_timeout_seconds", 0.01)
+
+    service = _make_service()
+    service.contribute(
+        author_id=AUTHOR,
+        description="Timeout test problem with enough description text here",
+        solution_content="Basic solution for timeout test",
+        solution_steps=["Step one"],
+    )
+
+    async def hang(_prompt: str) -> str:
+        await asyncio.sleep(10)
+        return "never"
+
+    agent = MagicMock()
+    agent.arun = hang
+
+    result = asyncio.run(run_research_cycle(agent, service))
+    assert result["no_improvement"] >= 1
+    assert result["improved"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Fix 2: Load instructions from program.md
+# ---------------------------------------------------------------------------
+
+
+def test_researcher_instructions_loaded_from_file(tmp_path) -> None:
+    """_load_instructions() reads from program.md when it exists."""
+    from unittest.mock import patch
+
+    from agent.src.researcher_agent import _load_instructions
+
+    custom_md = tmp_path / "program.md"
+    custom_md.write_text("Custom instructions from file")
+
+    import agent.src.config as cfg
+    with patch.object(cfg.settings, "agent_researcher_instructions_path", str(custom_md)):
+        result = _load_instructions()
+
+    assert result == "Custom instructions from file"
+
+
+def test_researcher_instructions_fallback_when_file_missing(tmp_path) -> None:
+    """_load_instructions() falls back to the inline constant when file is absent."""
+    from unittest.mock import patch
+
+    from agent.src.researcher_agent import _RESEARCHER_INSTRUCTIONS_FALLBACK, _load_instructions
+
+    import agent.src.config as cfg
+    missing = str(tmp_path / "nonexistent.md")
+    with patch.object(cfg.settings, "agent_researcher_instructions_path", missing):
+        result = _load_instructions()
+
+    assert result == _RESEARCHER_INSTRUCTIONS_FALLBACK
+
+
+# ---------------------------------------------------------------------------
+# Fix 3: Cold-start note in prompt
+# ---------------------------------------------------------------------------
+
+
+def test_build_prompt_cold_start_note_when_no_outcomes() -> None:
+    """Cold-start NOTE appears in prompt when outcomes_by_solution is empty."""
+    problem = {"description": "Cold start problem", "problem_id": "abc"}
+    solutions = [{"solution_id": "s1", "confidence": 0.3, "content": "basic solution"}]
+
+    prompt = _build_research_prompt(problem, solutions, outcomes_by_solution={})
+    assert "cold-start" in prompt.lower()
+
+
+def test_build_prompt_no_cold_start_note_when_outcomes_present() -> None:
+    """Cold-start NOTE is absent when outcome data exists."""
+    problem = {"description": "Problem with outcomes", "problem_id": "abc"}
+    solutions = [{"solution_id": "s1", "confidence": 0.7, "content": "good solution"}]
+    outcomes_by_solution = {
+        "s1": [{"success": True, "environment": None, "notes": None}]
+    }
+
+    prompt = _build_research_prompt(problem, solutions, outcomes_by_solution)
+    assert "cold-start" not in prompt.lower()
+
+
 def test_find_research_candidates_pagination_returns_full_limit() -> None:
     """When many candidates are in cooldown, pagination must fill the requested limit."""
     from agent.src.synthesis import SYSTEM_AGENT_ID

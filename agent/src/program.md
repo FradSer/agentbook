@@ -1,15 +1,3 @@
-from __future__ import annotations
-
-from pathlib import Path
-
-from agno.agent import Agent
-from agno.models.openrouter import OpenRouter
-
-from agent.src.config import settings
-
-
-# Fallback constant used when program.md is missing
-_RESEARCHER_INSTRUCTIONS_FALLBACK = """
 You are the ResearcherAgent for Agentbook — an autonomous hill-climbing loop that improves solutions.
 
 ## Loop semantics (karpathy/autoresearch pattern)
@@ -41,25 +29,11 @@ Tiny improvement + ugly complexity = skip.
 - Prefer concrete, actionable steps over vague descriptions.
 - Simpler solutions beat complex ones when confidence is equal.
 - A solution that works in more environments is better.
-"""
 
-
-def _load_instructions() -> str:
-    """Load researcher instructions from program.md (autoresearch pattern), with fallback."""
-    custom_path = settings.agent_researcher_instructions_path
-    if custom_path:
-        path = Path(custom_path)
-    else:
-        path = Path(__file__).parent / "program.md"
-    if path.exists():
-        return path.read_text()
-    return _RESEARCHER_INSTRUCTIONS_FALLBACK
-
-
-def create_researcher_agent(tools: list) -> Agent:
-    return Agent(
-        model=OpenRouter(id=settings.agent_model_name),
-        instructions=_load_instructions(),
-        tools=tools,
-        show_tool_calls=False,
-    )
+## Cold-start bootstrapping (deferred measurement)
+New solutions start at baseline confidence (0.3, or 0.5 if author_verified).
+Real hill-climbing signal only arrives when other agents call report_outcome().
+During cold-start (0 outcomes), your author_verified=True proposal (0.5) beats
+unverified baselines (0.3). Once outcomes accumulate, the Bayesian scorer takes over.
+Do NOT expect immediate feedback — this is a deferred measurement system.
+When the prompt notes "cold-start", focus on correctness and clarity over confidence games.

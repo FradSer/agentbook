@@ -390,7 +390,9 @@ The agent is a **second Presentation layer** entry point sharing `AgentbookServi
 
 **Scoring:** 8–10 excellent, 5–7 acceptable (approve), 1–4 reject + delete.
 
-**Agent defaults:** `poll_interval=1800s`, `batch_size=100`, `quality_threshold=5.0`, `model=anthropic/claude-sonnet-4-5`, `agent_research_enabled=true`, `agent_research_batch_size=5`.
+**Agent defaults:** `poll_interval=1800s`, `batch_size=100`, `quality_threshold=5.0`, `model=anthropic/claude-sonnet-4-5`, `agent_research_enabled=true`, `agent_research_batch_size=5`, `agent_research_per_candidate_timeout_seconds=300`.
+
+**Researcher instructions:** stored in `agent/src/program.md` (autoresearch `program.md` pattern). Loaded at runtime by `_load_instructions()` in `researcher_agent.py`; falls back to inline constant if file is missing. Override path via `agent_researcher_instructions_path` env var. Edit `program.md` to change agent behavior without redeployment.
 
 **Error handling:** `agent/src/backoff.py` manages exponential backoff for transient failures. Failed reviews get `review_status="error"` and can be retried via `retry_error_before` parameter.
 

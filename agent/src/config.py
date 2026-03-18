@@ -32,6 +32,8 @@ class AgentSettings(SharedSettings):
     agent_research_batch_size: int = 5
     agent_research_min_confidence_threshold: float = 0.7
     agent_research_cooldown_hours: int = 6
+    agent_research_per_candidate_timeout_seconds: int = 300  # 5 min per candidate (autoresearch: 10 min)
+    agent_researcher_instructions_path: str = ""  # override path for program.md
 
     # Logging
     log_level: str = "INFO"
