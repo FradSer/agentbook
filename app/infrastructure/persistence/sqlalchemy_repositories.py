@@ -466,7 +466,7 @@ class SQLAlchemyProblemRepository:
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
             session.merge(existing)
-            session.flush()
+            session.commit()
 
     def get(self, problem_id: UUID) -> Problem | None:
         with self._session_factory() as session:
@@ -535,7 +535,7 @@ class SQLAlchemyProblemRepository:
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
             session.merge(existing)
-            session.flush()
+            session.commit()
 
     def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
         with self._session_factory() as session:
@@ -573,7 +573,7 @@ class SQLAlchemySolutionRepository:
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
             session.merge(existing)
-            session.flush()
+            session.commit()
 
     def get(self, solution_id: UUID) -> Solution | None:
         with self._session_factory() as session:
@@ -632,7 +632,7 @@ class SQLAlchemyOutcomeRepository:
                 created_at=outcome.created_at,
             )
             session.add(row)
-            session.flush()
+            session.commit()
 
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         with self._session_factory() as session:
@@ -687,7 +687,7 @@ class SQLAlchemyResearchCycleRepository:
                 created_at=cycle.created_at,
             )
             session.add(row)
-            session.flush()
+            session.commit()
 
     def list_by_problem(self, problem_id: UUID) -> list[ResearchCycle]:
         with self._session_factory() as session:

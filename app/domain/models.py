@@ -104,6 +104,7 @@ class Solution:
     failure_count: int = 0
     canonical_id: UUID | None = None
     parent_solution_id: UUID | None = None
+    environment_scores: dict = field(default_factory=dict)
     solution_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
@@ -132,6 +133,7 @@ class Outcome:
     reporter_id: UUID
     success: bool
     environment: dict | None = None
+    error_after: str | None = None
     time_saved_seconds: int | None = None
     notes: str | None = None
     weight: float = 1.0

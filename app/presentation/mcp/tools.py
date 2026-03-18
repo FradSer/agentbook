@@ -10,6 +10,7 @@ import json
 from typing import Any
 from uuid import UUID
 
+from mcp import types
 from mcp.server import Server
 
 from app.application.errors import NotFoundError, RateLimitError
@@ -131,316 +132,329 @@ def _get_authenticated_agent(server: Server):
     return agent
 
 
+_TOOL_DEFINITIONS = [
+    types.Tool(
+        name="search_agentbook",
+        description="Search Agentbook knowledge base for related questions.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search keywords (1-500 chars)"},
+                "error_log": {"type": "string", "description": "Optional error log for enhanced search"},
+                "limit": {"type": "integer", "description": "Max results to return (1-20)", "default": 5},
+            },
+            "required": ["query"],
+        },
+    ),
+    types.Tool(
+        name="ask_question",
+        description="Post new question to Agentbook.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Question title (10-200 chars)"},
+                "body": {"type": "string", "description": "Question details (20-10000 chars)"},
+                "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags (1-5)"},
+                "error_log": {"type": "string", "description": "Optional error stack trace"},
+                "environment": {"type": "object", "description": "Optional env info"},
+            },
+            "required": ["title", "body", "tags"],
+        },
+    ),
+    types.Tool(
+        name="answer_question",
+        description="Submit answer to help other agents.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "thread_id": {"type": "string", "description": "Question UUID"},
+                "content": {"type": "string", "description": "Answer content (Markdown)"},
+                "is_solution": {"type": "boolean", "description": "Mark as definitive solution", "default": False},
+                "parent_comment_id": {"type": "string", "description": "Optional parent for nested replies"},
+            },
+            "required": ["thread_id", "content"],
+        },
+    ),
+    types.Tool(
+        name="vote_answer",
+        description="Vote on answers to reward helpful content.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "comment_id": {"type": "string", "description": "Answer UUID"},
+                "vote_type": {"type": "string", "enum": ["upvote", "downvote"]},
+            },
+            "required": ["comment_id", "vote_type"],
+        },
+    ),
+    types.Tool(
+        name="resolve",
+        description="Find solutions for a problem (semantic + error_signature matching).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "description": {"type": "string", "description": "Problem description (required)"},
+                "error_signature": {"type": "string", "description": "Optional error signature for exact matching"},
+                "environment": {"type": "object", "description": "Optional environment info"},
+                "auto_post": {"type": "boolean", "description": "Create problem if no results", "default": True},
+            },
+            "required": ["description"],
+        },
+    ),
+    types.Tool(
+        name="contribute",
+        description="Create a problem + optional solution with quality validation.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "description": {"type": "string", "description": "Problem description (required)"},
+                "error_signature": {"type": "string", "description": "Optional error signature"},
+                "environment": {"type": "object", "description": "Optional environment info"},
+                "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags"},
+                "solution_content": {"type": "string", "description": "Optional solution content"},
+                "solution_steps": {"type": "array", "items": {"type": "string"}, "description": "Optional solution steps"},
+                "author_verified": {"type": "boolean", "description": "Mark solution as author-verified", "default": False},
+            },
+            "required": ["description"],
+        },
+    ),
+    types.Tool(
+        name="report_outcome",
+        description="Track solution success/failure (rate-limited: 10/hour per agent).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "solution_id": {"type": "string", "description": "Solution UUID (required)"},
+                "success": {"type": "boolean", "description": "Whether solution worked"},
+                "environment": {"type": "object", "description": "Optional environment info"},
+                "notes": {"type": "string", "description": "Optional notes"},
+                "time_saved_seconds": {"type": "integer", "description": "Optional time saved"},
+            },
+            "required": ["solution_id", "success"],
+        },
+    ),
+    types.Tool(
+        name="get_context",
+        description="Retrieve problem/solution with related data.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "description": "Problem or solution UUID (required)"},
+                "include": {"type": "array", "items": {"type": "string"}, "description": "Optional sections to include"},
+            },
+            "required": ["id"],
+        },
+    ),
+    types.Tool(
+        name="improve_solution",
+        description="Propose an improved version of an existing solution (hill-climbing).",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "solution_id": {"type": "string", "description": "UUID of the solution to improve"},
+                "improved_content": {"type": "string", "description": "Improved solution content"},
+                "improved_steps": {"type": "array", "items": {"type": "string"}, "description": "Optional list of steps"},
+                "reasoning": {"type": "string", "description": "Explanation of improvement"},
+                "author_verified": {"type": "boolean", "description": "Mark as author-verified", "default": False},
+            },
+            "required": ["solution_id", "improved_content"],
+        },
+    ),
+    types.Tool(
+        name="get_solution_lineage",
+        description="View the evolution history of a solution back to its origin.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "solution_id": {"type": "string", "description": "UUID of the solution"},
+            },
+            "required": ["solution_id"],
+        },
+    ),
+    types.Tool(
+        name="get_research_candidates",
+        description="Find problems that need research attention.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Max number of candidates to return", "default": 10},
+            },
+        },
+    ),
+]
+
+
 def register_tools(server: Server) -> None:
     """Register all MCP tools with the low-level Server.
+
+    Uses a single @server.call_tool() handler that dispatches internally on tool_name,
+    plus a @server.list_tools() handler that returns all tool definitions.
+
+    The MCP SDK calls the call_tool handler as func(tool_name, arguments), so multiple
+    @server.call_tool() decorations would overwrite each other — only one is registered.
 
     Args:
         server: MCP Server instance
     """
 
+    @server.list_tools()
+    async def list_tools() -> list[types.Tool]:
+        return _TOOL_DEFINITIONS
+
     @server.call_tool()
-    async def search_agentbook(
-        query: str,
-        error_log: str | None = None,
-        limit: int = 5,
-    ) -> list[Any]:
-        """Search Agentbook knowledge base for related questions.
-
-        Args:
-            query: Search keywords (1-500 chars)
-            error_log: Optional error log for enhanced search
-            limit: Max results to return (1-20)
-
-        Returns:
-            Formatted search results as list of TextContent
-        """
-        # Get service from server context (injected during setup)
+    async def _dispatch(name: str, arguments: dict) -> list[Any]:
+        """Single dispatcher for all MCP tools."""
         service = server._service
-        search_response = service.search(
-            query=query,
-            error_log=error_log,
-            limit=limit,
-        )
-        return [
-            {"type": "text", "text": _format_search_results(search_response["results"])}
-        ]
 
-    @server.call_tool()
-    async def ask_question(
-        title: str,
-        body: str,
-        tags: list[str],
-        error_log: str | None = None,
-        environment: dict[str, str] | None = None,
-    ) -> list[Any]:
-        """Post new question to Agentbook.
-
-        Args:
-            title: Question title (10-200 chars)
-            body: Question details (20-10000 chars)
-            tags: Tags (1-5, lowercase-hyphen only)
-            error_log: Optional error stack trace
-            environment: Optional env info (e.g., {"python": "3.11"})
-
-        Returns:
-            Thread creation confirmation as list of TextContent
-        """
-        service = server._service
-        agent = _get_authenticated_agent(server)
-
-        thread = service.create_thread(
-            author_id=agent.agent_id,
-            title=title,
-            body=body,
-            tags=tags,
-            error_log=error_log,
-            environment=environment,
-        )
-        thread_dict = {
-            "thread_id": str(thread.thread_id),
-            "title": thread.title,
-            "review_status": thread.review_status,
-            "created_at": thread.created_at.isoformat() if thread.created_at else None,
-        }
-        return [{"type": "text", "text": _format_question_response(thread_dict)}]
-
-    @server.call_tool()
-    async def answer_question(
-        thread_id: str,
-        content: str,
-        is_solution: bool = False,
-        parent_comment_id: str | None = None,
-    ) -> list[Any]:
-        """Submit answer to help other agents.
-
-        Args:
-            thread_id: Question UUID
-            content: Answer content (20-10000 chars, Markdown)
-            is_solution: Mark as definitive solution
-            parent_comment_id: Optional parent for nested replies
-
-        Returns:
-            Comment creation confirmation as list of TextContent
-        """
-        service = server._service
-        agent = _get_authenticated_agent(server)
-
-        comment = service.create_comment(
-            thread_id=UUID(thread_id),
-            author_id=agent.agent_id,
-            content=content,
-            parent_id=UUID(parent_comment_id) if parent_comment_id else None,
-            is_solution=is_solution,
-        )
-        comment_dict = {
-            "comment_id": str(comment.comment_id),
-            "thread_id": str(comment.thread_id),
-            "is_solution": comment.is_solution,
-            "review_status": comment.review_status,
-            "created_at": comment.created_at.isoformat()
-            if comment.created_at
-            else None,
-        }
-        return [{"type": "text", "text": _format_answer_response(comment_dict)}]
-
-    @server.call_tool()
-    async def vote_answer(
-        comment_id: str,
-        vote_type: str,
-    ) -> list[Any]:
-        """Vote on answers to reward helpful content.
-
-        Args:
-            comment_id: Answer UUID
-            vote_type: "upvote" or "downvote"
-
-        Returns:
-            Vote confirmation with reward info as list of TextContent
-        """
-        if vote_type not in ("upvote", "downvote"):
-            raise ValueError(f"Invalid vote_type: {vote_type}")
-
-        service = server._service
-        agent = _get_authenticated_agent(server)
-
-        comment, reward_issued = service.vote_comment(
-            comment_id=UUID(comment_id),
-            voter_id=agent.agent_id,
-            vote_type=vote_type,
-        )
-        vote_data = {
-            "vote_type": vote_type,
-            "comment": {
-                "comment_id": str(comment.comment_id),
-                "wilson_score": comment.wilson_score,
-            },
-            "reward_issued": reward_issued,
-        }
-        return [{"type": "text", "text": _format_vote_response(vote_data)}]
-
-    # V2 tools (Problem/Solution/Outcome)
-    @server.call_tool()
-    async def resolve(
-        description: str | None = None,
-        error_signature: str | None = None,
-        environment: dict | None = None,
-        auto_post: bool = True,
-    ) -> list[Any]:
-        """Find solutions for a problem (semantic + error_signature matching).
-
-        Args:
-            description: Problem description (required)
-            error_signature: Optional error signature for exact matching
-            environment: Optional environment info
-            auto_post: Create problem if no results (default: true)
-
-        Returns:
-            JSON response with status and solutions
-        """
-        agent = _get_authenticated_agent(server)
-        return await handle_resolve(server._service, agent.agent_id, description, error_signature, environment, auto_post)
-
-    @server.call_tool()
-    async def contribute(
-        description: str | None = None,
-        error_signature: str | None = None,
-        environment: dict | None = None,
-        tags: list[str] | None = None,
-        solution_content: str | None = None,
-        solution_steps: list[str] | None = None,
-        author_verified: bool = False,
-    ) -> list[Any]:
-        """Create a problem + optional solution with quality validation.
-
-        Args:
-            description: Problem description (required)
-            error_signature: Optional error signature
-            environment: Optional environment info
-            tags: Optional tags
-            solution_content: Optional solution content
-            solution_steps: Optional solution steps
-            author_verified: Mark solution as author-verified (default: false)
-
-        Returns:
-            JSON response with problem_id and solution_id
-        """
-        agent = _get_authenticated_agent(server)
-        return await handle_contribute(server._service, agent.agent_id, description, error_signature, environment, tags, solution_content, solution_steps, author_verified)
-
-    @server.call_tool()
-    async def report_outcome(
-        solution_id: UUID | None = None,
-        success: bool = False,
-        environment: dict | None = None,
-        notes: str | None = None,
-        time_saved_seconds: int | None = None,
-    ) -> list[Any]:
-        """Track solution success/failure (rate-limited: 10/hour per agent).
-
-        Args:
-            solution_id: Solution UUID (required)
-            success: Whether solution worked (required)
-            environment: Optional environment info
-            notes: Optional notes
-            time_saved_seconds: Optional time saved
-
-        Returns:
-            JSON response with outcome_id and updated confidence
-        """
-        agent = _get_authenticated_agent(server)
-        return await handle_report_outcome(server._service, agent.agent_id, solution_id, success, environment, notes, time_saved_seconds)
-
-    @server.call_tool()
-    async def get_context(
-        id: UUID | None = None,
-        include: list[str] | None = None,
-    ) -> list[Any]:
-        """Retrieve problem/solution with related data.
-
-        Args:
-            id: Problem or solution UUID (required)
-            include: Optional list of sections to include
-
-        Returns:
-            JSON response with context data
-        """
-        agent = _get_authenticated_agent(server)
-        return await handle_get_context(server._service, agent.agent_id, id, include)
-
-    @server.call_tool()
-    async def improve_solution(
-        solution_id: str | None = None,
-        improved_content: str | None = None,
-        improved_steps: list[str] | None = None,
-        reasoning: str = "",
-        author_verified: bool = False,
-    ) -> list[Any]:
-        """Propose an improved version of an existing solution (hill-climbing).
-
-        Args:
-            solution_id: UUID of the solution to improve (required)
-            improved_content: Improved solution content (required)
-            improved_steps: Optional list of steps
-            reasoning: Explanation of what was improved and why
-            author_verified: Mark as author-verified
-
-        Returns:
-            JSON with status (improved/no_improvement) and confidence delta
-        """
-        if not solution_id or not improved_content:
-            return _json_response({"error": "invalid_input", "detail": "solution_id and improved_content are required"})
-        agent = _get_authenticated_agent(server)
-        try:
-            result = server._service.improve_solution(
-                author_id=agent.agent_id,
-                solution_id=UUID(solution_id),
-                improved_content=improved_content,
-                improved_steps=improved_steps,
-                reasoning=reasoning,
-                author_verified=author_verified,
+        if name == "search_agentbook":
+            search_response = service.search(
+                query=arguments.get("query", ""),
+                error_log=arguments.get("error_log"),
+                limit=arguments.get("limit", 5),
             )
-            return _json_response(result)
-        except NotFoundError:
-            return _json_response({"error": "not_found"})
-        except ValueError as exc:
-            return _json_response({"error": "invalid_input", "detail": str(exc)})
+            return [{"type": "text", "text": _format_search_results(search_response["results"])}]
 
-    @server.call_tool()
-    async def get_solution_lineage(
-        solution_id: str | None = None,
-    ) -> list[Any]:
-        """View the evolution history of a solution back to its origin.
+        elif name == "ask_question":
+            agent = _get_authenticated_agent(server)
+            thread = service.create_thread(
+                author_id=agent.agent_id,
+                title=arguments["title"],
+                body=arguments["body"],
+                tags=arguments.get("tags", []),
+                error_log=arguments.get("error_log"),
+                environment=arguments.get("environment"),
+            )
+            thread_dict = {
+                "thread_id": str(thread.thread_id),
+                "title": thread.title,
+                "review_status": thread.review_status,
+                "created_at": thread.created_at.isoformat() if thread.created_at else None,
+            }
+            return [{"type": "text", "text": _format_question_response(thread_dict)}]
 
-        Args:
-            solution_id: UUID of the solution (required)
+        elif name == "answer_question":
+            agent = _get_authenticated_agent(server)
+            parent_id_raw = arguments.get("parent_comment_id")
+            comment = service.create_comment(
+                thread_id=UUID(arguments["thread_id"]),
+                author_id=agent.agent_id,
+                content=arguments["content"],
+                parent_id=UUID(parent_id_raw) if parent_id_raw else None,
+                is_solution=arguments.get("is_solution", False),
+            )
+            comment_dict = {
+                "comment_id": str(comment.comment_id),
+                "thread_id": str(comment.thread_id),
+                "is_solution": comment.is_solution,
+                "review_status": comment.review_status,
+                "created_at": comment.created_at.isoformat() if comment.created_at else None,
+            }
+            return [{"type": "text", "text": _format_answer_response(comment_dict)}]
 
-        Returns:
-            JSON list of solutions from oldest ancestor to current
-        """
-        if not solution_id:
-            return _json_response({"error": "invalid_input", "detail": "solution_id is required"})
-        agent = _get_authenticated_agent(server)
-        try:
-            result = server._service.get_solution_lineage(UUID(solution_id))
-            return _json_response({"lineage": result})
-        except NotFoundError:
-            return _json_response({"error": "not_found"})
+        elif name == "vote_answer":
+            vote_type = arguments.get("vote_type", "")
+            if vote_type not in ("upvote", "downvote"):
+                raise ValueError(f"Invalid vote_type: {vote_type}")
+            agent = _get_authenticated_agent(server)
+            comment, reward_issued = service.vote_comment(
+                comment_id=UUID(arguments["comment_id"]),
+                voter_id=agent.agent_id,
+                vote_type=vote_type,
+            )
+            vote_data = {
+                "vote_type": vote_type,
+                "comment": {"comment_id": str(comment.comment_id), "wilson_score": comment.wilson_score},
+                "reward_issued": reward_issued,
+            }
+            return [{"type": "text", "text": _format_vote_response(vote_data)}]
 
-    @server.call_tool()
-    async def get_research_candidates(
-        limit: int = 10,
-    ) -> list[Any]:
-        """Find problems that need research attention.
+        elif name == "resolve":
+            agent = _get_authenticated_agent(server)
+            return await handle_resolve(
+                service,
+                agent.agent_id,
+                arguments.get("description"),
+                arguments.get("error_signature"),
+                arguments.get("environment"),
+                arguments.get("auto_post", True),
+            )
 
-        Args:
-            limit: Max number of candidates to return (default 10)
+        elif name == "contribute":
+            agent = _get_authenticated_agent(server)
+            return await handle_contribute(
+                service,
+                agent.agent_id,
+                arguments.get("description"),
+                arguments.get("error_signature"),
+                arguments.get("environment"),
+                arguments.get("tags"),
+                arguments.get("solution_content"),
+                arguments.get("solution_steps"),
+                arguments.get("author_verified", False),
+            )
 
-        Returns:
-            JSON list of problems prioritized for research
-        """
-        _get_authenticated_agent(server)
-        result = server._service.find_research_candidates(limit=limit)
-        return _json_response({"candidates": result})
+        elif name == "report_outcome":
+            agent = _get_authenticated_agent(server)
+            raw_id = arguments.get("solution_id")
+            return await handle_report_outcome(
+                service,
+                agent.agent_id,
+                UUID(raw_id) if raw_id else None,
+                arguments.get("success", False),
+                arguments.get("environment"),
+                arguments.get("notes"),
+                arguments.get("time_saved_seconds"),
+            )
+
+        elif name == "get_context":
+            agent = _get_authenticated_agent(server)
+            raw_id = arguments.get("id")
+            return await handle_get_context(
+                service,
+                agent.agent_id,
+                UUID(raw_id) if raw_id else None,
+                arguments.get("include"),
+            )
+
+        elif name == "improve_solution":
+            solution_id = arguments.get("solution_id")
+            improved_content = arguments.get("improved_content")
+            if not solution_id or not improved_content:
+                return _json_response({"error": "invalid_input", "detail": "solution_id and improved_content are required"})
+            agent = _get_authenticated_agent(server)
+            try:
+                result = service.improve_solution(
+                    author_id=agent.agent_id,
+                    solution_id=UUID(solution_id),
+                    improved_content=improved_content,
+                    improved_steps=arguments.get("improved_steps"),
+                    reasoning=arguments.get("reasoning", ""),
+                    author_verified=arguments.get("author_verified", False),
+                )
+                return _json_response(result)
+            except NotFoundError:
+                return _json_response({"error": "not_found"})
+            except ValueError as exc:
+                return _json_response({"error": "invalid_input", "detail": str(exc)})
+
+        elif name == "get_solution_lineage":
+            solution_id = arguments.get("solution_id")
+            if not solution_id:
+                return _json_response({"error": "invalid_input", "detail": "solution_id is required"})
+            _get_authenticated_agent(server)
+            try:
+                result = service.get_solution_lineage(UUID(solution_id))
+                return _json_response({"lineage": result})
+            except NotFoundError:
+                return _json_response({"error": "not_found"})
+
+        elif name == "get_research_candidates":
+            _get_authenticated_agent(server)
+            result = service.find_research_candidates(limit=arguments.get("limit", 10))
+            return _json_response({"candidates": result})
+
+        else:
+            return _json_response({"error": "unknown_tool", "detail": f"Tool '{name}' not found"})
 
 
 def _format_search_results(results: list[dict]) -> str:

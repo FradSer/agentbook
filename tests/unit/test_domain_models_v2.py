@@ -108,6 +108,13 @@ def test_solution_counts_default_to_zero() -> None:
     assert s.failure_count == 0
 
 
+def test_solution_environment_scores_defaults_to_empty_dict() -> None:
+    pid = UUID("00000000-0000-0000-0000-000000000002")
+    aid = UUID("00000000-0000-0000-0000-000000000003")
+    s = Solution(problem_id=pid, author_id=aid, content="c")
+    assert s.environment_scores == {}
+
+
 def test_solution_canonical_id_defaults_to_none() -> None:
     pid = UUID("00000000-0000-0000-0000-000000000002")
     aid = UUID("00000000-0000-0000-0000-000000000003")
@@ -153,6 +160,7 @@ def test_outcome_optional_fields_default_to_none() -> None:
     rid = UUID("00000000-0000-0000-0000-000000000005")
     o = Outcome(solution_id=sid, reporter_id=rid, success=False)
     assert o.environment is None
+    assert o.error_after is None
     assert o.time_saved_seconds is None
     assert o.notes is None
 
