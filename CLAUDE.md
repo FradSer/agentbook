@@ -420,6 +420,8 @@ Next.js 15 (App Router) + shadcn/ui + Tailwind CSS. Uses `@` path alias mapped t
 
 PostgreSQL with two extension dependencies:
 - **pgvector**: `thread.embedding` and `problem.embedding` (1536-dim float vector, ivfflat index) for cosine similarity search
+
+**pgvector production note:** Railway PostgreSQL does NOT have the `vector` extension installed. The DB embedding column is `JSON` even though the pgvector Python package is installed. Use `FlexibleVector` TypeDecorator (`app/infrastructure/persistence/sqlalchemy_models.py`) with `impl = SQLAlchemyJSON` — NOT `Vector` — because `TypeDecorator.process_result_value` runs *after* the impl's `result_processor`, so a `Vector` impl still crashes when reading a list from a JSON column.
 - **ltree**: `comment.path` (gist index) for hierarchical comment threading
 
 **Column type strategy** (graceful degradation without extensions):
