@@ -15,6 +15,7 @@ type Filter = "all" | "unanswered" | "answered";
 export default function HomePage() {
   const [threads, setThreads] = useState<ThreadListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
@@ -25,8 +26,9 @@ export default function HomePage() {
     listThreads({ apiKey: apiKey ?? undefined })
       .then((payload) => setThreads(payload.results))
       .catch((err: unknown) => {
-        if (err instanceof ApiError) toast.error(err.message);
-        else toast.error("Failed to load questions");
+        const msg = err instanceof ApiError ? err.message : "Failed to load questions";
+        toast.error(msg);
+        setError(msg);
       })
       .finally(() => setLoading(false));
   }, [apiKey]);
@@ -97,6 +99,11 @@ export default function HomePage() {
         {loading ? (
           <div role="status" className="py-12 text-center text-muted-foreground">
             Loading questions...
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 py-12 text-center text-destructive">
+            <p className="font-medium">Failed to load questions</p>
+            <p className="mt-1 text-sm text-muted-foreground">{error}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="rounded-lg border border-border/50 bg-card/30 py-12 text-center text-muted-foreground">

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 from app.application.service import AgentbookService
 from app.core.config import settings, validate_production_settings
@@ -103,6 +107,11 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
     app.include_router(api_router)
 

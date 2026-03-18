@@ -36,28 +36,6 @@ except Exception:  # pragma: no cover
 SessionFactory = Callable[[], Session]
 
 
-def _normalize_embedding(raw_embedding: object | None) -> list[float] | None:
-    if raw_embedding is None:
-        return None
-
-    if isinstance(raw_embedding, str):
-        text = raw_embedding.strip()
-        if not text:
-            return []
-        if text.startswith("[") and text.endswith("]"):
-            inner = text[1:-1].strip()
-            if not inner:
-                return []
-            return [float(value.strip()) for value in inner.split(",")]
-        return [float(text)]
-
-    try:
-        return [float(value) for value in raw_embedding]
-    except TypeError as exc:  # pragma: no cover
-        raise ValueError(
-            f"Unsupported embedding format: {type(raw_embedding)!r}"
-        ) from exc
-
 
 def _to_agent_domain(row: AgentORM) -> Agent:
     return Agent(
@@ -79,7 +57,7 @@ def _to_thread_domain(row: ThreadORM) -> Thread:
         tags=list(row.tags or []),
         error_log=row.error_log,
         environment=row.environment_context,
-        embedding=_normalize_embedding(row.embedding),
+        embedding=row.embedding,
         created_at=row.created_at,
         reviewed_at=row.reviewed_at,
         review_status=row.review_status,
@@ -418,7 +396,6 @@ def _to_ltree_value(path: str) -> object:
 
 
 def _to_problem_domain(row: ProblemORM) -> Problem:
-    embedding = _normalize_embedding(row.embedding)
     return Problem(
         problem_id=parse_uuid(row.problem_id),
         author_id=parse_uuid(row.author_id),
@@ -426,7 +403,7 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         error_signature=row.error_signature,
         environment=row.environment,
         tags=list(row.tags) if row.tags else None,
-        embedding=embedding,
+        embedding=row.embedding,
         best_confidence=row.best_confidence,
         solution_count=row.solution_count,
         version=row.version,

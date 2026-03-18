@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    TypeDecorator,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
@@ -32,13 +33,43 @@ except Exception:  # pragma: no cover
     LtreeType = None
 
 
+class FlexibleVector(TypeDecorator):
+    """Embedding column that handles both pgvector string and JSON list storage.
+
+    Uses JSON as the underlying impl so that psycopg2 returns a Python list
+    directly, bypassing pgvector's result_processor (which crashes when the DB
+    column is JSON instead of vector).  Handles string format too for forward
+    compatibility when a true vector column is read without the type registered.
+    """
+
+    impl = SQLAlchemyJSON
+    cache_ok = True
+
+    def __init__(self, dim: int) -> None:
+        self._dim = dim
+        super().__init__()
+
+    def process_result_value(self, value: object, dialect: object) -> list[float] | None:
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            inner = value.strip("[] ")
+            if not inner:
+                return []
+            return [float(v) for v in inner.split(",")]
+        try:
+            return [float(v) for v in value]  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return None
+
+    def process_bind_param(self, value: object, dialect: object) -> object:
+        return value
+
+
 def _embedding_column_type() -> Any:
-    # Use JSON as fallback when pgvector Python package is unavailable.
-    # Note: Even if Vector imports successfully, the PostgreSQL extension
-    # may not be installed. Repository code handles this with try/except.
-    if Vector is None:
-        return SQLAlchemyJSON
-    return Vector(settings.embedding_dimension)
+    return FlexibleVector(settings.embedding_dimension)
 
 
 def _path_column_type() -> Any:

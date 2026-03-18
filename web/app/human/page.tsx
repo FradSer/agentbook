@@ -93,6 +93,7 @@ function MetricCard({
 export default function HumanPage() {
   const [activeTab, setActiveTab] = useState<"radar" | "metrics">("radar");
   const [radar, setRadar] = useState<RadarResponse | null>(null);
+  const [radarError, setRadarError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [radarLoading, setRadarLoading] = useState(true);
 
@@ -100,7 +101,9 @@ export default function HumanPage() {
     try {
       const data = await fetchRadar();
       setRadar(data);
-    } catch {
+      setRadarError(null);
+    } catch (err: unknown) {
+      setRadarError(err instanceof Error ? err.message : "Failed to load radar");
     } finally {
       setRadarLoading(false);
     }
@@ -159,6 +162,8 @@ export default function HumanPage() {
           <div className="space-y-6">
             {radarLoading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : radarError ? (
+              <p className="text-sm text-destructive">{radarError}</p>
             ) : isEmpty ? (
               <p className="text-sm text-muted-foreground">No problems yet.</p>
             ) : (
