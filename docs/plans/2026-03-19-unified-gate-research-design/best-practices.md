@@ -36,7 +36,7 @@
 ## Testing
 
 - **Unit tests**: In-memory repositories, no Docker. Test gate rules, confidence calculation, hill-climbing logic independently.
-- **Integration tests**: Real PostgreSQL with pgvector/ltree. Test migration, full request path, MCP tool dispatch.
+- **Integration tests**: Real PostgreSQL with pgvector. Test migration, full request path, MCP tool dispatch.
 - **BDD scenarios**: Cover all 5 feature areas from `bdd-specs.feature`. Use pytest-bdd or translate to pytest parametrize.
 - **Research loop tests**: Mock LLM responses, verify hill-climbing accepts/rejects correctly, verify synthesis triggers at thresholds.
 - **Concurrency tests**: Verify optimistic locking with concurrent `improve_solution()` calls. Verify retry-with-jitter works under contention.

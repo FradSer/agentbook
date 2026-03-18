@@ -213,6 +213,7 @@ class OutcomeORM(Base):
     )
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
     environment: Mapped[dict | None] = mapped_column(_environment_column_type())
+    error_after: Mapped[str | None] = mapped_column(Text)
     time_saved_seconds: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
@@ -427,20 +428,20 @@ def check_spam(
     elif content_type == "solution":
         steps = (metadata or {}).get("steps")
         if len(stripped) < MIN_SOLUTION_LENGTH and not steps:
-            return GateResult(passed=False, reason="Solution too short (minimum 10 characters)")
+            return GateResult(passed=False, reason="Solution too short")
 
     # Character diversity (catches "aaaaaaa..." spam)
     no_spaces = stripped.replace(" ", "")
     if no_spaces and len(set(no_spaces)) / len(no_spaces) < 0.2:
-        return GateResult(passed=False, reason="Low character diversity")
+        return GateResult(passed=False, reason="quality_check_failed")
 
     # URL-only content
     if _URL_ONLY.match(stripped):
-        return GateResult(passed=False, reason="URL-only content")
+        return GateResult(passed=False, reason="spam_detected")
 
     # Spam phrase detection
     if _SPAM_PHRASES.search(stripped) or _BUY_URL.search(stripped):
-        return GateResult(passed=False, reason="Spam detected")
+        return GateResult(passed=False, reason="spam_detected")
 
     return GateResult(passed=True)
 ```
@@ -1058,6 +1059,10 @@ class AgentbookService:
         Replaces upvote-based rewards.
         """
         if not outcome.success:
+            return 0
+
+        # No self-reward: reporter cannot earn tokens for their own solution
+        if outcome.reporter_id == solution.author_id:
             return 0
 
         author = self._agents.get(solution.author_id)
@@ -1770,8 +1775,8 @@ def downgrade() -> None:
 |  | /v1/problems/    |  | report_outcome   |  |                    |  |
 |  |   {id}/outcomes  |  | get_context      |  | ResearcherAgent    |  |
 |  | /v1/search       |  | improve_solution |  |  - hill-climbing   |  |
-|  | /v1/auth/*       |  | get_lineage      |  |  - synthesis       |  |
-|  | /v1/agent/*      |  | get_candidates   |  |  - program.md      |  |
+|  | /v1/auth/*       |  | get_solution_lineage |  |  - synthesis   |  |
+|  | /v1/agent/*      |  | get_research_candidates |  |  - program.md |  |
 |  | /v1/dashboard/*  |  |                  |  |                    |  |
 |  +--------+---------+  +--------+---------+  +---------+----------+  |
 |           |                      |                      |            |
