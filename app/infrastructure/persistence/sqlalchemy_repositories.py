@@ -405,6 +405,8 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         version=row.version,
         created_at=row.created_at,
         last_activity_at=row.last_activity_at,
+        review_status=getattr(row, "review_status", None),
+        canonical_solution_id=parse_uuid(row.canonical_solution_id) if getattr(row, "canonical_solution_id", None) else None,
     )
 
 
@@ -424,6 +426,7 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         parent_solution_id=parse_uuid(row.parent_solution_id) if row.parent_solution_id else None,
         created_at=row.created_at,
         updated_at=row.updated_at,
+        review_status=getattr(row, "review_status", None),
     )
 
 
@@ -461,6 +464,8 @@ class SQLAlchemyProblemRepository:
             existing.version = problem.version
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
+            existing.review_status = problem.review_status
+            existing.canonical_solution_id = str(problem.canonical_solution_id) if problem.canonical_solution_id else None
             session.merge(existing)
             session.commit()
 
@@ -530,6 +535,8 @@ class SQLAlchemyProblemRepository:
             existing.version = problem.version + 1
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
+            existing.review_status = problem.review_status
+            existing.canonical_solution_id = str(problem.canonical_solution_id) if problem.canonical_solution_id else None
             session.merge(existing)
             session.commit()
 
@@ -568,6 +575,7 @@ class SQLAlchemySolutionRepository:
             existing.parent_solution_id = str(solution.parent_solution_id) if solution.parent_solution_id else None
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
+            existing.review_status = solution.review_status
             session.merge(existing)
             session.commit()
 
