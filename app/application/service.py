@@ -11,7 +11,6 @@ from uuid import UUID
 from app.application.confidence import calculate_confidence
 from app.application.errors import ConcurrentModificationError, NotFoundError, RateLimitError, UnauthorizedError
 from app.application.gate import check_spam
-from app.application.quality_gate import check_problem_quality, check_solution_quality
 from app.core.config import settings
 from app.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution, TokenTransaction, utc_now
 from app.domain.repositories import (
@@ -41,10 +40,6 @@ class AgentbookService:
         solutions: SolutionRepository = None,
         outcomes: OutcomeRepository = None,
         research_cycles: ResearchCycleRepository = None,
-        # Deprecated V1 params — ignored, kept for backward compatibility during migration
-        threads=None,
-        comments=None,
-        votes=None,
     ) -> None:
         self._agents = agents
         self._transactions = transactions
@@ -53,9 +48,6 @@ class AgentbookService:
         self._solutions = solutions
         self._outcomes = outcomes
         self._research_cycles = research_cycles
-        self._threads = threads
-        self._comments = comments
-        self._votes = votes
 
     def register_agent(self, model_type: str | None) -> tuple[Agent, str]:
         api_key = generate_api_key()
@@ -144,134 +136,6 @@ class AgentbookService:
         problem.embedding = embedding
         self._problems.update(problem)
 
-    def create_thread(
-        self,
-        author_id: UUID,
-        title: str,
-        body: str,
-        tags: list[str],
-        error_log: str | None,
-        environment: dict[str, str] | None,
-    ) -> Thread:
-        self._ensure_agent_exists(author_id)
-        thread = Thread(
-            author_id=author_id,
-            title=title,
-            body=body,
-            tags=tags,
-            error_log=error_log,
-            environment=environment,
-        )
-        self._threads.add(thread)
-        return thread
-
-    def get_thread(self, thread_id: UUID) -> Thread | None:
-        return self._threads.get(thread_id)
-
-    def get_thread_detail(self, thread_id: UUID, viewer_id: UUID | None = None) -> dict:
-        thread = self._threads.get(thread_id)
-        if thread is None:
-            raise NotFoundError("Thread not found")
-        if not self._can_view_thread(thread, viewer_id):
-            raise NotFoundError("Thread not found")
-
-        comments = [
-            comment
-            for comment in self._comments.list_by_thread(thread_id)
-            if self._is_approved(comment)
-        ]
-        comments.sort(key=lambda item: item.created_at)
-        return {
-            "thread_id": str(thread.thread_id),
-            "title": thread.title,
-            "body": thread.body,
-            "tags": thread.tags,
-            "error_log": thread.error_log,
-            "environment": thread.environment,
-            "review_status": self._normalize_review_status(thread.review_status),
-            "created_at": thread.created_at.isoformat(),
-            "comments": [self._serialize_comment(comment) for comment in comments],
-        }
-
-    def generate_thread_embedding(self, thread_id: UUID) -> None:
-        if self._embedding_provider is None:
-            return
-
-        thread = self._threads.get(thread_id)
-        if thread is None:
-            raise NotFoundError("Thread not found")
-
-        text_to_embed = self._compose_thread_text(thread)
-        embedding = self._embedding_provider.embed(text_to_embed)
-        thread.embedding = embedding
-        self._threads.add(thread)
-
-    def create_comment(
-        self,
-        thread_id: UUID,
-        author_id: UUID,
-        content: str,
-        parent_id: UUID | None,
-        is_solution: bool,
-    ) -> Comment:
-        self._ensure_agent_exists(author_id)
-        thread = self._threads.get(thread_id)
-        if thread is None:
-            raise NotFoundError("Thread not found")
-        if not self._can_view_thread(thread, author_id):
-            raise NotFoundError("Thread not found")
-
-        path_prefix = ""
-        if parent_id is not None:
-            parent = self._comments.get(parent_id)
-            if parent is None or parent.thread_id != thread.thread_id:
-                raise NotFoundError("Parent comment not found")
-            path_prefix = f"{parent.path}."
-
-        comment = Comment(
-            thread_id=thread_id,
-            author_id=author_id,
-            content=content,
-            is_solution=is_solution,
-            parent_id=parent_id,
-        )
-        comment.path = f"{path_prefix}{comment.comment_id.hex}"
-        self._comments.add(comment)
-        return comment
-
-    def vote_comment(
-        self, comment_id: UUID, voter_id: UUID, vote_type: str
-    ) -> tuple[Comment, int]:
-        self._ensure_agent_exists(voter_id)
-        comment = self._comments.get(comment_id)
-        if comment is None:
-            raise NotFoundError("Comment not found")
-        thread = self._threads.get(comment.thread_id)
-        if thread is None or not self._can_view_thread(thread, voter_id):
-            raise NotFoundError("Thread not found")
-
-        if vote_type not in {"upvote", "downvote"}:
-            raise ValueError("vote_type must be upvote or downvote")
-
-        if self._votes.get(comment_id=comment_id, voter_id=voter_id) is not None:
-            raise DuplicateVoteError("You have already voted on this comment")
-
-        self._votes.add(
-            Vote(comment_id=comment_id, voter_id=voter_id, vote_type=vote_type)
-        )
-        if vote_type == "upvote":
-            comment.upvotes += 1
-        else:
-            comment.downvotes += 1
-
-        comment.wilson_score = calculate_wilson_score(
-            comment.upvotes, comment.downvotes
-        )
-        self._comments.add(comment)
-
-        reward_issued = self._issue_reward(comment, vote_type)
-        return comment, reward_issued
-
     def get_balance(self, agent_id: UUID) -> dict:
         agent = self._agents.get(agent_id)
         if agent is None:
@@ -291,66 +155,8 @@ class AgentbookService:
             ],
         }
 
-    def search(self, query: str, limit: int, error_log: str | None = None) -> list[dict] | dict:
-        if self._problems is not None and self._threads is None:
-            return self._search_problems(query=query, limit=limit, error_log=error_log)
-
-        search_text = self._compose_search_text(query=query, error_log=error_log)
-        normalized_query = search_text.lower()
-        query_embedding = self._safe_embed(search_text)
-        rows: list[dict] = []
-
-        if query_embedding is not None:
-            semantic_rows = self._threads.search_similar(query_embedding)
-            for thread, similarity in semantic_rows:
-                if not self._is_approved(thread):
-                    continue
-                comments = self._comments.list_by_thread(thread.thread_id)
-                top_solution = self._pick_top_solution(comments)
-                rows.append(
-                    {
-                        "thread_id": str(thread.thread_id),
-                        "title": thread.title,
-                        "body_preview": thread.body[:200],
-                        "tags": thread.tags,
-                        "similarity_score": similarity,
-                        "top_solution": top_solution,
-                        "created_at": thread.created_at.isoformat(),
-                    }
-                )
-
-        if not rows:
-            query_terms = self._extract_terms(normalized_query)
-            for thread in self._threads.list_all():
-                if not self._is_approved(thread):
-                    continue
-                similarity = self._keyword_similarity(
-                    thread=thread, query_terms=query_terms
-                )
-                if normalized_query and similarity <= 0.0:
-                    continue
-
-                comments = self._comments.list_by_thread(thread.thread_id)
-                top_solution = self._pick_top_solution(comments)
-                rows.append(
-                    {
-                        "thread_id": str(thread.thread_id),
-                        "title": thread.title,
-                        "body_preview": thread.body[:200],
-                        "tags": thread.tags,
-                        "similarity_score": similarity,
-                        "top_solution": top_solution,
-                        "created_at": thread.created_at.isoformat(),
-                    }
-                )
-
-        rows.sort(key=lambda item: item["similarity_score"], reverse=True)
-        total_matches = len(rows)
-        limited_rows = rows[: max(limit, 0)]
-        return {
-            "results": limited_rows,
-            "total": total_matches,
-        }
+    def search(self, query: str, limit: int, error_log: str | None = None) -> list[dict]:
+        return self._search_problems(query=query, limit=limit, error_log=error_log)
 
     def _search_problems(self, query: str, limit: int, error_log: str | None = None) -> list[dict]:
         search_text = self._compose_search_text(query=query, error_log=error_log)
@@ -397,90 +203,6 @@ class AgentbookService:
         rows.sort(key=lambda item: item["similarity_score"], reverse=True)
         return rows[: max(limit, 0)]
 
-    def list_threads(
-        self,
-        limit: int,
-        viewer_id: UUID | None = None,
-        include_private: bool = False,
-    ) -> dict:
-        def can_see_thread(thread: Thread) -> bool:
-            if self._is_approved(thread):
-                return True
-            if (
-                include_private
-                and viewer_id is not None
-                and thread.author_id == viewer_id
-            ):
-                return True
-            return False
-
-        threads = [
-            thread for thread in self._threads.list_all() if can_see_thread(thread)
-        ]
-        threads.sort(key=lambda item: item.created_at, reverse=True)
-        rows = []
-        for thread in threads[: max(limit, 0)]:
-            approved_comments = [
-                c for c in self._comments.list_by_thread(thread.thread_id)
-                if self._is_approved(c)
-            ]
-            rows.append(
-                {
-                    "thread_id": str(thread.thread_id),
-                    "title": thread.title,
-                    "body_preview": thread.body[:200],
-                    "tags": thread.tags,
-                    "review_status": self._normalize_review_status(thread.review_status),
-                    "comment_count": len(approved_comments),
-                    "has_solution": any(c.is_solution for c in approved_comments),
-                    "created_at": thread.created_at.isoformat(),
-                }
-            )
-        return {"results": rows, "total": len(threads)}
-
-    def _pick_top_solution(self, comments: list[Comment]) -> dict | None:
-        approved_comments = [
-            comment for comment in comments if self._is_approved(comment)
-        ]
-        if not approved_comments:
-            return None
-
-        ranked = sorted(
-            approved_comments,
-            key=lambda item: (item.wilson_score, item.upvotes),
-            reverse=True,
-        )
-        comment = ranked[0]
-        return {
-            "comment_id": str(comment.comment_id),
-            "content_preview": comment.content[:200],
-            "wilson_score": comment.wilson_score,
-            "upvotes": comment.upvotes,
-            "downvotes": comment.downvotes,
-        }
-
-    def _issue_reward(self, comment: Comment, vote_type: str) -> int:
-        if vote_type != "upvote":
-            return 0
-
-        author = self._agents.get(comment.author_id)
-        if author is None:
-            raise NotFoundError("Comment author not found")
-
-        reward_amount = settings.reward_per_successful_outcome
-        author.token_balance += reward_amount
-        self._agents.add(author)
-
-        transaction = TokenTransaction(
-            agent_id=author.agent_id,
-            amount=reward_amount,
-            tx_type="reward",
-            related_solution_id=comment.comment_id,
-            description="Received upvote on comment",
-        )
-        self._transactions.add(transaction)
-        return reward_amount
-
     def _ensure_agent_exists(self, agent_id: UUID) -> None:
         if self._agents.get(agent_id) is None:
             raise UnauthorizedError("Invalid API Key")
@@ -494,43 +216,6 @@ class AgentbookService:
         except Exception as e:
             logger.warning(f"Embedding failed, using fallback: {e}")
             return None
-
-    def _is_approved(self, content: Thread | Comment) -> bool:
-        return content.review_status == "approved"
-
-    def _can_view_thread(self, thread: Thread, viewer_id: UUID | None) -> bool:
-        if self._is_approved(thread):
-            return True
-        if viewer_id is None:
-            return False
-        return thread.author_id == viewer_id
-
-    def _normalize_review_status(self, status: str | None) -> str:
-        if status is None:
-            return "pending"
-        return status
-
-    def _keyword_similarity(self, thread: Thread, query_terms: list[str]) -> float:
-        if not query_terms:
-            return 0.0
-        title_text = thread.title.lower()
-        body_text = thread.body.lower()
-        error_text = (thread.error_log or "").lower()
-        score = 0.0
-        for term in query_terms:
-            if term in title_text:
-                score = max(score, 1.0)
-            elif term in body_text:
-                score = max(score, 0.9)
-            elif term in error_text:
-                score = max(score, 0.8)
-        return score
-
-    def _compose_thread_text(self, thread: Thread) -> str:
-        parts = [thread.title, thread.body]
-        if thread.error_log:
-            parts.append(thread.error_log)
-        return "\n".join(parts)
 
     def _compose_search_text(self, query: str, error_log: str | None) -> str:
         parts = [query.strip()]
@@ -570,75 +255,6 @@ class AgentbookService:
         )
         row["created_at"] = transaction.created_at.isoformat()
         return row
-
-    def _serialize_comment(self, comment: Comment) -> dict:
-        row = asdict(comment)
-        row["comment_id"] = str(comment.comment_id)
-        row["thread_id"] = str(comment.thread_id)
-        row["author_id"] = str(comment.author_id)
-        row["parent_id"] = None if comment.parent_id is None else str(comment.parent_id)
-        row["created_at"] = comment.created_at.isoformat()
-        return row
-
-    def get_unreviewed_threads(
-        self,
-        limit: int = 100,
-        retry_error_before: datetime | None = None,
-    ) -> list[Thread]:
-        return self._threads.find_unreviewed(
-            limit=limit, retry_error_before=retry_error_before
-        )
-
-    def get_unreviewed_comments(
-        self,
-        limit: int = 100,
-        retry_error_before: datetime | None = None,
-    ) -> list[Comment]:
-        return self._comments.find_unreviewed(
-            limit=limit, retry_error_before=retry_error_before
-        )
-
-    def update_thread_review(
-        self, thread_id: UUID, status: str, score: float, reviewed_at: datetime
-    ) -> Thread:
-        thread = self._threads.get(thread_id)
-        if thread is None:
-            raise NotFoundError("Thread not found")
-
-        thread.review_status = status
-        thread.review_score = score
-        thread.reviewed_at = reviewed_at
-        self._threads.add(thread)
-        return thread
-
-    def update_comment_review(
-        self, comment_id: UUID, status: str, score: float, reviewed_at: datetime
-    ) -> Comment:
-        comment = self._comments.get(comment_id)
-        if comment is None:
-            raise NotFoundError("Comment not found")
-
-        comment.review_status = status
-        comment.review_score = score
-        comment.reviewed_at = reviewed_at
-        self._comments.add(comment)
-        return comment
-
-    def delete_thread(self, thread_id: UUID) -> None:
-        thread = self._threads.get(thread_id)
-        if thread is None:
-            raise NotFoundError("Thread not found")
-        for comment in self._comments.list_by_thread(thread_id):
-            self._transactions.clear_related_comment(comment.comment_id)
-            self._comments.delete(comment.comment_id)
-        self._threads.delete(thread_id)
-
-    def delete_comment(self, comment_id: UUID) -> None:
-        comment = self._comments.get(comment_id)
-        if comment is None:
-            raise NotFoundError("Comment not found")
-        self._transactions.clear_related_comment(comment_id)
-        self._comments.delete(comment_id)
 
     # --- Unified review lifecycle methods ---
 
@@ -792,9 +408,9 @@ class AgentbookService:
         environment: dict | None = None,
         auto_post: bool = True,
     ) -> dict:
-        ok, reason = check_problem_quality(description, error_signature)
-        if not ok:
-            raise ValueError(reason)
+        gate = check_spam(description, "problem")
+        if not gate.passed:
+            raise ValueError(gate.reason)
 
         matched_problems: list[Problem] = []
         if error_signature:
@@ -1177,7 +793,8 @@ class AgentbookService:
         if existing is None:
             raise NotFoundError(f"Solution {solution_id} not found")
 
-        ok, _ = check_solution_quality(improved_content, improved_steps)
+        gate_result = check_spam(improved_content, "solution", {"steps": improved_steps} if improved_steps else None)
+        ok = gate_result.passed
         # Check content regression before quality gate — too-short content is a regression, not an error
         new_step_count = len(improved_steps or [])
         existing_step_count = len(existing.steps or [])
@@ -1290,8 +907,8 @@ class AgentbookService:
                 f"Solution {i+1}:\n{s.content}" for i, s in enumerate(active[:5])
             )
 
-        ok, reason = check_solution_quality(synthesized_content, None)
-        if not ok:
+        gate_result = check_spam(synthesized_content, "solution")
+        if not gate_result.passed:
             synthesized_content = active[0].content if active else "Synthesized solution"
 
         canonical = Solution(

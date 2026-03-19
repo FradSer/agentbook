@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 
 def _setup_path() -> None:
@@ -83,27 +83,28 @@ class TestSessionManagement:
             with (
                 mock.patch("agent.src.main.create_engine") as mock_engine,
                 mock.patch("agent.src.main.sessionmaker") as mock_maker,
+                mock.patch("agent.src.main.create_service") as mock_create_service,
                 mock.patch("agent.src.main.create_reviewer_agent") as mock_agent,
                 mock.patch("agent.src.main.create_researcher_agent"),
-                mock.patch("agent.src.main.run_research_cycle", return_value={"candidates": 0, "improved": 0, "no_improvement": 0}),
+                mock.patch(
+                    "agent.src.main.run_research_cycle",
+                    new=AsyncMock(return_value={"candidates": 0, "improved": 0, "no_improvement": 0}),
+                ),
+                mock.patch(
+                    "agent.src.main.run_cycle_until_idle",
+                    new=AsyncMock(return_value={"processed": 0, "iterations": 1, "elapsed_seconds": 0.1, "drained": True}),
+                ),
             ):
                 # Setup mocks
                 mock_maker.return_value = mock_session_factory
                 mock_agent.return_value = DummyAgent()
                 mock_engine.return_value = MagicMock()
+                mock_create_service.return_value = MagicMock()
+                mock_create_service.return_value._agents.get.return_value = None
 
-                # Run one cycle then exit
-                with mock.patch("agent.src.main.run_cycle_until_idle") as mock_cycle:
-                            mock_cycle.return_value = {
-                                "processed": 0,
-                                "iterations": 1,
-                                "elapsed_seconds": 0.1,
-                                "drained": True,
-                            }
-
-                            # Patch time.sleep to exit immediately
-                            with mock.patch("agent.src.main.time.sleep", side_effect=KeyboardInterrupt):
-                                main_module.main()
+                # Patch time.sleep to exit immediately after one cycle
+                with mock.patch("agent.src.main.time.sleep", side_effect=KeyboardInterrupt):
+                    main_module.main()
 
             # Verify session lifecycle
             assert len(session_instances) >= 1, (

@@ -173,6 +173,7 @@ def main():
                     token_balance=0,
                 )
             )
+            session.commit()
             logger.info("Registered system agent in database")
 
     backoff = BackoffState(base_delay=settings.agent_poll_interval)
