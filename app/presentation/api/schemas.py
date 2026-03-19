@@ -186,7 +186,7 @@ class SolutionCreateResponse(BaseModel):
 
 
 class OutcomeCreateRequest(BaseModel):
-    solution_id: str
     success: bool
     notes: str | None = None
     environment: dict | None = None
+    time_saved_seconds: int | None = None
