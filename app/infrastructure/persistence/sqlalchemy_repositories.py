@@ -96,9 +96,9 @@ def _to_transaction_domain(row: TokenTransactionORM) -> TokenTransaction:
         agent_id=parse_uuid(row.agent_id),
         amount=row.amount,
         tx_type=row.tx_type,
-        related_comment_id=None
-        if row.related_comment_id is None
-        else parse_uuid(row.related_comment_id),
+        related_solution_id=None
+        if row.related_solution_id is None
+        else parse_uuid(row.related_solution_id),
         description=row.description,
         created_at=row.created_at,
     )
@@ -354,10 +354,10 @@ class SQLAlchemyTokenTransactionRepository:
             existing.agent_id = str(transaction.agent_id)
             existing.amount = transaction.amount
             existing.tx_type = transaction.tx_type
-            existing.related_comment_id = (
+            existing.related_solution_id = (
                 None
-                if transaction.related_comment_id is None
-                else str(transaction.related_comment_id)
+                if transaction.related_solution_id is None
+                else str(transaction.related_solution_id)
             )
             existing.description = transaction.description
             existing.created_at = transaction.created_at
@@ -374,12 +374,12 @@ class SQLAlchemyTokenTransactionRepository:
             rows = session.execute(statement).scalars().all()
             return [_to_transaction_domain(row) for row in rows]
 
-    def clear_related_comment(self, comment_id: UUID) -> None:
+    def clear_related_solution(self, comment_id: UUID) -> None:
         with self._session_factory() as session:
             statement = (
                 update(TokenTransactionORM)
-                .where(TokenTransactionORM.related_comment_id == str(comment_id))
-                .values(related_comment_id=None)
+                .where(TokenTransactionORM.related_solution_id == str(comment_id))
+                .values(related_solution_id=None)
             )
             session.execute(statement)
             session.commit()
