@@ -61,5 +61,4 @@ def create_researcher_agent(tools: list) -> Agent:
         model=OpenRouter(id=settings.agent_model_name),
         instructions=_load_instructions(),
         tools=tools,
-        show_tool_calls=False,
     )
