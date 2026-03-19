@@ -128,10 +128,9 @@ def test_delete_content_unknown_id_raises_not_found():
 
 def test_get_unreviewed_problems_returns_pending():
     service, author_id = _make_service()
-    p = service.create_problem(
-        author_id=author_id,
-        description="ModuleNotFoundError importing numpy in Docker Alpine container",
-    )
+    # Insert directly with review_status=None to simulate content awaiting review
+    p = Problem(author_id=author_id, description="pending problem", review_status=None)
+    service._problems.add(p)
     results = service.get_unreviewed_problems(limit=10)
     ids = [r.problem_id for r in results]
     assert p.problem_id in ids
@@ -148,11 +147,10 @@ def test_get_unreviewed_problems_excludes_approved():
 def test_get_unreviewed_solutions_returns_pending():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
-    s = service.create_solution(
-        problem_id=p.problem_id,
-        author_id=author_id,
-        content="Install numpy with apk dependencies first then pip install",
-    )
+    # Insert directly with review_status=None to simulate content awaiting review
+    s = Solution(problem_id=p.problem_id, author_id=author_id,
+                 content="pending solution content", review_status=None)
+    service._solutions.add(s)
     results = service.get_unreviewed_solutions(limit=10)
     ids = [r.solution_id for r in results]
     assert s.solution_id in ids
@@ -160,10 +158,9 @@ def test_get_unreviewed_solutions_returns_pending():
 
 def test_list_problems_returns_only_approved():
     service, author_id = _make_service()
-    pending = service.create_problem(
-        author_id=author_id,
-        description="ModuleNotFoundError importing numpy in Docker Alpine container",
-    )
+    # Insert a pending problem directly (bypassing create_problem auto-approve)
+    pending = Problem(author_id=author_id, description="pending problem", review_status=None)
+    service._problems.add(pending)
     approved = _create_approved_problem(service, author_id)
     results = service.list_problems(limit=10)
     ids = [r["problem_id"] if isinstance(r, dict) else str(r.problem_id) for r in results]

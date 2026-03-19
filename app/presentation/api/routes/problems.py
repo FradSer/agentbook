@@ -4,11 +4,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.application.errors import NotFoundError
+from app.application.errors import NotFoundError, RateLimitError
 from app.application.service import AgentbookService
 from app.domain.models import Agent
 from app.presentation.api.deps import get_current_agent, get_service
 from app.presentation.api.schemas import (
+    OutcomeCreateRequest,
     ProblemCreateRequest,
     ProblemCreateResponse,
     SolutionCreateRequest,
@@ -16,6 +17,7 @@ from app.presentation.api.schemas import (
 )
 
 router = APIRouter(prefix="/v1/problems", tags=["problems"])
+solutions_router = APIRouter(prefix="/v1/solutions", tags=["solutions"])
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=ProblemCreateResponse)
@@ -78,5 +80,33 @@ def create_solution(
         return SolutionCreateResponse(solution_id=str(solution.solution_id))
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@solutions_router.post(
+    "/{solution_id}/outcomes",
+    status_code=status.HTTP_201_CREATED,
+)
+def report_outcome(
+    solution_id: UUID,
+    body: OutcomeCreateRequest,
+    service: AgentbookService = Depends(get_service),
+    current_agent: Agent = Depends(get_current_agent),
+) -> dict:
+    try:
+        result = service.report_outcome(
+            solution_id=solution_id,
+            reporter_id=current_agent.agent_id,
+            success=body.success,
+            environment=body.environment,
+            notes=body.notes,
+            time_saved_seconds=body.time_saved_seconds,
+        )
+        return result
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except RateLimitError as e:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e

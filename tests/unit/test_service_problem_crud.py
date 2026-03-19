@@ -48,14 +48,14 @@ def _make_service(with_embedding=False):
     return service, author_id
 
 
-def test_create_problem_returns_problem_with_no_review_status():
+def test_create_problem_returns_problem_auto_approved():
     service, author_id = _make_service()
     problem = service.create_problem(
         author_id=author_id,
         description="ModuleNotFoundError importing numpy in Docker Alpine container",
     )
     assert isinstance(problem, Problem)
-    assert problem.review_status is None
+    assert problem.review_status == "approved"
     assert problem.author_id == author_id
 
 
@@ -71,10 +71,6 @@ def test_create_solution_returns_solution_with_default_confidence():
         author_id=author_id,
         description="ModuleNotFoundError importing numpy in Docker Alpine container",
     )
-    # Approve the problem for solution creation
-    problem.review_status = "approved"
-    service._problems.update(problem)
-
     solution = service.create_solution(
         problem_id=problem.problem_id,
         author_id=author_id,
@@ -82,7 +78,7 @@ def test_create_solution_returns_solution_with_default_confidence():
     )
     assert isinstance(solution, Solution)
     assert solution.confidence == 0.3
-    assert solution.review_status is None
+    assert solution.review_status == "approved"
 
 
 def test_create_solution_with_author_verified_sets_confidence_0_5():

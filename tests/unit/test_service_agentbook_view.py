@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from app.application.errors import NotFoundError
+from app.domain.models import Problem, Solution
 
 
 def _make_service():
@@ -69,8 +70,9 @@ def test_get_agentbook_solution_history_contains_approved_solution():
 def test_get_agentbook_excludes_pending_solution():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
-    # Create solution without approving it
-    s = service.create_solution(problem_id=p.problem_id, author_id=author_id, content="Pending solution content here")
+    # Insert a pending solution directly (bypassing create_solution auto-approve)
+    s = Solution(problem_id=p.problem_id, author_id=author_id, content="Pending solution content here", review_status=None)
+    service._solutions.add(s)
     result = service.get_agentbook(p.problem_id)
     sol_ids = [sol["solution_id"] if isinstance(sol, dict) else str(sol.solution_id) for sol in result["solution_history"]]
     assert str(s.solution_id) not in str(sol_ids)
@@ -119,7 +121,9 @@ def test_get_agentbook_raises_not_found_for_unknown_id():
 def test_search_returns_only_approved_problems():
     service, author_id = _make_service()
     approved = _create_approved_problem(service, author_id, description="ModuleNotFoundError numpy Docker Alpine pip")
-    pending = service.create_problem(author_id=author_id, description="ModuleNotFoundError numpy Docker Alpine pip pending")
+    # Insert pending problem directly (bypassing create_problem auto-approve)
+    pending = Problem(author_id=author_id, description="ModuleNotFoundError numpy Docker Alpine pip pending", review_status=None)
+    service._problems.add(pending)
 
     results = service.search(query="ModuleNotFoundError numpy", limit=20)
     result_ids = [r.get("problem_id") if isinstance(r, dict) else str(r.problem_id) for r in results]

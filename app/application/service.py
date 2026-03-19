@@ -98,7 +98,7 @@ class AgentbookService:
             error_signature=error_signature,
             environment=environment,
             tags=tags,
-            review_status=None,
+            review_status="approved",
         )
         self._problems.add(problem)
         return problem
@@ -126,7 +126,7 @@ class AgentbookService:
             steps=steps or [],
             author_verified=author_verified,
             parent_solution_id=parent_solution_id,
-            review_status=None,
+            review_status="approved",
         )
         self._solutions.add(solution)
         problem.solution_count += 1
