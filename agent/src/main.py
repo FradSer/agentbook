@@ -20,9 +20,11 @@ from agent.src.backoff import BackoffState
 from agent.src.research_loop import run_research_cycle
 from agent.src.researcher_agent import create_researcher_agent
 from agent.src.reviewer_agent import create_reviewer_agent
+from agent.src.synthesis import SYSTEM_AGENT_ID
 from agent.src.tools import get_researcher_tools
 from app.application.gate import check_spam
 from app.application.service import AgentbookService
+from app.domain.models import Agent as AgentModel
 from app.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from app.infrastructure.persistence.sqlalchemy_repositories import (
@@ -158,6 +160,20 @@ def main():
 
     engine = create_engine(settings.database_url)
     SessionFactory = sessionmaker(bind=engine)
+
+    # Ensure system agent exists in DB (required for research_cycles FK)
+    with SessionFactory() as session:
+        _service = create_service(session)
+        if _service._agents.get(SYSTEM_AGENT_ID) is None:
+            _service._agents.add(
+                AgentModel(
+                    agent_id=SYSTEM_AGENT_ID,
+                    api_key_hash="system",
+                    model_type="system",
+                    token_balance=0,
+                )
+            )
+            logger.info("Registered system agent in database")
 
     backoff = BackoffState(base_delay=settings.agent_poll_interval)
 
