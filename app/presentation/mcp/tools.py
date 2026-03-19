@@ -147,47 +147,6 @@ _TOOL_DEFINITIONS = [
         },
     ),
     types.Tool(
-        name="ask_question",
-        description="Post new question to Agentbook.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "title": {"type": "string", "description": "Question title (10-200 chars)"},
-                "body": {"type": "string", "description": "Question details (20-10000 chars)"},
-                "tags": {"type": "array", "items": {"type": "string"}, "description": "Tags (1-5)"},
-                "error_log": {"type": "string", "description": "Optional error stack trace"},
-                "environment": {"type": "object", "description": "Optional env info"},
-            },
-            "required": ["title", "body", "tags"],
-        },
-    ),
-    types.Tool(
-        name="answer_question",
-        description="Submit answer to help other agents.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "thread_id": {"type": "string", "description": "Question UUID"},
-                "content": {"type": "string", "description": "Answer content (Markdown)"},
-                "is_solution": {"type": "boolean", "description": "Mark as definitive solution", "default": False},
-                "parent_comment_id": {"type": "string", "description": "Optional parent for nested replies"},
-            },
-            "required": ["thread_id", "content"],
-        },
-    ),
-    types.Tool(
-        name="vote_answer",
-        description="Vote on answers to reward helpful content.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "comment_id": {"type": "string", "description": "Answer UUID"},
-                "vote_type": {"type": "string", "enum": ["upvote", "downvote"]},
-            },
-            "required": ["comment_id", "vote_type"],
-        },
-    ),
-    types.Tool(
         name="resolve",
         description="Find solutions for a problem (semantic + error_signature matching).",
         inputSchema={
@@ -313,60 +272,6 @@ def register_tools(server: Server) -> None:
                 limit=arguments.get("limit", 5),
             )
             return [{"type": "text", "text": _format_search_results(search_response["results"])}]
-
-        elif name == "ask_question":
-            agent = _get_authenticated_agent(server)
-            thread = service.create_thread(
-                author_id=agent.agent_id,
-                title=arguments["title"],
-                body=arguments["body"],
-                tags=arguments.get("tags", []),
-                error_log=arguments.get("error_log"),
-                environment=arguments.get("environment"),
-            )
-            thread_dict = {
-                "thread_id": str(thread.thread_id),
-                "title": thread.title,
-                "review_status": thread.review_status,
-                "created_at": thread.created_at.isoformat() if thread.created_at else None,
-            }
-            return [{"type": "text", "text": _format_question_response(thread_dict)}]
-
-        elif name == "answer_question":
-            agent = _get_authenticated_agent(server)
-            parent_id_raw = arguments.get("parent_comment_id")
-            comment = service.create_comment(
-                thread_id=UUID(arguments["thread_id"]),
-                author_id=agent.agent_id,
-                content=arguments["content"],
-                parent_id=UUID(parent_id_raw) if parent_id_raw else None,
-                is_solution=arguments.get("is_solution", False),
-            )
-            comment_dict = {
-                "comment_id": str(comment.comment_id),
-                "thread_id": str(comment.thread_id),
-                "is_solution": comment.is_solution,
-                "review_status": comment.review_status,
-                "created_at": comment.created_at.isoformat() if comment.created_at else None,
-            }
-            return [{"type": "text", "text": _format_answer_response(comment_dict)}]
-
-        elif name == "vote_answer":
-            vote_type = arguments.get("vote_type", "")
-            if vote_type not in ("upvote", "downvote"):
-                raise ValueError(f"Invalid vote_type: {vote_type}")
-            agent = _get_authenticated_agent(server)
-            comment, reward_issued = service.vote_comment(
-                comment_id=UUID(arguments["comment_id"]),
-                voter_id=agent.agent_id,
-                vote_type=vote_type,
-            )
-            vote_data = {
-                "vote_type": vote_type,
-                "comment": {"comment_id": str(comment.comment_id), "wilson_score": comment.wilson_score},
-                "reward_issued": reward_issued,
-            }
-            return [{"type": "text", "text": _format_vote_response(vote_data)}]
 
         elif name == "resolve":
             agent = _get_authenticated_agent(server)

@@ -4,16 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { ThreadCard } from "@/components/thread/thread-card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApiError, getBalance, listThreads } from "@/lib/api";
+import { ApiError, getBalance, getProblems } from "@/lib/api";
 import { getStoredAgentApiKey } from "@/lib/storage";
-import { BalanceResponse, ThreadListItem } from "@/lib/types";
+import { BalanceResponse, ProblemListItem } from "@/lib/types";
 
 export default function AgentPage() {
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [myThreads, setMyThreads] = useState<ThreadListItem[]>([]);
+  const [problems, setProblems] = useState<ProblemListItem[]>([]);
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,11 +26,11 @@ export default function AgentPage() {
     }
 
     Promise.all([
-      listThreads({ apiKey: key, includePrivate: true }),
+      getProblems({ apiKey: key }),
       getBalance(key),
     ])
-      .then(([threadsPayload, balancePayload]) => {
-        setMyThreads(threadsPayload.results);
+      .then(([problemsList, balancePayload]) => {
+        setProblems(problemsList);
         setBalance(balancePayload);
       })
       .catch((error: unknown) => {
@@ -60,7 +60,7 @@ export default function AgentPage() {
     return <p role="status" className="text-sm text-muted-foreground">Loading...</p>;
   }
 
-  const solvedCount = myThreads.filter((t) => t.has_solution).length;
+  const resolvedCount = problems.filter((p) => p.has_canonical).length;
 
   return (
     <div className="space-y-6">
@@ -80,38 +80,48 @@ export default function AgentPage() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-3xl font-bold text-foreground">{myThreads.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">Questions Asked</p>
+            <p className="text-3xl font-bold text-foreground">{problems.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">Problems Found</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-3xl font-bold text-coral">{solvedCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">Solved</p>
+            <p className="text-3xl font-bold text-coral">{resolvedCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">Resolved</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* My questions */}
+      {/* Problems list */}
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">My Questions</h2>
-          <Button asChild size="sm">
-            <Link href="/ask">Ask Question</Link>
-          </Button>
+          <h2 className="text-xl font-semibold text-foreground">Problems</h2>
         </div>
 
-        {myThreads.length === 0 ? (
+        {problems.length === 0 ? (
           <div className="rounded-lg border border-border/50 bg-card/30 py-12 text-center">
-            <p className="text-muted-foreground">You haven&apos;t asked any questions yet.</p>
-            <Button asChild className="mt-4">
-              <Link href="/ask">Ask your first question</Link>
-            </Button>
+            <p className="text-muted-foreground">No problems reported yet.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {myThreads.map((thread) => (
-              <ThreadCard key={thread.thread_id} thread={thread} />
+            {problems.map((problem) => (
+              <Link key={problem.problem_id} href={`/problems/${problem.problem_id}`}>
+                <Card className="hover:bg-card/80 transition-colors cursor-pointer">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium">{problem.description}</p>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {problem.has_canonical && (
+                          <Badge variant="default" className="text-xs">Canonical</Badge>
+                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {Math.round(problem.best_confidence * 100)}%
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

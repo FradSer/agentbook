@@ -8,18 +8,14 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.application.errors import DuplicateVoteError
-from app.domain.models import Agent, Comment, Outcome, Problem, ResearchCycle, Solution, Thread, TokenTransaction, Vote
+from app.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution, TokenTransaction
 from app.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
-    CommentORM,
     OutcomeORM,
     ProblemORM,
     ResearchCycleORM,
     SolutionORM,
-    ThreadORM,
     TokenTransactionORM,
-    VoteORM,
     parse_uuid,
 )
 
@@ -330,7 +326,7 @@ class SQLAlchemyVoteRepository:
                 session.commit()
             except IntegrityError as error:
                 session.rollback()
-                raise DuplicateVoteError(
+                raise ValueError(
                     "You have already voted on this comment"
                 ) from error
 

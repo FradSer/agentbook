@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 # Load config (which loads .env)
 from agent.src.config import settings  # noqa: E402
@@ -20,21 +20,18 @@ from agent.src.backoff import BackoffState
 from agent.src.research_loop import run_research_cycle
 from agent.src.researcher_agent import create_researcher_agent
 from agent.src.reviewer_agent import create_reviewer_agent
-from agent.src.rules import ContentRules
 from agent.src.tools import get_researcher_tools
+from app.application.gate import check_spam
 from app.application.service import AgentbookService
 from app.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
-    SQLAlchemyCommentRepository,
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
     SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
-    SQLAlchemyThreadRepository,
     SQLAlchemyTokenTransactionRepository,
-    SQLAlchemyVoteRepository,
 )
 
 
@@ -47,9 +44,6 @@ def create_service(session: Session) -> AgentbookService:
 
     return AgentbookService(
         agents=SQLAlchemyAgentRepository(session_factory),
-        threads=SQLAlchemyThreadRepository(session_factory),
-        comments=SQLAlchemyCommentRepository(session_factory),
-        votes=SQLAlchemyVoteRepository(session_factory),
         transactions=SQLAlchemyTokenTransactionRepository(session_factory),
         embedding_provider=embedding_provider,
         problems=SQLAlchemyProblemRepository(session_factory),
@@ -68,123 +62,40 @@ async def _run_agent_review(agent, prompt: str):
     return await loop.run_in_executor(None, agent.run, prompt)
 
 
-async def review_threads(agent, service) -> int:
-    """Review unreviewed threads"""
-    retry_error_before = datetime.now(UTC) - timedelta(
-        seconds=settings.agent_poll_interval
-    )
-    threads = service.get_unreviewed_threads(
-        limit=settings.agent_batch_size,
-        retry_error_before=retry_error_before,
-    )
-    logger.info(f"Found {len(threads)} unreviewed threads")
+def review_content(agent, service) -> int:
+    """Review unreviewed problems and solutions using Stage 1 gate + AI."""
+    count = 0
 
-    for thread in threads:
-        result, reason = ContentRules.check_thread(thread.title, thread.body)
-
-        if result == "reject":
-            logger.info(f"Rule-rejected thread {thread.thread_id}: {reason}")
-            service.update_thread_review(
-                thread_id=thread.thread_id,
+    problems = service.get_unreviewed_problems(limit=100)
+    for p in problems:
+        result = check_spam(p.description, "problem")
+        if not result.passed:
+            service.update_review(
+                content_id=p.problem_id,
                 status="rejected",
                 score=0.0,
                 reviewed_at=datetime.now(UTC),
             )
-            service.delete_thread(thread.thread_id)
-            continue
+        else:
+            agent.run(f"Review this problem (ID: {p.problem_id}): {p.description}")
+        count += 1
 
-        prompt = f"""
-Review this thread:
-
-**Thread ID**: {thread.thread_id}
-**Title**: {thread.title}
-**Body**: {thread.body}
-
-        Call exactly one tool: approve_thread or reject_thread.
-Use the exact `thread_id` above when calling the tool.
-"""
-        try:
-            response = await _run_agent_review(agent, prompt)
-            response_status = str(getattr(response, "status", "")).lower()
-            if "error" in response_status:
-                logger.error(f"Agent failed for thread {thread.thread_id}: {response}")
-                service.update_thread_review(
-                    thread_id=thread.thread_id,
-                    status="error",
-                    score=0.0,
-                    reviewed_at=datetime.now(UTC),
-                )
-                continue
-            logger.info(f"Reviewed thread {thread.thread_id}: {response}")
-        except Exception as e:
-            logger.error(f"Error reviewing thread {thread.thread_id}: {e}")
-            service.update_thread_review(
-                thread_id=thread.thread_id,
-                status="error",
-                score=0.0,
-                reviewed_at=datetime.now(UTC),
-            )
-    return len(threads)
-
-
-async def review_comments(agent, service) -> int:
-    """Review unreviewed comments"""
-    retry_error_before = datetime.now(UTC) - timedelta(
-        seconds=settings.agent_poll_interval
-    )
-    comments = service.get_unreviewed_comments(
-        limit=settings.agent_batch_size,
-        retry_error_before=retry_error_before,
-    )
-    logger.info(f"Found {len(comments)} unreviewed comments")
-
-    for comment in comments:
-        result, reason = ContentRules.check_comment(comment.content)
-
-        if result == "reject":
-            logger.info(f"Rule-rejected comment {comment.comment_id}: {reason}")
-            service.update_comment_review(
-                comment_id=comment.comment_id,
+    solutions = service.get_unreviewed_solutions(limit=100)
+    for s in solutions:
+        content = s.content if hasattr(s, "content") else ""
+        result = check_spam(content, "solution")
+        if not result.passed:
+            service.update_review(
+                content_id=s.solution_id,
                 status="rejected",
                 score=0.0,
                 reviewed_at=datetime.now(UTC),
             )
-            service.delete_comment(comment.comment_id)
-            continue
+        else:
+            agent.run(f"Review this solution (ID: {s.solution_id}): {content}")
+        count += 1
 
-        prompt = f"""
-Review this comment:
-
-**Comment ID**: {comment.comment_id}
-**Content**: {comment.content}
-
-Call exactly one tool: approve_comment or reject_comment.
-Use the exact `comment_id` above when calling the tool.
-"""
-        try:
-            response = await _run_agent_review(agent, prompt)
-            response_status = str(getattr(response, "status", "")).lower()
-            if "error" in response_status:
-                logger.error(
-                    f"Agent failed for comment {comment.comment_id}: {response}"
-                )
-                service.update_comment_review(
-                    comment_id=comment.comment_id,
-                    status="error",
-                    score=0.0,
-                    reviewed_at=datetime.now(UTC),
-                )
-                continue
-            logger.info(f"Reviewed comment {comment.comment_id}: {response}")
-        except Exception as e:
-            logger.error(f"Error reviewing comment {comment.comment_id}: {e}")
-            service.update_comment_review(
-                comment_id=comment.comment_id,
-                status="error",
-                score=0.0,
-                reviewed_at=datetime.now(UTC),
-            )
-    return len(comments)
+    return count
 
 
 async def run_cycle_until_idle(
@@ -205,9 +116,7 @@ async def run_cycle_until_idle(
 
     while True:
         iteration += 1
-        threads_seen = await review_threads(agent, service)
-        comments_seen = await review_comments(agent, service)
-        batch_seen = threads_seen + comments_seen
+        batch_seen = review_content(agent, service)
         processed_total += batch_seen
 
         if batch_seen == 0:

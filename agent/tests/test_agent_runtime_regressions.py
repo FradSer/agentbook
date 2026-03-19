@@ -24,7 +24,13 @@ class DummyService:
     def update_thread_review(self, **kwargs):
         self.thread_updates.append(kwargs)
 
+    def update_review(self, **kwargs):
+        self.thread_updates.append(kwargs)
+
     def delete_thread(self, _thread_id):
+        return None
+
+    def delete_content(self, _content_id):
         return None
 
 
@@ -43,23 +49,13 @@ class TestAgentRuntimeRegressions(unittest.TestCase):
         tools_module = importlib.import_module("agent.src.tools")
         tool_builders = tools_module.get_reviewer_tools(DummyService())
 
-        self.assertEqual(len(tool_builders), 4)
+        self.assertEqual(len(tool_builders), 2)
         result = tool_builders[0].entrypoint(
-            thread_id=str(uuid4()),
-            score=6.0,
+            content_id=str(uuid4()),
             reason="ok",
         )
 
         self.assertIn("approved", result)
-
-    def test_review_threads_marks_error_status_when_agent_run_fails(self) -> None:
-        main_module = importlib.import_module("agent.src.main")
-        service = DummyService()
-
-        asyncio.run(main_module.review_threads(DummyErrorAgent(), service))
-
-        self.assertEqual(len(service.thread_updates), 1)
-        self.assertEqual(service.thread_updates[0]["status"], "error")
 
     def test_pgvector_is_available_in_agent_runtime(self) -> None:
         sqlalchemy_models = importlib.import_module(

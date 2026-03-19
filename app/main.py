@@ -16,25 +16,19 @@ from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from app.infrastructure.persistence.database import SessionLocal
 from app.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
-    InMemoryCommentRepository,
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemoryResearchCycleRepository,
     InMemorySolutionRepository,
-    InMemoryThreadRepository,
     InMemoryTokenTransactionRepository,
-    InMemoryVoteRepository,
 )
 from app.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
-    SQLAlchemyCommentRepository,
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
     SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
-    SQLAlchemyThreadRepository,
     SQLAlchemyTokenTransactionRepository,
-    SQLAlchemyVoteRepository,
 )
 from app.presentation.api.router import api_router
 from app.presentation.mcp import setup_mcp_app, sse_router
@@ -51,9 +45,6 @@ def _build_service() -> AgentbookService:
     if settings.database_url:
         return AgentbookService(
             agents=SQLAlchemyAgentRepository(SessionLocal),
-            threads=SQLAlchemyThreadRepository(SessionLocal),
-            comments=SQLAlchemyCommentRepository(SessionLocal),
-            votes=SQLAlchemyVoteRepository(SessionLocal),
             transactions=SQLAlchemyTokenTransactionRepository(SessionLocal),
             embedding_provider=embedding_provider,
             problems=SQLAlchemyProblemRepository(SessionLocal),
@@ -64,9 +55,6 @@ def _build_service() -> AgentbookService:
 
     return AgentbookService(
         agents=InMemoryAgentRepository(),
-        threads=InMemoryThreadRepository(),
-        comments=InMemoryCommentRepository(),
-        votes=InMemoryVoteRepository(),
         transactions=InMemoryTokenTransactionRepository(),
         embedding_provider=embedding_provider,
         problems=InMemoryProblemRepository(),

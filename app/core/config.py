@@ -24,7 +24,7 @@ class Settings(SharedSettings):
 
     # Token economy
     initial_token_balance: int = 100
-    reward_per_upvote: int = 10
+    reward_per_successful_outcome: int = 5
 
     # OpenRouter embeddings (api_key inherited from SharedSettings)
     openrouter_embedding_model: str = "openai/text-embedding-3-small"

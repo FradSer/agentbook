@@ -1,72 +1,39 @@
 import importlib
 import sys
 import unittest
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
 
-class DummyAsyncAgent:
+class DummySyncAgent:
     def __init__(self) -> None:
-        self.arun_calls = 0
+        self.run_calls = 0
 
-    async def arun(self, _prompt: str):
-        self.arun_calls += 1
+    def run(self, _prompt: str):
+        self.run_calls += 1
         return SimpleNamespace(status="COMPLETED", content="ok")
 
 
 class DrainService:
     def __init__(self) -> None:
-        self.thread_fetches = 0
+        self.problem_fetches = 0
 
-    def get_unreviewed_threads(self, limit: int, retry_error_before=None):
-        self.thread_fetches += 1
-        if self.thread_fetches == 1:
+    def get_unreviewed_problems(self, limit: int):
+        self.problem_fetches += 1
+        if self.problem_fetches == 1:
             return [
                 SimpleNamespace(
-                    thread_id=uuid4(), title="valid title", body="valid thread body"
+                    problem_id=uuid4(),
+                    description="valid problem description that is long enough",
                 )
             ]
         return []
 
-    def get_unreviewed_comments(self, limit: int, retry_error_before=None):
+    def get_unreviewed_solutions(self, limit: int):
         return []
 
-    def update_thread_review(self, **kwargs):
-        return None
-
-    def update_comment_review(self, **kwargs):
-        return None
-
-    def delete_thread(self, _thread_id):
-        return None
-
-    def delete_comment(self, _comment_id):
-        return None
-
-
-class RetryBackoffService:
-    def __init__(self) -> None:
-        self.retry_error_before = None
-
-    def get_unreviewed_threads(self, limit: int, retry_error_before=None):
-        self.retry_error_before = retry_error_before
-        return []
-
-    def get_unreviewed_comments(self, limit: int, retry_error_before=None):
-        return []
-
-    def update_thread_review(self, **kwargs):
-        return None
-
-    def update_comment_review(self, **kwargs):
-        return None
-
-    def delete_thread(self, _thread_id):
-        return None
-
-    def delete_comment(self, _comment_id):
+    def update_review(self, **kwargs):
         return None
 
 
@@ -76,45 +43,17 @@ class TestAsyncCycle(unittest.IsolatedAsyncioTestCase):
         if str(project_root) not in sys.path:
             sys.path.insert(0, str(project_root))
 
-    async def test_review_threads_uses_async_agent(self) -> None:
-        main_module = importlib.import_module("agent.src.main")
-        service = DrainService()
-        agent = DummyAsyncAgent()
-
-        reviewed = await main_module.review_threads(agent, service)
-
-        self.assertEqual(reviewed, 1)
-        self.assertEqual(agent.arun_calls, 1)
-
     async def test_cycle_drains_backlog_before_sleep_boundary(self) -> None:
         main_module = importlib.import_module("agent.src.main")
         service = DrainService()
-        agent = DummyAsyncAgent()
+        agent = DummySyncAgent()
 
         metrics = await main_module.run_cycle_until_idle(
             agent, service, max_cycle_seconds=10, continue_delay_seconds=0
         )
 
-        self.assertGreaterEqual(service.thread_fetches, 2)
+        self.assertGreaterEqual(service.problem_fetches, 2)
         self.assertEqual(metrics["processed"], 1)
-
-    async def test_review_threads_passes_retry_cutoff_for_error_items(self) -> None:
-        main_module = importlib.import_module("agent.src.main")
-        service = RetryBackoffService()
-        agent = DummyAsyncAgent()
-
-        await main_module.review_threads(agent, service)
-
-        self.assertIsNotNone(service.retry_error_before)
-        cutoff = service.retry_error_before
-        self.assertIsNotNone(cutoff.tzinfo)
-        delta = datetime.now(UTC) - cutoff
-        self.assertGreaterEqual(
-            delta, timedelta(seconds=main_module.settings.agent_poll_interval - 5)
-        )
-        self.assertLessEqual(
-            delta, timedelta(seconds=main_module.settings.agent_poll_interval + 5)
-        )
 
 
 if __name__ == "__main__":

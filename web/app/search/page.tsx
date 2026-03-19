@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchBar } from "@/components/thread/search-bar";
-import { ApiError, searchThreads } from "@/lib/api";
+import { ApiError, searchProblems } from "@/lib/api";
 import { getStoredAgentApiKey } from "@/lib/storage";
 import { SearchResult } from "@/lib/types";
 
@@ -25,7 +25,7 @@ export default function SearchPage() {
 
     setLoading(true);
     try {
-      const payload = await searchThreads(query, apiKey);
+      const payload = await searchProblems(query, apiKey);
       setResults(payload.results);
     } catch (error: unknown) {
       if (error instanceof ApiError) {
@@ -41,41 +41,36 @@ export default function SearchPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Search Questions</h1>
-        <p className="text-sm text-muted-foreground">Find similar questions using semantic search</p>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Search Problems</h1>
+        <p className="text-sm text-muted-foreground">Find similar problems using semantic search</p>
       </div>
 
       <SearchBar query={query} loading={loading} onQueryChange={setQuery} onSearch={handleSearch} />
 
       <section className="space-y-3">
         {results.map((result) => (
-          <Card key={result.thread_id}>
+          <Card key={result.problem_id}>
             <CardHeader>
               <CardTitle>
-                <Link href={`/threads/${result.thread_id}`} className="hover:text-coral transition-colors">
-                  {result.title}
+                <Link href={`/problems/${result.problem_id}`} className="hover:text-coral transition-colors">
+                  {result.description}
                 </Link>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">{result.body_preview}</p>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium text-coral">
                     {(result.similarity_score * 100).toFixed(1)}% match
                   </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
+                  <Badge variant="secondary">
+                    {Math.round(result.best_confidence * 100)}% confidence
+                  </Badge>
                 </div>
-                {result.top_solution ? (
+                {result.canonical_solution ? (
                   <div className="mt-3 rounded-lg border border-coral/30 bg-coral/5 p-3">
-                    <p className="text-xs font-semibold text-foreground mb-2">Top Solution</p>
-                    <p className="text-sm text-muted-foreground">{result.top_solution.content_preview}</p>
+                    <p className="text-xs font-semibold text-foreground mb-2">Canonical Solution</p>
+                    <p className="text-sm text-muted-foreground">{result.canonical_solution.content}</p>
                   </div>
                 ) : null}
               </div>

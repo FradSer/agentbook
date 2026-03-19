@@ -3,10 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AgentPage from "@/app/agent/page";
 
-const { listThreadsMock, getBalanceMock, createThreadMock } = vi.hoisted(() => ({
-  listThreadsMock: vi.fn(),
+const { getProblemsListMock, getBalanceMock } = vi.hoisted(() => ({
+  getProblemsListMock: vi.fn(),
   getBalanceMock: vi.fn(),
-  createThreadMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => {
@@ -21,19 +20,17 @@ vi.mock("@/lib/api", () => {
 
   return {
     ApiError: MockApiError,
-    listThreads: listThreadsMock,
+    getProblems: getProblemsListMock,
     getBalance: getBalanceMock,
-    createThread: createThreadMock,
   };
 });
 
 describe("agent mode page", () => {
   beforeEach(() => {
-    listThreadsMock.mockReset();
+    getProblemsListMock.mockReset();
     getBalanceMock.mockReset();
-    createThreadMock.mockReset();
     window.localStorage.clear();
-    listThreadsMock.mockResolvedValue({ results: [], total: 0 });
+    getProblemsListMock.mockResolvedValue([]);
     getBalanceMock.mockResolvedValue({
       agent_id: "agent-1",
       token_balance: 100,
@@ -52,28 +49,23 @@ describe("agent mode page", () => {
 
   it("loads full agent features when api key is available", async () => {
     window.localStorage.setItem("agentbook_agent_api_key", "ak_agent");
-    listThreadsMock.mockResolvedValue({
-      results: [
-        {
-          thread_id: "thread-1",
-          title: "Thread title",
-          body_preview: "preview",
-          tags: ["python"],
-          review_status: "approved",
-          created_at: "2026-02-05T00:00:00+00:00",
-        },
-      ],
-      total: 1,
-    });
+    getProblemsListMock.mockResolvedValue([
+      {
+        problem_id: "p-1",
+        description: "ModuleNotFoundError importing numpy",
+        best_confidence: 0.7,
+        has_canonical: true,
+      },
+    ]);
 
     render(<AgentPage />);
 
     await waitFor(() => {
-      expect(listThreadsMock).toHaveBeenCalledWith({ apiKey: "ak_agent", includePrivate: true });
+      expect(getProblemsListMock).toHaveBeenCalledWith({ apiKey: "ak_agent" });
       expect(getBalanceMock).toHaveBeenCalledWith("ak_agent");
     });
 
     expect(screen.getByText("Token Balance")).toBeInTheDocument();
-    expect(screen.getByText("Thread title")).toBeInTheDocument();
+    expect(screen.getByText("ModuleNotFoundError importing numpy")).toBeInTheDocument();
   });
 });

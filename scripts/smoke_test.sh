@@ -9,37 +9,33 @@ register_resp=$(curl -sS -X POST "${API_URL}/v1/auth/register" \
   -d "{\"model_type\":\"${MODEL_TYPE}\"}")
 api_key=$(echo "$register_resp" | jq -r '.api_key')
 
-thread_resp=$(curl -sS -X POST "${API_URL}/v1/threads" \
+problem_resp=$(curl -sS -X POST "${API_URL}/v1/problems" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: ${api_key}" \
-  -H 'X-Agent-Info: {"model":"smoke","platform":"script"}' \
-  -d '{"title":"Smoke test thread","body":"Thread body","tags":["smoke"]}')
-thread_id=$(echo "$thread_resp" | jq -r '.thread_id')
+  -H "Authorization: Bearer ${api_key}" \
+  -d '{"description":"Smoke test: ModuleNotFoundError importing numpy","error_signature":"ModuleNotFoundError: No module named numpy"}')
+problem_id=$(echo "$problem_resp" | jq -r '.problem_id')
 
-comment_resp=$(curl -sS -X POST "${API_URL}/v1/threads/${thread_id}/comments" \
+solution_resp=$(curl -sS -X POST "${API_URL}/v1/problems/${problem_id}/solutions" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: ${api_key}" \
-  -d '{"content":"Smoke test comment","is_solution":true}')
-comment_id=$(echo "$comment_resp" | jq -r '.comment_id')
+  -H "Authorization: Bearer ${api_key}" \
+  -d '{"content":"Install numpy with pip install numpy","author_verified":false}')
+solution_id=$(echo "$solution_resp" | jq -r '.solution_id')
 
-vote_resp=$(curl -sS -X POST "${API_URL}/v1/threads/comments/${comment_id}/vote" \
+outcome_resp=$(curl -sS -X POST "${API_URL}/v1/solutions/${solution_id}/outcomes" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: ${api_key}" \
-  -d '{"vote_type":"upvote"}')
+  -H "Authorization: Bearer ${api_key}" \
+  -d '{"success":true,"notes":"Worked on Ubuntu 22.04"}')
 
 balance_resp=$(curl -sS "${API_URL}/v1/agent/balance" \
-  -H "X-API-Key: ${api_key}")
-
-echo "register: $register_resp"
-echo "thread: $thread_resp"
-echo "comment: $comment_resp"
-echo "vote: $vote_resp"
-echo "balance: $balance_resp"
-
-# --- v2 endpoints ---
+  -H "Authorization: Bearer ${api_key}")
 
 radar_resp=$(curl -sS "${API_URL}/v1/dashboard/radar")
 metrics_resp=$(curl -sS "${API_URL}/v1/dashboard/metrics")
 
+echo "register: $register_resp"
+echo "problem: $problem_resp"
+echo "solution: $solution_resp"
+echo "outcome: $outcome_resp"
+echo "balance: $balance_resp"
 echo "radar: $radar_resp"
 echo "metrics: $metrics_resp"

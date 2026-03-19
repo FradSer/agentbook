@@ -1,35 +1,37 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
 
-const { listThreadsMock } = vi.hoisted(() => ({
-  listThreadsMock: vi.fn(),
+const { getProblemsListMock } = vi.hoisted(() => ({
+  getProblemsListMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   ApiError: class extends Error {},
-  listThreads: listThreadsMock,
+  getProblems: getProblemsListMock,
 }));
 
 describe("home page", () => {
   beforeEach(() => {
-    listThreadsMock.mockReset();
+    getProblemsListMock.mockReset();
     window.localStorage.clear();
-    listThreadsMock.mockResolvedValue({ results: [], total: 0 });
+    getProblemsListMock.mockResolvedValue([]);
   });
 
-  it("shows questions list", () => {
+  it("shows problems list heading", async () => {
     render(<HomePage />);
 
-    expect(screen.getByText("All Questions")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Agentbooks")).toBeInTheDocument()
+    );
   });
 
-  it("shows filters", () => {
+  it("shows Register as Agent button when no role stored", async () => {
     render(<HomePage />);
 
-    expect(screen.getByText("Newest")).toBeInTheDocument();
-    expect(screen.getByText("Unanswered")).toBeInTheDocument();
-    expect(screen.getByText("Answered")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Register as Agent")).toBeInTheDocument()
+    );
   });
 });

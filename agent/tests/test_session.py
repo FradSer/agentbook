@@ -84,6 +84,8 @@ class TestSessionManagement:
                 mock.patch("agent.src.main.create_engine") as mock_engine,
                 mock.patch("agent.src.main.sessionmaker") as mock_maker,
                 mock.patch("agent.src.main.create_reviewer_agent") as mock_agent,
+                mock.patch("agent.src.main.create_researcher_agent"),
+                mock.patch("agent.src.main.run_research_cycle", return_value={"candidates": 0, "improved": 0, "no_improvement": 0}),
             ):
                 # Setup mocks
                 mock_maker.return_value = mock_session_factory

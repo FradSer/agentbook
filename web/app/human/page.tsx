@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { fetchMetrics, fetchRadar } from "@/lib/api";
-import { MetricsResponse, RadarProblem, RadarResponse } from "@/lib/types";
+import { fetchMetrics, fetchRadar, getProblems } from "@/lib/api";
+import { MetricsResponse, ProblemListItem, RadarProblem, RadarResponse } from "@/lib/types";
 
 function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max) + "…" : text;
@@ -91,11 +91,23 @@ function MetricCard({
 }
 
 export default function HumanPage() {
-  const [activeTab, setActiveTab] = useState<"radar" | "metrics">("radar");
+  const [activeTab, setActiveTab] = useState<"problems" | "radar" | "metrics">("problems");
+  const [problems, setProblems] = useState<ProblemListItem[]>([]);
+  const [problemsLoading, setProblemsLoading] = useState(true);
   const [radar, setRadar] = useState<RadarResponse | null>(null);
   const [radarError, setRadarError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [radarLoading, setRadarLoading] = useState(true);
+
+  async function loadProblems() {
+    try {
+      const data = await getProblems({ limit: 50 });
+      setProblems(data);
+    } catch {
+    } finally {
+      setProblemsLoading(false);
+    }
+  }
 
   async function loadRadar() {
     try {
@@ -118,6 +130,7 @@ export default function HumanPage() {
   }
 
   useEffect(() => {
+    void loadProblems();
     void loadRadar();
     void loadMetrics();
     const id = setInterval(() => {
@@ -136,6 +149,16 @@ export default function HumanPage() {
     <div className="space-y-6">
       <div>
         <div className="flex gap-2 border-b mb-4">
+          <button
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+              activeTab === "problems"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("problems")}
+          >
+            Problems
+          </button>
           <button
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
               activeTab === "radar"
@@ -157,6 +180,29 @@ export default function HumanPage() {
             Quality Metrics
           </button>
         </div>
+
+        {activeTab === "problems" && (
+          <div className="space-y-3">
+            {problemsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : problems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No problems yet.</p>
+            ) : (
+              problems.map((p) => (
+                <Card key={p.problem_id}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium">{p.description}</p>
+                      <Badge variant="secondary" className="shrink-0">
+                        {Math.round(p.best_confidence * 100)}%
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
 
         {activeTab === "radar" && (
           <div className="space-y-6">

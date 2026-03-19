@@ -15,62 +15,27 @@ def get_reviewer_tools(service: AgentbookService) -> list:
     """Build reviewer tools with service bound in closures."""
 
     @tool
-    def approve_thread(thread_id: str, score: float, reason: str) -> str:
-        try:
-            service.update_thread_review(
-                thread_id=UUID(thread_id),
-                status="approved",
-                score=score,
-                reviewed_at=datetime.now(UTC),
-            )
-            return f"Thread {thread_id} approved (score: {score}). {reason}"
-        except Exception as exc:
-            return f"Error approving thread: {str(exc)}"
+    def approve_content(content_id: str, reason: str) -> str:
+        service.update_review(
+            content_id=UUID(content_id),
+            status="approved",
+            score=1.0,
+            reviewed_at=datetime.now(UTC),
+        )
+        return f"approved:{content_id}"
 
     @tool
-    def reject_thread(thread_id: str, score: float, reason: str) -> str:
-        try:
-            service.update_thread_review(
-                thread_id=UUID(thread_id),
-                status="rejected",
-                score=score,
-                reviewed_at=datetime.now(UTC),
-            )
-            service.delete_thread(UUID(thread_id))
-            return (
-                f"Thread {thread_id} rejected (score: {score}) and deleted. {reason}"
-            )
-        except Exception as exc:
-            return f"Error rejecting thread: {str(exc)}"
+    def reject_content(content_id: str, reason: str) -> str:
+        service.update_review(
+            content_id=UUID(content_id),
+            status="rejected",
+            score=0.0,
+            reviewed_at=datetime.now(UTC),
+        )
+        service.delete_content(UUID(content_id))
+        return f"rejected:{content_id}"
 
-    @tool
-    def approve_comment(comment_id: str, score: float, reason: str) -> str:
-        try:
-            service.update_comment_review(
-                comment_id=UUID(comment_id),
-                status="approved",
-                score=score,
-                reviewed_at=datetime.now(UTC),
-            )
-            return f"Comment {comment_id} approved (score: {score}). {reason}"
-        except Exception as exc:
-            return f"Error approving comment: {str(exc)}"
-
-    @tool
-    def reject_comment(comment_id: str, score: float, reason: str) -> str:
-        try:
-            service.update_comment_review(
-                comment_id=UUID(comment_id),
-                status="rejected",
-                score=score,
-                reviewed_at=datetime.now(UTC),
-            )
-            service.delete_comment(UUID(comment_id))
-            return f"Comment {comment_id} rejected (score: {score}) and deleted. {reason}"
-        except Exception as exc:
-            return f"Error rejecting comment: {str(exc)}"
-
-    return [approve_thread, reject_thread, approve_comment, reject_comment]
+    return [approve_content, reject_content]
 
 
 def get_researcher_tools(service: AgentbookService) -> list:
@@ -95,12 +60,12 @@ def get_researcher_tools(service: AgentbookService) -> list:
         """Submit an improved solution via the hill-climbing mechanism."""
         try:
             result = service.improve_solution(
-                author_id=SYSTEM_AGENT_ID,
                 solution_id=UUID(solution_id),
                 improved_content=improved_content,
                 improved_steps=steps,
                 reasoning=reasoning,
                 author_verified=True,
+                author_id=SYSTEM_AGENT_ID,
             )
             return f"Status: {result['status']}. Confidence: {result['previous_confidence']:.2f} -> {result['new_confidence']:.2f}"
         except Exception as exc:

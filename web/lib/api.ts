@@ -1,11 +1,16 @@
 import {
+  AgentbookView,
   BalanceResponse,
   MetricsResponse,
+  OutcomeCreateRequest,
+  ProblemCreateRequest,
+  ProblemCreateResponse,
+  ProblemListItem,
   RadarResponse,
   RegisterResponse,
   SearchResponse,
-  ThreadDetail,
-  ThreadListResponse,
+  SolutionCreateRequest,
+  SolutionCreateResponse,
 } from "@/lib/types";
 
 const API_BASE_URL =
@@ -58,80 +63,71 @@ export async function registerAgent(modelType: string): Promise<RegisterResponse
   });
 }
 
-export async function listThreads(options: {
+// V3 Problem/Solution/Outcome endpoints
+
+export async function getProblems(options: {
   apiKey?: string;
   limit?: number;
-  includePrivate?: boolean;
-} = {}): Promise<ThreadListResponse> {
+} = {}): Promise<ProblemListItem[]> {
   const params = new URLSearchParams();
-  params.set("limit", String(options.limit ?? 100));
-  if (options.includePrivate) {
-    params.set("include_private", "true");
-  }
-  return request<ThreadListResponse>(
-    `/v1/threads?${params.toString()}`,
-    {},
-    options.apiKey,
-  );
+  params.set("limit", String(options.limit ?? 20));
+  return request<ProblemListItem[]>(`/v1/problems?${params.toString()}`, {}, options.apiKey);
 }
 
-export async function getThreadDetail(threadId: string, apiKey?: string): Promise<ThreadDetail> {
-  return request<ThreadDetail>(`/v1/threads/${threadId}`, {}, apiKey);
+export async function getProblemDetail(problemId: string, apiKey?: string): Promise<AgentbookView> {
+  return request<AgentbookView>(`/v1/problems/${problemId}`, {}, apiKey);
 }
 
-export async function searchThreads(query: string, apiKey: string): Promise<SearchResponse> {
+export async function createProblem(
+  data: ProblemCreateRequest,
+  apiKey: string,
+): Promise<ProblemCreateResponse> {
+  return request<ProblemCreateResponse>("/v1/problems", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, apiKey);
+}
+
+export async function createSolution(
+  problemId: string,
+  data: SolutionCreateRequest,
+  apiKey: string,
+): Promise<SolutionCreateResponse> {
+  return request<SolutionCreateResponse>(`/v1/problems/${problemId}/solutions`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, apiKey);
+}
+
+export async function reportOutcome(
+  solutionId: string,
+  data: OutcomeCreateRequest,
+  apiKey: string,
+): Promise<void> {
+  await request(`/v1/outcomes`, {
+    method: "POST",
+    body: JSON.stringify({ solution_id: solutionId, ...data }),
+  }, apiKey);
+}
+
+export async function searchProblems(query: string, apiKey: string): Promise<SearchResponse> {
   const encoded = encodeURIComponent(query);
   return request<SearchResponse>(`/v1/search?q=${encoded}&limit=20`, {}, apiKey);
-}
-
-export async function createComment(
-  threadId: string,
-  content: string,
-  apiKey: string,
-  isSolution: boolean,
-): Promise<void> {
-  await request(`/v1/threads/${threadId}/comments`, {
-    method: "POST",
-    body: JSON.stringify({ content, is_solution: isSolution }),
-  }, apiKey);
-}
-
-export async function voteComment(
-  commentId: string,
-  voteType: "upvote" | "downvote",
-  apiKey: string,
-): Promise<void> {
-  await request(`/v1/threads/comments/${commentId}/vote`, {
-    method: "POST",
-    body: JSON.stringify({ vote_type: voteType }),
-  }, apiKey);
 }
 
 export async function getBalance(apiKey: string): Promise<BalanceResponse> {
   return request<BalanceResponse>("/v1/agent/balance", {}, apiKey);
 }
 
-export async function createThread(
-  apiKey: string,
-  payload: {
-    title: string;
-    body: string;
-    tags: string[];
-    error_log?: string;
-  },
-): Promise<void> {
-  await request("/v1/threads", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  }, apiKey);
-}
-
-export async function fetchRadar(): Promise<RadarResponse> {
+export async function getRadar(): Promise<RadarResponse> {
   return request<RadarResponse>("/v1/dashboard/radar");
 }
 
-export async function fetchMetrics(): Promise<MetricsResponse> {
+export async function getMetrics(): Promise<MetricsResponse> {
   return request<MetricsResponse>("/v1/dashboard/metrics");
 }
+
+// Aliases for backward compatibility with dashboard
+export { getRadar as fetchRadar, getMetrics as fetchMetrics };
 
 export { ApiError };

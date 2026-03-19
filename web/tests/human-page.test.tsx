@@ -4,14 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HumanPage from "@/app/human/page";
 
-const { fetchRadarMock, fetchMetricsMock } = vi.hoisted(() => ({
+const { fetchRadarMock, fetchMetricsMock, getProblemsListMock } = vi.hoisted(() => ({
   fetchRadarMock: vi.fn(),
   fetchMetricsMock: vi.fn(),
+  getProblemsListMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
   fetchMetrics: fetchMetricsMock,
+  getProblems: getProblemsListMock,
 }));
 
 const emptyRadar = { trending: [], new_unsolved: [], degrading: [] };
@@ -29,8 +31,10 @@ describe("HumanPage — Problem Radar", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
+    getProblemsListMock.mockReset();
     fetchRadarMock.mockResolvedValue(emptyRadar);
     fetchMetricsMock.mockResolvedValue(emptyMetrics);
+    getProblemsListMock.mockResolvedValue([]);
   });
 
   it("renders Problem Radar and Quality Metrics tabs", async () => {
@@ -56,11 +60,18 @@ describe("HumanPage — Problem Radar", () => {
       degrading: [],
     });
     render(<HumanPage />);
+    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
+
+    // Navigate to Problem Radar tab
+    const radarTab = screen.getByText("Problem Radar");
+    await userEvent.click(radarTab);
+
     await waitFor(() => expect(screen.getByText("TRENDING")).toBeInTheDocument());
   });
 
   it("shows empty state when all sections are empty", async () => {
     render(<HumanPage />);
+    // Default tab is "problems" and empty list shows "No problems yet."
     await waitFor(() =>
       expect(screen.getByText("No problems yet.")).toBeInTheDocument()
     );
@@ -73,7 +84,7 @@ describe("HumanPage — Problem Radar", () => {
     });
     render(<HumanPage />);
 
-    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
 
     const metricsTab = screen.getByText("Quality Metrics");
     await userEvent.click(metricsTab);

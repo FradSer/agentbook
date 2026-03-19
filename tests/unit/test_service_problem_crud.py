@@ -1,0 +1,183 @@
+"""Unit tests for AgentbookService problem/solution CRUD (V3)."""
+from __future__ import annotations
+
+from uuid import uuid4
+
+import pytest
+
+from app.domain.models import Agent, Problem, Solution
+
+
+def _make_service(with_embedding=False):
+    from app.application.service import AgentbookService
+    from app.infrastructure.persistence.in_memory import (
+        InMemoryAgentRepository,
+        InMemoryOutcomeRepository,
+        InMemoryProblemRepository,
+        InMemoryResearchCycleRepository,
+        InMemorySolutionRepository,
+        InMemoryTokenTransactionRepository,
+    )
+
+    agents = InMemoryAgentRepository()
+    author_id = uuid4()
+    agents.add(
+        Agent(
+            api_key_hash="test-hash",
+            model_type="test-model",
+            token_balance=100,
+            agent_id=author_id,
+        )
+    )
+    embedding_provider = None
+    if with_embedding:
+        from unittest.mock import AsyncMock, MagicMock
+        provider = MagicMock()
+        provider.embed = AsyncMock(return_value=[0.1] * 1536)
+        embedding_provider = provider
+
+    service = AgentbookService(
+        agents=agents,
+        transactions=InMemoryTokenTransactionRepository(),
+        problems=InMemoryProblemRepository(),
+        solutions=InMemorySolutionRepository(),
+        outcomes=InMemoryOutcomeRepository(),
+        research_cycles=InMemoryResearchCycleRepository(),
+        embedding_provider=embedding_provider,
+    )
+    return service, author_id
+
+
+def test_create_problem_returns_problem_with_no_review_status():
+    service, author_id = _make_service()
+    problem = service.create_problem(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+    )
+    assert isinstance(problem, Problem)
+    assert problem.review_status is None
+    assert problem.author_id == author_id
+
+
+def test_create_problem_raises_value_error_when_gate_rejects():
+    service, author_id = _make_service()
+    with pytest.raises(ValueError):
+        service.create_problem(author_id=author_id, description="help")
+
+
+def test_create_solution_returns_solution_with_default_confidence():
+    service, author_id = _make_service()
+    problem = service.create_problem(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+    )
+    # Approve the problem for solution creation
+    problem.review_status = "approved"
+    service._problems.update(problem)
+
+    solution = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Install numpy with apk dependencies first then pip install",
+    )
+    assert isinstance(solution, Solution)
+    assert solution.confidence == 0.3
+    assert solution.review_status is None
+
+
+def test_create_solution_with_author_verified_sets_confidence_0_5():
+    service, author_id = _make_service()
+    problem = service.create_problem(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+    )
+    problem.review_status = "approved"
+    service._problems.update(problem)
+
+    solution = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Install numpy with apk dependencies first then pip install",
+        author_verified=True,
+    )
+    assert solution.confidence == 0.5
+
+
+def test_create_solution_increments_problem_solution_count():
+    service, author_id = _make_service()
+    problem = service.create_problem(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+    )
+    problem.review_status = "approved"
+    service._problems.update(problem)
+
+    assert problem.solution_count == 0
+    service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Install numpy with apk dependencies first then pip install",
+    )
+    updated = service._problems.get(problem.problem_id)
+    assert updated.solution_count == 1
+
+
+def test_create_solution_raises_when_gate_rejects_content():
+    service, author_id = _make_service()
+    problem = service.create_problem(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+    )
+    problem.review_status = "approved"
+    service._problems.update(problem)
+
+    with pytest.raises(ValueError):
+        service.create_solution(
+            problem_id=problem.problem_id,
+            author_id=author_id,
+            content="x",  # too short
+        )
+
+
+def test_contribute_with_solution_returns_knowledge_created():
+    service, author_id = _make_service()
+    result = service.contribute(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+        solution_content="Install numpy with apk dependencies first then pip install",
+        author_verified=True,
+    )
+    assert result["status"] == "knowledge_created"
+    assert "problem_id" in result
+    assert "solution_id" in result
+
+
+def test_contribute_without_solution_returns_problem_created():
+    service, author_id = _make_service()
+    result = service.contribute(
+        author_id=author_id,
+        description="Segmentation fault using multiprocessing with fork on macOS",
+    )
+    assert result["status"] == "problem_created"
+    assert "problem_id" in result
+
+
+def test_contribute_solution_to_existing_approved_problem():
+    service, author_id = _make_service()
+    # Create and approve a problem
+    problem = service.create_problem(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+    )
+    problem.review_status = "approved"
+    service._problems.update(problem)
+
+    result = service.contribute(
+        author_id=author_id,
+        description="ModuleNotFoundError importing numpy in Docker Alpine container",
+        solution_content="Install numpy with apk dependencies first then pip install",
+        problem_id=problem.problem_id,
+    )
+    assert result["status"] in ("knowledge_created", "solution_added")
+    updated = service._problems.get(problem.problem_id)
+    assert updated.solution_count >= 1

@@ -151,3 +151,42 @@ class ErrorResponse(BaseModel):
 
 
 JSONDict = dict[str, Any]
+
+
+class ProblemCreateRequest(BaseModel):
+    description: str = Field(..., min_length=20)
+    error_signature: str | None = None
+    environment: dict | None = None
+    tags: list[str] | None = None
+
+
+class ProblemCreateResponse(BaseModel):
+    problem_id: str
+    status: str = "processing"
+
+
+class AgentbookViewResponse(BaseModel):
+    problem_id: str
+    description: str
+    canonical_solution: dict | None = None
+    solution_history: list[dict] = []
+    best_confidence: float = 0.0
+    solution_count: int = 0
+
+
+class SolutionCreateRequest(BaseModel):
+    content: str = Field(..., min_length=10)
+    steps: list[str] | None = None
+    author_verified: bool = False
+
+
+class SolutionCreateResponse(BaseModel):
+    solution_id: str
+    status: str = "processing"
+
+
+class OutcomeCreateRequest(BaseModel):
+    solution_id: str
+    success: bool
+    notes: str | None = None
+    environment: dict | None = None

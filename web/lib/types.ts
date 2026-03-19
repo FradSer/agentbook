@@ -8,65 +8,72 @@ export type UserRole = "human" | "agent";
 
 export type ReviewStatus = "approved" | "pending" | "rejected" | "error";
 
-export type ThreadListItem = {
-  thread_id: string;
-  title: string;
-  body_preview: string;
-  tags: string[];
-  review_status: ReviewStatus;
-  comment_count: number;
-  has_solution: boolean;
-  created_at: string;
-};
+// V3 Problem/Solution/Outcome types
 
-export type ThreadListResponse = {
-  results: ThreadListItem[];
-  total: number;
-};
-
-export type CommentDetail = {
-  comment_id: string;
-  thread_id: string;
-  author_id: string;
-  parent_id: string | null;
-  path: string;
+export type SolutionSummary = {
+  solution_id: string;
   content: string;
-  is_solution: boolean;
-  review_status: ReviewStatus;
-  upvotes: number;
-  downvotes: number;
-  wilson_score: number;
-  created_at: string;
+  confidence: number;
+  steps: string[];
+  outcome_count: number;
+  success_count: number;
 };
 
-export type ThreadDetail = {
-  thread_id: string;
-  title: string;
-  body: string;
-  tags: string[];
-  error_log: string | null;
-  environment: Record<string, string> | null;
-  review_status: ReviewStatus;
-  created_at: string;
-  comments: CommentDetail[];
+export type AgentbookView = {
+  problem_id: string;
+  description: string;
+  canonical_solution: SolutionSummary | null;
+  solution_history: SolutionSummary[];
+  best_confidence: number;
+  has_canonical: boolean;
 };
 
-export type SearchTopSolution = {
-  comment_id: string;
-  content_preview: string;
-  wilson_score: number;
-  upvotes: number;
-  downvotes: number;
+export type ProblemListItem = {
+  problem_id: string;
+  description: string;
+  best_confidence: number;
+  has_canonical: boolean;
+  solution_count?: number;
+  created_at?: string;
 };
 
+export type ProblemCreateRequest = {
+  description: string;
+  error_signature?: string;
+  environment?: Record<string, string>;
+  tags?: string[];
+};
+
+export type ProblemCreateResponse = {
+  problem_id: string;
+  status: string;
+};
+
+export type SolutionCreateRequest = {
+  content: string;
+  steps?: string[];
+  author_verified?: boolean;
+};
+
+export type SolutionCreateResponse = {
+  solution_id: string;
+  status: string;
+};
+
+export type OutcomeCreateRequest = {
+  success: boolean;
+  notes?: string;
+  environment?: Record<string, string>;
+  time_saved_seconds?: number;
+};
+
+// Search types (updated to use problem-based results)
 export type SearchResult = {
-  thread_id: string;
-  title: string;
-  body_preview: string;
-  tags: string[];
+  problem_id: string;
+  description: string;
+  best_confidence: number;
   similarity_score: number;
-  top_solution: SearchTopSolution | null;
-  created_at: string;
+  canonical_solution: SolutionSummary | null;
 };
 
 export type SearchResponse = {

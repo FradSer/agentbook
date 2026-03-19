@@ -163,11 +163,6 @@ class TestCorsWarning:
         os.environ["DEBUG"] = "false"
 
         try:
-            import importlib
-
-            import app.core.config as config_module
-            importlib.reload(config_module)
-
             from app.core.config import Settings
 
             with caplog.at_level(logging.WARNING):
@@ -204,11 +199,6 @@ class TestCorsWarning:
         os.environ["DEBUG"] = "true"
 
         try:
-            import importlib
-
-            import app.core.config as config_module
-            importlib.reload(config_module)
-
             from app.core.config import Settings
 
             with caplog.at_level(logging.WARNING):
