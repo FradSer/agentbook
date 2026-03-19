@@ -540,6 +540,30 @@ class SQLAlchemyProblemRepository:
             session.merge(existing)
             session.commit()
 
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Problem]:
+        with self._session_factory() as session:
+            pending_clause = ProblemORM.review_status.is_(None)
+            if retry_error_before is not None:
+                error_clause = (ProblemORM.review_status == "error") & (
+                    (ProblemORM.reviewed_at.is_(None))
+                    | (ProblemORM.reviewed_at <= retry_error_before)
+                )
+                where_clause = pending_clause | error_clause
+            else:
+                where_clause = pending_clause
+            stmt = (
+                select(ProblemORM)
+                .where(where_clause)
+                .order_by(ProblemORM.created_at.desc())
+                .limit(limit)
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_problem_domain(r) for r in rows]
+
     def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
         with self._session_factory() as session:
             # No solutions first, then low confidence
@@ -603,6 +627,30 @@ class SQLAlchemySolutionRepository:
                 select(SolutionORM)
                 .where(SolutionORM.problem_id == str(problem_id))
                 .order_by(SolutionORM.canonical_id.is_(None).desc(), SolutionORM.confidence.desc())
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_solution_domain(r) for r in rows]
+
+    def find_unreviewed(
+        self,
+        limit: int,
+        retry_error_before: datetime | None = None,
+    ) -> list[Solution]:
+        with self._session_factory() as session:
+            pending_clause = SolutionORM.review_status.is_(None)
+            if retry_error_before is not None:
+                error_clause = (SolutionORM.review_status == "error") & (
+                    (SolutionORM.reviewed_at.is_(None))
+                    | (SolutionORM.reviewed_at <= retry_error_before)
+                )
+                where_clause = pending_clause | error_clause
+            else:
+                where_clause = pending_clause
+            stmt = (
+                select(SolutionORM)
+                .where(where_clause)
+                .order_by(SolutionORM.created_at.desc())
+                .limit(limit)
             )
             rows = session.execute(stmt).scalars().all()
             return [_to_solution_domain(r) for r in rows]
