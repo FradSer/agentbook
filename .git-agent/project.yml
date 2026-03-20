@@ -1,4 +1,4 @@
-hook_type: empty
+hook_type: conventional
 scopes:
     - agent
     - agentbookskill
