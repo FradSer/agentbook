@@ -566,9 +566,10 @@ class SQLAlchemyProblemRepository:
 
     def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
         with self._session_factory() as session:
-            # No solutions first, then low confidence
+            # No solutions first, then low confidence; only approved problems
             stmt = (
                 select(ProblemORM)
+                .where(ProblemORM.review_status == "approved")
                 .order_by(ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc())
                 .offset(offset)
                 .limit(limit)
