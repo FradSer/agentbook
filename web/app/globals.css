@@ -1,77 +1,73 @@
 @import "tailwindcss";
 
 @theme {
-  /* OpenClaw.ai inspired dark theme - default */
-  --color-background: hsl(240 10% 6%);
+  --color-background: #070B14;
   --color-foreground: hsl(0 0% 98%);
 
-  --color-card: hsl(240 10% 8%);
+  --color-card: hsl(220 30% 10%);
   --color-card-foreground: hsl(0 0% 98%);
 
-  --color-popover: hsl(240 10% 8%);
+  --color-popover: hsl(220 30% 10%);
   --color-popover-foreground: hsl(0 0% 98%);
 
-  --color-primary: hsl(0 100% 68%);
+  --color-primary: #ff6b6b;
   --color-primary-foreground: hsl(0 0% 100%);
 
-  --color-secondary: hsl(240 10% 12%);
+  --color-secondary: hsl(220 20% 14%);
   --color-secondary-foreground: hsl(0 0% 98%);
 
-  --color-muted: hsl(240 10% 12%);
-  --color-muted-foreground: hsl(0 0% 60%);
+  --color-muted: hsl(220 20% 14%);
+  --color-muted-foreground: hsl(220 10% 55%);
 
-  --color-accent: hsl(0 100% 68%);
+  --color-accent: #ff6b6b;
   --color-accent-foreground: hsl(0 0% 100%);
 
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 98%);
 
-  --color-border: hsl(240 10% 15%);
-  --color-input: hsl(240 10% 15%);
-  --color-ring: hsl(0 100% 68%);
-
-  --color-chart-1: hsl(0 100% 68%);
-  --color-chart-2: hsl(280 65% 60%);
-  --color-chart-3: hsl(220 70% 50%);
-  --color-chart-4: hsl(160 60% 45%);
-  --color-chart-5: hsl(30 80% 55%);
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-input: hsl(220 20% 14%);
+  --color-ring: #ff6b6b;
 
   --color-coral: #ff6b6b;
   --color-coral-light: #ff8787;
   --color-coral-dark: #ff5757;
 
-  --color-navy: #0f0f1a;
-  --color-navy-dark: #0a0a0f;
-  --color-navy-light: #1a1a2e;
+  --glass-bg: rgba(255, 255, 255, 0.035);
+  --glass-bg-strong: rgba(255, 255, 255, 0.06);
+  --glass-bg-hover: rgba(255, 255, 255, 0.055);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-hover: rgba(255, 255, 255, 0.12);
 
+  --radius-window: 16px;
+  --radius-card: 12px;
+  --radius-pill: 9999px;
   --radius-lg: 0.75rem;
   --radius-md: calc(0.75rem - 2px);
   --radius-sm: calc(0.75rem - 4px);
 }
 
 * {
-  border-color: hsl(240 10% 15%);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 body {
-  background-color: #0a0a0f;
+  background-color: #070B14;
   color: hsl(0 0% 98%);
-  background-image: radial-gradient(ellipse at top, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-                    radial-gradient(ellipse at bottom right, rgba(255, 107, 107, 0.08) 0%, transparent 50%);
-  background-attachment: fixed;
 }
 
-
 .glass {
-  background-color: hsl(240 10% 8% / 0.5);
-  backdrop-filter: blur(12px);
-  border: 1px solid hsl(240 10% 15% / 0.5);
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
 }
 
 .glass-strong {
-  background-color: hsl(240 10% 8% / 0.8);
-  backdrop-filter: blur(16px);
-  border: 1px solid hsl(240 10% 15%);
+  background-color: var(--glass-bg-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
 }
 
 .glow-coral {
@@ -84,4 +80,63 @@ body {
 
 .glow-coral-hover:hover {
   box-shadow: 0 0 30px rgba(255, 107, 107, 0.4);
+}
+
+.bg-glow-purple {
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-glow-coral {
+  position: fixed;
+  bottom: -20%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(ellipse, rgba(255, 107, 107, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Tag color variants */
+.tag-default {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: hsl(220 10% 65%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tag-green {
+  background-color: rgba(74, 222, 128, 0.1);
+  color: rgb(74, 222, 128);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.tag-blue {
+  background-color: rgba(96, 165, 250, 0.1);
+  color: rgb(96, 165, 250);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.tag-purple {
+  background-color: rgba(167, 139, 250, 0.1);
+  color: rgb(167, 139, 250);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.tag-amber {
+  background-color: rgba(251, 191, 36, 0.1);
+  color: rgb(251, 191, 36);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.tag-coral {
+  background-color: rgba(255, 107, 107, 0.1);
+  color: rgb(255, 107, 107);
+  border: 1px solid rgba(255, 107, 107, 0.2);
 }

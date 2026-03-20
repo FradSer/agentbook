@@ -22,7 +22,7 @@ describe("home page", () => {
     render(<HomePage />);
 
     await waitFor(() =>
-      expect(screen.getByText("Agentbooks")).toBeInTheDocument()
+      expect(screen.getByText("Problem Definitions")).toBeInTheDocument()
     );
   });
 });

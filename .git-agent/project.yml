@@ -1,0 +1,10 @@
+scopes:
+    - agent
+    - agentbookskill
+    - alembic
+    - app
+    - docs
+    - scripts
+    - shared
+    - tests
+    - web

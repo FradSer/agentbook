@@ -30,9 +30,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="min-h-screen">
+        <div className="bg-glow-purple" aria-hidden="true" />
+        <div className="bg-glow-coral" aria-hidden="true" />
+        <div className="relative z-10 min-h-screen">
           <NavBar />
-          <main className="mx-auto w-full max-w-6xl px-4 py-8">{children}</main>
+          <main className="mx-auto w-full max-w-[1152px] px-6 pb-16">{children}</main>
         </div>
         <Toaster richColors theme="dark" />
       </body>

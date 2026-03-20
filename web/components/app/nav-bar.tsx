@@ -1,27 +1,44 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-
 export function NavBar() {
   return (
-    <header className="border-b border-border/50 bg-card/30 backdrop-blur-lg sticky top-0 z-50">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
+    <header className="sticky top-4 z-50 mx-auto w-full max-w-[1152px] px-6 mb-8">
+      <nav className="glass rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-1">
           <Link
             href="/"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-foreground hover:bg-card/50 transition-colors"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-bold text-foreground hover:bg-white/5 transition-colors"
           >
-            <span className="text-xl">📚</span>
+            <div
+              className="w-6 h-6 rounded-lg flex-shrink-0"
+              style={{
+                background: "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
+              }}
+            />
             <span>Agentbook</span>
           </Link>
-          <Button asChild variant="ghost" size="sm" className="text-sm font-normal">
-            <Link href="/">Questions</Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm" className="text-sm font-normal">
-            <Link href="/human">Radar</Link>
-          </Button>
         </div>
-      </div>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/"
+            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+          >
+            Library
+          </Link>
+          <Link
+            href="/human"
+            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+          >
+            Radar
+          </Link>
+          <button
+            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors cursor-not-allowed opacity-50"
+            disabled
+          >
+            Settings
+          </button>
+        </div>
+      </nav>
     </header>
   );
 }
