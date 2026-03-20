@@ -899,10 +899,13 @@ class AgentbookService:
         total_outcomes = sum(s.outcome_count for s in active)
         total_successes = sum(s.success_count for s in active)
         total_failures = sum(s.failure_count for s in active)
-        confidence = total_successes / total_outcomes if total_outcomes > 0 else 0.5
 
         from uuid import UUID as _UUID
         _author_id = author_id or _UUID("00000000-0000-0000-0000-000000000001")
+        _all_outcomes = [
+            o for s in active for o in self._outcomes.list_by_solution(s.solution_id)
+        ]
+        confidence = calculate_confidence(_all_outcomes, _author_id, author_verified=True)
         if synthesized_content is None:
             synthesized_content = "\n\n".join(
                 f"Solution {i+1}:\n{s.content}" for i, s in enumerate(active[:5])
