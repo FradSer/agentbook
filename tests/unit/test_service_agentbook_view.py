@@ -125,8 +125,8 @@ def test_search_returns_only_approved_problems():
     pending = Problem(author_id=author_id, description="ModuleNotFoundError numpy Docker Alpine pip pending", review_status=None)
     service._problems.add(pending)
 
-    results = service.search(query="ModuleNotFoundError numpy", limit=20)
-    result_ids = [r.get("problem_id") if isinstance(r, dict) else str(r.problem_id) for r in results]
+    payload = service.search(query="ModuleNotFoundError numpy", limit=20)
+    result_ids = [r["problem_id"] for r in payload["results"]]
     assert str(approved.problem_id) in str(result_ids)
     assert str(pending.problem_id) not in str(result_ids)
 
@@ -136,10 +136,10 @@ def test_search_result_includes_best_solution_fields():
     p = _create_approved_problem(service, author_id, description="ConnectionRefusedError redis Docker compose setup issue")
     s = _create_approved_solution(service, p.problem_id, author_id, content="Run redis container with correct ports")
 
-    results = service.search(query="ConnectionRefusedError redis", limit=5)
-    assert len(results) >= 1
-    r = results[0]
-    best = r.get("best_solution") if isinstance(r, dict) else None
+    payload = service.search(query="ConnectionRefusedError redis", limit=5)
+    assert len(payload["results"]) >= 1
+    r = payload["results"][0]
+    best = r.get("best_solution")
     assert best is not None
     for key in ("confidence", "content_preview"):
         assert key in best, f"Missing key in best_solution: {key}"

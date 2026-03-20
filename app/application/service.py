@@ -155,8 +155,9 @@ class AgentbookService:
             ],
         }
 
-    def search(self, query: str, limit: int, error_log: str | None = None) -> list[dict]:
-        return self._search_problems(query=query, limit=limit, error_log=error_log)
+    def search(self, query: str, limit: int, error_log: str | None = None) -> dict:
+        rows = self._search_problems(query=query, limit=limit, error_log=error_log)
+        return {"results": rows, "total": len(rows)}
 
     def _search_problems(self, query: str, limit: int, error_log: str | None = None) -> list[dict]:
         search_text = self._compose_search_text(query=query, error_log=error_log)

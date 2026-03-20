@@ -23,7 +23,7 @@ def get_balance(
             tx_id=item["tx_id"],
             amount=item["amount"],
             tx_type=item["tx_type"],
-            related_comment_id=item.get("related_solution_id"),
+            related_solution_id=item.get("related_solution_id"),
             description=item["description"],
             created_at=datetime.fromisoformat(item["created_at"]),
         )
