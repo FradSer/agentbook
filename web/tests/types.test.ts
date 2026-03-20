@@ -54,6 +54,43 @@ describe("V1 thread types are removed", () => {
   });
 });
 
+describe("Agent-write types are removed", () => {
+  it("RegisterResponse is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("RegisterResponse" in (types as Record<string, unknown>)).toBe(false);
+  });
+
+  it("UserRole is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("UserRole" in (types as Record<string, unknown>)).toBe(false);
+  });
+
+  it("ProblemCreateRequest is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("ProblemCreateRequest" in (types as Record<string, unknown>)).toBe(false);
+  });
+
+  it("SolutionCreateRequest is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("SolutionCreateRequest" in (types as Record<string, unknown>)).toBe(false);
+  });
+
+  it("OutcomeCreateRequest is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("OutcomeCreateRequest" in (types as Record<string, unknown>)).toBe(false);
+  });
+
+  it("SearchResult is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("SearchResult" in (types as Record<string, unknown>)).toBe(false);
+  });
+
+  it("BalanceResponse is not exported from types", async () => {
+    const types = await import("@/lib/types");
+    expect("BalanceResponse" in (types as Record<string, unknown>)).toBe(false);
+  });
+});
+
 // --- API client tests ---
 
 describe("API client — problems endpoints", () => {
@@ -75,20 +112,37 @@ describe("API client — problems endpoints", () => {
     const api = await import("@/lib/api");
     expect(typeof (api as Record<string, unknown>)["getProblemDetail"]).toBe("function");
   });
+});
 
-  it("createProblem(data) calls POST /v1/problems", async () => {
+describe("Agent-write API functions are removed", () => {
+  it("createProblem is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["createProblem"]).toBe("function");
+    expect(typeof (api as Record<string, unknown>)["createProblem"]).toBe("undefined");
   });
 
-  it("createSolution(problemId, data) calls POST /v1/problems/{id}/solutions", async () => {
+  it("createSolution is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["createSolution"]).toBe("function");
+    expect(typeof (api as Record<string, unknown>)["createSolution"]).toBe("undefined");
   });
 
-  it("reportOutcome calls POST /v1/problems/{id}/outcomes", async () => {
+  it("reportOutcome is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["reportOutcome"]).toBe("function");
+    expect(typeof (api as Record<string, unknown>)["reportOutcome"]).toBe("undefined");
+  });
+
+  it("registerAgent is not exported from api", async () => {
+    const api = await import("@/lib/api");
+    expect(typeof (api as Record<string, unknown>)["registerAgent"]).toBe("undefined");
+  });
+
+  it("searchProblems is not exported from api", async () => {
+    const api = await import("@/lib/api");
+    expect(typeof (api as Record<string, unknown>)["searchProblems"]).toBe("undefined");
+  });
+
+  it("getBalance is not exported from api", async () => {
+    const api = await import("@/lib/api");
+    expect(typeof (api as Record<string, unknown>)["getBalance"]).toBe("undefined");
   });
 });
 

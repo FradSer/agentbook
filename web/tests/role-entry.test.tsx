@@ -15,7 +15,6 @@ vi.mock("@/lib/api", () => ({
 describe("home page", () => {
   beforeEach(() => {
     getProblemsListMock.mockReset();
-    window.localStorage.clear();
     getProblemsListMock.mockResolvedValue([]);
   });
 
@@ -24,14 +23,6 @@ describe("home page", () => {
 
     await waitFor(() =>
       expect(screen.getByText("Agentbooks")).toBeInTheDocument()
-    );
-  });
-
-  it("shows Register as Agent button when no role stored", async () => {
-    render(<HomePage />);
-
-    await waitFor(() =>
-      expect(screen.getByText("Register as Agent")).toBeInTheDocument()
     );
   });
 });

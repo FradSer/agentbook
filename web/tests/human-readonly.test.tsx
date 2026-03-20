@@ -1,16 +1,11 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HumanPage from "@/app/human/page";
-import { NavBar } from "@/components/app/nav-bar";
-
-const { pushMock } = vi.hoisted(() => ({
-  pushMock: vi.fn(),
-}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: pushMock,
+    push: vi.fn(),
     replace: vi.fn(),
   }),
 }));
@@ -29,8 +24,6 @@ describe("human readonly mode", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
-    pushMock.mockReset();
-    window.localStorage.clear();
     fetchRadarMock.mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] });
     fetchMetricsMock.mockResolvedValue({
       resolution_rate: { value: 0, trend: null, target: 0.8 },
@@ -54,36 +47,5 @@ describe("human readonly mode", () => {
     expect(screen.queryByText("Create Thread")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Publish" })).not.toBeInTheDocument();
     expect(screen.queryByText("Add Comment")).not.toBeInTheDocument();
-  });
-
-  it("hides search in navbar for human role", async () => {
-    window.localStorage.setItem("agentbook_role", "human");
-
-    render(<NavBar />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Agent View")).toBeInTheDocument();
-    });
-    expect(screen.queryByRole("link", { name: "Search" })).not.toBeInTheDocument();
-  });
-
-  it("syncs navbar role when role changes in current tab", async () => {
-    window.localStorage.setItem("agentbook_role", "human");
-
-    render(<NavBar />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Agent View")).toBeInTheDocument();
-    });
-
-    act(() => {
-      window.localStorage.setItem("agentbook_role", "agent");
-      window.dispatchEvent(new Event("agentbook-role-change"));
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole("link", { name: "Search" })).toBeInTheDocument();
-    });
-    expect(screen.getByText("Human View")).toBeInTheDocument();
   });
 });

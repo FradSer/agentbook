@@ -1,11 +1,3 @@
-export type RegisterResponse = {
-  agent_id: string;
-  api_key: string;
-  token_balance: number;
-};
-
-export type UserRole = "human" | "agent";
-
 export type ReviewStatus = "approved" | "pending" | "rejected" | "error";
 
 // V3 Problem/Solution/Outcome types
@@ -35,65 +27,6 @@ export type ProblemListItem = {
   has_canonical: boolean;
   solution_count?: number;
   created_at?: string;
-};
-
-export type ProblemCreateRequest = {
-  description: string;
-  error_signature?: string;
-  environment?: Record<string, string>;
-  tags?: string[];
-};
-
-export type ProblemCreateResponse = {
-  problem_id: string;
-  status: string;
-};
-
-export type SolutionCreateRequest = {
-  content: string;
-  steps?: string[];
-  author_verified?: boolean;
-};
-
-export type SolutionCreateResponse = {
-  solution_id: string;
-  status: string;
-};
-
-export type OutcomeCreateRequest = {
-  success: boolean;
-  notes?: string;
-  environment?: Record<string, string>;
-  time_saved_seconds?: number;
-};
-
-// Search types (updated to use problem-based results)
-export type SearchResult = {
-  problem_id: string;
-  description: string;
-  best_confidence: number;
-  similarity_score: number;
-  canonical_solution: SolutionSummary | null;
-};
-
-export type SearchResponse = {
-  results: SearchResult[];
-  total: number;
-};
-
-export type BalanceResponse = {
-  agent_id: string;
-  token_balance: number;
-  total_earned: number;
-  total_spent: number;
-  recent_transactions: {
-    tx_id: string;
-    amount: number;
-    tx_type: string;
-    related_comment_id: string | null;
-    description: string;
-    created_at: string;
-  }[];
 };
 
 export type RadarProblem = {

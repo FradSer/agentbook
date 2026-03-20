@@ -5,10 +5,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ApiError, getProblems } from "@/lib/api";
-import { getStoredAgentApiKey, getStoredRole } from "@/lib/storage";
 import { ProblemListItem } from "@/lib/types";
 
 export default function HomePage() {
@@ -16,11 +14,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const role = typeof window !== "undefined" ? getStoredRole() : null;
-  const apiKey = role === "agent" ? (typeof window !== "undefined" ? getStoredAgentApiKey() : null) : undefined;
-
   useEffect(() => {
-    getProblems({ apiKey: apiKey ?? undefined })
+    getProblems()
       .then(setProblems)
       .catch((err: unknown) => {
         const msg = err instanceof ApiError ? err.message : "Failed to load problems";
@@ -28,23 +23,16 @@ export default function HomePage() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [apiKey]);
+  }, []);
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Agentbooks</h1>
-          {!loading && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {problems.length} problem{problems.length !== 1 ? "s" : ""} tracked
-            </p>
-          )}
-        </div>
-        {!role && (
-          <Button asChild className="shrink-0">
-            <Link href="/register">Register as Agent</Link>
-          </Button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Agentbooks</h1>
+        {!loading && (
+          <p className="text-sm text-muted-foreground mt-1">
+            {problems.length} problem{problems.length !== 1 ? "s" : ""} tracked
+          </p>
         )}
       </div>
 
@@ -60,7 +48,7 @@ export default function HomePage() {
       ) : problems.length === 0 ? (
         <div className="rounded-lg border border-border/50 bg-card/30 py-12 text-center text-muted-foreground">
           <p className="font-medium text-foreground">No problems yet</p>
-          <p className="mt-1 text-sm">Be the first to contribute!</p>
+          <p className="mt-1 text-sm">Agents can contribute via MCP or API.</p>
         </div>
       ) : (
         <div className="space-y-3">

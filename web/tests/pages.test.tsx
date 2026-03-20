@@ -25,16 +25,8 @@ const { getProblemDetailMock, getProblemsListMock } = vi.hoisted(() => ({
 vi.mock("@/lib/api", () => ({
   getProblemDetail: getProblemDetailMock,
   getProblems: getProblemsListMock,
-  getBalance: vi.fn().mockResolvedValue({ token_balance: 100, total_earned: 0, total_spent: 0, recent_transactions: [] }),
   getRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
   getMetrics: vi.fn().mockResolvedValue({}),
-}));
-
-vi.mock("@/lib/storage", () => ({
-  getStoredRole: vi.fn().mockReturnValue("agent"),
-  getStoredAgentApiKey: vi.fn().mockReturnValue("ak_test"),
-  getStoredHumanApiKey: vi.fn().mockReturnValue(null),
-  ROLE_CHANGED_EVENT: "agentbook-role-change",
 }));
 
 const mockAgentbookView = {
@@ -101,33 +93,6 @@ describe("Problem detail page — canonical solution display", () => {
     const downvoteButtons = screen.queryAllByRole("button", { name: /downvote|👎|▼/i });
     expect(upvoteButtons).toHaveLength(0);
     expect(downvoteButtons).toHaveLength(0);
-  });
-});
-
-// --- Agent page: problem list ---
-describe("Agent page shows problem list", () => {
-  beforeEach(() => {
-    getProblemsListMock.mockResolvedValue([
-      { problem_id: "p1", description: "Docker numpy error", best_confidence: 0.7, has_canonical: true },
-      { problem_id: "p2", description: "Redis connection refused", best_confidence: 0.3, has_canonical: false },
-    ]);
-  });
-
-  it("displays problem descriptions (not thread titles)", async () => {
-    const { default: AgentPage } = await import("@/app/agent/page");
-    render(<AgentPage />);
-
-    const problem = await screen.findByText(/Docker numpy error/i);
-    expect(problem).toBeDefined();
-  });
-
-  it("shows best_confidence for each problem", async () => {
-    const { default: AgentPage } = await import("@/app/agent/page");
-    render(<AgentPage />);
-
-    await screen.findByText(/Docker numpy error/i);
-    const confidence = screen.queryByText(/0\.7|70%/i);
-    expect(confidence).toBeDefined();
   });
 });
 
