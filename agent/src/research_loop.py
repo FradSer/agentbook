@@ -5,6 +5,7 @@ import logging
 from uuid import UUID
 
 from agent.src.config import settings
+from agent.src.synthesis import SYSTEM_AGENT_ID
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,6 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
             if "Status: improved" in response_text:
                 improved += 1
                 logger.info(f"Improved solution for problem {problem_id}")
-                await _maybe_synthesize(service, UUID(str(problem_id)), agent)
             elif "Status: no_improvement" in response_text:
                 no_improvement += 1
                 logger.info(f"No improvement proposed for problem {problem_id}")
@@ -101,6 +101,14 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                     f"{response_text[:200]!r}"
                 )
                 no_improvement += 1
+                try:
+                    service.record_research_skip(
+                        problem_id=UUID(str(problem_id)),
+                        researcher_id=SYSTEM_AGENT_ID,
+                        reasoning="Agent returned no recognisable tool call",
+                    )
+                except Exception:
+                    pass
 
         except asyncio.TimeoutError:
             logger.warning(
@@ -108,9 +116,25 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                 f"{settings.agent_research_per_candidate_timeout_seconds}s"
             )
             no_improvement += 1
+            try:
+                service.record_research_skip(
+                    problem_id=UUID(str(problem_id)),
+                    researcher_id=SYSTEM_AGENT_ID,
+                    reasoning="Research candidate timed out",
+                )
+            except Exception:
+                pass
         except Exception as exc:
             logger.error(f"Research cycle error for problem {problem_id}: {exc}")
             no_improvement += 1
+            try:
+                service.record_research_skip(
+                    problem_id=UUID(str(problem_id)),
+                    researcher_id=SYSTEM_AGENT_ID,
+                    reasoning=f"Research cycle error: {exc}",
+                )
+            except Exception:
+                pass
 
     return {
         "candidates": len(candidates),
@@ -118,46 +142,6 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
         "no_improvement": no_improvement,
     }
 
-
-async def _maybe_synthesize(service, problem_id: UUID, agent) -> None:
-    """Trigger synthesis when enough solutions exist (≥10, or any with low confidence + outcomes)."""
-    try:
-        context = service.get_context(id=problem_id, include=["solutions"])
-        solutions_data = context.get("solutions", [])
-        active = [s for s in solutions_data if s.get("canonical_id") is None]
-
-        needs_synthesis = len(active) >= 10 or any(
-            s.get("confidence", 1.0) < 0.3 and s.get("outcome_count", 0) >= 10
-            for s in active
-        )
-        if not needs_synthesis:
-            return
-
-        problem_data = context.get("data", {})
-        synthesis_prompt = f"Problem: {problem_data.get('description', '')}\n\n"
-        for i, s in enumerate(active[:10], 1):
-            content_preview = s.get("content", "")[:500]
-            synthesis_prompt += f"Solution {i}:\n{content_preview}\n\n"
-        synthesis_prompt += "Please synthesize these solutions into one comprehensive canonical solution."
-
-        try:
-            synthesized_content = await _run_agent(agent, synthesis_prompt)
-        except Exception as llm_exc:
-            logger.warning(f"LLM synthesis failed for problem {problem_id}, skipping: {llm_exc}")
-            return
-
-        from agent.src.synthesis import SYSTEM_AGENT_ID
-        result = service.synthesize_solutions(
-            problem_id=problem_id,
-            synthesized_content=synthesized_content,
-            author_id=SYSTEM_AGENT_ID,
-        )
-        if result is not None:
-            logger.info(
-                f"Synthesized {result['synthesized_from']} solutions for problem {problem_id}"
-            )
-    except Exception as exc:
-        logger.warning(f"Synthesis skipped for problem {problem_id}: {exc}")
 
 
 def _build_research_prompt(

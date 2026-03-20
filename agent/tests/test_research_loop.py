@@ -573,3 +573,59 @@ def test_run_research_cycle_filters_superseded_solutions():
             f"Agent should only target active (non-superseded) solutions. "
             f"Targeted: {sid}, superseded s1: {s1.solution_id}, active s2: {s2.solution_id}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Cooldown escape fix: invalid/timeout/exception paths record a ResearchCycle
+# ---------------------------------------------------------------------------
+
+def test_invalid_agent_response_records_research_cycle():
+    """When the agent returns no recognisable status, a ResearchCycle skip must be recorded
+    so the cooldown prevents an immediate hot-loop retry."""
+    from agent.src.research_loop import run_research_cycle
+    from agent.src.synthesis import SYSTEM_AGENT_ID
+
+    service, author_id = _make_service()
+    p, s = _setup_problem_with_solution(service, author_id, confidence=0.3)
+
+    class _GarbageAgent:
+        def run(self, prompt: str) -> str:
+            return "I cannot determine an answer at this time."
+
+    metrics = asyncio.run(run_research_cycle(_GarbageAgent(), service, cooldown_hours=0))
+    assert metrics["no_improvement"] >= 1
+
+    # A ResearchCycle skip must have been recorded
+    last_researched = service._research_cycles.last_researched_at(p.problem_id)
+    assert last_researched is not None, (
+        "ResearchCycle skip should be recorded for invalid agent response to enforce cooldown"
+    )
+
+
+def test_timeout_records_research_cycle():
+    """A per-candidate timeout must record a ResearchCycle skip to prevent hot-loop retry."""
+    import asyncio as _asyncio
+    from agent.src.research_loop import run_research_cycle
+
+    service, author_id = _make_service()
+    p, s = _setup_problem_with_solution(service, author_id, confidence=0.3)
+
+    class _HangingAgent:
+        async def arun(self, prompt: str) -> str:
+            await _asyncio.sleep(9999)
+            return ""
+
+    # Patch timeout to 0 seconds so the timeout fires immediately
+    import agent.src.config as _cfg
+    original = _cfg.settings.agent_research_per_candidate_timeout_seconds
+    _cfg.settings.__dict__["agent_research_per_candidate_timeout_seconds"] = 0
+    try:
+        metrics = asyncio.run(run_research_cycle(_HangingAgent(), service, cooldown_hours=0))
+    finally:
+        _cfg.settings.__dict__["agent_research_per_candidate_timeout_seconds"] = original
+
+    assert metrics["no_improvement"] >= 1
+    last_researched = service._research_cycles.last_researched_at(p.problem_id)
+    assert last_researched is not None, (
+        "ResearchCycle skip should be recorded on timeout to enforce cooldown"
+    )
