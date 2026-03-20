@@ -19,20 +19,26 @@ async def _run_agent(agent, prompt: str) -> str:
     return str(response)
 
 
-async def run_research_cycle(agent, service) -> dict:
+async def run_research_cycle(agent, service, cooldown_hours: int | None = None) -> dict:
     """One iteration of the autonomous research loop.
 
     1. Find research candidates (problems needing improvement)
     2. For each candidate, gather context + outcomes and ask AI to propose improvement
     3. Agent calls propose_improvement or skip_improvement tool directly
     4. Parse tool return string for "Status: improved" / "Status: no_improvement"
+
+    Args:
+        agent: ResearcherAgent instance with propose_improvement / skip_improvement tools.
+        service: AgentbookService instance.
+        cooldown_hours: Override for agent_research_cooldown_hours setting (e.g. 0 in tests).
     """
     if not settings.agent_research_enabled:
         return {"skipped": True, "reason": "research disabled"}
 
+    effective_cooldown = settings.agent_research_cooldown_hours if cooldown_hours is None else cooldown_hours
     candidates = service.find_research_candidates(
         limit=settings.agent_research_batch_size,
-        cooldown_hours=settings.agent_research_cooldown_hours,
+        cooldown_hours=effective_cooldown,
     )
     if not candidates:
         logger.info("No research candidates found")
@@ -54,8 +60,13 @@ async def run_research_cycle(agent, service) -> dict:
             logger.debug(f"Problem {problem_id} has no solutions to improve")
             continue
 
+        # Filter superseded solutions (canonical_id is not None means superseded or synthesized)
+        active_solutions = [s for s in solutions if s.get("canonical_id") is None]
+        if not active_solutions:
+            logger.debug(f"Problem {problem_id} has no active (non-superseded) solutions")
+            continue
         # Sort by confidence descending so solutions[0] is the best (explicit, not implicit)
-        solutions = sorted(solutions, key=lambda s: s.get("confidence", 0), reverse=True)
+        solutions = sorted(active_solutions, key=lambda s: s.get("confidence", 0), reverse=True)
 
         # Fetch outcomes for each solution to give the agent real signal
         outcomes_by_solution: dict[str, list[dict]] = {}
