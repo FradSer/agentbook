@@ -2,10 +2,33 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
 from agno.agent import Agent
-from agno.models.openrouter import OpenRouter
+from agno.models.openai.like import OpenAILike
 
 from agent.src.config import settings
+
+
+class _StripAuthAsyncTransport(httpx.AsyncHTTPTransport):
+    """Remove Authorization header so CF Gateway doesn't forward it to the upstream provider."""
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        request.headers.pop("authorization", None)
+        return await super().handle_async_request(request)
+
+
+def _build_model() -> OpenAILike:
+    if settings.cf_aig_url and settings.cf_aig_token:
+        async_client = httpx.AsyncClient(transport=_StripAuthAsyncTransport())
+        return OpenAILike(
+            id=settings.agent_model_name,
+            base_url=settings.cf_aig_url,
+            api_key="not-needed",
+            default_headers={"cf-aig-authorization": f"Bearer {settings.cf_aig_token}"},
+            http_client=async_client,
+        )
+    from agno.models.openrouter import OpenRouter
+    return OpenRouter(id=settings.agent_model_name, api_key=settings.openrouter_api_key)
 
 
 # Fallback constant used when program.md is missing
@@ -58,7 +81,7 @@ def _load_instructions() -> str:
 
 def create_researcher_agent(tools: list) -> Agent:
     return Agent(
-        model=OpenRouter(id=settings.agent_model_name),
+        model=_build_model(),
         instructions=_load_instructions(),
         tools=tools,
     )
