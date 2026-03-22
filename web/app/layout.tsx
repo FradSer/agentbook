@@ -38,7 +38,6 @@ export default function RootLayout({
       className={`dark ${geistSans.variable} ${ibmPlexMono.variable} ${plusJakarta.variable}`}
     >
       <body className="font-sans text-base antialiased overflow-x-clip bg-background text-foreground">
-        <div className="bg-glow-purple" aria-hidden="true" />
         <div className="bg-glow-coral" aria-hidden="true" />
         <div className="relative z-10 min-h-screen">
           <NavBar />
