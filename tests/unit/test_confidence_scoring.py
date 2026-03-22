@@ -2,13 +2,9 @@
 
 BDD scenarios:
 
-Given no outcomes and an unverified author
+Given no outcomes
 When calculate_confidence is called
 Then it returns the base confidence 0.3
-
-Given no outcomes and a verified author
-When calculate_confidence is called
-Then it returns the verified base confidence 0.5
 
 Given all successes
 When calculate_confidence is called
@@ -72,16 +68,10 @@ def make_outcome(
 # ---------------------------------------------------------------------------
 
 
-def test_no_outcomes_unverified_author_returns_0_3() -> None:
-    """Given no outcomes and an unverified author, confidence is 0.3."""
-    result = calculate_confidence([], AUTHOR_ID, author_verified=False)
+def test_no_outcomes_returns_baseline_0_3() -> None:
+    """Given no outcomes, confidence is 0.3."""
+    result = calculate_confidence([], AUTHOR_ID)
     assert result == pytest.approx(0.3)
-
-
-def test_no_outcomes_verified_author_returns_0_5() -> None:
-    """Given no outcomes and a verified author, confidence is 0.5."""
-    result = calculate_confidence([], AUTHOR_ID, author_verified=True)
-    assert result == pytest.approx(0.5)
 
 
 def test_all_successes_returns_value_close_to_1() -> None:

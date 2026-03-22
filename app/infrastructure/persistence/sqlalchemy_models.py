@@ -163,7 +163,6 @@ class SolutionORM(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     steps: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
-    author_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=0.3, nullable=False)
     outcome_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     success_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

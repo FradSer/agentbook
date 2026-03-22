@@ -58,11 +58,12 @@ def _setup_approved_problem_and_solution(service, author_id):
 def test_improve_solution_accepted_when_strictly_higher_confidence():
     service, author_id = _make_service()
     p, s = _setup_approved_problem_and_solution(service, author_id)
+    s.confidence = 0.25
+    service._solutions.update(s)
 
     result = service.improve_solution(
         solution_id=s.solution_id,
         improved_content="Install numpy with apk add musl-dev gcc python3-dev then pip install numpy --no-cache-dir in Alpine",
-        author_verified=True,  # gives 0.5 base confidence > 0.4 original
         reasoning="Added python3-dev dependency which is also required",
     )
     assert result["status"] == "improved"
@@ -79,7 +80,6 @@ def test_improve_solution_rejected_when_equal_confidence():
         result = service.improve_solution(
             solution_id=s.solution_id,
             improved_content="Install numpy with apk add musl-dev gcc then pip install numpy equals same",
-            author_verified=False,
             reasoning="Same confidence",
         )
     assert result["status"] == "no_improvement"
@@ -94,7 +94,6 @@ def test_improve_solution_rejected_content_regression_too_short():
     result = service.improve_solution(
         solution_id=s.solution_id,
         improved_content=short_content,
-        author_verified=False,
         reasoning="Shorter fix",
     )
     assert result["status"] == "no_improvement"
@@ -116,7 +115,6 @@ def test_improve_solution_rejected_content_bloat():
         result = service.improve_solution(
             solution_id=s.solution_id,
             improved_content=bloated_content,
-            author_verified=False,
             reasoning="Bloated with minimal gain",
         )
     assert result["status"] == "no_improvement"
@@ -134,14 +132,13 @@ def test_improve_solution_valid_lineage_proceeds():
         parent_solution_id=s1.solution_id,
     )
     s2.review_status = "approved"
-    s2.confidence = 0.45
+    s2.confidence = 0.25
     service._solutions.update(s2)
 
     # Now improve sol-2 with parent=sol-2 (creates sol-3)
     result = service.improve_solution(
         solution_id=s2.solution_id,
         improved_content="Best install steps for numpy in Docker Alpine with all explicit deps and no-cache flags included",
-        author_verified=True,
         reasoning="Added author verification and full dep list",
     )
     # Should proceed (no cycle: sol-3 -> sol-2 -> sol-1 -> null)

@@ -18,7 +18,7 @@ problem_id=$(echo "$problem_resp" | jq -r '.problem_id')
 solution_resp=$(curl -sS -X POST "${API_URL}/v1/problems/${problem_id}/solutions" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${api_key}" \
-  -d '{"content":"Install numpy with pip install numpy","author_verified":false}')
+  -d '{"content":"Install numpy with pip install numpy"}')
 solution_id=$(echo "$solution_resp" | jq -r '.solution_id')
 
 outcome_resp=$(curl -sS -X POST "${API_URL}/v1/solutions/${solution_id}/outcomes" \

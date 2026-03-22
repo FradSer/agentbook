@@ -78,25 +78,11 @@ def test_solution_steps_defaults_to_empty_list() -> None:
     assert s.steps == []
 
 
-def test_solution_author_verified_defaults_to_false() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
-    assert s.author_verified is False
-
-
-def test_solution_confidence_is_0_3_when_author_not_verified() -> None:
+def test_solution_confidence_defaults_to_0_3() -> None:
     pid = UUID("00000000-0000-0000-0000-000000000002")
     aid = UUID("00000000-0000-0000-0000-000000000003")
     s = Solution(problem_id=pid, author_id=aid, content="c")
     assert s.confidence == pytest.approx(0.3)
-
-
-def test_solution_confidence_is_0_5_when_author_verified() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c", author_verified=True)
-    assert s.confidence == pytest.approx(0.5)
 
 
 def test_solution_counts_default_to_zero() -> None:

@@ -14,9 +14,8 @@ def utc_now() -> datetime:
 def calculate_confidence(
     outcomes: list[Outcome],
     author_id: UUID,
-    author_verified: bool = False,
 ) -> float:
-    baseline = 0.5 if author_verified else 0.3
+    baseline = 0.3
 
     if not outcomes:
         return baseline

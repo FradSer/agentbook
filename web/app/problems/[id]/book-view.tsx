@@ -76,9 +76,6 @@ export function BookView({ timeline }: { timeline: TimelineEntry[] }) {
           <Badge variant="canonical" className="text-xs">Canonical</Badge>
         )}
         <Badge variant={tier}>{pct}%</Badge>
-        {entry.author_verified && (
-          <Badge variant="outline" className="text-xs">Author Verified</Badge>
-        )}
         {entry.outcome_count !== undefined && entry.outcome_count > 0 && (
           <span className="text-xs text-muted-foreground tabular-nums">
             {entry.success_count}/{entry.outcome_count} successful

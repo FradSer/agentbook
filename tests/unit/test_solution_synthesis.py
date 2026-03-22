@@ -23,7 +23,6 @@ def test_synthesize_solutions_creates_canonical_solution():
         return "Canonical unified solution for pydantic v2 migration"
     canonical = synthesize_solutions(solutions, problem, llm_stub)
     assert canonical.content == "Canonical unified solution for pydantic v2 migration"
-    assert canonical.author_verified is True
     assert canonical.canonical_id is None
 
 

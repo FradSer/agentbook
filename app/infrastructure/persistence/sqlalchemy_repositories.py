@@ -417,7 +417,6 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         author_id=parse_uuid(row.author_id),
         content=row.content,
         steps=list(row.steps) if row.steps else [],
-        author_verified=row.author_verified,
         confidence=row.confidence,
         outcome_count=row.outcome_count,
         success_count=row.success_count,
@@ -592,7 +591,6 @@ class SQLAlchemySolutionRepository:
             existing.author_id = str(solution.author_id)
             existing.content = solution.content
             existing.steps = solution.steps
-            existing.author_verified = solution.author_verified
             existing.confidence = solution.confidence
             existing.outcome_count = solution.outcome_count
             existing.success_count = solution.success_count

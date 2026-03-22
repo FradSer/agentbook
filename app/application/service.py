@@ -101,7 +101,6 @@ class AgentbookService:
         author_id: UUID,
         content: str,
         steps: list[str] | None = None,
-        author_verified: bool = False,
         parent_solution_id: UUID | None = None,
     ) -> Solution:
         self._ensure_agent_exists(author_id)
@@ -116,7 +115,6 @@ class AgentbookService:
             author_id=author_id,
             content=content,
             steps=steps or [],
-            author_verified=author_verified,
             parent_solution_id=parent_solution_id,
             review_status="approved",
         )
@@ -389,7 +387,6 @@ class AgentbookService:
                     "outcome_count": canonical_sol.outcome_count,
                     "success_count": canonical_sol.success_count,
                     "author_id": str(canonical_sol.author_id),
-                    "author_verified": canonical_sol.author_verified,
                     "parent_solution_id": str(canonical_sol.parent_solution_id) if canonical_sol.parent_solution_id else None,
                     "environment_scores": canonical_sol.environment_scores,
                     "created_at": canonical_sol.created_at.isoformat(),
@@ -404,7 +401,6 @@ class AgentbookService:
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "author_id": str(s.author_id),
-                "author_verified": s.author_verified,
                 "parent_solution_id": str(s.parent_solution_id) if s.parent_solution_id else None,
                 "environment_scores": s.environment_scores,
                 "created_at": s.created_at.isoformat(),
@@ -510,7 +506,6 @@ class AgentbookService:
         tags: list[str] | None = None,
         solution_content: str | None = None,
         solution_steps: list[str] | None = None,
-        author_verified: bool = False,
         problem_id: UUID | None = None,
     ) -> dict:
         # If a specific problem_id is given, add solution to that existing problem
@@ -525,7 +520,6 @@ class AgentbookService:
                     author_id=author_id,
                     content=solution_content,
                     steps=solution_steps,
-                    author_verified=author_verified,
                 )
                 solution_id = new_solution.solution_id
             return {
@@ -558,7 +552,6 @@ class AgentbookService:
                 author_id=author_id,
                 content=solution_content,
                 steps=solution_steps,
-                author_verified=author_verified,
             )
             solution_id = new_solution.solution_id
 
@@ -801,14 +794,13 @@ class AgentbookService:
         improved_content: str,
         improved_steps: list[str] | None,
         reasoning: str,
-        author_verified: bool,
         max_retries: int = 3,
     ) -> dict:
         """Wrapper with retry logic for concurrent modification handling."""
         for attempt in range(max_retries):
             try:
                 return self._improve_solution_impl(
-                    author_id, solution_id, improved_content, improved_steps, reasoning, author_verified
+                    author_id, solution_id, improved_content, improved_steps, reasoning
                 )
             except ConcurrentModificationError as e:
                 if attempt == max_retries - 1:
@@ -829,14 +821,13 @@ class AgentbookService:
         improved_content: str,
         improved_steps: list[str] | None = None,
         reasoning: str = "",
-        author_verified: bool = False,
         author_id: UUID | None = None,
     ) -> dict:
         """Public API with retry logic."""
         from uuid import UUID as _UUID
         _author_id = author_id or _UUID("00000000-0000-0000-0000-000000000001")
         return self._improve_solution_with_retry(
-            _author_id, solution_id, improved_content, improved_steps, reasoning, author_verified
+            _author_id, solution_id, improved_content, improved_steps, reasoning
         )
 
     def _improve_solution_impl(
@@ -846,7 +837,6 @@ class AgentbookService:
         improved_content: str,
         improved_steps: list[str] | None = None,
         reasoning: str = "",
-        author_verified: bool = False,
     ) -> dict:
         existing = self._solutions.get(solution_id)
         if existing is None:
@@ -876,7 +866,6 @@ class AgentbookService:
             author_id=author_id,
             content=improved_content,
             steps=improved_steps or [],
-            author_verified=author_verified,
             parent_solution_id=solution_id,
         )
         self._solutions.add(new_solution)
@@ -964,7 +953,7 @@ class AgentbookService:
         _all_outcomes = [
             o for s in active for o in self._outcomes.list_by_solution(s.solution_id)
         ]
-        confidence = calculate_confidence(_all_outcomes, _author_id, author_verified=True)
+        confidence = calculate_confidence(_all_outcomes, _author_id)
         if synthesized_content is None:
             synthesized_content = "\n\n".join(
                 f"Solution {i+1}:\n{s.content}" for i, s in enumerate(active[:5])
@@ -978,12 +967,10 @@ class AgentbookService:
             problem_id=problem_id,
             author_id=_author_id,
             content=synthesized_content,
-            author_verified=True,
             outcome_count=total_outcomes,
             success_count=total_successes,
             failure_count=total_failures,
         )
-        # Override confidence from __post_init__ (author_verified gives 0.5 baseline)
         canonical.confidence = max(confidence, canonical.confidence)
         canonical.review_status = "approved"
         self._solutions.add(canonical)
@@ -1148,7 +1135,6 @@ class AgentbookService:
                 "promotion_status": s.promotion_status,
                 "canonical_id": str(s.canonical_id) if s.canonical_id else None,
                 "parent_solution_id": str(s.parent_solution_id) if s.parent_solution_id else None,
-                "author_verified": s.author_verified,
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
@@ -1232,7 +1218,6 @@ def _solution_to_dict(s: Solution) -> dict:
         "outcome_count": s.outcome_count,
         "success_count": s.success_count,
         "failure_count": s.failure_count,
-        "author_verified": s.author_verified,
         "canonical_id": s.canonical_id,
         "parent_solution_id": s.parent_solution_id,
         "created_at": s.created_at,

@@ -1,9 +1,9 @@
 Feature: Autonomous research loop
 
   Scenario: Cold-start bootstrapping
-    Given a problem with one unverified solution at confidence 0.3
-    When the researcher proposes an improvement with author_verified=True
-    Then the new solution has confidence 0.5
+    Given a problem with one solution at confidence 0.25
+    When the researcher proposes an improvement
+    Then the new solution has confidence 0.3
     And the existing solution is marked as superseded
 
   Scenario: Research prompt includes outcome signal
@@ -18,7 +18,7 @@ Feature: Autonomous research loop
 
   Scenario: Bloat filter allows verbose proposals with significant gain
     Given a solution with confidence 0.3
-    When an improvement with 2x+ length is proposed with author_verified=True (confidence 0.5)
+    When an improvement with 2x+ length is proposed with confidence 0.5
     Then the proposal is accepted (gain 0.2 exceeds 0.05 threshold)
 
   Scenario: Agent calls tool directly (no text parsing)
@@ -29,9 +29,9 @@ Feature: Autonomous research loop
 
   Scenario: Agent calls propose_improvement tool directly
     Given a problem with a low-confidence solution
-    When the agent calls propose_improvement tool with author_verified=True
+    When the agent calls propose_improvement tool
     Then the response contains "Status: improved"
-    And the new solution confidence is 0.5
+    And the new solution confidence is 0.3
 
   Scenario: Synthesis via service method only
     Given a problem with 2 active solutions

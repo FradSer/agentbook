@@ -89,7 +89,6 @@ def create_solution(
             author_id=current_agent.agent_id,
             content=body.content,
             steps=body.steps,
-            author_verified=body.author_verified,
         )
         return SolutionCreateResponse(solution_id=str(solution.solution_id))
     except NotFoundError as e:

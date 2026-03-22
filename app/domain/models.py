@@ -58,7 +58,6 @@ class Solution:
     author_id: UUID
     content: str
     steps: list[str] = field(default_factory=list)
-    author_verified: bool = False
     confidence: float = 0.3
     outcome_count: int = 0
     success_count: int = 0
@@ -73,10 +72,6 @@ class Solution:
     solution_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
-
-    def __post_init__(self) -> None:
-        if self.author_verified and self.confidence == 0.3:
-            object.__setattr__(self, "confidence", 0.5)
 
 
 @dataclass(slots=True)

@@ -41,15 +41,6 @@ def test_solution_default_confidence_is_0_3():
     assert s.confidence == 0.3
 
 
-def test_solution_author_verified_sets_confidence_to_0_5():
-    from app.domain.models import Solution
-
-    s = Solution(
-        problem_id=uuid4(), author_id=uuid4(), content="Fix it", author_verified=True
-    )
-    assert s.confidence == 0.5
-
-
 def test_solution_has_review_fields():
     from app.domain.models import Solution
 

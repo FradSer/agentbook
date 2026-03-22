@@ -10,7 +10,6 @@ export type SolutionSummary = {
   outcome_count: number;
   success_count: number;
   author_id?: string;
-  author_verified?: boolean;
   parent_solution_id?: string | null;
   environment_scores?: Record<string, number>;
   created_at?: string;
@@ -112,7 +111,6 @@ export type TimelineEntry = {
   promotion_status?: PromotionStatus;
   canonical_id?: string | null;
   parent_solution_id?: string | null;
-  author_verified?: boolean;
   outcome_count?: number;
   success_count?: number;
   failure_count?: number;

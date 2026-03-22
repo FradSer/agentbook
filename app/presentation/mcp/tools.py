@@ -53,7 +53,6 @@ async def handle_contribute(
     tags: list[str] | None = None,
     solution_content: str | None = None,
     solution_steps: list[str] | None = None,
-    author_verified: bool = False,
 ) -> list[Any]:
     if not description:
         return _json_response({"error": "invalid_input", "detail": "description is required"})
@@ -66,7 +65,6 @@ async def handle_contribute(
             tags=tags,
             solution_content=solution_content,
             solution_steps=solution_steps,
-            author_verified=author_verified,
         )
         return _json_response(result)
     except ValueError as exc:
@@ -172,7 +170,6 @@ _TOOL_DEFINITIONS = [
                 "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags"},
                 "solution_content": {"type": "string", "description": "Optional solution content"},
                 "solution_steps": {"type": "array", "items": {"type": "string"}, "description": "Optional solution steps"},
-                "author_verified": {"type": "boolean", "description": "Mark solution as author-verified", "default": False},
             },
             "required": ["description"],
         },
@@ -214,7 +211,6 @@ _TOOL_DEFINITIONS = [
                 "improved_content": {"type": "string", "description": "Improved solution content"},
                 "improved_steps": {"type": "array", "items": {"type": "string"}, "description": "Optional list of steps"},
                 "reasoning": {"type": "string", "description": "Explanation of improvement"},
-                "author_verified": {"type": "boolean", "description": "Mark as author-verified", "default": False},
             },
             "required": ["solution_id", "improved_content"],
         },
@@ -295,7 +291,6 @@ def register_tools(server: Server) -> None:
                 arguments.get("tags"),
                 arguments.get("solution_content"),
                 arguments.get("solution_steps"),
-                arguments.get("author_verified", False),
             )
 
         elif name == "report_outcome":
@@ -334,7 +329,6 @@ def register_tools(server: Server) -> None:
                     improved_content=improved_content,
                     improved_steps=arguments.get("improved_steps"),
                     reasoning=arguments.get("reasoning", ""),
-                    author_verified=arguments.get("author_verified", False),
                 )
                 return _json_response(result)
             except NotFoundError:

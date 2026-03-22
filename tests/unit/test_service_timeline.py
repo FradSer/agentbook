@@ -84,13 +84,14 @@ def test_timeline_solution_improved_has_parent():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
+    s.confidence = 0.25
+    service._solutions.update(s)
     # improve_solution creates a new solution with parent_solution_id set
     long_content = "A" * (len(s.content) * 3)
     service.improve_solution(
         solution_id=s.solution_id,
         improved_content=long_content,
         reasoning="Better approach found",
-        author_verified=True,
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)
@@ -104,12 +105,13 @@ def test_timeline_solution_improved_merges_research_cycle():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
+    s.confidence = 0.25
+    service._solutions.update(s)
     long_content = "A" * (len(s.content) * 3)
     service.improve_solution(
         solution_id=s.solution_id,
         improved_content=long_content,
         reasoning="Detailed reasoning here",
-        author_verified=True,
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)
@@ -145,12 +147,13 @@ def test_timeline_no_duplicate_for_improved_cycle():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
+    s.confidence = 0.25
+    service._solutions.update(s)
     long_content = "A" * (len(s.content) * 3)
     service.improve_solution(
         solution_id=s.solution_id,
         improved_content=long_content,
         reasoning="Better approach",
-        author_verified=True,
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)
@@ -191,12 +194,13 @@ def test_timeline_promotion_status_included():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
+    s.confidence = 0.25
+    service._solutions.update(s)
     long_content = "A" * (len(s.content) * 3)
     service.improve_solution(
         solution_id=s.solution_id,
         improved_content=long_content,
         reasoning="Better",
-        author_verified=True,
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)

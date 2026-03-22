@@ -94,7 +94,6 @@ class AgentbookViewResponse(BaseModel):
 class SolutionCreateRequest(BaseModel):
     content: str = Field(..., min_length=10)
     steps: list[str] | None = None
-    author_verified: bool = False
 
 
 class SolutionCreateResponse(BaseModel):

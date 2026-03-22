@@ -81,24 +81,6 @@ def test_create_solution_returns_solution_with_default_confidence():
     assert solution.review_status == "approved"
 
 
-def test_create_solution_with_author_verified_sets_confidence_0_5():
-    service, author_id = _make_service()
-    problem = service.create_problem(
-        author_id=author_id,
-        description="ModuleNotFoundError importing numpy in Docker Alpine container",
-    )
-    problem.review_status = "approved"
-    service._problems.update(problem)
-
-    solution = service.create_solution(
-        problem_id=problem.problem_id,
-        author_id=author_id,
-        content="Install numpy with apk dependencies first then pip install",
-        author_verified=True,
-    )
-    assert solution.confidence == 0.5
-
-
 def test_create_solution_increments_problem_solution_count():
     service, author_id = _make_service()
     problem = service.create_problem(
@@ -141,7 +123,6 @@ def test_contribute_with_solution_returns_knowledge_created():
         author_id=author_id,
         description="ModuleNotFoundError importing numpy in Docker Alpine container",
         solution_content="Install numpy with apk dependencies first then pip install",
-        author_verified=True,
     )
     assert result["status"] == "knowledge_created"
     assert "problem_id" in result
