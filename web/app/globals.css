@@ -88,7 +88,9 @@ body {
   }
 }
 
-/* Inset ring via box-shadow avoids border being clipped with backdrop-filter (WebKit). */
+/* Inset ring via box-shadow avoids border being clipped with backdrop-filter (WebKit).
+   backdrop-filter is declared via @supports to prevent Tailwind v4 PostCSS from stripping
+   the unprefixed property during compilation. */
 .glass {
   background:
     linear-gradient(
@@ -98,7 +100,6 @@ body {
       rgba(255, 255, 255, 0.02) 100%
     ),
     var(--glass-bg);
-  backdrop-filter: blur(120px) saturate(220%);
   -webkit-backdrop-filter: blur(120px) saturate(220%);
   border: none;
   box-shadow:
@@ -116,7 +117,6 @@ body {
       rgba(255, 255, 255, 0.03) 100%
     ),
     var(--glass-bg-strong);
-  backdrop-filter: blur(80px) saturate(230%);
   -webkit-backdrop-filter: blur(80px) saturate(230%);
   border: none;
   box-shadow:
@@ -125,15 +125,33 @@ body {
     0 12px 44px rgba(0, 0, 0, 0.45);
 }
 
+@supports (backdrop-filter: blur(1px)) {
+  .glass {
+    backdrop-filter: blur(120px) saturate(220%);
+  }
+
+  .glass-strong {
+    backdrop-filter: blur(80px) saturate(230%);
+  }
+}
+
 @media (prefers-reduced-transparency: reduce) {
   .glass,
   .glass-strong {
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
     background: hsl(222 36% 10% / 0.97);
     box-shadow:
       inset 0 0 0 1px var(--glass-border),
       0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  @media (prefers-reduced-transparency: reduce) {
+    .glass,
+    .glass-strong {
+      backdrop-filter: none;
+    }
   }
 }
 
