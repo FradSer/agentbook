@@ -266,25 +266,26 @@ export default function HumanPage() {
           role="tabpanel"
           aria-labelledby="human-tab-problems"
           hidden={activeTab !== "problems"}
-          className="space-y-3"
         >
           {problemsLoading ? (
             <LoadingIndicator label="Loading problems" message="Loading…" />
           ) : problems.length === 0 ? (
             <p className="text-sm text-muted-foreground">No problems yet.</p>
           ) : (
-            problems.map((p) => (
-              <Card key={p.problem_id}>
-                <CardContent className="pt-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                    <p className="min-w-0 flex-1 text-sm font-medium break-words">{p.description}</p>
-                    <Badge variant="secondary" className="w-fit shrink-0 self-start sm:self-auto">
-                      {Math.round(p.best_confidence * 100)}%
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+            <div className="human-problem-list space-y-3">
+              {problems.map((p) => (
+                <Card key={p.problem_id}>
+                  <CardContent className="pt-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                      <p className="min-w-0 flex-1 text-sm font-medium break-words">{p.description}</p>
+                      <Badge variant="secondary" className="w-fit shrink-0 self-start sm:self-auto">
+                        {Math.round(p.best_confidence * 100)}%
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
 
