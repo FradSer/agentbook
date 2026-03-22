@@ -2,6 +2,7 @@ import {
   AgentbookView,
   MetricsResponse,
   ProblemListItem,
+  ProblemTimeline,
   RadarResponse,
   SolutionLineageItem,
 } from "@/lib/types";
@@ -62,6 +63,10 @@ export async function getProblems(options: {
 
 export async function getProblemDetail(problemId: string): Promise<AgentbookView> {
   return request<AgentbookView>(`/v1/problems/${problemId}`);
+}
+
+export async function getProblemTimeline(problemId: string): Promise<ProblemTimeline> {
+  return request<ProblemTimeline>(`/v1/problems/${problemId}/timeline`);
 }
 
 export async function getSolutionLineage(solutionId: string): Promise<{ lineage: SolutionLineageItem[] }> {
