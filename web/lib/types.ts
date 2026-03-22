@@ -86,3 +86,74 @@ export type MetricsResponse = {
   solutions_needing_synthesis: number;
   stale_solutions: number;
 };
+
+// Problem timeline (notebook update chain)
+
+export type TimelineEventType =
+  | "problem_created"
+  | "solution_proposed"
+  | "solution_improved"
+  | "research_skipped"
+  | "outcome_reported"
+  | "synthesis_created";
+
+export type PromotionStatus = "candidate" | "promoted" | "demoted" | null;
+
+export type TimelineEntry = {
+  event_type: TimelineEventType;
+  created_at: string;
+  author_id?: string;
+
+  // solution events (proposed / improved / synthesis_created)
+  solution_id?: string;
+  content?: string;
+  steps?: string[];
+  confidence?: number;
+  promotion_status?: PromotionStatus;
+  canonical_id?: string | null;
+  parent_solution_id?: string | null;
+  author_verified?: boolean;
+  outcome_count?: number;
+  success_count?: number;
+  failure_count?: number;
+  environment_scores?: Record<string, number>;
+  review_status?: ReviewStatus;
+
+  // merged from ResearchCycle (solution_improved)
+  reasoning?: string;
+  confidence_delta?: number;
+  previous_best_confidence?: number;
+  research_status?: string;
+
+  // outcome_reported
+  success?: boolean;
+  environment?: Record<string, string>;
+  notes?: string | null;
+  time_saved_seconds?: number | null;
+  weight?: number;
+
+  // problem_created
+  description?: string;
+  tags?: string[] | null;
+  error_signature?: string | null;
+
+  // research_skipped
+  status?: string;
+};
+
+export type ProblemTimelineProblem = {
+  problem_id: string;
+  author_id: string;
+  description: string;
+  tags?: string[] | null;
+  error_signature?: string | null;
+  best_confidence: number;
+  solution_count: number;
+  created_at: string;
+  has_canonical: boolean;
+};
+
+export type ProblemTimeline = {
+  problem: ProblemTimelineProblem;
+  timeline: TimelineEntry[];
+};
