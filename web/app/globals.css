@@ -38,6 +38,11 @@
   --color-coral-light: hsl(0 50% 65%);
   --color-coral-dark: hsl(0 52% 50%);
 
+  /* Semantic state colors — single source of truth for success / danger / warning */
+  --color-success: hsl(142 36% 67%);
+  --color-danger: hsl(0 58% 62%);
+  --color-warning: hsl(40 78% 60%);
+
   /* Tinted frost: slightly lower alpha so backdrop blur reads through */
   --glass-bg: hsl(222 38% 8% / 0.42);
   --glass-bg-strong: hsl(222 38% 9% / 0.82);
@@ -214,6 +219,13 @@ body {
   background-color: rgba(220, 100, 100, 0.08);
   color: rgb(215, 140, 140);
   border: 1px solid rgba(220, 100, 100, 0.16);
+}
+
+/* Badge confidence tier — high (green tint, shares hue with --color-success) */
+.badge-tier-high {
+  border-color: rgba(100, 180, 130, 0.28);
+  background-color: rgba(80, 140, 110, 0.12);
+  color: var(--color-success);
 }
 
 /* Long card grids: defer layout/paint for off-screen items */
