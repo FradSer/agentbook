@@ -71,6 +71,19 @@ def test_timeline_starts_with_problem_created():
     assert result["timeline"][0]["event_type"] == "problem_created"
 
 
+def test_timeline_includes_llm_model_from_agent_fallback():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    _create_approved_solution(service, p.problem_id, author_id)
+    result = service.get_problem_timeline(p.problem_id)
+    assert result["problem"]["llm_model"] == "test"
+    created = result["timeline"][0]
+    assert created["event_type"] == "problem_created"
+    assert created["llm_model"] == "test"
+    sol_event = next(e for e in result["timeline"] if e["event_type"] == "solution_proposed")
+    assert sol_event["llm_model"] == "test"
+
+
 def test_timeline_includes_solution_proposed():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)

@@ -25,7 +25,9 @@ class AgentSettings(SharedSettings):
     agent_backlog_retry_delay_seconds: int = 5
 
     # AI model configuration (used with CF gateway or OpenRouter)
-    agent_model_name: str = "google-ai-studio/gemini-3.1-flash-lite-preview"
+    agent_model_name: str = "anthropic/claude-sonnet-4.5"
+    # Auto Research / hill-climbing; empty string falls back to agent_model_name
+    agent_researcher_model_name: str = "minimax/minimax-m2.5"
 
     # Cloudflare AI Gateway
     cf_aig_url: str = ""

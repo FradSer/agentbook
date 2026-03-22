@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
-import { getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
+import { formatLlmModelLabel, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { TimelineEntry } from "@/lib/types";
 
 const SolutionMarkdown = dynamic(
@@ -35,18 +35,34 @@ function pickBestEntry(timeline: TimelineEntry[]): TimelineEntry | null {
   return any ?? null;
 }
 
-function AuthorLine({ authorId, createdAt }: { authorId?: string; createdAt: string }) {
+function AuthorLine({
+  authorId,
+  createdAt,
+  llmModel,
+}: {
+  authorId?: string;
+  createdAt: string;
+  llmModel?: string | null;
+}) {
   if (!authorId) return null;
   const avatar = getAgentAvatar(authorId);
+  const modelLabel = formatLlmModelLabel(llmModel ?? undefined);
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <GradientColorBlock
-        aria-hidden
-        background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
-      />
-      <span className="font-mono">{authorId.replace(/-/g, "").slice(0, 8)}</span>
-      <span>·</span>
-      <span>{getRelativeTime(createdAt)}</span>
+    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <GradientColorBlock
+          aria-hidden
+          background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
+        />
+        <span className="font-mono">{authorId.replace(/-/g, "").slice(0, 8)}</span>
+        <span>·</span>
+        <span>{getRelativeTime(createdAt)}</span>
+      </div>
+      {modelLabel ? (
+        <span className="text-[10px] font-mono pl-2" title={llmModel ?? undefined}>
+          {modelLabel}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -109,7 +125,7 @@ export function BookView({ timeline }: { timeline: TimelineEntry[] }) {
 
       {/* Author */}
       <div className="pt-4 border-t border-border">
-        <AuthorLine authorId={entry.author_id} createdAt={entry.created_at} />
+        <AuthorLine authorId={entry.author_id} createdAt={entry.created_at} llmModel={entry.llm_model} />
       </div>
     </article>
   );

@@ -412,7 +412,6 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
 
 def _to_solution_domain(row: SolutionORM) -> Solution:
     return Solution(
-        solution_id=parse_uuid(row.solution_id),
         problem_id=parse_uuid(row.problem_id),
         author_id=parse_uuid(row.author_id),
         content=row.content,
@@ -424,9 +423,14 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         canonical_id=parse_uuid(row.canonical_id) if row.canonical_id else None,
         parent_solution_id=parse_uuid(row.parent_solution_id) if row.parent_solution_id else None,
         promotion_status=getattr(row, "promotion_status", None),
+        environment_scores=dict(row.environment_scores) if getattr(row, "environment_scores", None) else {},
+        review_status=getattr(row, "review_status", None),
+        review_score=getattr(row, "review_score", None),
+        reviewed_at=getattr(row, "reviewed_at", None),
+        solution_id=parse_uuid(row.solution_id),
         created_at=row.created_at,
         updated_at=row.updated_at,
-        review_status=getattr(row, "review_status", None),
+        llm_model=getattr(row, "llm_model", None),
     )
 
 
@@ -598,9 +602,13 @@ class SQLAlchemySolutionRepository:
             existing.canonical_id = str(solution.canonical_id) if solution.canonical_id else None
             existing.parent_solution_id = str(solution.parent_solution_id) if solution.parent_solution_id else None
             existing.promotion_status = solution.promotion_status
+            existing.environment_scores = solution.environment_scores
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
             existing.review_status = solution.review_status
+            existing.review_score = solution.review_score
+            existing.reviewed_at = solution.reviewed_at
+            existing.llm_model = solution.llm_model
             session.merge(existing)
             session.commit()
 
@@ -723,7 +731,6 @@ class SQLAlchemyOutcomeRepository:
 
 def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
     return ResearchCycle(
-        cycle_id=parse_uuid(row.cycle_id),
         problem_id=parse_uuid(row.problem_id),
         researcher_id=parse_uuid(row.researcher_id),
         proposed_solution_id=parse_uuid(row.proposed_solution_id) if row.proposed_solution_id else None,
@@ -731,7 +738,9 @@ def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
         new_confidence=row.new_confidence,
         status=row.status,
         reasoning=row.reasoning,
+        cycle_id=parse_uuid(row.cycle_id),
         created_at=row.created_at,
+        llm_model=getattr(row, "llm_model", None),
     )
 
 
@@ -750,6 +759,7 @@ class SQLAlchemyResearchCycleRepository:
                 new_confidence=cycle.new_confidence,
                 status=cycle.status,
                 reasoning=cycle.reasoning,
+                llm_model=cycle.llm_model,
                 created_at=cycle.created_at,
             )
             session.add(row)

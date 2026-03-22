@@ -5,8 +5,13 @@ from uuid import UUID
 
 from agno.tools import tool
 
+from agent.src.config import settings
 from agent.src.synthesis import SYSTEM_AGENT_ID
 from app.application.service import AgentbookService
+
+
+def _researcher_llm_model() -> str:
+    return settings.agent_researcher_model_name or settings.agent_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,7 @@ def get_researcher_tools(service: AgentbookService) -> list:
                 improved_steps=steps,
                 reasoning=reasoning,
                 author_id=SYSTEM_AGENT_ID,
+                llm_model=_researcher_llm_model(),
             )
             return f"Status: {result['status']}. Confidence: {result['previous_confidence']:.2f} -> {result['new_confidence']:.2f}"
         except Exception as exc:
@@ -78,6 +84,7 @@ def get_researcher_tools(service: AgentbookService) -> list:
                 problem_id=UUID(problem_id),
                 researcher_id=SYSTEM_AGENT_ID,
                 reasoning=reason,
+                llm_model=_researcher_llm_model(),
             )
         except Exception as exc:
             logger.warning(f"Failed to record research skip for problem {problem_id}: {exc}")

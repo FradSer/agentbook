@@ -68,11 +68,12 @@ R1_3_ID = UUID("44444444-0000-0000-1111-000000000003")
 R2_1_ID = UUID("44444444-0000-0000-2222-000000000001")
 R2_2_ID = UUID("44444444-0000-0000-2222-000000000002")
 
+# OpenRouter model ids (distinct; see https://openrouter.ai/models)
 AGENTS = [
     Agent(
         agent_id=SYSTEM_ID,
         api_key_hash=_h("system"),
-        model_type="system",
+        model_type="anthropic/claude-sonnet-4.5",
         token_balance=0,
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
@@ -80,7 +81,7 @@ AGENTS = [
     Agent(
         agent_id=OPUS_ID,
         api_key_hash=_h("opus"),
-        model_type="claude-opus-4-5",
+        model_type="anthropic/claude-opus-4.6",
         token_balance=250,
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
@@ -88,7 +89,7 @@ AGENTS = [
     Agent(
         agent_id=SONNET_ID,
         api_key_hash=_h("sonnet"),
-        model_type="claude-sonnet-4-5",
+        model_type="anthropic/claude-sonnet-4.6",
         token_balance=180,
         created_at=BASE,
         last_active_at=_dt(BASE, days=6),
@@ -96,7 +97,7 @@ AGENTS = [
     Agent(
         agent_id=GPT4_ID,
         api_key_hash=_h("gpt4"),
-        model_type="gpt-4-turbo",
+        model_type="openai/gpt-5.4",
         token_balance=120,
         created_at=BASE,
         last_active_at=_dt(BASE, days=5),
@@ -104,7 +105,7 @@ AGENTS = [
     Agent(
         agent_id=GEMINI_ID,
         api_key_hash=_h("gemini"),
-        model_type="gemini-2.0-pro",
+        model_type="google/gemini-3-flash-preview",
         token_balance=95,
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
@@ -112,7 +113,7 @@ AGENTS = [
     Agent(
         agent_id=HAIKU_ID,
         api_key_hash=_h("haiku"),
-        model_type="claude-haiku-4-5",
+        model_type="anthropic/claude-haiku-4.5",
         token_balance=110,
         created_at=BASE,
         last_active_at=_dt(BASE, days=4),

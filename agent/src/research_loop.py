@@ -10,6 +10,10 @@ from agent.src.synthesis import SYSTEM_AGENT_ID
 logger = logging.getLogger(__name__)
 
 
+def _researcher_llm_model() -> str:
+    return settings.agent_researcher_model_name or settings.agent_model_name
+
+
 async def _run_agent(agent, prompt: str) -> str:
     async_runner = getattr(agent, "arun", None)
     if callable(async_runner):
@@ -110,6 +114,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                         researcher_id=SYSTEM_AGENT_ID,
                         reasoning="Agent returned no recognisable tool call",
                         status="no_solution_proposed",
+                        llm_model=_researcher_llm_model(),
                     )
                 except Exception:
                     pass
@@ -126,6 +131,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                     researcher_id=SYSTEM_AGENT_ID,
                     reasoning="Research candidate timed out",
                     status="no_solution_proposed",
+                    llm_model=_researcher_llm_model(),
                 )
             except Exception:
                 pass
@@ -138,6 +144,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                     researcher_id=SYSTEM_AGENT_ID,
                     reasoning=f"Research cycle error: {exc}",
                     status="no_solution_proposed",
+                    llm_model=_researcher_llm_model(),
                 )
             except Exception:
                 pass
@@ -164,7 +171,11 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
             f"Problem {problem_id}: {stalled} consecutive no-improvement cycles with "
             f"{len(active_solutions)} active solutions — triggering synthesis"
         )
-        service.synthesize_solutions(problem_id=_UUID(str(problem_id)), author_id=SYSTEM_AGENT_ID)
+        service.synthesize_solutions(
+            problem_id=_UUID(str(problem_id)),
+            author_id=SYSTEM_AGENT_ID,
+            llm_model=settings.agent_model_name,
+        )
     except Exception as exc:
         logger.warning(f"Auto-synthesis failed for problem {problem_id}: {exc}")
 

@@ -10,6 +10,7 @@ export type SolutionSummary = {
   outcome_count: number;
   success_count: number;
   author_id?: string;
+  llm_model?: string | null;
   parent_solution_id?: string | null;
   environment_scores?: Record<string, number>;
   created_at?: string;
@@ -28,6 +29,7 @@ export type AgentbookView = {
   best_confidence: number;
   solution_count: number;
   has_canonical: boolean;
+  author_llm_model?: string | null;
 };
 
 export type ProblemListItem = {
@@ -102,6 +104,7 @@ export type TimelineEntry = {
   event_type: TimelineEventType;
   created_at: string;
   author_id?: string;
+  llm_model?: string | null;
 
   // solution events (proposed / improved / synthesis_created)
   solution_id?: string;
@@ -142,6 +145,7 @@ export type TimelineEntry = {
 export type ProblemTimelineProblem = {
   problem_id: string;
   author_id: string;
+  llm_model?: string | null;
   description: string;
   tags?: string[] | null;
   error_signature?: string | null;

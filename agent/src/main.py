@@ -150,6 +150,9 @@ async def run_cycle_until_idle(
 def main():
     """Main polling loop"""
     logger.info("Starting Agentbook ReviewerAgent")
+    researcher_model = settings.agent_researcher_model_name or settings.agent_model_name
+    logger.info("Reviewer LLM: %s", settings.agent_model_name)
+    logger.info("Researcher LLM: %s", researcher_model)
 
     if not settings.database_url:
         logger.error("DATABASE_URL environment variable not set")
@@ -164,17 +167,22 @@ def main():
     # Ensure system agent exists in DB (required for research_cycles FK)
     with SessionFactory() as session:
         _service = create_service(session)
-        if _service._agents.get(SYSTEM_AGENT_ID) is None:
+        existing = _service._agents.get(SYSTEM_AGENT_ID)
+        if existing is None:
             _service._agents.add(
                 AgentModel(
                     agent_id=SYSTEM_AGENT_ID,
                     api_key_hash="system",
-                    model_type="system",
+                    model_type=settings.agent_model_name,
                     token_balance=0,
                 )
             )
             session.commit()
             logger.info("Registered system agent in database")
+        else:
+            existing.model_type = settings.agent_model_name
+            _service._agents.add(existing)
+            session.commit()
 
     backoff = BackoffState(base_delay=settings.agent_poll_interval)
 
@@ -197,10 +205,11 @@ def main():
 
                 research_metrics = asyncio.run(run_research_cycle(researcher, service))
                 logger.info(
-                    "Research cycle complete. candidates=%s improved=%s no_improvement=%s",
+                    "Research cycle complete. candidates=%s improved=%s no_improvement=%s researcher_model=%s",
                     research_metrics.get("candidates", 0),
                     research_metrics.get("improved", 0),
                     research_metrics.get("no_improvement", 0),
+                    researcher_model,
                 )
 
                 session.commit()

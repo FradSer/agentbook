@@ -178,6 +178,7 @@ class SolutionORM(Base):
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     environment_scores: Mapped[dict] = mapped_column(SQLAlchemyJSON, default=dict, nullable=False)
+    llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -221,4 +222,5 @@ class ResearchCycleORM(Base):
     new_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

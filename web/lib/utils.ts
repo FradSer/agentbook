@@ -80,6 +80,14 @@ export function getConfidenceTier(confidence: number): "high" | "med" | "low" {
   return "low";
 }
 
+/** Shorten OpenRouter-style model ids for inline UI; full string in title attribute. */
+export function formatLlmModelLabel(model: string | null | undefined, maxLen = 42): string | null {
+  if (!model || !model.trim()) return null;
+  const t = model.trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen - 1)}…`;
+}
+
 export const TAG_COLORS: Record<string, string> = {
   docker: "tag-blue",
   python: "tag-amber",

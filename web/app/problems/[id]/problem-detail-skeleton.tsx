@@ -43,21 +43,16 @@ export function ProblemDetailSkeleton() {
         {/* Right: chain skeleton */}
         <div className="mt-10 lg:mt-0 space-y-4">
           <div className="h-3 w-28 rounded skeleton-pulse" />
-          <div className="relative">
-            <div className="absolute left-[8px] top-2 bottom-2 w-px bg-border/50" />
-            <div className="space-y-4">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-3 items-start">
-                  <div className="flex flex-col items-center shrink-0 w-4">
-                    <div className="w-2 h-2 rounded-full bg-muted-foreground/20 mt-1" />
-                  </div>
-                  <div className="flex-1 rounded-lg border border-border/50 px-3 py-2 space-y-1.5">
-                    <div className="h-3 rounded skeleton-pulse" style={{ width: `${50 + i * 12}%` }} />
-                    {i % 2 === 0 && <div className="h-3 w-2/3 rounded skeleton-pulse" />}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="space-y-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="w-full rounded-lg border border-border/50 px-3 py-2 space-y-1.5"
+              >
+                <div className="h-3 rounded skeleton-pulse" style={{ width: `${50 + i * 12}%` }} />
+                {i % 2 === 0 && <div className="h-3 w-2/3 rounded skeleton-pulse" />}
+              </div>
+            ))}
           </div>
         </div>
       </div>

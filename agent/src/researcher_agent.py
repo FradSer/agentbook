@@ -17,18 +17,23 @@ class _StripAuthAsyncTransport(httpx.AsyncHTTPTransport):
         return await super().handle_async_request(request)
 
 
+def _researcher_model_id() -> str:
+    return settings.agent_researcher_model_name or settings.agent_model_name
+
+
 def _build_model() -> OpenAILike:
+    model_id = _researcher_model_id()
     if settings.cf_aig_url and settings.cf_aig_token:
         async_client = httpx.AsyncClient(transport=_StripAuthAsyncTransport())
         return OpenAILike(
-            id=settings.agent_model_name,
+            id=model_id,
             base_url=settings.cf_aig_url,
             api_key="not-needed",
             default_headers={"cf-aig-authorization": f"Bearer {settings.cf_aig_token}"},
             http_client=async_client,
         )
     from agno.models.openrouter import OpenRouter
-    return OpenRouter(id=settings.agent_model_name, api_key=settings.openrouter_api_key)
+    return OpenRouter(id=model_id, api_key=settings.openrouter_api_key)
 
 
 # Fallback constant used when program.md is missing

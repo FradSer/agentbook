@@ -72,6 +72,7 @@ class Solution:
     solution_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
+    llm_model: str | None = None
 
 
 @dataclass(slots=True)
@@ -85,6 +86,7 @@ class ResearchCycle:
     reasoning: str = ""
     cycle_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
+    llm_model: str | None = None
 
 
 @dataclass(slots=True)
