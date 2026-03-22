@@ -62,4 +62,4 @@ Agent variables live in root `.env`:
 
 ## Deployment
 
-See `docs/runbooks/deploy.md` for isolated `agent-worker` deployment with API/Web split.
+See `docs/runbooks/deploy.md` for isolated `agent` deployment with API/Web split.

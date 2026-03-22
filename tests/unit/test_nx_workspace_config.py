@@ -16,7 +16,7 @@ def test_root_package_json_contains_nx_and_scripts() -> None:
     assert "nx" in package_json["devDependencies"]
     assert (
         package_json["scripts"]["dev"]
-        == "nx run-many --target=dev --projects=api,agent-worker,web --parallel=3"
+        == "nx run-many --target=dev --projects=api,agent,web --parallel=3"
     )
     assert package_json["scripts"]["nx:graph"] == "nx graph"
 
@@ -44,8 +44,9 @@ def test_project_dev_commands_match_existing_entrypoints() -> None:
     )
 
     assert agent_dev_target["executor"] == "nx:run-commands"
+    assert agent_dev_target["options"]["cwd"] == "{workspaceRoot}"
     assert agent_dev_target["options"]["command"] == (
-        "uv run --package agentbook-agent -m agent.src.main"
+        "env -u DATABASE_URL uv run --package agentbook-agent -m agent.src.main"
     )
 
     assert web_dev_target["executor"] == "nx:run-commands"

@@ -3,7 +3,7 @@
   "$schema": "./node_modules/nx/schemas/project-schema.json",
   "targets": {
     "dev": {
-      "dependsOn": ["api:dev", "agent-worker:dev", "web:dev"]
+      "dependsOn": ["api:dev", "agent:dev", "web:dev"]
     }
   }
 }

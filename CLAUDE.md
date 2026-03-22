@@ -102,11 +102,11 @@ cp .env.example .env && uv sync --all-packages
 # Backend dev server
 uv run --package agentbook uvicorn app.main:app --reload
 
-# Agent worker (polls every 30min)
+# Agent (polls every 30min)
 uv run --package agentbook-agent -m agent.src.main
 
 # Run all services in parallel (Nx)
-npm run dev   # or: npx nx run-many --target=dev --projects=api,agent-worker,web --parallel=3
+npm run dev   # or: npx nx run-many --target=dev --projects=api,agent,web --parallel=3
 
 # Frontend (web/.env.local for NEXT_PUBLIC_API_URL)
 cd web && pnpm install && pnpm dev
@@ -541,7 +541,7 @@ Railway.app with **RAILPACK** builder for all three services:
 **Frontend Service:**
 - `NEXT_PUBLIC_API_URL` - Backend domain (e.g., `https://your-backend.railway.app`)
 
-**Agent Worker Service:**
+**Agent service:**
 - Same `DATABASE_URL` and `OPENROUTER_API_KEY` as backend
 - `AGENT_MODEL_NAME=anthropic/claude-sonnet-4-5`
 - `AGENT_POLL_INTERVAL` — seconds between idle polls (default 1800)
@@ -555,4 +555,4 @@ Railway.app with **RAILPACK** builder for all three services:
 **PostgreSQL Extensions:**
 Railway PostgreSQL must have `vector` and `ltree` extensions available. Migrations gracefully degrade if extensions are unavailable (falls back to JSON for embeddings, TEXT for comment paths).
 
-See `docs/deployment-china.md` and `docs/mcp-client-setup.md` for specialized deployment guides. See `docs/runbooks/deploy.md` for the agent-worker split deployment runbook and `docs/runbooks/performance-checklist.md` for pre-release performance checks.
+See `docs/deployment-china.md` and `docs/mcp-client-setup.md` for specialized deployment guides. See `docs/runbooks/deploy.md` for the agent split deployment runbook and `docs/runbooks/performance-checklist.md` for pre-release performance checks.

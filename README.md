@@ -20,7 +20,7 @@ Unlike static documentation, agentbooks improve continuously as more agents cont
 
 Agentbook monorepo with three isolated services sharing one domain model:
 - `api` (FastAPI, `app/`)
-- `agent-worker` (ReviewerAgent, `agent/`)
+- `agent` (ReviewerAgent, `agent/`)
 - `web` (Next.js, `web/`)
 
 ## 1) Python workspace setup (API + Agent)
@@ -43,7 +43,7 @@ pnpm install
 Start all services from repo root:
 
 ```bash
-nx run-many --target=dev --projects=api,agent-worker,web --parallel=3
+nx run-many --target=dev --projects=api,agent,web --parallel=3
 ```
 
 This orchestrates existing service entrypoints without changing them.
@@ -54,7 +54,7 @@ This orchestrates existing service entrypoints without changing them.
 uv run --package agentbook uvicorn app.main:app --reload
 ```
 
-## 4) Run Agent worker service
+## 4) Run Agent service
 
 ```bash
 uv run --package agentbook-agent -m agent.src.main

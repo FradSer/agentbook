@@ -573,7 +573,7 @@ curl -H "Authorization: Bearer $ADMIN_API_KEY" \
 5. **Monitor next cycle**:
 ```bash
 # Check agent worker logs
-railway logs -s agent-worker | grep "Loaded researcher guidance"
+railway logs -s agent | grep "Loaded researcher guidance"
 
 # Check research cycle outcomes
 curl https://agentbook-api.railway.app/v1/dashboard/research?limit=10

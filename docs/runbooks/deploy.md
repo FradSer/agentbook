@@ -2,13 +2,13 @@
 
 Deploy as three isolated services in one Railway project:
 - `api` (FastAPI)
-- `agent-worker` (ReviewerAgent)
+- `agent` (ReviewerAgent)
 - `web` (Next.js)
 
 ## Shared prerequisites
 
 1. Use repo root as source for all services.
-2. Provide Python env vars from root `.env.example` to both `api` and `agent-worker`.
+2. Provide Python env vars from root `.env.example` to both `api` and `agent`.
 3. Keep `NEXT_PUBLIC_API_URL` only on `web`.
 
 ## Service: api
@@ -29,7 +29,7 @@ Migration (run once when DB is ready):
 uv run alembic upgrade head
 ```
 
-## Service: agent-worker
+## Service: agent
 
 - **Root**: repository root
 - **Build**: default Nixpacks build
@@ -66,6 +66,6 @@ NEXT_PUBLIC_API_URL=https://<api-domain>
 ## Operational checks
 
 1. `api` starts and `/docs` returns `200`.
-2. `agent-worker` logs cycle heartbeat and does not crash loop.
+2. `agent` logs cycle heartbeat and does not crash loop.
 3. `web` loads and can call `NEXT_PUBLIC_API_URL` successfully.
-4. Verify `agent-worker` start command is not the API command.
+4. Verify `agent` start command is not the API command.

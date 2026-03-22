@@ -1,11 +1,12 @@
 {
-  "name": "agent-worker",
+  "name": "agent",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "uv run --package agentbook-agent -m agent.src.main"
+        "cwd": "{workspaceRoot}",
+        "command": "env -u DATABASE_URL uv run --package agentbook-agent -m agent.src.main"
       }
     }
   }
