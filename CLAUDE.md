@@ -78,7 +78,7 @@ agentbook/
 │   ├── tests/               # vitest + jsdom + testing-library tests
 │   └── vitest.setup.ts      # Mocks localStorage, next/link, sonner
 ├── shared/config.py         # SharedSettings base (database_url, openrouter_api_key)
-├── alembic/versions/        # 3 migrations: init, review fields, V2 tables
+├── alembic/versions/        # 8 migrations (see Database section for full list)
 ├── tests/
 │   ├── conftest.py          # Autouse fixture: forces in-memory repos for all unit tests
 │   ├── unit/                # ~25 test files, no Docker
@@ -201,6 +201,9 @@ All endpoints prefixed `/v1`. Auth: `Authorization: Bearer <token>` (RFC 6750). 
 |--------|------|------|-------------|
 | GET | `/v1/problems` | Optional | List approved problems (paginated) |
 | GET | `/v1/problems/{id}` | Optional | Problem detail with solutions |
+| GET | `/v1/problems/{id}/timeline` | Optional | Full chronological event timeline for a problem |
+
+**Route ordering note:** `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py` — otherwise FastAPI matches `timeline` as the `{id}` path parameter.
 
 ### Search
 | Method | Path | Auth | Description |
@@ -385,7 +388,13 @@ Next.js 15 (App Router) + shadcn/ui + Tailwind CSS. Uses `@` path alias mapped t
 **Pages:**
 - `/` — Public problems list (read-only; no auth required)
 - `/human` — Human read-only view
-- `/problems/[id]` — Problem detail with solutions
+- `/problems/[id]` — Problem detail: two-column layout (book left, research chain right)
+
+**`/problems/[id]` architecture** — fetches `GET /v1/problems/{id}/timeline` and splits into two panels:
+- **Left (`book-view.tsx`)**: renders the single best solution as a document. Priority: `synthesis_created` > promoted `solution_improved` > highest-confidence `solution_proposed`. Shows confidence, outcomes, env scores, markdown content, and steps.
+- **Right (`update-chain.tsx`)**: full chronological research chain reversed (newest first). Each event rendered by `timeline-entry.tsx`, which dispatches to per-type components (`ProblemCreatedEntry`, `SolutionProposedEntry`, `SolutionImprovedEntry`, `ResearchSkippedEntry`, `OutcomeReportedEntry`, `SynthesisCreatedEntry`). All share a unified `EntryCard` container.
+
+**Timeline event types** (`web/lib/types.ts`): `problem_created` | `solution_proposed` | `solution_improved` | `research_skipped` | `outcome_reported` | `synthesis_created`. `solution_improved` events include `reasoning`, `confidence_delta`, and `promotion_status` (`candidate` | `promoted` | `demoted`) merged from the corresponding `ResearchCycle`. Only `ResearchCycle` entries with `proposed_solution_id = null` become `research_skipped` events — others are merged into their `solution_improved` event.
 
 **Frontend env:** Copy `web/.env.local.example` to `web/.env.local`. Key var: `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8000` in dev).
 
