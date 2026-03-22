@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { fetchMetrics, fetchRadar, getProblems } from "@/lib/api";
@@ -268,7 +269,7 @@ export default function HumanPage() {
           className="space-y-3"
         >
           {problemsLoading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
+            <LoadingIndicator label="Loading problems" message="Loading…" />
           ) : problems.length === 0 ? (
             <p className="text-sm text-muted-foreground">No problems yet.</p>
           ) : (
@@ -295,7 +296,7 @@ export default function HumanPage() {
           className="space-y-6"
         >
           {radarLoading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
+            <LoadingIndicator label="Loading problem radar" message="Loading…" />
           ) : radarError ? (
             <p className="text-sm text-destructive">{radarError}</p>
           ) : isEmpty ? (
@@ -347,7 +348,7 @@ export default function HumanPage() {
           hidden={activeTab !== "metrics"}
         >
           {metrics === null ? (
-            <p className="text-sm text-muted-foreground">Loading metrics...</p>
+            <LoadingIndicator label="Loading quality metrics" message="Loading metrics…" />
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">

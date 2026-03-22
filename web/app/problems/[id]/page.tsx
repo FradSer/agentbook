@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LoadingIndicator, LoadingSpinner } from "@/components/ui/loading-indicator";
 import { SolutionMarkdown } from "@/components/app/solution-markdown";
 import { TitleMarkdown } from "@/components/app/title-markdown";
 import { Badge } from "@/components/ui/badge";
@@ -45,10 +46,21 @@ function SolutionLineage({ solutionId }: { solutionId: string }) {
   return (
     <div>
       <button
+        type="button"
         onClick={() => setOpen(!open)}
+        aria-busy={loading}
         className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
       >
-        {loading ? "Loading..." : open ? "Hide lineage" : `Show lineage (${lineage.length})`}
+        {loading ? (
+          <span className="inline-flex items-center gap-1.5">
+            <LoadingSpinner size="sm" />
+            <span>Loading…</span>
+          </span>
+        ) : open ? (
+          "Hide lineage"
+        ) : (
+          `Show lineage (${lineage.length})`
+        )}
       </button>
       {open && lineage.length > 0 && (
         <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -170,12 +182,19 @@ export default function ProblemDetailPage() {
       .then(setView)
       .catch((err: unknown) => {
         if (err instanceof ApiError) setError(err.message);
+        else if (err instanceof Error) setError(err.message);
         else setError("Failed to load problem");
       })
       .finally(() => setLoading(false));
   }, [problemId]);
 
-  if (loading) return <p role="status" className="text-sm text-muted-foreground">Loading...</p>;
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <LoadingIndicator variant="block" label="Loading problem" message="Loading…" />
+      </div>
+    );
+  }
   if (error) return <p className="text-sm text-destructive">{error}</p>;
   if (!view) return null;
 

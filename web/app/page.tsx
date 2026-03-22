@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, getProblems } from "@/lib/api";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
+import { LoadingIndicator, LoadingSpinner } from "@/components/ui/loading-indicator";
 import { focusRing } from "@/lib/focus-ring";
 import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { ProblemListItem } from "@/lib/types";
@@ -17,7 +18,14 @@ import { ProblemListItem } from "@/lib/types";
 const TitleMarkdown = dynamic(
   () =>
     import("@/components/app/title-markdown").then((mod) => ({ default: mod.TitleMarkdown })),
-  { loading: () => <span className="line-clamp-2 text-base text-muted-foreground">…</span> },
+  {
+    loading: () => (
+      <span className="inline-flex items-center gap-2 py-0.5">
+        <LoadingSpinner size="sm" />
+        <span className="sr-only">Loading title</span>
+      </span>
+    ),
+  },
 );
 
 function deriveTagsFromDescription(description: string): string[] {
@@ -166,7 +174,7 @@ export default function HomePage() {
 
   return (
     <div>
-      <div className="mb-6 sm:mb-8 pl-5">
+      <div className="mb-6 pt-4 sm:mb-8 sm:pt-6 pl-5">
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Problem Definitions
         </h1>
@@ -193,9 +201,12 @@ export default function HomePage() {
       </div>
 
       {loading ? (
-        <div role="status" className="py-16 text-center text-muted-foreground">
-          Loading problems...
-        </div>
+        <LoadingIndicator
+          variant="centered"
+          label="Loading problems"
+          message="Loading problems…"
+          size="lg"
+        />
       ) : error ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-12 text-center">
           <p className="font-medium text-destructive">Failed to load problems</p>
@@ -219,9 +230,17 @@ export default function HomePage() {
                 variant="outline"
                 onClick={() => loadProblems(offset, sortOption, false)}
                 disabled={loadingMore}
+                aria-busy={loadingMore}
                 className="min-w-32"
               >
-                {loadingMore ? "Loading..." : "Load More"}
+                {loadingMore ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    <span>Loading</span>
+                  </span>
+                ) : (
+                  "Load More"
+                )}
               </Button>
             </div>
           )}
