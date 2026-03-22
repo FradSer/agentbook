@@ -57,95 +57,105 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
     for problem_dict in candidates:
         problem_id = problem_dict["problem_id"]
         try:
-            context = service.get_context(id=problem_id, include=["solutions"])
-        except Exception as exc:
-            logger.warning(f"Failed to get context for problem {problem_id}: {exc}")
-            continue
-
-        solutions = context.get("solutions", [])
-        if not solutions:
-            logger.debug(f"Problem {problem_id} has no solutions to improve")
-            continue
-
-        # Filter superseded solutions (canonical_id is not None means superseded or synthesized)
-        active_solutions = [s for s in solutions if s.get("canonical_id") is None]
-        if not active_solutions:
-            logger.debug(f"Problem {problem_id} has no active (non-superseded) solutions")
-            continue
-        # Sort by confidence descending so solutions[0] is the best (explicit, not implicit)
-        solutions = sorted(active_solutions, key=lambda s: s.get("confidence", 0), reverse=True)
-
-        # Fetch outcomes for each solution to give the agent real signal
-        outcomes_by_solution: dict[str, list[dict]] = {}
-        for sol in solutions:
-            sol_id = str(sol["solution_id"])
-            try:
-                sol_context = service.get_context(id=UUID(sol_id), include=["outcomes"])
-                outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
-            except Exception:
-                outcomes_by_solution[sol_id] = []
-
-        prompt = _build_research_prompt(problem_dict, solutions, outcomes_by_solution)
-
+            service.set_research_status(UUID(str(problem_id)), True)
+        except Exception:
+            pass
         try:
-            response_text = await asyncio.wait_for(
-                _run_agent(agent, prompt),
-                timeout=settings.agent_research_per_candidate_timeout_seconds,
-            )
+            try:
+                context = service.get_context(id=problem_id, include=["solutions"])
+            except Exception as exc:
+                logger.warning(f"Failed to get context for problem {problem_id}: {exc}")
+                continue
 
-            # Agent calls propose_improvement or skip_improvement tool directly.
-            # Both tools return strings containing "Status: improved" or "Status: no_improvement".
-            if "Status: improved" in response_text:
-                improved += 1
-                logger.info(f"Improved solution for problem {problem_id}")
-            elif "Status: no_improvement" in response_text:
-                no_improvement += 1
-                logger.info(f"No improvement proposed for problem {problem_id}")
-                _maybe_trigger_synthesis(service, problem_id, active_solutions)
-            else:
+            solutions = context.get("solutions", [])
+            if not solutions:
+                logger.debug(f"Problem {problem_id} has no solutions to improve")
+                continue
+
+            # Filter superseded solutions (canonical_id is not None means superseded or synthesized)
+            active_solutions = [s for s in solutions if s.get("canonical_id") is None]
+            if not active_solutions:
+                logger.debug(f"Problem {problem_id} has no active (non-superseded) solutions")
+                continue
+            # Sort by confidence descending so solutions[0] is the best (explicit, not implicit)
+            solutions = sorted(active_solutions, key=lambda s: s.get("confidence", 0), reverse=True)
+
+            # Fetch outcomes for each solution to give the agent real signal
+            outcomes_by_solution: dict[str, list[dict]] = {}
+            for sol in solutions:
+                sol_id = str(sol["solution_id"])
+                try:
+                    sol_context = service.get_context(id=UUID(sol_id), include=["outcomes"])
+                    outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
+                except Exception:
+                    outcomes_by_solution[sol_id] = []
+
+            prompt = _build_research_prompt(problem_dict, solutions, outcomes_by_solution)
+
+            try:
+                response_text = await asyncio.wait_for(
+                    _run_agent(agent, prompt),
+                    timeout=settings.agent_research_per_candidate_timeout_seconds,
+                )
+
+                # Agent calls propose_improvement or skip_improvement tool directly.
+                # Both tools return strings containing "Status: improved" or "Status: no_improvement".
+                if "Status: improved" in response_text:
+                    improved += 1
+                    logger.info(f"Improved solution for problem {problem_id}")
+                elif "Status: no_improvement" in response_text:
+                    no_improvement += 1
+                    logger.info(f"No improvement proposed for problem {problem_id}")
+                    _maybe_trigger_synthesis(service, problem_id, active_solutions)
+                else:
+                    logger.warning(
+                        f"Agent returned no recognisable tool call for problem {problem_id}: "
+                        f"{response_text[:200]!r}"
+                    )
+                    no_improvement += 1
+                    try:
+                        service.record_research_skip(
+                            problem_id=UUID(str(problem_id)),
+                            researcher_id=SYSTEM_AGENT_ID,
+                            reasoning="Agent returned no recognisable tool call",
+                            status="no_solution_proposed",
+                            llm_model=_researcher_llm_model(),
+                        )
+                    except Exception:
+                        pass
+
+            except asyncio.TimeoutError:
                 logger.warning(
-                    f"Agent returned no recognisable tool call for problem {problem_id}: "
-                    f"{response_text[:200]!r}"
+                    f"Research candidate {problem_id} timed out after "
+                    f"{settings.agent_research_per_candidate_timeout_seconds}s"
                 )
                 no_improvement += 1
                 try:
                     service.record_research_skip(
                         problem_id=UUID(str(problem_id)),
                         researcher_id=SYSTEM_AGENT_ID,
-                        reasoning="Agent returned no recognisable tool call",
+                        reasoning="Research candidate timed out",
                         status="no_solution_proposed",
                         llm_model=_researcher_llm_model(),
                     )
                 except Exception:
                     pass
-
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"Research candidate {problem_id} timed out after "
-                f"{settings.agent_research_per_candidate_timeout_seconds}s"
-            )
-            no_improvement += 1
+            except Exception as exc:
+                logger.error(f"Research cycle error for problem {problem_id}: {exc}")
+                no_improvement += 1
+                try:
+                    service.record_research_skip(
+                        problem_id=UUID(str(problem_id)),
+                        researcher_id=SYSTEM_AGENT_ID,
+                        reasoning=f"Research cycle error: {exc}",
+                        status="no_solution_proposed",
+                        llm_model=_researcher_llm_model(),
+                    )
+                except Exception:
+                    pass
+        finally:
             try:
-                service.record_research_skip(
-                    problem_id=UUID(str(problem_id)),
-                    researcher_id=SYSTEM_AGENT_ID,
-                    reasoning="Research candidate timed out",
-                    status="no_solution_proposed",
-                    llm_model=_researcher_llm_model(),
-                )
-            except Exception:
-                pass
-        except Exception as exc:
-            logger.error(f"Research cycle error for problem {problem_id}: {exc}")
-            no_improvement += 1
-            try:
-                service.record_research_skip(
-                    problem_id=UUID(str(problem_id)),
-                    researcher_id=SYSTEM_AGENT_ID,
-                    reasoning=f"Research cycle error: {exc}",
-                    status="no_solution_proposed",
-                    llm_model=_researcher_llm_model(),
-                )
+                service.set_research_status(UUID(str(problem_id)), False)
             except Exception:
                 pass
 
