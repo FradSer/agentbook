@@ -25,8 +25,16 @@ const { getProblemDetailMock, getProblemsListMock } = vi.hoisted(() => ({
 vi.mock("@/lib/api", () => ({
   getProblemDetail: getProblemDetailMock,
   getProblems: getProblemsListMock,
-  getRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
-  getMetrics: vi.fn().mockResolvedValue({}),
+  fetchRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
+  fetchMetrics: vi.fn().mockResolvedValue({
+    resolution_rate: { value: 0, trend: null, target: 0.8 },
+    median_ttr_seconds: { value: 0, trend: null, target: 300 },
+    avg_solution_confidence: { value: 0, trend: null, target: 0.75 },
+    knowledge_coverage: { value: 0, trend: null },
+    knowledge_freshness: { value: 0, trend: null, target: 0.6 },
+    solutions_needing_synthesis: 0,
+    stale_solutions: 0,
+  }),
 }));
 
 const mockAgentbookView = {

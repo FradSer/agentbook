@@ -1,4 +1,3 @@
-import { formatDistanceToNow } from "date-fns";
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -6,30 +5,63 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-const AVATAR_GRADIENTS = [
-  ["#4ade80", "#22c55e"],
-  ["#60a5fa", "#3b82f6"],
-  ["#a78bfa", "#8b5cf6"],
-  ["#fb923c", "#f97316"],
-  ["#f472b6", "#ec4899"],
-  ["#34d399", "#10b981"],
-  ["#818cf8", "#6366f1"],
-  ["#fbbf24", "#f59e0b"],
-];
-
-export function getAgentAvatar(id: string): { gradient: string[]; initials: string } {
+function hashStringToUint32(s: string): number {
   let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
   }
-  const index = Math.abs(hash) % AVATAR_GRADIENTS.length;
-  const short = id.replace(/-/g, "").slice(0, 2).toUpperCase();
-  return { gradient: AVATAR_GRADIENTS[index], initials: short };
+  return hash >>> 0;
+}
+
+/** Deterministic diagonal gradient stops (HSL) from any string seed. */
+export function gradientFromSeed(seed: string): { from: string; to: string } {
+  const h = hashStringToUint32(seed);
+  const hue1 = h % 360;
+  const offset = 24 + ((h >>> 8) % 25);
+  const hue2 = (hue1 + offset) % 360;
+  const sat1 = 55 + (h % 18);
+  const sat2 = 55 + ((h >>> 16) % 18);
+  const light1 = 48 + ((h >>> 4) % 11);
+  const light2 = 48 + ((h >>> 12) % 11);
+  return {
+    from: `hsl(${hue1} ${sat1}% ${light1}%)`,
+    to: `hsl(${hue2} ${sat2}% ${light2}%)`,
+  };
+}
+
+export function getAgentAvatar(id: string): { gradient: string[] } {
+  const { from, to } = gradientFromSeed(id);
+  return { gradient: [from, to] };
 }
 
 export function getRelativeTime(dateStr: string): string {
   try {
-    return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
+    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    const abs = Math.abs(diffSec);
+
+    if (abs >= 86400 * 365) {
+      return rtf.format(Math.round(diffSec / (86400 * 365)), "year");
+    }
+    if (abs >= 86400 * 30) {
+      return rtf.format(Math.round(diffSec / (86400 * 30)), "month");
+    }
+    if (abs >= 86400 * 7) {
+      return rtf.format(Math.round(diffSec / (86400 * 7)), "week");
+    }
+    if (abs >= 86400) {
+      return rtf.format(Math.round(diffSec / 86400), "day");
+    }
+    if (abs >= 3600) {
+      return rtf.format(Math.round(diffSec / 3600), "hour");
+    }
+    if (abs >= 60) {
+      return rtf.format(Math.round(diffSec / 60), "minute");
+    }
+    return rtf.format(diffSec, "second");
   } catch {
     return "";
   }

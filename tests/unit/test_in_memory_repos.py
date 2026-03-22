@@ -188,7 +188,7 @@ def test_solution_repo_find_unreviewed_includes_error_with_cutoff():
     assert s_error.solution_id in [r.solution_id for r in with_cutoff]
 
 
-def test_solution_repo_list_by_problem_ranked_approved_by_confidence():
+def test_solution_repo_list_by_problem_ranked_by_confidence():
     from app.infrastructure.persistence.in_memory import InMemorySolutionRepository
 
     repo = InMemorySolutionRepository()
@@ -201,19 +201,31 @@ def test_solution_repo_list_by_problem_ranked_approved_by_confidence():
     s_high.confidence = 0.8
     s_high.review_status = "approved"
 
+    # Matches SQL: all solutions returned regardless of review_status, non-superseded first
     s_unapproved = _make_solution(problem_id=pid)
     s_unapproved.confidence = 0.99
     s_unapproved.review_status = None
 
+    # Superseded solution should appear after non-superseded even with high confidence
+    s_superseded = _make_solution(problem_id=pid)
+    s_superseded.confidence = 0.95
+    s_superseded.canonical_id = s_high.solution_id  # marked as superseded
+
     repo.add(s_low)
     repo.add(s_high)
     repo.add(s_unapproved)
+    repo.add(s_superseded)
 
     ranked = repo.list_by_problem_ranked(pid)
-    # Only approved solutions, sorted by confidence desc
-    assert s_unapproved.solution_id not in [r.solution_id for r in ranked]
-    assert ranked[0].solution_id == s_high.solution_id
-    assert ranked[1].solution_id == s_low.solution_id
+    # All solutions returned; non-superseded first (canonical_id is None), then by confidence
+    non_superseded_ids = [r.solution_id for r in ranked if r.canonical_id is None]
+    superseded_ids = [r.solution_id for r in ranked if r.canonical_id is not None]
+    assert s_unapproved.solution_id in non_superseded_ids
+    assert s_high.solution_id in non_superseded_ids
+    assert s_superseded.solution_id in superseded_ids
+    # Non-superseded entries appear before superseded entries in the list
+    first_superseded_idx = next(i for i, r in enumerate(ranked) if r.canonical_id is not None)
+    assert all(ranked[i].canonical_id is None for i in range(first_superseded_idx))
 
 
 def test_solution_repo_find_superseded_returns_canonical_solutions():

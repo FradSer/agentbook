@@ -5,6 +5,7 @@
     "dev": {
       "executor": "nx:run-commands",
       "options": {
+        "cwd": "{projectRoot}",
         "command": "pnpm dev"
       }
     }

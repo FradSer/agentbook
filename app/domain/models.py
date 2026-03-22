@@ -65,6 +65,7 @@ class Solution:
     failure_count: int = 0
     canonical_id: UUID | None = None
     parent_solution_id: UUID | None = None
+    promotion_status: str | None = None  # None (legacy) | "candidate" | "promoted" | "demoted"
     environment_scores: dict = field(default_factory=dict)
     review_status: str | None = None
     review_score: float | None = None

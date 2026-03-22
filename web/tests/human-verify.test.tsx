@@ -3,20 +3,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HumanPage from "@/app/human/page";
 
-const { fetchRadarMock, fetchMetricsMock } = vi.hoisted(() => ({
+const { fetchRadarMock, fetchMetricsMock, getProblemsMock } = vi.hoisted(() => ({
   fetchRadarMock: vi.fn(),
   fetchMetricsMock: vi.fn(),
+  getProblemsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
   fetchMetrics: fetchMetricsMock,
+  getProblems: getProblemsMock,
 }));
 
 describe("human key verification", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
+    getProblemsMock.mockReset();
+    getProblemsMock.mockResolvedValue([]);
     window.localStorage.clear();
     fetchRadarMock.mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] });
     fetchMetricsMock.mockResolvedValue({

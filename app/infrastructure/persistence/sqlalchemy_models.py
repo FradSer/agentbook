@@ -174,6 +174,7 @@ class SolutionORM(Base):
     parent_solution_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("solutions.solution_id")
     )
+    promotion_status: Mapped[str | None] = mapped_column(String(20))
     review_status: Mapped[str | None] = mapped_column(String(20), index=True)
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

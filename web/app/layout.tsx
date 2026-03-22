@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
+import { Geist, IBM_Plex_Mono, Plus_Jakarta_Sans } from "next/font/google";
 
 import { NavBar } from "@/components/app/nav-bar";
+import { AppToaster } from "@/components/app/toaster";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -10,9 +10,16 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
+  subsets: ["latin"],
+  weight: ["600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -26,17 +33,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html
+      lang="en"
+      className={`dark ${geistSans.variable} ${ibmPlexMono.variable} ${plusJakarta.variable}`}
+    >
+      <body className="font-sans text-base antialiased overflow-x-hidden bg-background text-foreground">
         <div className="bg-glow-purple" aria-hidden="true" />
         <div className="bg-glow-coral" aria-hidden="true" />
         <div className="relative z-10 min-h-screen">
           <NavBar />
-          <main className="mx-auto w-full max-w-[1152px] px-6 pb-16">{children}</main>
+          <main className="mx-auto w-full max-w-[1152px] px-4 pb-[max(4rem,env(safe-area-inset-bottom))] pt-0 sm:px-6">
+            <div className="min-w-0">{children}</div>
+          </main>
         </div>
-        <Toaster richColors theme="dark" />
+        <AppToaster />
       </body>
     </html>
   );

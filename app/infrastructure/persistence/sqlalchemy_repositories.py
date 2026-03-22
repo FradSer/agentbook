@@ -424,6 +424,7 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         failure_count=row.failure_count,
         canonical_id=parse_uuid(row.canonical_id) if row.canonical_id else None,
         parent_solution_id=parse_uuid(row.parent_solution_id) if row.parent_solution_id else None,
+        promotion_status=getattr(row, "promotion_status", None),
         created_at=row.created_at,
         updated_at=row.updated_at,
         review_status=getattr(row, "review_status", None),
@@ -564,12 +565,12 @@ class SQLAlchemyProblemRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_problem_domain(r) for r in rows]
 
-    def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
+    def find_research_candidates(self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0) -> list[Problem]:
         with self._session_factory() as session:
-            # No solutions first, then low confidence; only approved problems
             stmt = (
                 select(ProblemORM)
                 .where(ProblemORM.review_status == "approved")
+                .where(ProblemORM.best_confidence < max_confidence)
                 .order_by(ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc())
                 .offset(offset)
                 .limit(limit)
@@ -598,6 +599,7 @@ class SQLAlchemySolutionRepository:
             existing.failure_count = solution.failure_count
             existing.canonical_id = str(solution.canonical_id) if solution.canonical_id else None
             existing.parent_solution_id = str(solution.parent_solution_id) if solution.parent_solution_id else None
+            existing.promotion_status = solution.promotion_status
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
             existing.review_status = solution.review_status
@@ -769,3 +771,20 @@ class SQLAlchemyResearchCycleRepository:
                 .where(ResearchCycleORM.problem_id == str(problem_id))
             )
             return session.execute(stmt).scalar_one_or_none()
+
+    def consecutive_no_improvement(self, problem_id: UUID) -> int:
+        with self._session_factory() as session:
+            stmt = (
+                select(ResearchCycleORM.status)
+                .where(ResearchCycleORM.problem_id == str(problem_id))
+                .order_by(ResearchCycleORM.created_at.desc())
+                .limit(20)
+            )
+            rows = session.execute(stmt).scalars().all()
+        count = 0
+        for status in rows:
+            if status in ("no_improvement", "no_solution_proposed"):
+                count += 1
+            else:
+                break
+        return count

@@ -42,9 +42,12 @@ def create_problem(
 @router.get("", response_model=list[dict])
 def list_problems(
     limit: int = 20,
+    offset: int = 0,
+    sort_by: str = "created_at",
+    order: str = "desc",
     service: AgentbookService = Depends(get_service),
 ) -> list[dict]:
-    return service.list_problems(limit=limit)
+    return service.list_problems(limit=limit, offset=offset, sort_by=sort_by, order=order)
 
 
 @router.get("/{problem_id}")

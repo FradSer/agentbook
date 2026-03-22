@@ -40,8 +40,10 @@ describe("HumanPage — Problem Radar", () => {
   it("renders Problem Radar and Quality Metrics tabs", async () => {
     render(<HumanPage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { level: 1, name: /human dashboard/i })).toBeInTheDocument();
     expect(screen.getByText("Problem Radar")).toBeInTheDocument();
     expect(screen.getByText("Quality Metrics")).toBeInTheDocument();
+    expect(document.getElementById("human-panel-problems")).toHaveAttribute("role", "tabpanel");
   });
 
   it("shows TRENDING badge when trending data exists", async () => {
@@ -73,7 +75,7 @@ describe("HumanPage — Problem Radar", () => {
     render(<HumanPage />);
     // Default tab is "problems" and empty list shows "No problems yet."
     await waitFor(() =>
-      expect(screen.getByText("No problems yet.")).toBeInTheDocument()
+      expect(screen.getByRole("tabpanel", { name: "Problems" })).toHaveTextContent("No problems yet.")
     );
   });
 

@@ -40,6 +40,8 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
     candidates = service.find_research_candidates(
         limit=settings.agent_research_batch_size,
         cooldown_hours=effective_cooldown,
+        max_confidence=settings.agent_research_max_confidence,
+        stall_threshold=settings.agent_research_stall_threshold,
     )
     if not candidates:
         logger.info("No research candidates found")
@@ -95,6 +97,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
             elif "Status: no_improvement" in response_text:
                 no_improvement += 1
                 logger.info(f"No improvement proposed for problem {problem_id}")
+                _maybe_trigger_synthesis(service, problem_id, active_solutions)
             else:
                 logger.warning(
                     f"Agent returned no recognisable tool call for problem {problem_id}: "
@@ -106,6 +109,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                         problem_id=UUID(str(problem_id)),
                         researcher_id=SYSTEM_AGENT_ID,
                         reasoning="Agent returned no recognisable tool call",
+                        status="no_solution_proposed",
                     )
                 except Exception:
                     pass
@@ -121,6 +125,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                     problem_id=UUID(str(problem_id)),
                     researcher_id=SYSTEM_AGENT_ID,
                     reasoning="Research candidate timed out",
+                    status="no_solution_proposed",
                 )
             except Exception:
                 pass
@@ -132,6 +137,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                     problem_id=UUID(str(problem_id)),
                     researcher_id=SYSTEM_AGENT_ID,
                     reasoning=f"Research cycle error: {exc}",
+                    status="no_solution_proposed",
                 )
             except Exception:
                 pass
@@ -142,6 +148,25 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
         "no_improvement": no_improvement,
     }
 
+
+def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) -> None:
+    """Auto-trigger synthesis when research has stalled and enough solutions exist."""
+    if len(active_solutions) < 3:
+        return
+    try:
+        from uuid import UUID as _UUID
+        if service._research_cycles is None:
+            return
+        stalled = service._research_cycles.consecutive_no_improvement(_UUID(str(problem_id)))
+        if stalled < settings.agent_research_stall_threshold:
+            return
+        logger.info(
+            f"Problem {problem_id}: {stalled} consecutive no-improvement cycles with "
+            f"{len(active_solutions)} active solutions — triggering synthesis"
+        )
+        service.synthesize_solutions(problem_id=_UUID(str(problem_id)), author_id=SYSTEM_AGENT_ID)
+    except Exception as exc:
+        logger.warning(f"Auto-synthesis failed for problem {problem_id}: {exc}")
 
 
 def _build_research_prompt(
@@ -179,9 +204,18 @@ def _build_research_prompt(
                 lines.append("Failure notes:")
                 for note in failure_notes[:3]:
                     lines.append(f"  - {note}")
-            envs = [o.get("environment") for o in outcomes if o.get("environment")]
-            if envs:
-                lines.append(f"Environments tested: {envs[:3]}")
+            # Per-environment success rates
+            env_stats: dict[str, list[bool]] = {}
+            for o in outcomes:
+                env = o.get("environment")
+                if env:
+                    key = str(sorted(env.items()))
+                    env_stats.setdefault(key, []).append(bool(o.get("success")))
+            if env_stats:
+                lines.append("Per-environment success rates:")
+                for env_key, results in list(env_stats.items())[:4]:
+                    rate = sum(results) / len(results)
+                    lines.append(f"  {env_key}: {rate:.0%} ({sum(results)}/{len(results)})")
             lines.append("")
 
     if total_outcomes == 0:
@@ -193,9 +227,28 @@ def _build_research_prompt(
         lines.append("")
 
     if len(solutions) > 1:
-        lines.append("Other solutions:")
+        lines.append("Other solutions (with failure patterns):")
         for sol in solutions[1:3]:
-            lines.append(f"- (confidence: {sol.get('confidence', 0):.2f}) {sol.get('content', '')[:200]}")
+            sol_id = str(sol["solution_id"])
+            sol_outcomes = outcomes_by_solution.get(sol_id, []) if outcomes_by_solution else []
+            sol_failures = [o.get("notes") for o in sol_outcomes if not o.get("success") and o.get("notes")]
+            sol_line = f"- (confidence: {sol.get('confidence', 0):.2f}) {sol.get('content', '')[:150]}"
+            if sol_failures:
+                sol_line += f" | Failures: {'; '.join(sol_failures[:2])}"
+            lines.append(sol_line)
+        lines.append("")
+
+    # Cross-solution failure pattern summary
+    all_failure_notes = [
+        o.get("notes")
+        for outcomes in (outcomes_by_solution or {}).values()
+        for o in outcomes
+        if not o.get("success") and o.get("notes")
+    ]
+    if len(all_failure_notes) >= 2:
+        lines.append("Common failure patterns across all solutions:")
+        for note in all_failure_notes[:4]:
+            lines.append(f"  - {note}")
         lines.append("")
 
     problem_id = problem["problem_id"]

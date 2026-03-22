@@ -318,10 +318,21 @@ class AgentbookService:
     def list_problems(
         self,
         limit: int = 20,
+        offset: int = 0,
+        sort_by: str = "created_at",
+        order: str = "desc",
         viewer_id: UUID | None = None,
         include_pending: bool = False,
     ) -> list[dict]:
         all_problems = self._problems.list_all()
+        _sort_key = {
+            "created_at": lambda p: p.created_at,
+            "best_confidence": lambda p: p.best_confidence,
+            "solution_count": lambda p: p.solution_count,
+            "last_activity_at": lambda p: p.last_activity_at,
+        }.get(sort_by, lambda p: p.created_at)
+        all_problems.sort(key=_sort_key, reverse=(order != "asc"))
+
         result = []
         for p in all_problems:
             if p.review_status == "approved":
@@ -332,6 +343,11 @@ class AgentbookService:
                     "solution_count": p.solution_count,
                     "review_status": p.review_status,
                     "has_canonical": p.canonical_solution_id is not None,
+                    "tags": p.tags,
+                    "error_signature": p.error_signature,
+                    "environment": p.environment,
+                    "created_at": p.created_at.isoformat(),
+                    "last_activity_at": p.last_activity_at.isoformat(),
                 })
             elif include_pending and viewer_id is not None and p.author_id == viewer_id:
                 result.append({
@@ -341,10 +357,13 @@ class AgentbookService:
                     "solution_count": p.solution_count,
                     "review_status": p.review_status or "pending",
                     "has_canonical": p.canonical_solution_id is not None,
+                    "tags": p.tags,
+                    "error_signature": p.error_signature,
+                    "environment": p.environment,
+                    "created_at": p.created_at.isoformat(),
+                    "last_activity_at": p.last_activity_at.isoformat(),
                 })
-            if len(result) >= limit:
-                break
-        return result
+        return result[offset : offset + limit]
 
     def get_agentbook(self, problem_id: UUID) -> dict:
         problem = self._problems.get(problem_id)
@@ -352,7 +371,11 @@ class AgentbookService:
             raise NotFoundError(f"Problem {problem_id} not found")
 
         all_solutions = self._solutions.list_by_problem(problem_id)
-        approved_solutions = [s for s in all_solutions if s.review_status == "approved"]
+        # Exclude candidates from public view; show only validated (promoted/legacy) solutions
+        visible_solutions = [
+            s for s in all_solutions
+            if s.review_status == "approved" and s.promotion_status != "candidate"
+        ]
 
         canonical = None
         if problem.canonical_solution_id:
@@ -361,29 +384,48 @@ class AgentbookService:
                 canonical = {
                     "solution_id": str(canonical_sol.solution_id),
                     "content": canonical_sol.content,
+                    "steps": canonical_sol.steps,
                     "confidence": canonical_sol.confidence,
                     "outcome_count": canonical_sol.outcome_count,
+                    "success_count": canonical_sol.success_count,
+                    "author_id": str(canonical_sol.author_id),
+                    "author_verified": canonical_sol.author_verified,
+                    "parent_solution_id": str(canonical_sol.parent_solution_id) if canonical_sol.parent_solution_id else None,
+                    "environment_scores": canonical_sol.environment_scores,
+                    "created_at": canonical_sol.created_at.isoformat(),
                 }
 
         history = [
             {
                 "solution_id": str(s.solution_id),
                 "content": s.content,
+                "steps": s.steps,
                 "confidence": s.confidence,
                 "outcome_count": s.outcome_count,
+                "success_count": s.success_count,
+                "author_id": str(s.author_id),
+                "author_verified": s.author_verified,
+                "parent_solution_id": str(s.parent_solution_id) if s.parent_solution_id else None,
+                "environment_scores": s.environment_scores,
+                "created_at": s.created_at.isoformat(),
                 "review_status": s.review_status,
             }
-            for s in approved_solutions
+            for s in visible_solutions
             if problem.canonical_solution_id is None or s.solution_id != problem.canonical_solution_id
         ]
 
         return {
             "problem_id": str(problem.problem_id),
             "description": problem.description,
+            "tags": problem.tags,
+            "error_signature": problem.error_signature,
+            "environment": problem.environment,
+            "created_at": problem.created_at.isoformat(),
             "canonical_solution": canonical,
             "solution_history": history,
             "best_confidence": problem.best_confidence,
             "solution_count": problem.solution_count,
+            "has_canonical": problem.canonical_solution_id is not None,
         }
 
     def _pick_best_solution(self, problem_id: UUID) -> dict | None:
@@ -573,6 +615,22 @@ class AgentbookService:
         all_outcomes = self._outcomes.list_by_solution(solution_id)
         new_confidence = calculate_confidence(all_outcomes, solution.author_id)
         solution.confidence = new_confidence
+
+        # Candidate promotion/demotion: validate improvement against parent before superseding
+        if solution.promotion_status == "candidate" and solution.parent_solution_id is not None:
+            parent = self._solutions.get(solution.parent_solution_id)
+            if parent is not None:
+                ext_reporters = {o.reporter_id for o in all_outcomes if o.reporter_id != solution.author_id}
+                if ext_reporters and new_confidence >= parent.confidence:
+                    # Confirmed improvement — promote and supersede parent
+                    solution.promotion_status = "promoted"
+                    parent.canonical_id = solution.solution_id
+                    self._solutions.update(parent)
+                elif solution.outcome_count >= 2 and new_confidence < parent.confidence:
+                    # Insufficient improvement after real data — demote
+                    solution.promotion_status = "demoted"
+                    solution.canonical_id = solution.parent_solution_id
+
         self._solutions.update(solution)
 
         problem = self._problems.get(solution.problem_id)
@@ -840,17 +898,18 @@ class AgentbookService:
         )
 
         if not content_regression and not content_bloat and new_confidence > existing.confidence:
-            # Hill-climbing: new is strictly better — mark old as superseded
-            existing.canonical_id = new_solution.solution_id
-            self._solutions.update(existing)
+            # Hill-climbing: new is strictly better — mark as candidate (deferred validation)
+            # The old solution is NOT immediately superseded; promotion happens when real
+            # outcome data confirms the improvement (see report_outcome promotion logic).
+            new_solution.promotion_status = "candidate"
+            self._solutions.update(new_solution)
             problem.solution_count += 1
-            if new_confidence > problem.best_confidence:
-                problem.best_confidence = new_confidence
             self._problems.update(problem)
             status = "improved"
         else:
             # New is worse, equal, or a content regression — mark new as superseded by existing
             new_solution.canonical_id = solution_id
+            new_solution.promotion_status = "demoted"
             self._solutions.update(new_solution)
             problem.solution_count += 1
             self._problems.update(problem)
@@ -944,24 +1003,37 @@ class AgentbookService:
             "confidence": canonical.confidence,
         }
 
-    def find_research_candidates(self, limit: int = 10, cooldown_hours: int = 0) -> list[dict]:
-        if cooldown_hours <= 0 or self._research_cycles is None:
-            candidates = self._problems.find_research_candidates(limit=limit)
+    def find_research_candidates(
+        self,
+        limit: int = 10,
+        cooldown_hours: int = 0,
+        max_confidence: float = 0.85,
+        stall_threshold: int = 3,
+    ) -> list[dict]:
+        needs_filtering = (cooldown_hours > 0 or stall_threshold > 0) and self._research_cycles is not None
+        if not needs_filtering:
+            candidates = self._problems.find_research_candidates(limit=limit, max_confidence=max_confidence)
             return [_problem_to_dict(p) for p in candidates]
-        cutoff = utc_now() - timedelta(hours=cooldown_hours)
+        cutoff = utc_now() - timedelta(hours=cooldown_hours) if cooldown_hours > 0 else None
         page_size = max(limit, 10)
         offset = 0
         filtered: list = []
         while len(filtered) < limit:
-            batch = self._problems.find_research_candidates(limit=page_size, offset=offset)
+            batch = self._problems.find_research_candidates(limit=page_size, offset=offset, max_confidence=max_confidence)
             if not batch:
                 break
             for p in batch:
-                last = self._research_cycles.last_researched_at(p.problem_id)
-                if last is None or last < cutoff:
-                    filtered.append(p)
-                    if len(filtered) >= limit:
-                        break
+                if cutoff is not None:
+                    last = self._research_cycles.last_researched_at(p.problem_id)
+                    if last is not None and last >= cutoff:
+                        continue
+                if stall_threshold > 0:
+                    stalled = self._research_cycles.consecutive_no_improvement(p.problem_id)
+                    if stalled >= stall_threshold:
+                        continue
+                filtered.append(p)
+                if len(filtered) >= limit:
+                    break
             offset += page_size
         return [_problem_to_dict(p) for p in filtered]
 
@@ -970,6 +1042,7 @@ class AgentbookService:
         problem_id: UUID,
         researcher_id: UUID,
         reasoning: str = "",
+        status: str = "no_improvement",
     ) -> None:
         if self._research_cycles is None:
             return
@@ -982,7 +1055,7 @@ class AgentbookService:
             proposed_solution_id=None,
             previous_best_confidence=problem.best_confidence,
             new_confidence=problem.best_confidence,
-            status="no_improvement",
+            status=status,
             reasoning=reasoning,
         )
         self._research_cycles.add(cycle)

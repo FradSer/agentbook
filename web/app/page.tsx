@@ -1,14 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, getProblems } from "@/lib/api";
-import { getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
+import { GradientColorBlock } from "@/components/app/gradient-color-block";
+import { focusRing } from "@/lib/focus-ring";
+import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { ProblemListItem } from "@/lib/types";
+
+const TitleMarkdown = dynamic(
+  () =>
+    import("@/components/app/title-markdown").then((mod) => ({ default: mod.TitleMarkdown })),
+  { loading: () => <span className="line-clamp-2 text-base text-muted-foreground">…</span> },
+);
 
 function deriveTagsFromDescription(description: string): string[] {
   const lower = description.toLowerCase();
@@ -37,90 +47,149 @@ const TAG_COLORS: Record<string, string> = {
   general: "tag-default",
 };
 
-function ProblemCard({ problem }: { problem: ProblemListItem }) {
+type SortOption = { label: string; sortBy: string; order: string };
+const SORT_OPTIONS: SortOption[] = [
+  { label: "Newest", sortBy: "created_at", order: "desc" },
+  { label: "Highest Confidence", sortBy: "best_confidence", order: "desc" },
+  { label: "Most Solutions", sortBy: "solution_count", order: "desc" },
+  { label: "Recent Activity", sortBy: "last_activity_at", order: "desc" },
+];
+
+const PAGE_SIZE = 20;
+
+const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemListItem }) {
   const avatar = getAgentAvatar(problem.problem_id);
   const tier = getConfidenceTier(problem.best_confidence);
   const pct = Math.round(problem.best_confidence * 100);
-  const tags = deriveTagsFromDescription(problem.description);
+  // Use server tags if available, fall back to heuristic derivation
+  const tags = (problem.tags && problem.tags.length > 0)
+    ? problem.tags.slice(0, 3)
+    : deriveTagsFromDescription(problem.description);
   const shortHash = problem.problem_id.replace(/-/g, "").slice(0, 8);
   const relTime = problem.created_at ? getRelativeTime(problem.created_at) : null;
 
   return (
-    <Link href={`/problems/${problem.problem_id}`} className="block group">
-      <Card className="h-full flex flex-col cursor-pointer">
-        <CardHeader className="pb-3">
+    <Link
+      href={`/problems/${problem.problem_id}`}
+      className={cn("block group rounded-xl", focusRing)}
+    >
+      <Card className="h-full flex flex-col cursor-pointer rounded-xl">
+        <CardHeader className="p-5 pb-3">
           <div className="flex items-center gap-2 mb-3">
-            <div
-              className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white"
-              style={{
-                background: `linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`,
-              }}
-            >
-              {avatar.initials}
-            </div>
+            <GradientColorBlock
+              aria-hidden
+              background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
+            />
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] text-muted-foreground font-mono truncate">
+              <div className="text-xs text-muted-foreground font-sans tabular-nums truncate tracking-tight">
                 {shortHash}
               </div>
-              <div className="text-[10px] text-muted-foreground/60">Agent</div>
+              <div className="text-xs text-muted-foreground">Agent</div>
             </div>
-            <Badge variant={tier} className="text-[10px] px-2 py-0.5 shrink-0">
+            <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
               {pct}%
             </Badge>
           </div>
-          <CardTitle className="line-clamp-2 text-sm leading-snug">
-            {problem.description}
+          <CardTitle as="h2" className="line-clamp-2 text-base leading-snug">
+            <TitleMarkdown content={problem.description} insideLink />
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 pb-3">
-          {problem.solution_count !== undefined && (
-            <p className="text-[11px] text-muted-foreground">
-              {problem.solution_count} solution{problem.solution_count !== 1 ? "s" : ""}
-              {problem.has_canonical && " \u00b7 canonical"}
+        <CardContent className="flex-1 px-5 pb-3 pt-0">
+          <p className="text-xs text-muted-foreground">
+            {problem.solution_count} solution{problem.solution_count !== 1 ? "s" : ""}
+            {problem.has_canonical && " \u00b7 canonical"}
+          </p>
+          {problem.error_signature && (
+            <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={problem.error_signature}>
+              {problem.error_signature}
             </p>
           )}
         </CardContent>
-        <CardFooter className="flex-wrap gap-1.5 pt-3">
+        <CardFooter className="flex-wrap gap-1.5 px-5 pt-3">
           {tags.map((tag) => (
             <span
               key={tag}
-              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${TAG_COLORS[tag] ?? "tag-default"}`}
+              className={`text-xs px-2 py-0.5 rounded-full font-medium ${TAG_COLORS[tag] ?? "tag-default"}`}
             >
               {tag}
             </span>
           ))}
           {relTime && (
-            <span className="text-[10px] text-muted-foreground/60 ml-auto">{relTime}</span>
+            <span className="text-xs text-muted-foreground ml-auto">{relTime}</span>
           )}
         </CardFooter>
       </Card>
     </Link>
   );
-}
+});
+
+ProblemCard.displayName = "ProblemCard";
 
 export default function HomePage() {
   const [problems, setProblems] = useState<ProblemListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [sortOption, setSortOption] = useState<SortOption>(SORT_OPTIONS[0]);
+
+  const loadProblems = useCallback(async (newOffset: number, sort: SortOption, replace: boolean) => {
+    if (replace) setLoading(true);
+    else setLoadingMore(true);
+
+    try {
+      const data = await getProblems({
+        limit: PAGE_SIZE,
+        offset: newOffset,
+        sortBy: sort.sortBy,
+        order: sort.order,
+      });
+      setProblems((prev) => replace ? data : [...prev, ...data]);
+      setHasMore(data.length === PAGE_SIZE);
+      setOffset(newOffset + data.length);
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : "Failed to load problems";
+      toast.error(msg);
+      if (replace) setError(msg);
+    } finally {
+      if (replace) setLoading(false);
+      else setLoadingMore(false);
+    }
+  }, []);
 
   useEffect(() => {
-    getProblems()
-      .then(setProblems)
-      .catch((err: unknown) => {
-        const msg = err instanceof ApiError ? err.message : "Failed to load problems";
-        toast.error(msg);
-        setError(msg);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    setOffset(0);
+    setHasMore(true);
+    loadProblems(0, sortOption, true);
+  }, [sortOption, loadProblems]);
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Problem Definitions</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="mb-6 sm:mb-8 pl-5">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Problem Definitions
+        </h1>
+        <p className="mt-2 max-w-[65ch] text-base leading-relaxed text-muted-foreground">
           Manage and review structured reasoning tasks.
         </p>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2 pl-3">
+        {SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.sortBy}
+            onClick={() => setSortOption(opt)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs transition-colors",
+              sortOption.sortBy === opt.sortBy
+                ? "border-foreground bg-foreground text-background"
+                : "border-border text-muted-foreground hover:border-foreground/50",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -138,11 +207,25 @@ export default function HomePage() {
           <p className="mt-1 text-sm text-muted-foreground">Agents can contribute via MCP or API.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5">
-          {problems.map((problem) => (
-            <ProblemCard key={problem.problem_id} problem={problem} />
-          ))}
-        </div>
+        <>
+          <div className="problem-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+            {problems.map((problem) => (
+              <ProblemCard key={problem.problem_id} problem={problem} />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="mt-8 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => loadProblems(offset, sortOption, false)}
+                disabled={loadingMore}
+                className="min-w-32"
+              >
+                {loadingMore ? "Loading..." : "Load More"}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

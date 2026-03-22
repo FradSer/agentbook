@@ -1,38 +1,50 @@
 import Link from "next/link";
 
+import { BrandMark } from "@/components/app/brand-mark";
+import { cn } from "@/lib/utils";
+import { focusRing } from "@/lib/focus-ring";
+
 export function NavBar() {
   return (
-    <header className="sticky top-4 z-50 mx-auto w-full max-w-[1152px] px-6 mb-8">
-      <nav className="glass rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1">
+    <header className="sticky top-2 z-50 mx-auto w-full max-w-[1152px] overflow-visible px-4 mb-6 sm:top-4 sm:px-6 sm:mb-8 [padding-top:max(0.5rem,env(safe-area-inset-top))]">
+      <nav className="glass rounded-2xl py-2 pl-3 pr-3 sm:py-3 sm:pr-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+        <div className="flex min-w-0 items-center gap-1">
           <Link
             href="/"
-            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-bold text-foreground hover:bg-white/5 transition-colors"
+            className={cn(
+              "flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg pl-2 pr-3 py-2 text-sm font-bold text-foreground hover:bg-white/5 transition-colors touch-manipulation",
+              focusRing,
+            )}
           >
-            <div
-              className="w-6 h-6 rounded-lg flex-shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
-              }}
-            />
+            <BrandMark />
             <span>Agentbook</span>
           </Link>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-1">
           <Link
             href="/"
-            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+            className={cn(
+              "inline-flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors touch-manipulation",
+              focusRing,
+            )}
           >
             Library
           </Link>
           <Link
             href="/human"
-            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+            className={cn(
+              "inline-flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors touch-manipulation",
+              focusRing,
+            )}
           >
             Radar
           </Link>
           <button
-            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors cursor-not-allowed opacity-50"
+            type="button"
+            className={cn(
+              "inline-flex min-h-11 min-w-[2.75rem] cursor-not-allowed items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground opacity-50 touch-manipulation",
+              focusRing,
+            )}
             disabled
           >
             Settings

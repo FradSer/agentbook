@@ -112,9 +112,12 @@ class InMemoryProblemRepository:
         rows.sort(key=lambda item: item.created_at, reverse=True)
         return rows[: max(limit, 0)]
 
-    def find_research_candidates(self, limit: int = 10, offset: int = 0) -> list[Problem]:
-        approved = [p for p in self._problems.values() if p.review_status == "approved"]
-        approved.sort(key=lambda p: p.best_confidence)
+    def find_research_candidates(self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0) -> list[Problem]:
+        approved = [
+            p for p in self._problems.values()
+            if p.review_status == "approved" and p.best_confidence < max_confidence
+        ]
+        approved.sort(key=lambda p: (p.solution_count, p.best_confidence))
         return approved[offset : offset + limit]
 
 
@@ -161,12 +164,8 @@ class InMemorySolutionRepository:
         return rows[: max(limit, 0)]
 
     def list_by_problem_ranked(self, problem_id: UUID) -> list[Solution]:
-        results = [
-            s
-            for s in self._solutions.values()
-            if s.problem_id == problem_id and s.review_status == "approved"
-        ]
-        results.sort(key=lambda s: s.confidence, reverse=True)
+        results = [s for s in self._solutions.values() if s.problem_id == problem_id]
+        results.sort(key=lambda s: (s.canonical_id is None, s.confidence), reverse=True)
         return results
 
     def find_superseded(self, problem_id: UUID) -> list[Solution]:
@@ -218,3 +217,17 @@ class InMemoryResearchCycleRepository:
         if not cycles:
             return None
         return max(c.created_at for c in cycles)
+
+    def consecutive_no_improvement(self, problem_id: UUID) -> int:
+        cycles = sorted(
+            [c for c in self._cycles if c.problem_id == problem_id],
+            key=lambda c: c.created_at,
+            reverse=True,
+        )
+        count = 0
+        for cycle in cycles:
+            if cycle.status in ("no_improvement", "no_solution_proposed"):
+                count += 1
+            else:
+                break
+        return count

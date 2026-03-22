@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+  --font-heading: var(--font-plus-jakarta), var(--font-geist-sans), ui-sans-serif, sans-serif;
+
   --color-background: #070B14;
   --color-foreground: hsl(0 0% 98%);
 
@@ -10,16 +14,16 @@
   --color-popover: hsl(220 30% 10%);
   --color-popover-foreground: hsl(0 0% 98%);
 
-  --color-primary: #ff6b6b;
+  --color-primary: hsl(0 58% 58%);
   --color-primary-foreground: hsl(0 0% 100%);
 
-  --color-secondary: hsl(220 20% 14%);
-  --color-secondary-foreground: hsl(0 0% 98%);
+  --color-secondary: hsl(220 18% 13%);
+  --color-secondary-foreground: hsl(0 0% 96%);
 
-  --color-muted: hsl(220 20% 14%);
-  --color-muted-foreground: hsl(220 10% 55%);
+  --color-muted: hsl(220 18% 13%);
+  --color-muted-foreground: hsl(220 12% 58%);
 
-  --color-accent: #ff6b6b;
+  --color-accent: hsl(0 58% 58%);
   --color-accent-foreground: hsl(0 0% 100%);
 
   --color-destructive: hsl(0 84% 60%);
@@ -27,17 +31,18 @@
 
   --color-border: rgba(255, 255, 255, 0.06);
   --color-input: hsl(220 20% 14%);
-  --color-ring: #ff6b6b;
+  --color-ring: hsl(0 58% 58%);
 
-  --color-coral: #ff6b6b;
-  --color-coral-light: #ff8787;
-  --color-coral-dark: #ff5757;
+  --color-coral: hsl(0 58% 58%);
+  --color-coral-light: hsl(0 50% 65%);
+  --color-coral-dark: hsl(0 52% 50%);
 
-  --glass-bg: rgba(255, 255, 255, 0.035);
-  --glass-bg-strong: rgba(255, 255, 255, 0.06);
-  --glass-bg-hover: rgba(255, 255, 255, 0.055);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-border-hover: rgba(255, 255, 255, 0.12);
+  /* Opaque frost base (reads as material, not a light wash) */
+  --glass-bg: hsl(222 38% 8% / 0.9);
+  --glass-bg-strong: hsl(222 38% 9% / 0.93);
+  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-border-hover: rgba(255, 255, 255, 0.18);
 
   --radius-window: 16px;
   --radius-card: 12px;
@@ -47,39 +52,101 @@
   --radius-sm: calc(0.75rem - 4px);
 }
 
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    font-kerning: normal;
+  }
+
+  h1 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h2,
+  h3 {
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+  }
+}
+
 * {
   border-color: rgba(255, 255, 255, 0.06);
 }
 
 body {
-  background-color: #070B14;
-  color: hsl(0 0% 98%);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  line-height: 1.5;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .glow-coral-hover {
+    transition: none;
+  }
+}
+
+/* Inset ring via box-shadow avoids border being clipped with backdrop-filter (WebKit). */
 .glass {
-  background-color: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.05) 42%,
+      rgba(255, 255, 255, 0.02) 100%
+    ),
+    var(--glass-bg);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: none;
+  box-shadow:
+    inset 0 0 0 1px var(--glass-border),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 8px 36px rgba(0, 0, 0, 0.4);
 }
 
 .glass-strong {
-  background-color: var(--glass-bg-strong);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.18) 0%,
+      rgba(255, 255, 255, 0.06) 42%,
+      rgba(255, 255, 255, 0.03) 100%
+    ),
+    var(--glass-bg-strong);
+  backdrop-filter: blur(44px) saturate(210%);
+  -webkit-backdrop-filter: blur(44px) saturate(210%);
+  border: none;
+  box-shadow:
+    inset 0 0 0 1px var(--glass-border),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 12px 44px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: hsl(222 36% 10% / 0.97);
+    box-shadow:
+      inset 0 0 0 1px var(--glass-border),
+      0 8px 32px rgba(0, 0, 0, 0.35);
+  }
 }
 
 .glow-coral {
-  box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+  box-shadow: 0 0 14px rgba(220, 100, 100, 0.18);
 }
 
 .glow-coral-hover {
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow 0.25s ease-out;
 }
 
 .glow-coral-hover:hover {
-  box-shadow: 0 0 30px rgba(255, 107, 107, 0.4);
+  box-shadow: 0 0 18px rgba(220, 100, 100, 0.22);
 }
 
 .bg-glow-purple {
@@ -88,7 +155,7 @@ body {
   left: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(ellipse, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(100, 80, 160, 0.055) 0%, transparent 72%);
   pointer-events: none;
   z-index: 0;
 }
@@ -99,7 +166,7 @@ body {
   right: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(ellipse, rgba(255, 107, 107, 0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(200, 95, 95, 0.045) 0%, transparent 72%);
   pointer-events: none;
   z-index: 0;
 }
@@ -112,31 +179,37 @@ body {
 }
 
 .tag-green {
-  background-color: rgba(74, 222, 128, 0.1);
-  color: rgb(74, 222, 128);
-  border: 1px solid rgba(74, 222, 128, 0.2);
+  background-color: rgba(74, 200, 120, 0.08);
+  color: rgb(130, 200, 150);
+  border: 1px solid rgba(74, 200, 120, 0.16);
 }
 
 .tag-blue {
-  background-color: rgba(96, 165, 250, 0.1);
-  color: rgb(96, 165, 250);
-  border: 1px solid rgba(96, 165, 250, 0.2);
+  background-color: rgba(96, 155, 235, 0.08);
+  color: rgb(150, 185, 235);
+  border: 1px solid rgba(96, 155, 235, 0.16);
 }
 
 .tag-purple {
-  background-color: rgba(167, 139, 250, 0.1);
-  color: rgb(167, 139, 250);
-  border: 1px solid rgba(167, 139, 250, 0.2);
+  background-color: rgba(150, 130, 220, 0.08);
+  color: rgb(175, 165, 220);
+  border: 1px solid rgba(150, 130, 220, 0.16);
 }
 
 .tag-amber {
-  background-color: rgba(251, 191, 36, 0.1);
-  color: rgb(251, 191, 36);
-  border: 1px solid rgba(251, 191, 36, 0.2);
+  background-color: rgba(230, 175, 80, 0.08);
+  color: rgb(220, 185, 120);
+  border: 1px solid rgba(230, 175, 80, 0.16);
 }
 
 .tag-coral {
-  background-color: rgba(255, 107, 107, 0.1);
-  color: rgb(255, 107, 107);
-  border: 1px solid rgba(255, 107, 107, 0.2);
+  background-color: rgba(220, 100, 100, 0.08);
+  color: rgb(215, 140, 140);
+  border: 1px solid rgba(220, 100, 100, 0.16);
+}
+
+/* Long card grids: defer layout/paint for off-screen items */
+.problem-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: min(100%, 20rem) 240px;
 }
