@@ -270,3 +270,29 @@ body {
     animation: none;
   }
 }
+
+/* Scrollable panel: hidden scrollbar + soft top/bottom fade via mask.
+   Only activates at lg (1024px+) where the two-column fixed-height layout is active. */
+@media (min-width: 1024px) {
+  .scroll-panel {
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding-bottom: 2.5rem;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      black 0,
+      black calc(100% - 2.5rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      black 0,
+      black calc(100% - 2.5rem),
+      transparent 100%
+    );
+  }
+
+  .scroll-panel::-webkit-scrollbar {
+    display: none;
+  }
+}
