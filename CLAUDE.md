@@ -181,7 +181,7 @@ All models use `@dataclass(slots=True)` with zero external dependencies.
 **Key behavioral notes:**
 - `Problem.review_status`: `None` (pending) | `"approved"` | `"rejected"` | `"error"`. Only approved problems appear in list/search.
 - `Problem.embedding`: 1536-dim float list, populated async after creation via background task.
-- `Solution.confidence`: 0.3 base, bumped to 0.5 when `author_verified=True`, then adjusted by Bayesian scoring as outcomes arrive.
+- `Solution.confidence`: defaults to 0.3, then adjusted by Bayesian scoring as outcomes arrive.
 - `Solution.canonical_id`: non-null means this solution is a duplicate pointing to the canonical entry.
 - `Outcome.weight`: `1.0` for normal outcomes, `0.5` for partial failures; used in confidence calculation.
 - `Problem.error_signature`: indexed for fast exact-match lookup before falling back to semantic search.
@@ -283,7 +283,7 @@ curl -X POST http://localhost:8000/v1/auth/register \
    - Args: `description` (str), `error_signature` (str, optional), `environment` (dict, optional), `auto_post` (bool, default false)
 
 2. **contribute** — Create a problem + optional solution with quality validation
-   - Args: `description` (str), `error_signature` (str, optional), `environment` (dict, optional), `tags` (list, optional), `solution_content` (str, optional), `solution_steps` (list, optional), `author_verified` (bool, default false)
+   - Args: `description` (str), `error_signature` (str, optional), `environment` (dict, optional), `tags` (list, optional), `solution_content` (str, optional), `solution_steps` (list, optional)
 
 3. **report_outcome** — Track solution success/failure (rate-limited: 10/hour per agent)
    - Args: `solution_id` (str), `success` (bool), `environment` (dict, optional), `notes` (str, optional), `time_saved_seconds` (int, optional)
@@ -292,7 +292,7 @@ curl -X POST http://localhost:8000/v1/auth/register \
    - Args: `id` (str), `include` (list, optional)
 
 5. **improve_solution** — Submit an improved solution via hill-climbing (ResearcherAgent)
-   - Args: `solution_id` (str), `improved_content` (str), `improved_steps` (list[str], optional), `reasoning` (str, optional), `author_verified` (bool, default false)
+   - Args: `solution_id` (str), `improved_content` (str), `improved_steps` (list[str], optional), `reasoning` (str, optional)
 
 6. **get_solution_lineage** — Get evolution chain for a solution (parent → child)
    - Args: `solution_id` (str)
@@ -432,6 +432,8 @@ PostgreSQL with two extension dependencies:
 6. `e5f6a7b8c9d0_add_research_loop_fields.py` — Add parent_solution_id + research_cycles table + CHECK constraint
 7. `dd782cb96759_add_research_candidates_index.py` — Composite index on (solution_count, best_confidence)
 8. `4b624264d69e_add_problem_version_for_optimistic_.py` — Add version field for optimistic locking
+9. `dab0405cde18_add_solution_promotion_status.py` — Add promotion_status on solutions
+10. `e8f9a1b2c3d4_drop_solution_author_verified.py` — Drop `author_verified` from solutions
 
 ORM models in `app/infrastructure/persistence/sqlalchemy_models.py` map to domain dataclasses via `_to_*_domain()` functions in `sqlalchemy_repositories.py`.
 
@@ -440,7 +442,7 @@ ORM models in `app/infrastructure/persistence/sqlalchemy_models.py` map to domai
 ### Bayesian Confidence Scoring (`app/application/confidence.py`)
 
 `calculate_confidence(solution, outcomes) -> float` returns 0.0–1.0:
-- Baseline: 0.3 (bumped to 0.5 if `author_verified=True`)
+- Baseline: 0.3 when no external outcomes exist or none contribute
 - Each outcome weighted by: recency factor (90-day exponential decay), reporter diversity (external corroboration required), environment match factor (`outcome.weight`: 1.0 normal, 0.5 partial failures), adaptive Bayesian prior scaling
 
 ### Quality Gates (`app/application/gate.py`)
