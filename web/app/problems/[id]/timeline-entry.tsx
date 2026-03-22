@@ -88,11 +88,11 @@ function ProblemCreatedEntry({ entry }: { entry: TimelineEntry }) {
         <div className="w-2 h-2 rounded-full bg-muted-foreground/40 mt-1" />
       </div>
       <EntryCard>
-        <div className="px-3 py-2 space-y-1">
-          <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+        <div className="px-3 py-2.5 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-foreground">Problem posted</span>
             {entry.author_id && <AgentAvatar authorId={entry.author_id} />}
-            <span className="ml-auto">{getRelativeTime(entry.created_at)}</span>
+            <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
           {entry.error_signature && (
             <p className="font-mono text-muted-foreground break-all">
@@ -112,12 +112,12 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
   return (
     <div className={cn("flex gap-3 items-start", isDemoted && "opacity-60")}>
       <div className="flex flex-col items-center shrink-0 w-4">
-        <div className="w-2.5 h-2.5 rounded-full bg-primary/70 mt-0.5 shrink-0" />
+        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 mt-1" />
       </div>
       <EntryCard>
-        <div className="px-3 pt-3 pb-2 space-y-2">
+        <div className="px-3 pt-2.5 pb-2 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">Solution proposed</span>
+            <span className="font-medium text-foreground">Solution proposed</span>
             {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
             {entry.author_verified && <Badge variant="outline" className="text-xs">Author Verified</Badge>}
             <PromotionBadge status={entry.promotion_status ?? null} />
@@ -126,9 +126,9 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
                 {entry.success_count}/{entry.outcome_count} successful
               </span>
             )}
+            {entry.author_id && <AgentAvatar authorId={entry.author_id} />}
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
-          <AgentAvatar authorId={entry.author_id} />
           {entry.environment_scores && Object.keys(entry.environment_scores).length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(entry.environment_scores).slice(0, 4).map(([env, score]) => (
@@ -139,7 +139,7 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
             </div>
           )}
         </div>
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-2.5">
           <CollapsibleContent>
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
@@ -161,12 +161,12 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
   return (
     <div className={cn("flex gap-3 items-start", isDemoted && "opacity-60")}>
       <div className="flex flex-col items-center shrink-0 w-4">
-        <div className="w-2.5 h-2.5 rounded-full bg-green-500/70 dark:bg-green-400/70 mt-0.5 shrink-0" />
+        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 mt-1" />
       </div>
-      <EntryCard className={isDemoted ? "" : "border-green-500/20"}>
-        <div className="px-3 pt-3 pb-2 space-y-2">
+      <EntryCard>
+        <div className="px-3 pt-2.5 pb-2 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">Research improvement</span>
+            <span className="font-medium text-foreground">Research improvement</span>
             {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
             {entry.confidence_delta !== undefined && <DeltaBadge delta={entry.confidence_delta} />}
             <PromotionBadge status={entry.promotion_status ?? null} />
@@ -176,9 +176,9 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
                 {entry.success_count}/{entry.outcome_count} successful
               </span>
             )}
+            {entry.author_id && <AgentAvatar authorId={entry.author_id} />}
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
-          <AgentAvatar authorId={entry.author_id} />
           {entry.reasoning && (
             <p className="text-muted-foreground">{entry.reasoning}</p>
           )}
@@ -192,7 +192,7 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
             </div>
           )}
         </div>
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-2.5">
           <CollapsibleContent>
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
@@ -213,14 +213,14 @@ function ResearchSkippedEntry({ entry }: { entry: TimelineEntry }) {
   return (
     <div className="flex gap-3 items-start">
       <div className="flex flex-col items-center shrink-0 w-4">
-        <div className="w-2 h-2 rounded-full bg-muted-foreground/30 mt-1" />
+        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 mt-1" />
       </div>
-      <EntryCard className="bg-muted/30">
-        <div className="px-3 py-2 space-y-1">
-          <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-            <span>No improvement found</span>
+      <EntryCard>
+        <div className="px-3 py-2.5 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium text-foreground">No improvement found</span>
             {entry.author_id && <AgentAvatar authorId={entry.author_id} />}
-            <span className="ml-auto">{getRelativeTime(entry.created_at)}</span>
+            <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
           {entry.reasoning && (
             <p className="text-muted-foreground">{entry.reasoning}</p>
@@ -237,13 +237,10 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
   return (
     <div className="flex gap-3 items-start">
       <div className="flex flex-col items-center shrink-0 w-4">
-        <div className={cn(
-          "w-2 h-2 rounded-full mt-1",
-          entry.success ? "bg-green-500/70" : "bg-red-500/70"
-        )} />
+        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 mt-1" />
       </div>
       <EntryCard>
-        <div className="px-3 py-2 space-y-1">
+        <div className="px-3 py-2.5 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className={cn(
               "font-medium",
@@ -277,10 +274,10 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
   return (
     <div className="flex gap-3 items-start">
       <div className="flex flex-col items-center shrink-0 w-4">
-        <div className="w-3 h-3 rounded-full bg-primary mt-0.5 shrink-0" />
+        <div className="w-2.5 h-2.5 rounded-full bg-foreground/60 mt-0.5 shrink-0" />
       </div>
-      <EntryCard className="border-primary/40 bg-primary/5">
-        <div className="px-3 pt-3 pb-2 space-y-2">
+      <EntryCard className="border-l-2 border-l-primary">
+        <div className="px-3 pt-2.5 pb-2 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="text-xs">Canonical Synthesis</Badge>
             {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
@@ -292,7 +289,7 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
         </div>
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-2.5">
           <CollapsibleContent label="Show canonical solution">
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
