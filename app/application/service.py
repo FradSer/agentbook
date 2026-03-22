@@ -367,6 +367,7 @@ class AgentbookService:
                     "environment": p.environment,
                     "created_at": p.created_at.isoformat(),
                     "last_activity_at": p.last_activity_at.isoformat(),
+                    "is_being_researched": _is_being_researched(p),
                 })
             elif include_pending and viewer_id is not None and p.author_id == viewer_id:
                 result.append({
@@ -1108,6 +1109,20 @@ class AgentbookService:
             for p in filtered
         ]
 
+    def set_research_status(self, problem_id: UUID, is_researching: bool) -> None:
+        """Mark a problem as actively being researched (or clear the flag)."""
+        problem = self._problems.get(problem_id)
+        if problem is None:
+            return
+        problem.research_started_at = utc_now() if is_researching else None
+        # Bypass optimistic locking version check: use a direct field update
+        # by re-fetching so our version matches current state.
+        current = self._problems.get(problem_id)
+        if current is None:
+            return
+        current.research_started_at = problem.research_started_at
+        self._problems.update(current)
+
     def record_research_skip(
         self,
         problem_id: UUID,
@@ -1161,6 +1176,80 @@ class AgentbookService:
         ids = {c.researcher_id for c in cycles}
         models = self._agent_models_map(ids)
         return [_research_cycle_to_dict(c, models.get(c.researcher_id)) for c in cycles]
+
+    def _resolve_book_solution(
+        self,
+        problem: Problem,
+        all_solutions: list[Solution],
+        models: dict,
+        system_agent_id: UUID,
+    ) -> dict | None:
+        """Single source of truth for the Solution panel: DB canonical pointer first, then fallbacks.
+
+        Mirrors the former client pickBestEntry order but never disagrees with ``canonical_solution_id``.
+        """
+
+        def serialize(s: Solution) -> dict:
+            is_syn = (
+                problem.canonical_solution_id is not None
+                and s.solution_id == problem.canonical_solution_id
+                and s.author_id == system_agent_id
+                and s.parent_solution_id is None
+            )
+            stored_llm = s.llm_model
+            return {
+                "solution_id": str(s.solution_id),
+                "author_id": str(s.author_id),
+                "content": s.content,
+                "steps": s.steps,
+                "confidence": s.confidence,
+                "promotion_status": s.promotion_status,
+                "outcome_count": s.outcome_count,
+                "success_count": s.success_count,
+                "failure_count": s.failure_count,
+                "environment_scores": s.environment_scores,
+                "llm_model": self._display_llm(models, s.author_id, stored_llm),
+                "created_at": s.created_at.isoformat(),
+                "is_synthesized": is_syn,
+            }
+
+        if not all_solutions:
+            return None
+
+        if problem.canonical_solution_id:
+            s = self._solutions.get(problem.canonical_solution_id)
+            if s is not None:
+                return serialize(s)
+
+        promoted = [
+            s
+            for s in all_solutions
+            if s.parent_solution_id is not None and s.promotion_status == "promoted"
+        ]
+        promoted.sort(key=lambda x: x.confidence, reverse=True)
+        if promoted:
+            return serialize(promoted[0])
+
+        roots: list[Solution] = []
+        for s in all_solutions:
+            if s.parent_solution_id is not None:
+                continue
+            if s.promotion_status == "demoted":
+                continue
+            roots.append(s)
+        roots.sort(key=lambda x: x.confidence, reverse=True)
+        if roots:
+            return serialize(roots[0])
+
+        improved = [s for s in all_solutions if s.parent_solution_id is not None]
+        improved.sort(key=lambda x: x.confidence, reverse=True)
+        if improved:
+            return serialize(improved[0])
+
+        fallback = sorted(all_solutions, key=lambda x: x.confidence, reverse=True)
+        if fallback:
+            return serialize(fallback[0])
+        return None
 
     def get_problem_timeline(self, problem_id: UUID) -> dict:
         from uuid import UUID as _UUID
@@ -1283,6 +1372,11 @@ class AgentbookService:
 
         events.sort(key=lambda e: e["created_at"])
 
+        # Latest activity = newest timeline event (solutions, outcomes, research, etc.)
+        updated_at = events[-1]["created_at"] if events else problem.created_at.isoformat()
+
+        book_solution = self._resolve_book_solution(problem, all_solutions, models, SYSTEM_AGENT_ID)
+
         return {
             "problem": {
                 "problem_id": str(problem.problem_id),
@@ -1294,10 +1388,24 @@ class AgentbookService:
                 "best_confidence": problem.best_confidence,
                 "solution_count": problem.solution_count,
                 "created_at": problem.created_at.isoformat(),
+                "updated_at": updated_at,
                 "has_canonical": problem.canonical_solution_id is not None,
+                "canonical_solution_id": str(problem.canonical_solution_id)
+                if problem.canonical_solution_id
+                else None,
+                "is_being_researched": _is_being_researched(problem),
             },
+            "book_solution": book_solution,
             "timeline": events,
         }
+
+
+def _is_being_researched(problem: Problem, timeout_seconds: int = 360) -> bool:
+    """Return True if research is actively in progress (not stale)."""
+    if problem.research_started_at is None:
+        return False
+    age = (utc_now() - problem.research_started_at).total_seconds()
+    return age < timeout_seconds
 
 
 def _problem_to_dict(p: Problem) -> dict:

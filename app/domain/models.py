@@ -50,6 +50,7 @@ class Problem:
     best_confidence: float = 0.0
     solution_count: int = 0
     version: int = 1  # Optimistic locking version
+    research_started_at: datetime | None = None
 
 
 @dataclass(slots=True)

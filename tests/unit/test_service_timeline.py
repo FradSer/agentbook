@@ -61,6 +61,7 @@ def test_get_problem_timeline_returns_structure():
     result = service.get_problem_timeline(p.problem_id)
     assert "problem" in result
     assert "timeline" in result
+    assert "book_solution" in result
     assert result["problem"]["problem_id"] == str(p.problem_id)
 
 
@@ -203,6 +204,16 @@ def test_timeline_is_sorted_ascending():
     assert timestamps == sorted(timestamps)
 
 
+def test_problem_updated_at_matches_latest_timeline_event():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    _create_approved_solution(service, p.problem_id, author_id)
+    result = service.get_problem_timeline(p.problem_id)
+    last_event_time = result["timeline"][-1]["created_at"]
+    assert result["problem"]["updated_at"] == last_event_time
+    assert result["problem"]["updated_at"] >= result["problem"]["created_at"]
+
+
 def test_timeline_promotion_status_included():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
@@ -237,3 +248,21 @@ def test_timeline_synthesis_created_event():
     result = service.get_problem_timeline(p.problem_id)
     synthesis_events = [e for e in result["timeline"] if e["event_type"] == "synthesis_created"]
     assert len(synthesis_events) == 1
+    canonical_id = result["problem"]["canonical_solution_id"]
+    assert canonical_id is not None
+    book = result["book_solution"]
+    assert book is not None
+    assert book["solution_id"] == canonical_id
+    assert book["is_synthesized"] is True
+    assert book["content"].startswith("Canonical synthesis")
+
+
+def test_book_solution_without_canonical_falls_back_to_best_root():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    _create_approved_solution(service, p.problem_id, author_id, content="Only proposal")
+    result = service.get_problem_timeline(p.problem_id)
+    book = result["book_solution"]
+    assert book is not None
+    assert book["is_synthesized"] is False
+    assert "Only proposal" in book["content"]

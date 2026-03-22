@@ -407,6 +407,7 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         last_activity_at=row.last_activity_at,
         review_status=getattr(row, "review_status", None),
         canonical_solution_id=parse_uuid(row.canonical_solution_id) if getattr(row, "canonical_solution_id", None) else None,
+        research_started_at=getattr(row, "research_started_at", None),
     )
 
 
@@ -541,6 +542,7 @@ class SQLAlchemyProblemRepository:
             existing.last_activity_at = problem.last_activity_at
             existing.review_status = problem.review_status
             existing.canonical_solution_id = str(problem.canonical_solution_id) if problem.canonical_solution_id else None
+            existing.research_started_at = problem.research_started_at
             session.merge(existing)
             session.commit()
 
