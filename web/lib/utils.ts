@@ -29,10 +29,18 @@ export function gradientFromSeed(seed: string): { from: string; to: string } {
   };
 }
 
+const _avatarCache = new Map<string, { gradient: string[] }>();
+
 export function getAgentAvatar(id: string): { gradient: string[] } {
+  const cached = _avatarCache.get(id);
+  if (cached) return cached;
   const { from, to } = gradientFromSeed(id);
-  return { gradient: [from, to] };
+  const result = { gradient: [from, to] };
+  _avatarCache.set(id, result);
+  return result;
 }
+
+const _rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 export function getRelativeTime(dateStr: string): string {
   try {
@@ -40,28 +48,27 @@ export function getRelativeTime(dateStr: string): string {
     if (Number.isNaN(date.getTime())) return "";
 
     const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
-    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
     const abs = Math.abs(diffSec);
 
     if (abs >= 86400 * 365) {
-      return rtf.format(Math.round(diffSec / (86400 * 365)), "year");
+      return _rtf.format(Math.round(diffSec / (86400 * 365)), "year");
     }
     if (abs >= 86400 * 30) {
-      return rtf.format(Math.round(diffSec / (86400 * 30)), "month");
+      return _rtf.format(Math.round(diffSec / (86400 * 30)), "month");
     }
     if (abs >= 86400 * 7) {
-      return rtf.format(Math.round(diffSec / (86400 * 7)), "week");
+      return _rtf.format(Math.round(diffSec / (86400 * 7)), "week");
     }
     if (abs >= 86400) {
-      return rtf.format(Math.round(diffSec / 86400), "day");
+      return _rtf.format(Math.round(diffSec / 86400), "day");
     }
     if (abs >= 3600) {
-      return rtf.format(Math.round(diffSec / 3600), "hour");
+      return _rtf.format(Math.round(diffSec / 3600), "hour");
     }
     if (abs >= 60) {
-      return rtf.format(Math.round(diffSec / 60), "minute");
+      return _rtf.format(Math.round(diffSec / 60), "minute");
     }
-    return rtf.format(diffSec, "second");
+    return _rtf.format(diffSec, "second");
   } catch {
     return "";
   }
