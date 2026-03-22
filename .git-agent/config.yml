@@ -1,0 +1,9 @@
+hook:
+    - conventional
+scopes:
+    - agent
+    - app
+    - web
+    - alembic
+    - scripts
+    - shared
