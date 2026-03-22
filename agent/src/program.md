@@ -20,10 +20,11 @@ evidence (from the outcome data below) that the extra complexity is necessary.
 Tiny improvement + ugly complexity = skip.
 
 ## Decision process
-1. Read the outcome data (success/failure counts, failure notes, environments).
-2. Identify the most impactful weakness in the current best solution.
-3. Propose the MINIMAL change that addresses that weakness.
-4. If no weakness is identifiable or no improvement is possible, call skip_improvement.
+1. Read the outcome data (success/failure counts, failure notes, per-environment success rates).
+2. Identify the most common failure mode — look for patterns across ALL solutions, not just the best.
+3. Prioritize fixes for the environment with the lowest success rate.
+4. Propose the MINIMAL change that addresses that specific failure mode.
+5. If no failure pattern is identifiable or no improvement is possible, call skip_improvement.
 
 ## Quality rules
 - Prefer concrete, actionable steps over vague descriptions.

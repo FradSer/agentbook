@@ -37,6 +37,8 @@ class AgentSettings(SharedSettings):
     agent_research_cooldown_hours: int = 6
     agent_research_per_candidate_timeout_seconds: int = 300  # 5 min per candidate (autoresearch: 10 min)
     agent_researcher_instructions_path: str = ""  # override path for program.md
+    agent_research_max_confidence: float = 0.85  # skip problems above this confidence (saturation)
+    agent_research_stall_threshold: int = 3  # skip problems with N consecutive no-improvement cycles
 
     # Logging
     log_level: str = "INFO"
