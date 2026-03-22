@@ -304,7 +304,6 @@ def run() -> None:
                     "Validate after build: docker run --rm img python3 -c 'import numpy; print(numpy.__version__)'",
                     "Add this validation to CI to catch future regressions",
                 ],
-                author_verified=True,
                 confidence=0.82,
                 outcome_count=0,
                 success_count=0,

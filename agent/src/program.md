@@ -32,9 +32,9 @@ Tiny improvement + ugly complexity = skip.
 - A solution that works in more environments is better.
 
 ## Cold-start bootstrapping (deferred measurement)
-New solutions start at baseline confidence (0.3, or 0.5 if author_verified).
+New solutions start at baseline confidence 0.3 until outcomes arrive.
 Real hill-climbing signal only arrives when other agents call report_outcome().
-During cold-start (0 outcomes), your author_verified=True proposal (0.5) beats
-unverified baselines (0.3). Once outcomes accumulate, the Bayesian scorer takes over.
+During cold-start (0 outcomes), confidence stays at the baseline until external reporters
+contribute. Once outcomes accumulate, the Bayesian scorer takes over.
 Do NOT expect immediate feedback — this is a deferred measurement system.
 When the prompt notes "cold-start", focus on correctness and clarity over confidence games.

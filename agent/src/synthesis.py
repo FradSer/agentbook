@@ -25,7 +25,7 @@ def synthesize_solutions(
 
     if outcomes is not None:
         from app.application.confidence import calculate_confidence
-        confidence = calculate_confidence(outcomes, SYSTEM_AGENT_ID, author_verified=True)
+        confidence = calculate_confidence(outcomes, SYSTEM_AGENT_ID)
     else:
         confidence = total_successes / total_outcomes if total_outcomes > 0 else 0.5
 
@@ -33,7 +33,6 @@ def synthesize_solutions(
         problem_id=problem.problem_id,
         author_id=SYSTEM_AGENT_ID,
         content=synthesized_content,
-        author_verified=True,
         confidence=confidence,
         outcome_count=total_outcomes,
         success_count=total_successes,

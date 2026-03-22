@@ -64,7 +64,6 @@ def get_researcher_tools(service: AgentbookService) -> list:
                 improved_content=improved_content,
                 improved_steps=steps,
                 reasoning=reasoning,
-                author_verified=True,
                 author_id=SYSTEM_AGENT_ID,
             )
             return f"Status: {result['status']}. Confidence: {result['previous_confidence']:.2f} -> {result['new_confidence']:.2f}"

@@ -49,7 +49,7 @@ def _add_external_reporter(service) -> UUID:
     return reporter_id
 
 
-def _setup_problem_with_solution(service, author_id, confidence: float = 0.3):
+def _setup_problem_with_solution(service, author_id, confidence: float = 0.25):
     p = service.create_problem(
         author_id=author_id,
         description="ModuleNotFoundError importing numpy in Docker Alpine container setup environment",
@@ -72,9 +72,9 @@ def _setup_problem_with_solution(service, author_id, confidence: float = 0.3):
 # ---------------------------------------------------------------------------
 
 def test_iteration_1_cold_start_improvement():
-    """Iteration 1: unverified baseline (0.3) → author_verified proposal (0.5) → accepted."""
+    """Iteration 1: baseline below cold-start default (0.25 → 0.3) → accepted."""
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     result = service.improve_solution(
         solution_id=s1.solution_id,
@@ -82,7 +82,6 @@ def test_iteration_1_cold_start_improvement():
             "Install numpy: apk add musl-dev gcc python3-dev then pip install numpy --no-cache-dir "
             "inside Alpine Docker container to resolve ModuleNotFoundError"
         ),
-        author_verified=True,
         reasoning="Iteration 1: added python3-dev and --no-cache-dir flag",
     )
     assert result["status"] == "improved"
@@ -90,15 +89,15 @@ def test_iteration_1_cold_start_improvement():
 
 
 def test_iteration_2_after_bad_outcomes():
-    """Iteration 2: bad outcomes degrade confidence → second author_verified proposal accepted again.
+    """Iteration 2: bad outcomes degrade confidence → second proposal accepted again.
 
     This validates the core autoresearch keep/discard loop:
-    - Iteration 1: cold-start improvement (0.3 → 0.5)
-    - Real outcomes: 5 external failures degrade confidence to ~0.02
-    - Iteration 2: degraded solution → new proposal (0.5) accepted
+    - Iteration 1: cold-start improvement (strictly higher confidence)
+    - Real outcomes: 5 external failures degrade confidence well below 0.5
+    - Iteration 2: degraded solution → new proposal accepted
     """
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     # Iteration 1
     result1 = service.improve_solution(
@@ -107,7 +106,6 @@ def test_iteration_2_after_bad_outcomes():
             "Install numpy: apk add musl-dev gcc python3-dev then pip install numpy --no-cache-dir "
             "inside Alpine Docker container"
         ),
-        author_verified=True,
         reasoning="Iteration 1: first improvement",
     )
     assert result1["status"] == "improved"
@@ -136,7 +134,6 @@ def test_iteration_2_after_bad_outcomes():
             "Run: pip install --index-url https://piwheels.org/simple/ numpy "
             "This avoids compiling from source entirely and resolves the musl-libc issue."
         ),
-        author_verified=True,
         reasoning="Iteration 2: switch to pre-built wheel after compile failures",
     )
     assert result2["status"] == "improved", (
@@ -148,7 +145,7 @@ def test_iteration_2_after_bad_outcomes():
 def test_two_iterations_produce_correct_lineage():
     """After 2 improvements, solution lineage should be 3 nodes deep: s1 → s2 → s3."""
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     result1 = service.improve_solution(
         solution_id=s1.solution_id,
@@ -156,7 +153,6 @@ def test_two_iterations_produce_correct_lineage():
             "Alpine numpy fix v2: musl-dev gcc python3-dev pip install numpy --no-cache-dir "
             "in Docker container with verified environment setup"
         ),
-        author_verified=True,
         reasoning="Iteration 1",
     )
     assert result1["status"] == "improved"
@@ -172,7 +168,6 @@ def test_two_iterations_produce_correct_lineage():
             "Alpine numpy fix v3: use pre-built piwheels wheel to avoid musl compile failures. "
             "Install: pip install --index-url https://piwheels.org/simple/ numpy in container."
         ),
-        author_verified=True,
         reasoning="Iteration 2: completely different strategy",
     )
     assert result2["status"] == "improved"
@@ -189,7 +184,7 @@ def test_two_iterations_produce_correct_lineage():
 def test_good_outcomes_block_second_iteration():
     """After GOOD outcomes push confidence above 0.5, second iteration correctly returns no_improvement."""
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     result1 = service.improve_solution(
         solution_id=s1.solution_id,
@@ -197,7 +192,6 @@ def test_good_outcomes_block_second_iteration():
             "Alpine numpy fix: apk add musl-dev gcc python3-dev pip install numpy --no-cache-dir "
             "verified on Alpine 3.17 and 3.18 environments in Docker"
         ),
-        author_verified=True,
         reasoning="Iteration 1",
     )
     assert result1["status"] == "improved"
@@ -213,14 +207,13 @@ def test_good_outcomes_block_second_iteration():
         f"Expected confidence above 0.5 after 5 successes, got {s2.confidence:.3f}"
     )
 
-    # Iteration 2: author_verified proposal (0.5) cannot beat outcome-validated solution (>0.5)
+    # Iteration 2: cold-start proposal (0.3) cannot beat outcome-validated solution (>0.5)
     result2 = service.improve_solution(
         solution_id=s2_id,
         improved_content=(
             "Alpine numpy fix alternative: use conda-forge channel instead "
             "of compiling from source in Docker Alpine container environment"
         ),
-        author_verified=True,
         reasoning="Iteration 2: try conda approach",
     )
     assert result2["status"] == "no_improvement", (
@@ -270,7 +263,7 @@ def test_run_research_cycle_iteration_1_improves():
     from agent.src.tools import get_researcher_tools
 
     service, author_id = _make_service()
-    p, s = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     tools = get_researcher_tools(service)
     agent = _ToolCallingAgent(tools, always_improve=True)
@@ -288,7 +281,7 @@ def test_run_research_cycle_two_iterations():
     from agent.src.tools import get_researcher_tools
 
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     tools = get_researcher_tools(service)
     agent = _ToolCallingAgent(tools, always_improve=True)
@@ -330,14 +323,14 @@ def test_run_research_cycle_two_iterations():
 def test_three_iterations_with_external_feedback():
     """3 full autoresearch iterations with distinct external reporters between each.
 
-    Iteration 1: cold-start (0.3) → author_verified proposal (0.5) → accepted
+    Iteration 1: cold-start improvement when prior confidence is below default (0.25 → 0.3)
     External feedback 1: 5 failures from reporter1 → confidence degrades below 0.5
     Iteration 2: degraded solution → second proposal accepted
     External feedback 2: 5 failures from reporter2 → degrades again
     Iteration 3: third proposal accepted, lineage is 4 nodes deep (s1→s2→s3→s4)
     """
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     # --- Iteration 1 ---
     result1 = service.improve_solution(
@@ -346,7 +339,6 @@ def test_three_iterations_with_external_feedback():
             "Install numpy on Alpine: apk add musl-dev gcc python3-dev && "
             "pip install numpy --no-cache-dir inside Docker container"
         ),
-        author_verified=True,
         reasoning="Iteration 1: added python3-dev and --no-cache-dir flag",
     )
     assert result1["status"] == "improved"
@@ -375,7 +367,6 @@ def test_three_iterations_with_external_feedback():
             "pip install --index-url https://piwheels.org/simple/ numpy "
             "Avoids musl-libc compile failures entirely on Alpine Docker images"
         ),
-        author_verified=True,
         reasoning="Iteration 2: switch to pre-built wheel to bypass musl ABI issue",
     )
     assert result2["status"] == "improved", (
@@ -405,7 +396,6 @@ def test_three_iterations_with_external_feedback():
             "apk add --repository https://dl-cdn.alpinelinux.org/alpine/edge/testing py3-numpy "
             "Provides a properly compiled binary for Alpine musl without any source compilation step"
         ),
-        author_verified=True,
         reasoning="Iteration 3: use Alpine testing repo for pre-compiled numpy binary",
     )
     assert result3["status"] == "improved", (
@@ -437,7 +427,7 @@ def test_run_research_cycle_three_iterations():
     from agent.src.tools import get_researcher_tools
 
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     tools = get_researcher_tools(service)
     agent = _ToolCallingAgent(tools, always_improve=True)
@@ -586,7 +576,7 @@ def test_invalid_agent_response_records_research_cycle():
     from agent.src.synthesis import SYSTEM_AGENT_ID
 
     service, author_id = _make_service()
-    p, s = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     class _GarbageAgent:
         def run(self, prompt: str) -> str:
@@ -608,7 +598,7 @@ def test_timeout_records_research_cycle():
     from agent.src.research_loop import run_research_cycle
 
     service, author_id = _make_service()
-    p, s = _setup_problem_with_solution(service, author_id, confidence=0.3)
+    p, s = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     class _HangingAgent:
         async def arun(self, prompt: str) -> str:
