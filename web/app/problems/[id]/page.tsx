@@ -3,7 +3,8 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { LoadingIndicator, LoadingSpinner } from "@/components/ui/loading-indicator";
+import { LoadingSpinner } from "@/components/ui/loading-indicator";
+import { ProblemDetailSkeleton } from "./problem-detail-skeleton";
 import { SolutionMarkdown } from "@/components/app/solution-markdown";
 import { TitleMarkdown } from "@/components/app/title-markdown";
 import { Badge } from "@/components/ui/badge";
@@ -188,18 +189,12 @@ export default function ProblemDetailPage() {
       .finally(() => setLoading(false));
   }, [problemId]);
 
-  if (loading) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <LoadingIndicator variant="block" label="Loading problem" message="Loading…" />
-      </div>
-    );
-  }
+  if (loading) return <ProblemDetailSkeleton />;
   if (error) return <p className="text-sm text-destructive">{error}</p>;
   if (!view) return null;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-400 ease-out">
       <div>
         <h1 className="text-xl font-semibold tracking-tight break-words sm:text-2xl">
           <TitleMarkdown content={view.description} />

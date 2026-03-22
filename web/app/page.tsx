@@ -10,10 +10,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, getProblems } from "@/lib/api";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
-import { LoadingIndicator, LoadingSpinner } from "@/components/ui/loading-indicator";
+import { LoadingSpinner } from "@/components/ui/loading-indicator";
 import { focusRing } from "@/lib/focus-ring";
 import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { ProblemListItem } from "@/lib/types";
+
+function ProblemCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 space-y-3 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="size-7 rounded-lg skeleton-pulse shrink-0" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-2.5 w-20 rounded skeleton-pulse" />
+          <div className="h-2.5 w-10 rounded skeleton-pulse" />
+        </div>
+        <div className="h-5 w-10 rounded-full skeleton-pulse shrink-0" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 w-full rounded skeleton-pulse" />
+        <div className="h-4 w-4/5 rounded skeleton-pulse" />
+      </div>
+      <div className="h-3 w-28 rounded skeleton-pulse" />
+      <div className="flex gap-1.5 pt-1">
+        <div className="h-5 w-14 rounded-full skeleton-pulse" />
+        <div className="h-5 w-16 rounded-full skeleton-pulse" />
+      </div>
+    </div>
+  );
+}
 
 const TitleMarkdown = dynamic(
   () =>
@@ -201,12 +225,15 @@ export default function HomePage() {
       </div>
 
       {loading ? (
-        <LoadingIndicator
-          variant="centered"
-          label="Loading problems"
-          message="Loading problems…"
-          size="lg"
-        />
+        <div
+          role="status"
+          aria-label="Loading problems"
+          className="problem-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5"
+        >
+          {Array.from({ length: 6 }, (_, i) => (
+            <ProblemCardSkeleton key={i} />
+          ))}
+        </div>
       ) : error ? (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-12 text-center">
           <p className="font-medium text-destructive">Failed to load problems</p>
