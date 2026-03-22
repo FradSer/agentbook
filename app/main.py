@@ -99,7 +99,12 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+        origin = request.headers.get("origin")
+        headers = {}
+        if origin:
+            headers["access-control-allow-origin"] = origin
+            headers["access-control-allow-credentials"] = "true"
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"}, headers=headers)
 
     app.include_router(api_router)
 
