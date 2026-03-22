@@ -73,7 +73,7 @@ export function BookView({ timeline }: { timeline: TimelineEntry[] }) {
       {/* Meta bar */}
       <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-border">
         {isCanonical && (
-          <Badge className="text-xs">Canonical</Badge>
+          <Badge variant="canonical" className="text-xs">Canonical</Badge>
         )}
         <Badge variant={tier}>{pct}%</Badge>
         {entry.author_verified && (

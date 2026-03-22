@@ -24,7 +24,7 @@ function ProblemCard({
 }: {
   problem: RadarProblem;
   badge: string;
-  badgeVariant?: "secondary" | "destructive" | "outline";
+  badgeVariant?: "secondary" | "destructive" | "outline" | "trending";
 }) {
   return (
     <Card>
@@ -306,7 +306,7 @@ export default function HumanPage() {
                 <section className="space-y-3">
                   <h2 className="text-lg font-semibold">Trending</h2>
                   {radar.trending.map((p) => (
-                    <ProblemCard key={String(p.problem_id)} problem={p} badge="TRENDING" />
+                    <ProblemCard key={String(p.problem_id)} problem={p} badge="TRENDING" badgeVariant="trending" />
                   ))}
                 </section>
               )}

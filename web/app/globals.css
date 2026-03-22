@@ -228,6 +228,20 @@ body {
   color: var(--color-success);
 }
 
+/* Canonical — brass/gold: "gold standard / authoritative / finalized" */
+.badge-canonical {
+  border-color: rgba(210, 185, 120, 0.32);
+  background-color: rgba(190, 165, 100, 0.1);
+  color: hsl(42 58% 70%);
+}
+
+/* Trending — warm amber tint: "active / hot signal" */
+.badge-trending {
+  border-color: rgba(230, 175, 80, 0.28);
+  background-color: rgba(210, 155, 60, 0.1);
+  color: var(--color-warning);
+}
+
 /* Long card grids: defer layout/paint for off-screen items */
 .problem-grid > * {
   content-visibility: auto;

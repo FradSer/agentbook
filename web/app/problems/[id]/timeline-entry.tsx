@@ -257,7 +257,7 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
       <EntryCard className="border-l-2 border-l-primary">
         <div className="px-3 pt-2.5 pb-2 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="text-xs">Canonical Synthesis</Badge>
+            <Badge variant="canonical" className="text-xs">Canonical Synthesis</Badge>
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
         </div>

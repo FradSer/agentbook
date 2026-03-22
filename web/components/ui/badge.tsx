@@ -20,6 +20,8 @@ const badgeVariants = cva(
           "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.05)] text-foreground",
         low:
           "border-dashed border-[rgba(255,255,255,0.15)] bg-transparent text-muted-foreground",
+        canonical: "badge-canonical",
+        trending: "badge-trending",
       },
     },
     defaultVariants: {
