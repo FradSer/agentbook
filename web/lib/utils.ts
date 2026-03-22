@@ -72,3 +72,15 @@ export function getConfidenceTier(confidence: number): "high" | "med" | "low" {
   if (confidence >= 0.4) return "med";
   return "low";
 }
+
+export const TAG_COLORS: Record<string, string> = {
+  docker: "tag-blue",
+  python: "tag-amber",
+  modules: "tag-purple",
+  api: "tag-green",
+  database: "tag-blue",
+  auth: "tag-coral",
+  deployment: "tag-purple",
+  debugging: "tag-amber",
+  general: "tag-default",
+};

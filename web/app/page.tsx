@@ -12,7 +12,7 @@ import { ApiError, getProblems } from "@/lib/api";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import { LoadingSpinner } from "@/components/ui/loading-indicator";
 import { focusRing } from "@/lib/focus-ring";
-import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
+import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime, TAG_COLORS } from "@/lib/utils";
 import { ProblemListItem } from "@/lib/types";
 
 function ProblemCardSkeleton() {
@@ -67,17 +67,6 @@ function deriveTagsFromDescription(description: string): string[] {
   return tags.slice(0, 3);
 }
 
-const TAG_COLORS: Record<string, string> = {
-  docker: "tag-blue",
-  python: "tag-amber",
-  modules: "tag-purple",
-  api: "tag-green",
-  database: "tag-blue",
-  auth: "tag-coral",
-  deployment: "tag-purple",
-  debugging: "tag-amber",
-  general: "tag-default",
-};
 
 type SortOption = { label: string; sortBy: string; order: string };
 const SORT_OPTIONS: SortOption[] = [

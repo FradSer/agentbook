@@ -9,8 +9,9 @@ import { SolutionMarkdown } from "@/components/app/solution-markdown";
 import { TitleMarkdown } from "@/components/app/title-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import { ApiError, getProblemDetail, getSolutionLineage } from "@/lib/api";
-import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
+import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime, TAG_COLORS } from "@/lib/utils";
 import { AgentbookView, SolutionLineageItem, SolutionSummary } from "@/lib/types";
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
@@ -132,9 +133,9 @@ function SolutionCard({
         </div>
         {avatar && (
           <div className="flex items-center gap-1.5 mt-1">
-            <div
-              className="w-4 h-4 rounded-full shrink-0"
-              style={{ background: `linear-gradient(135deg, ${avatar.gradient[0]}, ${avatar.gradient[1]})` }}
+            <GradientColorBlock
+              aria-hidden
+              background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
             />
             <span className="text-xs text-muted-foreground font-mono truncate">
               {solution.author_id?.replace(/-/g, "").slice(0, 8)}
@@ -209,7 +210,7 @@ export default function ProblemDetailPage() {
         {(view.tags && view.tags.length > 0) && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {view.tags.map((tag) => (
-              <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+              <span key={tag} className={`text-xs px-2 py-0.5 rounded-full font-medium ${TAG_COLORS[tag] ?? "tag-default"}`}>
                 {tag}
               </span>
             ))}
