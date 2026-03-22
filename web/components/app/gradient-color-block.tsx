@@ -11,7 +11,7 @@ type GradientColorBlockProps = {
   className?: string;
 } & React.ComponentPropsWithoutRef<"div">;
 
-export function GradientColorBlock({
+export const GradientColorBlock = React.memo(function GradientColorBlock({
   background,
   className,
   ...props
@@ -23,4 +23,4 @@ export function GradientColorBlock({
       {...props}
     />
   );
-}
+});

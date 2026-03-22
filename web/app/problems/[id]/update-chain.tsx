@@ -1,9 +1,10 @@
 "use client";
 
+import { memo } from "react";
 import { TimelineEntry } from "@/lib/types";
 import { TimelineEntryComponent } from "./timeline-entry";
 
-export function UpdateChain({ timeline }: { timeline: TimelineEntry[] }) {
+export const UpdateChain = memo(function UpdateChain({ timeline }: { timeline: TimelineEntry[] }) {
   if (timeline.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No activity yet.</p>
@@ -23,4 +24,4 @@ export function UpdateChain({ timeline }: { timeline: TimelineEntry[] }) {
       </div>
     </div>
   );
-}
+});

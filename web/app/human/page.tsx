@@ -81,9 +81,9 @@ function MetricCard({
         <p
           className={`text-2xl font-bold tabular-nums tracking-tight ${
             aboveTarget === true
-              ? "text-emerald-500/90"
+              ? "text-success"
               : aboveTarget === false
-                ? "text-red-400/85"
+                ? "text-danger"
                 : ""
           }`}
         >

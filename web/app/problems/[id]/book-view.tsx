@@ -1,10 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
-import { SolutionMarkdown } from "@/components/app/solution-markdown";
 import { getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { TimelineEntry } from "@/lib/types";
+
+const SolutionMarkdown = dynamic(
+  () => import("@/components/app/solution-markdown").then((m) => ({ default: m.SolutionMarkdown })),
+  { loading: () => <div className="h-32 animate-pulse rounded-lg bg-white/[0.04]" /> },
+);
 
 function pickBestEntry(timeline: TimelineEntry[]): TimelineEntry | null {
   // Priority 1: canonical synthesis

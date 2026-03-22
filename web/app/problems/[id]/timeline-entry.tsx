@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
-import { SolutionMarkdown } from "@/components/app/solution-markdown";
 import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { TimelineEntry, PromotionStatus } from "@/lib/types";
+
+const SolutionMarkdown = dynamic(
+  () => import("@/components/app/solution-markdown").then((m) => ({ default: m.SolutionMarkdown })),
+  { loading: () => <div className="h-8 animate-pulse rounded bg-white/[0.04]" /> },
+);
 
 function AgentAvatar({ authorId }: { authorId?: string }) {
   if (!authorId) return null;
@@ -31,23 +36,25 @@ function ConfidencePct({ confidence }: { confidence: number }) {
 
 function PromotionBadge({ status }: { status: PromotionStatus }) {
   if (!status) return null;
-  if (status === "candidate") return <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-600 dark:text-yellow-400">Pending Validation</Badge>;
-  if (status === "promoted") return <Badge variant="outline" className="text-xs border-green-500/50 text-green-600 dark:text-green-400">Confirmed</Badge>;
+  if (status === "candidate") return <Badge variant="outline" className="text-xs border-warning/40 text-warning">Pending Validation</Badge>;
+  if (status === "promoted") return <Badge variant="outline" className="text-xs border-success/40 text-success">Confirmed</Badge>;
   if (status === "demoted") return <Badge variant="outline" className="text-xs border-muted-foreground/30 text-muted-foreground">Superseded</Badge>;
   return null;
 }
 
-function DeltaBadge({ delta }: { delta: number }) {
-  const pct = Math.round(delta * 100);
-  if (pct === 0) return null;
-  const positive = pct > 0;
+function ConfidenceTransition({ confidence, delta }: { confidence: number; delta?: number }) {
+  const pct = Math.round(confidence * 100);
+  const tier = getConfidenceTier(confidence);
+  const deltaPct = delta !== undefined ? Math.round(delta * 100) : 0;
+  if (!deltaPct) return <Badge variant={tier}>{pct}%</Badge>;
+  const positive = deltaPct > 0;
   return (
-    <span className={cn(
-      "text-xs font-medium tabular-nums px-1.5 py-0.5 rounded",
-      positive ? "text-green-600 dark:text-green-400 bg-green-500/10" : "text-red-600 dark:text-red-400 bg-red-500/10"
-    )}>
-      {positive ? "+" : ""}{pct}%
-    </span>
+    <Badge variant={tier}>
+      {pct}%{" "}
+      <span className={cn(positive ? "text-success" : "text-danger")}>
+        ({positive ? "+" : ""}{deltaPct}%)
+      </span>
+    </Badge>
   );
 }
 
@@ -119,25 +126,10 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-foreground">Solution proposed</span>
             {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
-            {entry.author_verified && <Badge variant="outline" className="text-xs">Author Verified</Badge>}
             <PromotionBadge status={entry.promotion_status ?? null} />
-            {entry.outcome_count !== undefined && entry.outcome_count > 0 && (
-              <span className="text-muted-foreground tabular-nums">
-                {entry.success_count}/{entry.outcome_count} successful
-              </span>
-            )}
             {entry.author_id && <AgentAvatar authorId={entry.author_id} />}
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
-          {entry.environment_scores && Object.keys(entry.environment_scores).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(entry.environment_scores).slice(0, 4).map(([env, score]) => (
-                <span key={env} className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                  {env}: {Math.round(score * 100)}%
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         <div className="px-3 pb-2.5">
           <CollapsibleContent>
@@ -167,29 +159,15 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
         <div className="px-3 pt-2.5 pb-2 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-foreground">Research improvement</span>
-            {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
-            {entry.confidence_delta !== undefined && <DeltaBadge delta={entry.confidence_delta} />}
-            <PromotionBadge status={entry.promotion_status ?? null} />
-            {entry.author_verified && <Badge variant="outline" className="text-xs">Author Verified</Badge>}
-            {entry.outcome_count !== undefined && entry.outcome_count > 0 && (
-              <span className="text-muted-foreground tabular-nums">
-                {entry.success_count}/{entry.outcome_count} successful
-              </span>
+            {entry.confidence !== undefined && (
+              <ConfidenceTransition confidence={entry.confidence} delta={entry.confidence_delta} />
             )}
+            <PromotionBadge status={entry.promotion_status ?? null} />
             {entry.author_id && <AgentAvatar authorId={entry.author_id} />}
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
           {entry.reasoning && (
-            <p className="text-muted-foreground">{entry.reasoning}</p>
-          )}
-          {entry.environment_scores && Object.keys(entry.environment_scores).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(entry.environment_scores).slice(0, 4).map(([env, score]) => (
-                <span key={env} className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                  {env}: {Math.round(score * 100)}%
-                </span>
-              ))}
-            </div>
+            <p className="text-sm text-muted-foreground">{entry.reasoning}</p>
           )}
         </div>
         <div className="px-3 pb-2.5">
@@ -223,7 +201,7 @@ function ResearchSkippedEntry({ entry }: { entry: TimelineEntry }) {
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
           {entry.reasoning && (
-            <p className="text-muted-foreground">{entry.reasoning}</p>
+            <p className="text-sm text-muted-foreground">{entry.reasoning}</p>
           )}
         </div>
       </EntryCard>
@@ -244,7 +222,7 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className={cn(
               "font-medium",
-              entry.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+              entry.success ? "text-success" : "text-danger"
             )}>
               {entry.success ? "Outcome: success" : "Outcome: failure"}
             </span>
@@ -254,7 +232,7 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
             )}
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
-          {entry.notes && <p className="text-muted-foreground">{entry.notes}</p>}
+          {entry.notes && <p className="text-sm text-muted-foreground">{entry.notes}</p>}
           {entry.environment && Object.keys(entry.environment).length > 0 && (
             <div className="flex flex-wrap gap-1">
               {Object.entries(entry.environment).slice(0, 3).map(([k, v]) => (
@@ -280,12 +258,6 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
         <div className="px-3 pt-2.5 pb-2 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="text-xs">Canonical Synthesis</Badge>
-            {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
-            {entry.outcome_count !== undefined && entry.outcome_count > 0 && (
-              <span className="text-muted-foreground tabular-nums">
-                {entry.success_count}/{entry.outcome_count} successful
-              </span>
-            )}
             <span className="ml-auto text-muted-foreground">{getRelativeTime(entry.created_at)}</span>
           </div>
         </div>
@@ -306,7 +278,7 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
 
 // --- Main entry dispatcher ---
 
-export function TimelineEntryComponent({ entry }: { entry: TimelineEntry }) {
+export const TimelineEntryComponent = memo(function TimelineEntryComponent({ entry }: { entry: TimelineEntry }) {
   switch (entry.event_type) {
     case "problem_created":
       return <ProblemCreatedEntry entry={entry} />;
@@ -323,4 +295,4 @@ export function TimelineEntryComponent({ entry }: { entry: TimelineEntry }) {
     default:
       return null;
   }
-}
+});

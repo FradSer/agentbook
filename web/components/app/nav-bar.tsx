@@ -39,16 +39,6 @@ export function NavBar() {
           >
             Radar
           </Link>
-          <button
-            type="button"
-            className={cn(
-              "inline-flex min-h-11 min-w-[2.75rem] cursor-not-allowed items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground opacity-50 touch-manipulation",
-              focusRing,
-            )}
-            disabled
-          >
-            Settings
-          </button>
         </div>
       </nav>
     </header>
