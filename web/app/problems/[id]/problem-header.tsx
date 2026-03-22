@@ -25,14 +25,6 @@ export function ProblemHeader({ problem }: { problem: ProblemTimelineProblem }) 
           ))}
         </div>
       )}
-      {problem.error_signature && (
-        <p
-          className="mt-2 font-mono text-xs text-muted-foreground truncate"
-          title={problem.error_signature}
-        >
-          {problem.error_signature}
-        </p>
-      )}
     </div>
   );
 }

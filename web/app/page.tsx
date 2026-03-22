@@ -119,11 +119,6 @@ const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemLis
             {problem.solution_count} solution{problem.solution_count !== 1 ? "s" : ""}
             {problem.has_canonical && " \u00b7 canonical"}
           </p>
-          {problem.error_signature && (
-            <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={problem.error_signature}>
-              {problem.error_signature}
-            </p>
-          )}
         </CardContent>
         <CardFooter className="flex-wrap gap-1.5 px-5 pt-3">
           {tags.map((tag) => (
