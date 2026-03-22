@@ -44,7 +44,7 @@ export default function ProblemDetailPage() {
       <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px] lg:h-[calc(100dvh-14rem)]">
         {/* Left: book */}
         <div className="min-w-0 lg:flex lg:flex-col lg:overflow-hidden">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
+          <h2 className="font-sans text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
             Solution
           </h2>
           <div className="scroll-panel lg:pr-2 lg:flex-1">
@@ -54,7 +54,7 @@ export default function ProblemDetailPage() {
 
         {/* Right: research chain */}
         <div className="mt-10 lg:mt-0 lg:flex lg:flex-col lg:overflow-hidden">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
+          <h2 className="font-sans text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
             Research chain · {data.timeline.length} events
           </h2>
           <div className="scroll-panel lg:flex-1">
