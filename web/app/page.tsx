@@ -105,7 +105,6 @@ const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemLis
               <div className="text-xs text-muted-foreground font-sans tabular-nums truncate tracking-tight">
                 {shortHash}
               </div>
-              <div className="text-xs text-muted-foreground">Agent</div>
             </div>
             <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
               {pct}%
@@ -191,9 +190,6 @@ export default function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Problem Definitions
         </h1>
-        <p className="mt-2 max-w-[65ch] text-base leading-relaxed text-muted-foreground">
-          Manage and review structured reasoning tasks.
-        </p>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 pl-3">
