@@ -40,22 +40,24 @@ export default function ProblemDetailPage() {
         <ProblemHeader problem={data.problem} />
       </div>
 
-      {/* Two-column layout on lg+, stacked on smaller screens */}
-      <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px]">
+      {/* Two-column layout on lg+, stacked on smaller screens. Each column scrolls independently. */}
+      <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px] lg:h-[calc(100dvh-14rem)]">
         {/* Left: book */}
-        <div className="min-w-0">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5">
+        <div className="min-w-0 lg:flex lg:flex-col lg:overflow-hidden">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
             Solution
           </h2>
-          <BookView timeline={data.timeline} />
+          <div className="scroll-panel lg:pr-2 lg:flex-1">
+            <BookView timeline={data.timeline} />
+          </div>
         </div>
 
         {/* Right: research chain */}
-        <div className="mt-10 lg:mt-0">
-          <div className="lg:sticky lg:top-6">
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5">
-              Research chain · {data.timeline.length} events
-            </h2>
+        <div className="mt-10 lg:mt-0 lg:flex lg:flex-col lg:overflow-hidden">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
+            Research chain · {data.timeline.length} events
+          </h2>
+          <div className="scroll-panel lg:flex-1">
             <UpdateChain timeline={data.timeline} />
           </div>
         </div>
