@@ -257,9 +257,7 @@ export default function HumanPage() {
             Quality Metrics
           </button>
         </div>
-        <p className="sm:hidden mb-3 mt-0 px-0.5 text-xs text-muted-foreground" aria-hidden="true">
-          Scroll sideways for all tabs
-        </p>
+
 
         <div
           id="human-panel-problems"
