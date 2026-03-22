@@ -1085,6 +1085,129 @@ class AgentbookService:
         cycles = self._research_cycles.list_by_problem(problem_id)
         return [_research_cycle_to_dict(c) for c in cycles]
 
+    def get_problem_timeline(self, problem_id: UUID) -> dict:
+        from uuid import UUID as _UUID
+        SYSTEM_AGENT_ID = _UUID("00000000-0000-0000-0000-000000000001")
+
+        problem = self._problems.get(problem_id)
+        if problem is None:
+            raise NotFoundError(f"Problem {problem_id} not found")
+
+        all_solutions = self._solutions.list_by_problem(problem_id)
+
+        research_cycles: list[ResearchCycle] = []
+        if self._research_cycles is not None:
+            research_cycles = self._research_cycles.list_by_problem(problem_id)
+
+        solution_ids = [s.solution_id for s in all_solutions]
+        all_outcomes: list[Outcome] = []
+        if self._outcomes is not None and solution_ids:
+            all_outcomes = self._outcomes.list_by_problem(problem_id, solution_ids)
+
+        # Build index: proposed_solution_id -> ResearchCycle (for merge)
+        cycle_by_solution: dict[UUID, ResearchCycle] = {
+            c.proposed_solution_id: c
+            for c in research_cycles
+            if c.proposed_solution_id is not None
+        }
+
+        events: list[dict] = []
+
+        # Event: problem_created
+        events.append({
+            "event_type": "problem_created",
+            "created_at": problem.created_at.isoformat(),
+            "author_id": str(problem.author_id),
+            "description": problem.description,
+            "tags": problem.tags,
+            "error_signature": problem.error_signature,
+        })
+
+        # Events: solution_proposed / solution_improved / synthesis_created
+        for s in all_solutions:
+            is_synthesis = (
+                s.solution_id == problem.canonical_solution_id
+                and s.author_id == SYSTEM_AGENT_ID
+                and s.parent_solution_id is None
+            )
+            if is_synthesis:
+                event_type = "synthesis_created"
+            elif s.parent_solution_id is not None:
+                event_type = "solution_improved"
+            else:
+                event_type = "solution_proposed"
+
+            entry: dict = {
+                "event_type": event_type,
+                "created_at": s.created_at.isoformat(),
+                "solution_id": str(s.solution_id),
+                "author_id": str(s.author_id),
+                "content": s.content,
+                "steps": s.steps,
+                "confidence": s.confidence,
+                "promotion_status": s.promotion_status,
+                "canonical_id": str(s.canonical_id) if s.canonical_id else None,
+                "parent_solution_id": str(s.parent_solution_id) if s.parent_solution_id else None,
+                "author_verified": s.author_verified,
+                "outcome_count": s.outcome_count,
+                "success_count": s.success_count,
+                "failure_count": s.failure_count,
+                "environment_scores": s.environment_scores,
+                "review_status": s.review_status,
+            }
+
+            cycle = cycle_by_solution.get(s.solution_id)
+            if cycle:
+                entry["reasoning"] = cycle.reasoning
+                entry["confidence_delta"] = round(cycle.new_confidence - cycle.previous_best_confidence, 4)
+                entry["previous_best_confidence"] = cycle.previous_best_confidence
+                entry["research_status"] = cycle.status
+
+            events.append(entry)
+
+        # Events: research_skipped (cycles without a proposed solution)
+        for c in research_cycles:
+            if c.proposed_solution_id is None:
+                events.append({
+                    "event_type": "research_skipped",
+                    "created_at": c.created_at.isoformat(),
+                    "author_id": str(c.researcher_id),
+                    "reasoning": c.reasoning,
+                    "status": c.status,
+                    "previous_best_confidence": c.previous_best_confidence,
+                })
+
+        # Events: outcome_reported
+        for o in all_outcomes:
+            events.append({
+                "event_type": "outcome_reported",
+                "created_at": o.created_at.isoformat(),
+                "author_id": str(o.reporter_id),
+                "solution_id": str(o.solution_id),
+                "success": o.success,
+                "environment": o.environment,
+                "notes": o.notes,
+                "time_saved_seconds": o.time_saved_seconds,
+                "weight": o.weight,
+            })
+
+        events.sort(key=lambda e: e["created_at"])
+
+        return {
+            "problem": {
+                "problem_id": str(problem.problem_id),
+                "author_id": str(problem.author_id),
+                "description": problem.description,
+                "tags": problem.tags,
+                "error_signature": problem.error_signature,
+                "best_confidence": problem.best_confidence,
+                "solution_count": problem.solution_count,
+                "created_at": problem.created_at.isoformat(),
+                "has_canonical": problem.canonical_solution_id is not None,
+            },
+            "timeline": events,
+        }
+
 
 def _problem_to_dict(p: Problem) -> dict:
     return {

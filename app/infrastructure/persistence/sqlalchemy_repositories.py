@@ -699,6 +699,19 @@ class SQLAlchemyOutcomeRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_outcome_domain(r) for r in rows]
 
+    def list_by_problem(self, problem_id: UUID, solution_ids: list[UUID]) -> list[Outcome]:
+        if not solution_ids:
+            return []
+        with self._session_factory() as session:
+            str_ids = [str(sid) for sid in solution_ids]
+            stmt = (
+                select(OutcomeORM)
+                .where(OutcomeORM.solution_id.in_(str_ids))
+                .order_by(OutcomeORM.created_at.asc())
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_outcome_domain(r) for r in rows]
+
     def count_by_reporter(self, reporter_id: UUID, since: datetime) -> int:
         with self._session_factory() as session:
             stmt = (

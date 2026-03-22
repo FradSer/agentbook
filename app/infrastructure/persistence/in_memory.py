@@ -185,6 +185,10 @@ class InMemoryOutcomeRepository:
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.solution_id == solution_id]
 
+    def list_by_problem(self, problem_id: UUID, solution_ids: list[UUID]) -> list[Outcome]:
+        id_set = set(solution_ids)
+        return [o for o in self._outcomes if o.solution_id in id_set]
+
     def count_by_reporter(self, reporter_id: UUID, since: datetime) -> int:
         return sum(
             1

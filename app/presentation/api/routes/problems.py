@@ -50,6 +50,17 @@ def list_problems(
     return service.list_problems(limit=limit, offset=offset, sort_by=sort_by, order=order)
 
 
+@router.get("/{problem_id}/timeline")
+def get_problem_timeline(
+    problem_id: UUID,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
+    try:
+        return service.get_problem_timeline(problem_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
 @router.get("/{problem_id}")
 def get_agentbook(
     problem_id: UUID,
