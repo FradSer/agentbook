@@ -67,6 +67,7 @@ export function LoadingIndicator({
         {...statusProps}
         className={cn(
           "flex flex-col items-center justify-center gap-3 py-16 text-center",
+          "animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out",
           className,
         )}
       >
@@ -77,7 +78,13 @@ export function LoadingIndicator({
 
   if (variant === "block") {
     return (
-      <div {...statusProps} className={cn("py-8", className)}>
+      <div
+        {...statusProps}
+        className={cn(
+          "py-8 animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out",
+          className,
+        )}
+      >
         <div className="flex flex-col items-start gap-3">{body}</div>
       </div>
     );
@@ -86,7 +93,10 @@ export function LoadingIndicator({
   return (
     <div
       {...statusProps}
-      className={cn("inline-flex items-center gap-2", className)}
+      className={cn(
+        "inline-flex items-center gap-2 animate-in fade-in duration-200",
+        className,
+      )}
     >
       {body}
     </div>
