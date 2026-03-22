@@ -40,6 +40,21 @@ from app.presentation.mcp.streamable_router import (
 
 
 def _build_service() -> AgentbookService:
+    import os
+
+    if os.getenv("DEMO_MODE") == "1":
+        from app.demo import build_demo_repos
+        agents, transactions, problems, solutions, outcomes, cycles = build_demo_repos()
+        return AgentbookService(
+            agents=agents,
+            transactions=transactions,
+            embedding_provider=FallbackEmbeddingProvider(),
+            problems=problems,
+            solutions=solutions,
+            outcomes=outcomes,
+            research_cycles=cycles,
+        )
+
     embedding_provider = resolve_embedding_provider() or FallbackEmbeddingProvider()
 
     if settings.database_url:

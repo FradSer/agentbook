@@ -1,6 +1,6 @@
 /**
  * BDD tests for V3 frontend pages.
- * Red phase: canonical solution display, no vote buttons, problem list.
+ * Covers: notebook timeline display, no vote buttons, problem list.
  */
 
 import { render, screen } from "@testing-library/react";
@@ -16,14 +16,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-// --- Mock API (V3 problem-based) ---
-const { getProblemDetailMock, getProblemsListMock } = vi.hoisted(() => ({
-  getProblemDetailMock: vi.fn(),
+// --- Mock API ---
+const { getProblemTimelineMock, getProblemsListMock } = vi.hoisted(() => ({
+  getProblemTimelineMock: vi.fn(),
   getProblemsListMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", () => ({
-  getProblemDetail: getProblemDetailMock,
+  getProblemTimeline: getProblemTimelineMock,
   getProblems: getProblemsListMock,
   fetchRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
   fetchMetrics: vi.fn().mockResolvedValue({
@@ -37,55 +37,78 @@ vi.mock("@/lib/api", () => ({
   }),
 }));
 
-const mockAgentbookView = {
-  problem_id: "test-id",
-  description: "ModuleNotFoundError importing numpy",
-  canonical_solution: {
-    solution_id: "sol-1",
-    content: "Install build dependencies with apk add before pip",
-    confidence: 0.85,
-    steps: [],
-    outcome_count: 10,
-    success_count: 9,
+const mockTimeline = {
+  problem: {
+    problem_id: "test-id",
+    author_id: "00000000-0000-0000-0000-000000000002",
+    description: "ModuleNotFoundError importing numpy",
+    tags: ["python", "docker"],
+    error_signature: "ModuleNotFoundError: No module named 'numpy'",
+    best_confidence: 0.85,
+    solution_count: 2,
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    has_canonical: true,
   },
-  solution_history: [
-    { solution_id: "sol-2", content: "Try pip install numpy", confidence: 0.4, outcome_count: 3, success_count: 1 },
-    { solution_id: "sol-3", content: "Use conda instead", confidence: 0.3, outcome_count: 2, success_count: 0 },
+  timeline: [
+    {
+      event_type: "problem_created" as const,
+      created_at: new Date(Date.now() - 3600000).toISOString(),
+      author_id: "00000000-0000-0000-0000-000000000002",
+      description: "ModuleNotFoundError importing numpy",
+    },
+    {
+      event_type: "solution_proposed" as const,
+      created_at: new Date(Date.now() - 3000000).toISOString(),
+      solution_id: "sol-1",
+      author_id: "00000000-0000-0000-0000-000000000003",
+      content: "Install build dependencies with apk add before pip",
+      steps: ["Run apk add --no-cache gcc musl-dev", "Then pip install numpy"],
+      confidence: 0.4,
+      promotion_status: null,
+      outcome_count: 3,
+      success_count: 2,
+    },
+    {
+      event_type: "synthesis_created" as const,
+      created_at: new Date(Date.now() - 1800000).toISOString(),
+      solution_id: "sol-canonical",
+      author_id: "00000000-0000-0000-0000-000000000001",
+      content: "Canonical synthesis: apk add gcc musl-dev then pip install",
+      confidence: 0.85,
+      outcome_count: 10,
+      success_count: 9,
+    },
   ],
-  best_confidence: 0.85,
-  has_canonical: true,
 };
 
 // --- Problem detail page tests ---
-describe("Problem detail page — canonical solution display", () => {
+describe("Problem detail page — notebook timeline display", () => {
   beforeEach(() => {
-    getProblemDetailMock.mockResolvedValue(mockAgentbookView);
+    getProblemTimelineMock.mockResolvedValue(mockTimeline);
   });
 
-  it("shows canonical solution first with a 'Canonical' label", async () => {
-    // Import problem detail page — will fail if it doesn't exist
+  it("shows the research chain section", async () => {
     const { default: ProblemPage } = await import("@/app/problems/[id]/page");
     render(<ProblemPage />);
 
-    // Wait for loading and check canonical solution section is shown
-    const canonical = await screen.findByRole("heading", { name: /canonical solution/i });
-    expect(canonical).toBeDefined();
+    const chain = await screen.findByText(/research chain/i);
+    expect(chain).toBeDefined();
   });
 
-  it("shows canonical solution content", async () => {
+  it("shows canonical synthesis badge in timeline", async () => {
     const { default: ProblemPage } = await import("@/app/problems/[id]/page");
     render(<ProblemPage />);
 
-    const content = await screen.findByText(/apk add/i);
-    expect(content).toBeDefined();
+    await screen.findByText(/research chain/i);
+    const canonical = screen.getAllByText(/canonical synthesis/i);
+    expect(canonical.length).toBeGreaterThan(0);
   });
 
-  it("shows confidence score (not wilson_score)", async () => {
+  it("shows confidence score from problem header", async () => {
     const { default: ProblemPage } = await import("@/app/problems/[id]/page");
     render(<ProblemPage />);
 
-    // 0.85 should appear as confidence — wait for canonical section first
-    await screen.findByRole("heading", { name: /canonical solution/i });
+    await screen.findByText(/research chain/i);
     const confidenceElements = screen.getAllByText(/85%/i);
     expect(confidenceElements.length).toBeGreaterThan(0);
   });
@@ -94,8 +117,7 @@ describe("Problem detail page — canonical solution display", () => {
     const { default: ProblemPage } = await import("@/app/problems/[id]/page");
     render(<ProblemPage />);
 
-    // Wait for content to load
-    await screen.findByText(/apk add/i);
+    await screen.findByText(/research chain/i);
 
     const upvoteButtons = screen.queryAllByRole("button", { name: /upvote|👍|▲/i });
     const downvoteButtons = screen.queryAllByRole("button", { name: /downvote|👎|▼/i });
