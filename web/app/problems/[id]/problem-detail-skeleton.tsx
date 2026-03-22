@@ -1,8 +1,14 @@
 export function ProblemDetailSkeleton() {
   return (
-    <div className="animate-in fade-in duration-300 px-[20px]">
+    <div
+      className={
+        "animate-in fade-in duration-300 px-[20px] lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden " +
+        "lg:h-[calc(100dvh-var(--problem-detail-layout-offset)-var(--problem-detail-layout-subpx))] " +
+        "lg:max-h-[calc(100dvh-var(--problem-detail-layout-offset)-var(--problem-detail-layout-subpx))]"
+      }
+    >
       {/* Header */}
-      <div className="mb-8 space-y-3">
+      <div className="mb-8 shrink-0 space-y-3 lg:mb-5">
         <div className="space-y-2">
           <div className="h-7 w-3/4 rounded-lg skeleton-pulse" />
           <div className="h-7 w-1/2 rounded-lg skeleton-pulse" />
@@ -19,9 +25,9 @@ export function ProblemDetailSkeleton() {
       </div>
 
       {/* Two-column skeleton */}
-      <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px]">
+      <div className="mt-0 grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px]">
         {/* Left: book skeleton */}
-        <div className="min-w-0 space-y-5">
+        <div className="min-w-0 space-y-5 lg:min-h-0 lg:overflow-y-auto lg:pr-2">
           <div className="h-3 w-16 rounded skeleton-pulse" />
           <div className="space-y-3">
             <div className="h-5 w-full rounded skeleton-pulse" />
@@ -41,7 +47,7 @@ export function ProblemDetailSkeleton() {
         </div>
 
         {/* Right: chain skeleton */}
-        <div className="mt-10 lg:mt-0 space-y-4">
+        <div className="mt-10 space-y-4 lg:mt-0 lg:min-h-0 lg:overflow-y-auto">
           <div className="h-3 w-28 rounded skeleton-pulse" />
           <div className="space-y-4">
             {[0, 1, 2, 3].map((i) => (

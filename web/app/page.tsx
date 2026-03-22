@@ -5,26 +5,28 @@ import dynamic from "next/dynamic";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AgentIdentity } from "@/components/app/agent-identity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, getProblems } from "@/lib/api";
-import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import { LoadingSpinner } from "@/components/ui/loading-indicator";
 import { focusRing } from "@/lib/focus-ring";
-import { cn, getAgentAvatar, getConfidenceTier, getRelativeTime, TAG_COLORS } from "@/lib/utils";
+import { cn, getConfidenceTier, getRelativeTime, TAG_COLORS } from "@/lib/utils";
 import { ProblemListItem } from "@/lib/types";
 
 function ProblemCardSkeleton() {
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-3 animate-in fade-in duration-300">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="size-7 rounded-lg skeleton-pulse shrink-0" />
-        <div className="flex-1 space-y-1.5">
-          <div className="h-2.5 w-20 rounded skeleton-pulse" />
-          <div className="h-2.5 w-10 rounded skeleton-pulse" />
+      <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="size-7 shrink-0 rounded-lg skeleton-pulse" />
+          <div className="space-y-1.5">
+            <div className="h-3 w-20 rounded skeleton-pulse" />
+            <div className="h-2.5 w-28 rounded skeleton-pulse" />
+          </div>
         </div>
-        <div className="h-5 w-10 rounded-full skeleton-pulse shrink-0" />
+        <div className="h-5 w-10 shrink-0 rounded-full skeleton-pulse" />
       </div>
       <div className="space-y-2">
         <div className="h-4 w-full rounded skeleton-pulse" />
@@ -79,36 +81,48 @@ const SORT_OPTIONS: SortOption[] = [
 const PAGE_SIZE = 20;
 
 const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemListItem }) {
-  const avatar = getAgentAvatar(problem.problem_id);
   const tier = getConfidenceTier(problem.best_confidence);
   const pct = Math.round(problem.best_confidence * 100);
   // Use server tags if available, fall back to heuristic derivation
   const tags = (problem.tags && problem.tags.length > 0)
     ? problem.tags.slice(0, 3)
     : deriveTagsFromDescription(problem.description);
-  const shortHash = problem.problem_id.replace(/-/g, "").slice(0, 8);
-  const relTime = problem.created_at ? getRelativeTime(problem.created_at) : null;
+  const activityStamp = problem.last_activity_at ?? problem.created_at;
+  const createdAtForIdentity = activityStamp ?? new Date(0).toISOString();
+  const relTime = activityStamp ? getRelativeTime(activityStamp) : null;
 
   return (
     <Link
       href={`/problems/${problem.problem_id}`}
       className={cn("block group rounded-xl", focusRing)}
     >
-      <Card className="h-full flex flex-col cursor-pointer rounded-xl">
+      <Card
+        className={cn(
+          "h-full flex flex-col cursor-pointer rounded-xl",
+          problem.has_canonical && "border-l-2 border-l-coral",
+          problem.is_being_researched && "research-active",
+        )}
+      >
         <CardHeader className="p-5 pb-3">
-          <div className="flex items-center gap-2 mb-3">
-            <GradientColorBlock
-              aria-hidden
-              background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
+          <div className="mb-3">
+            <AgentIdentity
+              authorId={problem.problem_id}
+              createdAt={createdAtForIdentity}
+              llmModel={null}
+              timeMode="trailing"
+              trailing={
+                <>
+                  {problem.is_being_researched && (
+                    <span className="researching-pill text-xs px-2 py-0.5 rounded-full font-medium shrink-0">
+                      Researching
+                    </span>
+                  )}
+                  <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+                    {pct}%
+                  </Badge>
+                </>
+              }
             />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs text-muted-foreground font-sans tabular-nums truncate tracking-tight">
-                {shortHash}
-              </div>
-            </div>
-            <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
-              {pct}%
-            </Badge>
           </div>
           <CardTitle as="h2" className="line-clamp-2 text-base leading-snug">
             <TitleMarkdown content={problem.description} insideLink />
@@ -181,10 +195,13 @@ export default function HomePage() {
 
   return (
     <div>
-      <div className="mb-6 pt-4 sm:mb-8 sm:pt-6 pl-5">
+      <div className="mb-6 pt-4 sm:mb-8 sm:pt-6 pl-5 space-y-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Problem Definitions
         </h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Browse recurring issues, compare confidence, and open a problem to read its living agentbook.
+        </p>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2 pl-3">
@@ -220,7 +237,7 @@ export default function HomePage() {
           <p className="mt-1 text-sm text-muted-foreground">{error}</p>
         </div>
       ) : problems.length === 0 ? (
-        <div className="rounded-xl glass py-16 text-center">
+        <div className="rounded-xl border border-border bg-card py-16 text-center">
           <p className="font-medium text-foreground">No problems yet</p>
           <p className="mt-1 text-sm text-muted-foreground">Agents can contribute via MCP or API.</p>
         </div>

@@ -4,6 +4,7 @@
  */
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Mock navigation ---
@@ -22,20 +23,24 @@ const { getProblemTimelineMock, getProblemsListMock } = vi.hoisted(() => ({
   getProblemsListMock: vi.fn(),
 }));
 
-vi.mock("@/lib/api", () => ({
-  getProblemTimeline: getProblemTimelineMock,
-  getProblems: getProblemsListMock,
-  fetchRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
-  fetchMetrics: vi.fn().mockResolvedValue({
-    resolution_rate: { value: 0, trend: null, target: 0.8 },
-    median_ttr_seconds: { value: 0, trend: null, target: 300 },
-    avg_solution_confidence: { value: 0, trend: null, target: 0.75 },
-    knowledge_coverage: { value: 0, trend: null },
-    knowledge_freshness: { value: 0, trend: null, target: 0.6 },
-    solutions_needing_synthesis: 0,
-    stale_solutions: 0,
-  }),
-}));
+vi.mock("@/lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api")>();
+  return {
+    ...actual,
+    getProblemTimeline: getProblemTimelineMock,
+    getProblems: getProblemsListMock,
+    fetchRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
+    fetchMetrics: vi.fn().mockResolvedValue({
+      resolution_rate: { value: 0, trend: null, target: 0.8 },
+      median_ttr_seconds: { value: 0, trend: null, target: 300 },
+      avg_solution_confidence: { value: 0, trend: null, target: 0.75 },
+      knowledge_coverage: { value: 0, trend: null },
+      knowledge_freshness: { value: 0, trend: null, target: 0.6 },
+      solutions_needing_synthesis: 0,
+      stale_solutions: 0,
+    }),
+  };
+});
 
 const mockTimeline = {
   problem: {
@@ -47,7 +52,21 @@ const mockTimeline = {
     best_confidence: 0.85,
     solution_count: 2,
     created_at: new Date(Date.now() - 3600000).toISOString(),
+    updated_at: new Date(Date.now() - 1800000).toISOString(),
     has_canonical: true,
+    canonical_solution_id: "sol-canonical",
+  },
+  book_solution: {
+    solution_id: "sol-canonical",
+    author_id: "00000000-0000-0000-0000-000000000001",
+    content: "Canonical synthesis: apk add gcc musl-dev then pip install",
+    confidence: 0.85,
+    outcome_count: 10,
+    success_count: 9,
+    failure_count: 1,
+    created_at: new Date(Date.now() - 1800000).toISOString(),
+    is_synthesized: true,
+    promotion_status: null,
   },
   timeline: [
     {
@@ -123,6 +142,25 @@ describe("Problem detail page — notebook timeline display", () => {
     const downvoteButtons = screen.queryAllByRole("button", { name: /downvote|👎|▼/i });
     expect(upvoteButtons).toHaveLength(0);
     expect(downvoteButtons).toHaveLength(0);
+  });
+
+  it("shows error panel with retry and refetches on success", async () => {
+    const user = userEvent.setup();
+    getProblemTimelineMock
+      .mockReset()
+      .mockRejectedValueOnce(new Error("Connection failed"))
+      .mockResolvedValueOnce(mockTimeline);
+
+    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    render(<ProblemPage />);
+
+    await screen.findByText(/Failed to load problem/i);
+    expect(screen.getByText(/Connection failed/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /back to library/i })).toHaveAttribute("href", "/");
+
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    await screen.findByText(/research chain/i);
+    expect(getProblemTimelineMock).toHaveBeenCalledTimes(2);
   });
 });
 

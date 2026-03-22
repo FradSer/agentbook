@@ -1,76 +1,58 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { GradientColorBlock } from "@/components/app/gradient-color-block";
-import { formatLlmModelLabel, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
-import { TimelineEntry } from "@/lib/types";
+import { BookSolutionPayload } from "@/lib/types";
+import { getConfidenceTier } from "@/lib/utils";
 
 const SolutionMarkdown = dynamic(
   () => import("@/components/app/solution-markdown").then((m) => ({ default: m.SolutionMarkdown })),
   { loading: () => <div className="h-32 animate-pulse rounded-lg bg-white/[0.04]" /> },
 );
 
-function pickBestEntry(timeline: TimelineEntry[]): TimelineEntry | null {
-  // Priority 1: canonical synthesis
-  const synthesis = timeline.find((e) => e.event_type === "synthesis_created");
-  if (synthesis) return synthesis;
-
-  // Priority 2: promoted improvement with highest confidence
-  const promoted = timeline
-    .filter((e) => e.event_type === "solution_improved" && e.promotion_status === "promoted")
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-  if (promoted.length > 0) return promoted[0];
-
-  // Priority 3: best solution_proposed by confidence
-  const proposed = timeline
-    .filter((e) => e.event_type === "solution_proposed" && e.promotion_status !== "demoted")
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-  if (proposed.length > 0) return proposed[0];
-
-  // Fallback: any solution entry
-  const any = timeline.find(
-    (e) => e.event_type === "solution_proposed" || e.event_type === "solution_improved"
-  );
-  return any ?? null;
-}
-
-function AuthorLine({
-  authorId,
-  createdAt,
-  llmModel,
+/** Badges for the book row — driven by server ``book_solution`` (aligned with canonical). */
+export const BookSolutionMetaBar = memo(function BookSolutionMetaBar({
+  book,
 }: {
-  authorId?: string;
-  createdAt: string;
-  llmModel?: string | null;
+  book: BookSolutionPayload | null;
 }) {
-  if (!authorId) return null;
-  const avatar = getAgentAvatar(authorId);
-  const modelLabel = formatLlmModelLabel(llmModel ?? undefined);
+  if (!book || !book.content?.trim()) return null;
+
+  const confidence = book.confidence ?? 0;
+  const tier = getConfidenceTier(confidence);
+  const pct = Math.round(confidence * 100);
+
   return (
-    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <GradientColorBlock
-          aria-hidden
-          background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
-        />
-        <span className="font-mono">{authorId.replace(/-/g, "").slice(0, 8)}</span>
-        <span>·</span>
-        <span>{getRelativeTime(createdAt)}</span>
-      </div>
-      {modelLabel ? (
-        <span className="text-[10px] font-mono pl-2" title={llmModel ?? undefined}>
-          {modelLabel}
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+      {book.is_synthesized && (
+        <Badge variant="canonical" className="text-xs">
+          Canonical
+        </Badge>
+      )}
+      <Badge variant={tier}>{pct}%</Badge>
+      {book.outcome_count !== undefined && book.outcome_count > 0 && (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {book.success_count}/{book.outcome_count} successful
         </span>
-      ) : null}
+      )}
+      {book.environment_scores && Object.keys(book.environment_scores).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(book.environment_scores)
+            .slice(0, 4)
+            .map(([env, score]) => (
+              <span key={env} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                {env}: {Math.round(score * 100)}%
+              </span>
+            ))}
+        </div>
+      )}
     </div>
   );
-}
+});
 
-export function BookView({ timeline }: { timeline: TimelineEntry[] }) {
-  const entry = pickBestEntry(timeline);
-
-  if (!entry || !entry.content) {
+export const BookView = memo(function BookView({ book }: { book: BookSolutionPayload | null }) {
+  if (!book?.content?.trim()) {
     return (
       <div className="flex flex-col items-center justify-center h-48 text-sm text-muted-foreground border border-dashed rounded-lg">
         <span>No solution yet.</span>
@@ -79,54 +61,20 @@ export function BookView({ timeline }: { timeline: TimelineEntry[] }) {
     );
   }
 
-  const confidence = entry.confidence ?? 0;
-  const tier = getConfidenceTier(confidence);
-  const pct = Math.round(confidence * 100);
-  const isCanonical = entry.event_type === "synthesis_created";
-
   return (
-    <article className="space-y-6">
-      {/* Meta bar */}
-      <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-border">
-        {isCanonical && (
-          <Badge variant="canonical" className="text-xs">Canonical</Badge>
-        )}
-        <Badge variant={tier}>{pct}%</Badge>
-        {entry.outcome_count !== undefined && entry.outcome_count > 0 && (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {entry.success_count}/{entry.outcome_count} successful
-          </span>
-        )}
-        {entry.environment_scores && Object.keys(entry.environment_scores).length > 0 && (
-          <div className="flex flex-wrap gap-1.5 ml-auto">
-            {Object.entries(entry.environment_scores).slice(0, 4).map(([env, score]) => (
-              <span key={env} className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                {env}: {Math.round(score * 100)}%
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+    <article className="w-full min-w-0 space-y-6">
+      <SolutionMarkdown content={book.content} />
 
-      {/* Solution content */}
-      <SolutionMarkdown content={entry.content} />
-
-      {/* Steps */}
-      {entry.steps && entry.steps.length > 0 && (
+      {book.steps && book.steps.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Steps</h3>
           <ol className="space-y-3 list-decimal list-inside text-sm leading-relaxed text-foreground">
-            {entry.steps.map((step, i) => (
+            {book.steps.map((step, i) => (
               <li key={i} className="pl-1">{step}</li>
             ))}
           </ol>
         </div>
       )}
-
-      {/* Author */}
-      <div className="pt-4 border-t border-border">
-        <AuthorLine authorId={entry.author_id} createdAt={entry.created_at} llmModel={entry.llm_model} />
-      </div>
     </article>
   );
-}
+});

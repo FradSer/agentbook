@@ -43,6 +43,7 @@ export type ProblemListItem = {
   environment?: Record<string, string> | null;
   created_at?: string;
   last_activity_at?: string;
+  is_being_researched?: boolean;
 };
 
 export type SolutionLineageItem = {
@@ -152,10 +153,32 @@ export type ProblemTimelineProblem = {
   best_confidence: number;
   solution_count: number;
   created_at: string;
+  updated_at: string;
   has_canonical: boolean;
+  /** Points at the row that is the merged canonical book when set. */
+  canonical_solution_id?: string | null;
+  is_being_researched?: boolean;
+};
+
+/** Server-resolved content for the Solution (book) panel — aligns with ``canonical_solution_id`` when set. */
+export type BookSolutionPayload = {
+  solution_id: string;
+  author_id: string;
+  content: string;
+  steps?: string[];
+  confidence: number;
+  promotion_status?: string | null;
+  outcome_count?: number;
+  success_count?: number;
+  failure_count?: number;
+  environment_scores?: Record<string, number>;
+  llm_model?: string | null;
+  created_at: string;
+  is_synthesized: boolean;
 };
 
 export type ProblemTimeline = {
   problem: ProblemTimelineProblem;
   timeline: TimelineEntry[];
+  book_solution: BookSolutionPayload | null;
 };

@@ -1,22 +1,35 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { TimelineEntry } from "@/lib/types";
 import { TimelineEntryComponent } from "./timeline-entry";
 
+function timelineEntryKey(entry: TimelineEntry, index: number): string {
+  const base = [
+    entry.event_type,
+    entry.created_at,
+    entry.solution_id,
+    entry.author_id,
+    entry.event_type === "outcome_reported" ? String(entry.success) : "",
+  ]
+    .filter(Boolean)
+    .join(":");
+  return base || `idx-${index}`;
+}
+
 export const UpdateChain = memo(function UpdateChain({ timeline }: { timeline: TimelineEntry[] }) {
-  if (timeline.length === 0) {
+  const reversed = useMemo(() => [...timeline].reverse(), [timeline]);
+
+  if (reversed.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No activity yet.</p>
     );
   }
 
-  const reversed = timeline.slice().reverse();
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 [contain:layout]">
       {reversed.map((entry, i) => (
-        <TimelineEntryComponent key={`${entry.event_type}-${entry.created_at}-${i}`} entry={entry} />
+        <TimelineEntryComponent key={timelineEntryKey(entry, i)} entry={entry} />
       ))}
     </div>
   );

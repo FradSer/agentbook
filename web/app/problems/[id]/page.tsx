@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ApiError, getProblemTimeline } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { ProblemTimeline } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { ProblemDetailSkeleton } from "./problem-detail-skeleton";
 import { ProblemHeader } from "./problem-header";
-import { BookView } from "./book-view";
+import { BookSolutionMetaBar, BookView } from "./book-view";
 import { UpdateChain } from "./update-chain";
 
 export default function ProblemDetailPage() {
@@ -17,47 +20,84 @@ export default function ProblemDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadTimeline = useCallback(async () => {
     if (!problemId) return;
-    getProblemTimeline(problemId)
-      .then(setData)
-      .catch((err: unknown) => {
-        if (err instanceof ApiError) setError(err.message);
-        else if (err instanceof Error) setError(err.message);
-        else setError("Failed to load problem");
-      })
-      .finally(() => setLoading(false));
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getProblemTimeline(problemId);
+      setData(result);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) setError(err.message);
+      else if (err instanceof Error) setError(err.message);
+      else setError("Failed to load problem");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   }, [problemId]);
 
+  useEffect(() => {
+    if (!problemId) return;
+    setData(null);
+    loadTimeline();
+  }, [problemId, loadTimeline]);
+
   if (loading) return <ProblemDetailSkeleton />;
-  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (error) {
+    return (
+      <div className="px-[20px]">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-12 text-center">
+          <p className="font-medium text-destructive">Failed to load problem</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button type="button" onClick={() => void loadTimeline()}>
+              Retry
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/">Back to Library</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!data) return null;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 ease-out px-[20px]">
-      {/* Problem header — full width */}
-      <div className="mb-8">
+    <div
+      className={cn(
+        "animate-in fade-in slide-in-from-bottom-2 duration-400 ease-out px-[20px]",
+        "lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden",
+        "lg:h-[calc(100dvh-var(--problem-detail-layout-offset)-var(--problem-detail-layout-subpx))] lg:max-h-[calc(100dvh-var(--problem-detail-layout-offset)-var(--problem-detail-layout-subpx))]",
+      )}
+    >
+      {/* Problem header — full width; stays above the scroll regions on lg+ */}
+      <div className="mb-8 shrink-0 lg:mb-5">
         <ProblemHeader problem={data.problem} />
       </div>
 
-      {/* Two-column layout on lg+, stacked on smaller screens. Each column scrolls independently. */}
-      <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px] lg:h-[calc(100dvh-14rem)]">
+      {/* Two-column layout on lg+: fills remaining viewport; each column scrolls independently. */}
+      <div className="mt-0 grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px]">
         {/* Left: book */}
-        <div className="min-w-0 lg:flex lg:flex-col lg:overflow-hidden">
-          <h2 className="font-sans text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
-            Solution
-          </h2>
-          <div className="scroll-panel lg:pr-2 lg:flex-1">
-            <BookView timeline={data.timeline} />
+        <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
+          <div className="mb-5 flex min-w-0 shrink-0 flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <h2 className="font-sans text-xs font-medium uppercase tracking-widest text-muted-foreground shrink-0">
+              Solution
+            </h2>
+            <BookSolutionMetaBar book={data.book_solution} />
+          </div>
+          <div className="scroll-panel min-h-0 flex-1 lg:pr-2">
+            <BookView book={data.book_solution} />
           </div>
         </div>
 
         {/* Right: research chain */}
-        <div className="mt-10 lg:mt-0 lg:flex lg:flex-col lg:overflow-hidden">
-          <h2 className="font-sans text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5 shrink-0">
+        <div className="mt-10 flex min-h-0 flex-col overflow-hidden lg:mt-0">
+          <h2 className="mb-5 shrink-0 font-sans text-xs font-medium uppercase tracking-widest text-muted-foreground">
             Research chain · {data.timeline.length} events
           </h2>
-          <div className="scroll-panel lg:flex-1">
+          <div className="scroll-panel min-h-0 flex-1">
             <UpdateChain timeline={data.timeline} />
           </div>
         </div>

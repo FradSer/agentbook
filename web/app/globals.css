@@ -38,6 +38,14 @@
   --color-coral-light: hsl(0 50% 65%);
   --color-coral-dark: hsl(0 52% 50%);
 
+  /* In-progress research — same hue as coral accent (no teal) */
+  --research-bg: hsl(0 45% 52% / 0.12);
+  --research-fg: hsl(0 42% 72%);
+  --research-border: hsl(0 45% 52% / 0.28);
+  --research-dot: hsl(0 52% 55%);
+  --research-glow-soft: hsl(0 50% 50% / 0.12);
+  --research-glow-strong: hsl(0 50% 50% / 0.26);
+
   /* Semantic state colors — single source of truth for success / danger / warning */
   --color-success: hsl(142 36% 67%);
   --color-danger: hsl(0 58% 62%);
@@ -56,6 +64,13 @@
   --radius-lg: 0.75rem;
   --radius-md: calc(0.75rem - 2px);
   --radius-sm: calc(0.75rem - 4px);
+
+  /* Main bottom inset — keep in sync with <main> padding in layout.tsx */
+  --layout-bottom-safe: max(1.25rem, env(safe-area-inset-bottom, 0px));
+
+  /* Problem detail (lg+): header stack + main bottom inset (+ layout locks document scroll on lg). */
+  --problem-detail-layout-subpx: 3px;
+  --problem-detail-layout-offset: calc(7.5rem + var(--layout-bottom-safe));
 }
 
 @layer base {
@@ -83,6 +98,7 @@
 }
 
 body {
+  min-height: 100dvh;
   background-color: var(--color-background);
   color: var(--color-foreground);
   line-height: 1.6;
@@ -92,6 +108,11 @@ body {
   .glow-coral-hover {
     transition: none;
   }
+}
+
+/* Avoid 100vh vs 100dvh mismatch causing a few px of vertical page scroll */
+html {
+  overflow-x: clip;
 }
 
 /* Inset ring via box-shadow avoids border being clipped with backdrop-filter (WebKit).
@@ -286,23 +307,70 @@ body {
   }
 }
 
-/* Scrollable panel: hidden scrollbar + soft top/bottom fade via mask.
+/* Research-in-progress — coral pulse on card border */
+@keyframes research-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--research-glow-soft),
+      0 0 10px var(--research-glow-soft);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--research-glow-strong),
+      0 0 20px var(--research-glow-strong);
+  }
+}
+
+.research-active {
+  animation: research-pulse 2.4s ease-in-out infinite;
+}
+
+.researching-pill {
+  background-color: var(--research-bg);
+  color: var(--research-fg);
+  border: 1px solid var(--research-border);
+}
+
+.researching-dot {
+  background-color: var(--research-dot);
+}
+
+.researching-ping {
+  background-color: var(--research-dot);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .research-active {
+    animation: none;
+    box-shadow:
+      0 0 0 1px var(--research-glow-strong),
+      0 0 10px var(--research-glow-soft);
+  }
+}
+
+/* Scrollable panel: hidden scrollbar + narrow bottom fade (avoid hiding readable lines).
    Only activates at lg (1024px+) where the two-column fixed-height layout is active. */
 @media (min-width: 1024px) {
   .scroll-panel {
+    --scroll-panel-fade-bottom: 0.5rem;
+
+    contain: layout;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     scrollbar-width: none;
-    padding-bottom: 2.5rem;
+    padding-bottom: var(--scroll-panel-fade-bottom);
     -webkit-mask-image: linear-gradient(
       to bottom,
       black 0,
-      black calc(100% - 2.5rem),
+      black calc(100% - var(--scroll-panel-fade-bottom)),
       transparent 100%
     );
     mask-image: linear-gradient(
       to bottom,
       black 0,
-      black calc(100% - 2.5rem),
+      black calc(100% - var(--scroll-panel-fade-bottom)),
       transparent 100%
     );
   }

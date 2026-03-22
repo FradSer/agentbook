@@ -39,9 +39,9 @@ export default function RootLayout({
     >
       <body className="font-sans text-base antialiased overflow-x-clip bg-background text-foreground">
         <div className="bg-glow-coral" aria-hidden="true" />
-        <div className="relative z-10 min-h-screen">
+        <div className="relative z-10">
           <NavBar />
-          <main className="mx-auto w-full max-w-[1152px] px-4 pb-[max(4rem,env(safe-area-inset-bottom))] pt-0 sm:px-6">
+          <main className="mx-auto w-full max-w-[1152px] px-4 pb-[var(--layout-bottom-safe)] pt-0 sm:px-6">
             <div className="min-w-0">{children}</div>
           </main>
         </div>

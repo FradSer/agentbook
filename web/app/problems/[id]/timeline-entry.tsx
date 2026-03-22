@@ -2,9 +2,9 @@
 
 import { memo, useState } from "react";
 import dynamic from "next/dynamic";
+import { AgentIdentity } from "@/components/app/agent-identity";
 import { Badge } from "@/components/ui/badge";
-import { GradientColorBlock } from "@/components/app/gradient-color-block";
-import { cn, formatLlmModelLabel, getAgentAvatar, getConfidenceTier, getRelativeTime } from "@/lib/utils";
+import { cn, formatLlmModelLabel, getConfidenceTier, getRelativeTime } from "@/lib/utils";
 import { TimelineEntry, PromotionStatus } from "@/lib/types";
 
 const SolutionMarkdown = dynamic(
@@ -12,57 +12,7 @@ const SolutionMarkdown = dynamic(
   { loading: () => <div className="h-8 animate-pulse rounded bg-white/[0.04]" /> },
 );
 
-function AgentAvatar({ authorId }: { authorId?: string }) {
-  if (!authorId) return null;
-  const avatar = getAgentAvatar(authorId);
-  return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <GradientColorBlock
-        aria-hidden
-        background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
-      />
-      <span className="text-xs text-muted-foreground font-mono truncate">
-        {authorId.replace(/-/g, "").slice(0, 8)}
-      </span>
-    </div>
-  );
-}
-
-/** Avatar + id + model: model sits directly under the id span (same column), not under the avatar row. */
-function AgentMetaWithModel({
-  authorId,
-  llmModel,
-}: {
-  authorId: string;
-  llmModel: string;
-}) {
-  const avatar = getAgentAvatar(authorId);
-  const modelLabel = formatLlmModelLabel(llmModel);
-  if (!modelLabel) {
-    return <AgentAvatar authorId={authorId} />;
-  }
-  const idShort = authorId.replace(/-/g, "").slice(0, 8);
-  return (
-    <div className="flex items-start gap-1.5 min-w-0">
-      <GradientColorBlock
-        aria-hidden
-        className="mt-0.5"
-        background={`linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`}
-      />
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-xs text-muted-foreground font-mono truncate">{idShort}</span>
-        <span
-          className="max-w-[min(100%,14rem)] truncate font-mono text-[10px] text-muted-foreground/90"
-          title={llmModel}
-        >
-          {modelLabel}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/** Row 1 for every chain card: avatar + hash (if authorId) | relative time */
+/** Row 1 for every chain card: shared AgentIdentity (trailing time) or model-only / time-only fallbacks */
 function TimelineEntryMetaRow({
   authorId,
   createdAt,
@@ -73,33 +23,36 @@ function TimelineEntryMetaRow({
   llmModel?: string | null;
 }) {
   const modelLabel = formatLlmModelLabel(llmModel ?? undefined);
-  const hasModel = Boolean(modelLabel);
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-2 min-w-0",
-        authorId || modelLabel ? "justify-between" : "justify-end",
-      )}
-    >
-      {authorId || modelLabel ? (
-        <div className="min-w-0">
-          {authorId && hasModel ? (
-            <AgentMetaWithModel authorId={authorId} llmModel={llmModel ?? ""} />
-          ) : authorId ? (
-            <AgentAvatar authorId={authorId} />
-          ) : modelLabel ? (
-            <span
-              className="max-w-[min(100%,14rem)] truncate font-mono text-[10px] text-muted-foreground/90"
-              title={llmModel ?? undefined}
-            >
-              {modelLabel}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-      <span className="shrink-0 text-muted-foreground tabular-nums">{getRelativeTime(createdAt)}</span>
-    </div>
-  );
+
+  if (!authorId && !modelLabel) {
+    return (
+      <div className="flex justify-end">
+        <span className="shrink-0 text-muted-foreground tabular-nums">{getRelativeTime(createdAt)}</span>
+      </div>
+    );
+  }
+
+  if (!authorId && modelLabel) {
+    return (
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <span
+          className="max-w-[min(100%,14rem)] truncate font-mono text-[10px] text-muted-foreground/90"
+          title={llmModel ?? undefined}
+        >
+          {modelLabel}
+        </span>
+        <span className="shrink-0 text-muted-foreground tabular-nums">{getRelativeTime(createdAt)}</span>
+      </div>
+    );
+  }
+
+  if (authorId) {
+    return (
+      <AgentIdentity authorId={authorId} createdAt={createdAt} llmModel={llmModel} timeMode="trailing" />
+    );
+  }
+
+  return null;
 }
 
 /**
@@ -334,13 +287,21 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
           llmModel={entry.llm_model}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={cn("font-medium", entry.success ? "text-success" : "text-danger")}
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs font-medium",
+                entry.success
+                  ? "border-success/45 bg-success/[0.09] text-success"
+                  : "border-danger/45 bg-danger/[0.09] text-danger",
+              )}
             >
               {entry.success ? "Outcome: success" : "Outcome: failure"}
-            </span>
+            </Badge>
             {entry.time_saved_seconds ? (
-              <span className="text-muted-foreground">{entry.time_saved_seconds}s saved</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {entry.time_saved_seconds}s saved
+              </span>
             ) : null}
           </div>
           {entry.notes && <p className="text-sm text-muted-foreground">{entry.notes}</p>}

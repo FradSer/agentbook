@@ -27,7 +27,7 @@ export const sharedMarkdownCode: NonNullable<Components["code"]> = ({
 };
 
 export const sharedMarkdownPre: NonNullable<Components["pre"]> = ({ children }) => (
-  <pre className="mb-4 overflow-x-auto rounded-lg border border-white/10 bg-black/45 p-4 font-mono text-sm leading-relaxed shadow-inner [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit">
+  <pre className="mb-4 w-full min-w-0 overflow-x-auto rounded-lg border border-white/10 bg-black/45 p-4 font-mono text-sm leading-relaxed shadow-inner [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit">
     {children}
   </pre>
 );

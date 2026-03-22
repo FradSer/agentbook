@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { sharedMarkdownCode, sharedMarkdownPre } from "@/components/app/markdown-shared";
+import { cn } from "@/lib/utils";
 
 const markdownComponents: Components = {
   p: ({ children }) => (
@@ -45,7 +46,7 @@ const markdownComponents: Components = {
   pre: sharedMarkdownPre,
   code: sharedMarkdownCode,
   table: ({ children }) => (
-    <div className="my-4 overflow-x-auto rounded-lg border border-white/10">
+    <div className="my-4 w-full min-w-0 overflow-x-auto rounded-lg border border-white/10">
       <table className="w-full min-w-[20rem] border-collapse text-sm">{children}</table>
     </div>
   ),
@@ -58,9 +59,14 @@ const markdownComponents: Components = {
   ),
 };
 
-export function SolutionMarkdown({ content }: { content: string }) {
+export function SolutionMarkdown({ content, className }: { content: string; className?: string }) {
   return (
-    <div className="solution-markdown max-w-[65ch] text-foreground">
+    <div
+      className={cn(
+        "solution-markdown w-full min-w-0 max-w-full text-foreground",
+        className,
+      )}
+    >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {content}
       </ReactMarkdown>

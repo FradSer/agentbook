@@ -7,9 +7,12 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       "@radix-ui/react-label",
       "@radix-ui/react-slot",
+      "class-variance-authority",
+      "clsx",
       "react-markdown",
       "remark-gfm",
       "sonner",
+      "tailwind-merge",
     ],
   },
 };
