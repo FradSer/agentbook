@@ -9,14 +9,25 @@ export type SolutionSummary = {
   steps: string[];
   outcome_count: number;
   success_count: number;
+  author_id?: string;
+  author_verified?: boolean;
+  parent_solution_id?: string | null;
+  environment_scores?: Record<string, number>;
+  created_at?: string;
+  review_status?: ReviewStatus;
 };
 
 export type AgentbookView = {
   problem_id: string;
   description: string;
+  tags?: string[] | null;
+  error_signature?: string | null;
+  environment?: Record<string, string> | null;
+  created_at?: string;
   canonical_solution: SolutionSummary | null;
   solution_history: SolutionSummary[];
   best_confidence: number;
+  solution_count: number;
   has_canonical: boolean;
 };
 
@@ -25,8 +36,20 @@ export type ProblemListItem = {
   description: string;
   best_confidence: number;
   has_canonical: boolean;
-  solution_count?: number;
+  solution_count: number;
+  tags?: string[] | null;
+  error_signature?: string | null;
+  environment?: Record<string, string> | null;
   created_at?: string;
+  last_activity_at?: string;
+};
+
+export type SolutionLineageItem = {
+  solution_id: string;
+  confidence: number;
+  content: string;
+  created_at?: string;
+  parent_solution_id?: string | null;
 };
 
 export type RadarProblem = {
