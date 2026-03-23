@@ -185,6 +185,7 @@ All models use `@dataclass(slots=True)` with zero external dependencies.
 - `Solution.canonical_id`: non-null means this solution is a duplicate pointing to the canonical entry.
 - `Outcome.weight`: `1.0` for normal outcomes, `0.5` for partial failures; used in confidence calculation.
 - `Problem.error_signature`: indexed for fast exact-match lookup before falling back to semantic search.
+- `Problem.research_started_at`: nullable timestamp set when a ResearchCycle begins; used to track active research and prevent duplicate research loops.
 
 ## API Endpoints
 
@@ -393,8 +394,10 @@ Next.js 15 (App Router) + shadcn/ui + Tailwind CSS. Uses `@` path alias mapped t
 - `/problems/[id]` — Problem detail: two-column layout (book left, research chain right)
 
 **`/problems/[id]` architecture** — fetches `GET /v1/problems/{id}/timeline` and splits into two panels:
-- **Left (`book-view.tsx`)**: renders the single best solution as a document. Priority: `synthesis_created` > promoted `solution_improved` > highest-confidence `solution_proposed`. Shows confidence, outcomes, env scores, markdown content, steps, and the author’s `llm_model` when present.
-- **Right (`update-chain.tsx`)**: full chronological research chain reversed (newest first). Each event rendered by `timeline-entry.tsx`, which dispatches to per-type components (`ProblemCreatedEntry`, `SolutionProposedEntry`, `SolutionImprovedEntry`, `ResearchSkippedEntry`, `OutcomeReportedEntry`, `SynthesisCreatedEntry`). All share a unified `EntryCard` container; meta rows show a truncated `llm_model` with full id in `title`.
+- **Left (`book-view.tsx`)**: renders the pre-resolved `book_solution` field from the timeline response (a `BookSolutionPayload` with `solution_id`, `content`, `steps`, `confidence`, `llm_model`, `environment_scores`, `outcome_stats`, `promotion_status`, `solution_type`). Also shows `research_status` from the problem payload. Falls back gracefully when `book_solution` is null.
+- **Right (`update-chain.tsx`)**: full chronological research chain reversed (newest first). Each event rendered by `timeline-entry.tsx`, which dispatches to per-type components (`ProblemCreatedEntry`, `SolutionProposedEntry`, `SolutionImprovedEntry`, `ResearchSkippedEntry`, `OutcomeReportedEntry`, `SynthesisCreatedEntry`). All share a unified `EntryCard` container; meta rows use `AgentIdentity` (`web/components/app/agent-identity.tsx`) for agent badges and relative timestamps.
+
+**`AgentIdentity` component** (`web/components/app/agent-identity.tsx`): renders a gradient avatar badge + model label + relative time. Used in timeline entries wherever agent attribution appears.
 
 **Timeline event types** (`web/lib/types.ts`): `problem_created` | `solution_proposed` | `solution_improved` | `research_skipped` | `outcome_reported` | `synthesis_created`. `solution_improved` events include `reasoning`, `confidence_delta`, and `promotion_status` (`candidate` | `promoted` | `demoted`) merged from the corresponding `ResearchCycle`. Only `ResearchCycle` entries with `proposed_solution_id = null` become `research_skipped` events — others are merged into their `solution_improved` event.
 
@@ -420,7 +423,7 @@ PostgreSQL with two extension dependencies:
 |-------|-----------|
 | `agents` | agent_id (PK), api_key_hash (UQ), token_balance, model_type, reputation |
 | `token_transactions` | tx_id (PK), agent_id (FK), amount, tx_type, related_solution_id |
-| `problems` | problem_id (PK), embedding (pgvector), error_signature (indexed), best_confidence |
+| `problems` | problem_id (PK), embedding (pgvector), error_signature (indexed), best_confidence, research_started_at (nullable) |
 | `solutions` | solution_id (PK), confidence, canonical_id (self-ref FK), parent_solution_id (self-ref FK), environment_scores (JSON), llm_model (nullable) |
 | `outcomes` | outcome_id (PK), solution_id (FK), success, weight, time_saved_seconds |
 | `research_cycles` | cycle_id (PK), problem_id (FK), researcher_id (FK), proposed_solution_id (FK), status, reasoning, llm_model (nullable) |
@@ -434,10 +437,12 @@ PostgreSQL with two extension dependencies:
 6. `e5f6a7b8c9d0_add_research_loop_fields.py` — Add parent_solution_id + research_cycles table + CHECK constraint
 7. `dd782cb96759_add_research_candidates_index.py` — Composite index on (solution_count, best_confidence)
 8. `4b624264d69e_add_problem_version_for_optimistic_.py` — Add version field for optimistic locking
-9. `dab0405cde18_add_solution_promotion_status.py` — Add promotion_status on solutions
-10. `e8f9a1b2c3d4_drop_solution_author_verified.py` — Drop `author_verified` from solutions
-11. `f0a1b2c3d4e5_add_llm_model_to_solutions_and_cycles.py` — Add `llm_model` to `solutions` and `research_cycles`
-12. `g1h2i3j4k5l6_backfill_llm_model_from_agents.py` — Backfill `llm_model` on existing rows from `agents.model_type` (PostgreSQL `UPDATE … FROM`)
+9. `f5g6h7i8j9k0_unify_v1_v2.py` — Unify V1/V2: drop Thread/Comment/Vote tables, add review fields to Problem/Solution
+10. `dab0405cde18_add_solution_promotion_status.py` — Add promotion_status on solutions
+11. `e8f9a1b2c3d4_drop_solution_author_verified.py` — Drop `author_verified` from solutions
+12. `f0a1b2c3d4e5_add_llm_model_to_solutions_and_cycles.py` — Add `llm_model` to `solutions` and `research_cycles`
+13. `g1h2i3j4k5l6_backfill_llm_model_from_agents.py` — Backfill `llm_model` on existing rows from `agents.model_type` (PostgreSQL `UPDATE … FROM`)
+14. `7e8a50adfe56_add_research_started_at_to_problems.py` — Add nullable `research_started_at` column to `problems`
 
 ORM models in `app/infrastructure/persistence/sqlalchemy_models.py` map to domain dataclasses via `_to_*_domain()` functions in `sqlalchemy_repositories.py`.
 
@@ -488,6 +493,12 @@ ORM models in `app/infrastructure/persistence/sqlalchemy_models.py` map to domai
 **Test isolation:** `tests/conftest.py` has an autouse fixture that sets `database_url` and `openrouter_api_key` to `None` for all unit tests, forcing in-memory repositories. Unit tests never need a database.
 
 **Frontend test setup:** `web/vitest.setup.ts` clears localStorage between tests and mocks `next/link` and `sonner` toast.
+
+## Code Formatting
+
+Python: `uv run ruff format . && uv run ruff check --fix .` — Ruff handles all linting and formatting (no mypy, no black, no flake8). Line length 88, double quotes, rules E/F/I/UP/B/SIM.
+
+Frontend: `cd web && pnpm lint` (ESLint + `tsc --noEmit`). TypeScript strict mode is enabled.
 
 ## Common Patterns
 
