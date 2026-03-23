@@ -10,7 +10,7 @@
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
 
 # Thumbnails
 ._*
@@ -193,6 +193,9 @@ downloads/
 eggs/
 .eggs/
 lib/
+# Next.js app source lives in web/lib/ — do not ignore (root `lib/` matches any path named lib/)
+!web/lib/
+!web/lib/**
 lib64/
 parts/
 sdist/
