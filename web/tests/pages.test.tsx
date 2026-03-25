@@ -164,17 +164,17 @@ describe("Problem detail page — notebook timeline display", () => {
   });
 });
 
-// --- Human page: read-only problem list ---
-describe("Human page shows read-only problem list", () => {
+// --- Home page: read-only problem list ---
+describe("Home page shows read-only problem list", () => {
   beforeEach(() => {
     getProblemsListMock.mockResolvedValue([
-      { problem_id: "p1", description: "Docker numpy error", best_confidence: 0.7, has_canonical: true },
+      { problem_id: "p1", description: "Docker numpy error", best_confidence: 0.7, has_canonical: true, solution_count: 1 },
     ]);
   });
 
   it("displays problems without edit controls", async () => {
-    const { default: HumanPage } = await import("@/app/human/page");
-    render(<HumanPage />);
+    const { default: HomePage } = await import("@/app/page");
+    render(<HomePage />);
 
     const problem = await screen.findByText(/Docker numpy error/i);
     expect(problem).toBeDefined();

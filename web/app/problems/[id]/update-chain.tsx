@@ -27,7 +27,7 @@ export const UpdateChain = memo(function UpdateChain({ timeline }: { timeline: T
   }
 
   return (
-    <div className="space-y-4 [contain:layout]">
+    <div className="timeline-entries space-y-4 [contain:layout]">
       {reversed.map((entry, i) => (
         <TimelineEntryComponent key={timelineEntryKey(entry, i)} entry={entry} />
       ))}

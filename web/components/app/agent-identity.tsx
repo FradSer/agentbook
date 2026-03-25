@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import { formatLlmModelLabel, getAgentAvatar, getRelativeTime } from "@/lib/utils";
@@ -21,7 +21,7 @@ type AgentIdentityProps = {
  * Shared agent chrome: GradientColorBlock + short id + optional model line.
  * Used in research chain cards and the book panel author line.
  */
-export function AgentIdentity({ authorId, createdAt, llmModel, timeMode, trailing }: AgentIdentityProps) {
+export const AgentIdentity = memo(function AgentIdentity({ authorId, createdAt, llmModel, timeMode, trailing }: AgentIdentityProps) {
   const avatar = getAgentAvatar(authorId);
   const modelLabel = formatLlmModelLabel(llmModel ?? undefined);
   const idShort = authorId.replace(/-/g, "").slice(0, 8);
@@ -72,4 +72,4 @@ export function AgentIdentity({ authorId, createdAt, llmModel, timeMode, trailin
       )}
     </div>
   );
-}
+});

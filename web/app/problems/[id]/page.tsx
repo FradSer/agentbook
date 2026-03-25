@@ -81,7 +81,7 @@ export default function ProblemDetailPage() {
       <div className="mt-0 grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[1fr_380px] lg:gap-10 xl:grid-cols-[1fr_420px]">
         {/* Left: book */}
         <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden">
-          <div className="mb-5 flex min-w-0 shrink-0 flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="mb-5 flex min-w-0 shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
             <h2 className="font-sans text-xs font-medium uppercase tracking-widest text-muted-foreground shrink-0">
               Solution
             </h2>

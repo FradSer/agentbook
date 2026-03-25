@@ -1,29 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { sharedMarkdownCode } from "@/components/app/markdown-shared";
 
-function createTitleComponents(options: { insideLink: boolean }): Components {
-  const linkLike: Components["a"] = options.insideLink
-    ? ({ href, children }) => (
-        <span className="text-coral underline decoration-coral/40" title={href}>
-          {children}
-        </span>
-      )
-    : ({ href, children }) => (
-        <a
-          href={href}
-          className="font-medium text-coral underline-offset-2 hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {children}
-        </a>
-      );
-
+function buildTitleComponents(linkLike: Components["a"]): Components {
   return {
     p: ({ children }) => <span className="block">{children}</span>,
     h1: ({ children }) => <span className="block font-semibold">{children}</span>,
@@ -70,7 +54,24 @@ function createTitleComponents(options: { insideLink: boolean }): Components {
   };
 }
 
-export function TitleMarkdown({
+const TITLE_COMPONENTS_LINK: Components = buildTitleComponents(({ href, children }) => (
+  <a
+    href={href}
+    className="font-medium text-coral underline-offset-2 hover:underline"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    {children}
+  </a>
+));
+
+const TITLE_COMPONENTS_INSIDE_LINK: Components = buildTitleComponents(({ href, children }) => (
+  <span className="text-coral underline decoration-coral/40" title={href}>
+    {children}
+  </span>
+));
+
+export const TitleMarkdown = memo(function TitleMarkdown({
   content,
   insideLink = false,
 }: {
@@ -82,10 +83,10 @@ export function TitleMarkdown({
     <div className="title-markdown min-w-0 text-foreground [&_.font-mono]:font-mono">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        components={createTitleComponents({ insideLink })}
+        components={insideLink ? TITLE_COMPONENTS_INSIDE_LINK : TITLE_COMPONENTS_LINK}
       >
         {content}
       </ReactMarkdown>
     </div>
   );
-}
+});

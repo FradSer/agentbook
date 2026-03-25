@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import HumanPage from "@/app/human/page";
+import HomePage from "@/app/page";
 
 const { fetchRadarMock, fetchMetricsMock, getProblemsMock } = vi.hoisted(() => ({
   fetchRadarMock: vi.fn(),
@@ -13,9 +13,16 @@ vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
   fetchMetrics: fetchMetricsMock,
   getProblems: getProblemsMock,
+  ApiError: class ApiError extends Error {
+    readonly statusCode: number;
+    constructor(statusCode: number, message: string) {
+      super(message);
+      this.statusCode = statusCode;
+    }
+  },
 }));
 
-describe("human key verification", () => {
+describe("home page key verification removed", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
@@ -35,7 +42,7 @@ describe("human key verification", () => {
   });
 
   it("renders without agent key input (key verification removed)", async () => {
-    render(<HumanPage />);
+    render(<HomePage />);
 
     await waitFor(() => {
       expect(fetchRadarMock).toHaveBeenCalled();

@@ -203,6 +203,8 @@ html {
   background: radial-gradient(ellipse, rgba(200, 80, 80, 0.14) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
+  contain: strict;
+  will-change: transform;
 }
 
 /* Tag color variants */
@@ -275,6 +277,12 @@ html {
   contain-intrinsic-size: auto 90px;
 }
 
+/* Timeline entries: defer off-screen paint for long research chains */
+.timeline-entries > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
 /* Skeleton shimmer — uses transform on a pseudo-element so the animation runs on
    the GPU compositor thread and avoids per-frame repaints (unlike background-position). */
 @keyframes shimmer {
@@ -307,22 +315,31 @@ html {
   }
 }
 
-/* Research-in-progress — coral pulse on card border */
+/* Research-in-progress — coral pulse on card border.
+   Uses opacity on a pseudo-element so the animation runs on the GPU compositor
+   (box-shadow changes require CPU repaints and cause jank with many cards). */
 @keyframes research-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px var(--research-glow-soft),
-      0 0 10px var(--research-glow-soft);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px var(--research-glow-strong),
-      0 0 20px var(--research-glow-strong);
-  }
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 
 .research-active {
+  position: relative;
+  box-shadow:
+    0 0 0 1px var(--research-glow-soft),
+    0 0 10px var(--research-glow-soft);
+}
+
+.research-active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 1px var(--research-glow-strong),
+    0 0 20px var(--research-glow-strong);
+  opacity: 0;
+  pointer-events: none;
   animation: research-pulse 2.4s ease-in-out infinite;
 }
 
@@ -341,18 +358,17 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .research-active {
+  .research-active::before {
     animation: none;
-    box-shadow:
-      0 0 0 1px var(--research-glow-strong),
-      0 0 10px var(--research-glow-soft);
+    opacity: 0.5;
   }
 }
 
-/* Scrollable panel: hidden scrollbar + narrow bottom fade (avoid hiding readable lines).
+/* Scrollable panel: hidden scrollbar + top & bottom gradient fades.
    Only activates at lg (1024px+) where the two-column fixed-height layout is active. */
 @media (min-width: 1024px) {
   .scroll-panel {
+    --scroll-panel-fade-top: 1rem;
     --scroll-panel-fade-bottom: 0.5rem;
 
     contain: layout;
@@ -360,16 +376,19 @@ html {
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     scrollbar-width: none;
+    padding-top: var(--scroll-panel-fade-top);
     padding-bottom: var(--scroll-panel-fade-bottom);
     -webkit-mask-image: linear-gradient(
       to bottom,
-      black 0,
+      transparent 0,
+      black var(--scroll-panel-fade-top),
       black calc(100% - var(--scroll-panel-fade-bottom)),
       transparent 100%
     );
     mask-image: linear-gradient(
       to bottom,
-      black 0,
+      transparent 0,
+      black var(--scroll-panel-fade-top),
       black calc(100% - var(--scroll-panel-fade-bottom)),
       transparent 100%
     );

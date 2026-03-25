@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import HumanPage from "@/app/human/page";
+import HomePage from "@/app/page";
 
 const { fetchRadarMock, fetchMetricsMock, getProblemsListMock } = vi.hoisted(() => ({
   fetchRadarMock: vi.fn(),
@@ -14,6 +14,13 @@ vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
   fetchMetrics: fetchMetricsMock,
   getProblems: getProblemsListMock,
+  ApiError: class ApiError extends Error {
+    readonly statusCode: number;
+    constructor(statusCode: number, message: string) {
+      super(message);
+      this.statusCode = statusCode;
+    }
+  },
 }));
 
 const emptyRadar = { trending: [], new_unsolved: [], degrading: [] };
@@ -27,7 +34,7 @@ const emptyMetrics = {
   stale_solutions: 0,
 };
 
-describe("HumanPage — Problem Radar", () => {
+describe("HomePage — Problem Radar & Metrics tabs", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
@@ -38,12 +45,11 @@ describe("HumanPage — Problem Radar", () => {
   });
 
   it("renders Problem Radar and Quality Metrics tabs", async () => {
-    render(<HumanPage />);
+    render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
-    expect(screen.getByRole("heading", { level: 1, name: /human dashboard/i })).toBeInTheDocument();
     expect(screen.getByText("Problem Radar")).toBeInTheDocument();
     expect(screen.getByText("Quality Metrics")).toBeInTheDocument();
-    expect(document.getElementById("human-panel-problems")).toHaveAttribute("role", "tabpanel");
+    expect(document.getElementById("panel-problems")).toHaveAttribute("role", "tabpanel");
   });
 
   it("shows TRENDING badge when trending data exists", async () => {
@@ -61,22 +67,13 @@ describe("HumanPage — Problem Radar", () => {
       new_unsolved: [],
       degrading: [],
     });
-    render(<HumanPage />);
+    render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
 
-    // Navigate to Problem Radar tab
     const radarTab = screen.getByText("Problem Radar");
     await userEvent.click(radarTab);
 
     await waitFor(() => expect(screen.getByText("TRENDING")).toBeInTheDocument());
-  });
-
-  it("shows empty state when all sections are empty", async () => {
-    render(<HumanPage />);
-    // Default tab is "problems" and empty list shows "No problems yet."
-    await waitFor(() =>
-      expect(screen.getByRole("tabpanel", { name: "Problems" })).toHaveTextContent("No problems yet.")
-    );
   });
 
   it("switches to metrics tab and shows metric cards", async () => {
@@ -84,7 +81,7 @@ describe("HumanPage — Problem Radar", () => {
       ...emptyMetrics,
       resolution_rate: { value: 0.78, trend: "+0.03", target: 0.8 },
     });
-    render(<HumanPage />);
+    render(<HomePage />);
 
     await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
 

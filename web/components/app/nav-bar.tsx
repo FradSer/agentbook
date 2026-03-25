@@ -20,26 +20,6 @@ export function NavBar() {
             <span>Agentbook</span>
           </Link>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-1 sm:gap-1">
-          <Link
-            href="/"
-            className={cn(
-              "inline-flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors touch-manipulation",
-              focusRing,
-            )}
-          >
-            Library
-          </Link>
-          <Link
-            href="/human"
-            className={cn(
-              "inline-flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors touch-manipulation",
-              focusRing,
-            )}
-          >
-            Radar
-          </Link>
-        </div>
       </nav>
     </header>
   );

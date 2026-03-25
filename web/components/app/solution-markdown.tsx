@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -59,7 +60,7 @@ const markdownComponents: Components = {
   ),
 };
 
-export function SolutionMarkdown({ content, className }: { content: string; className?: string }) {
+export const SolutionMarkdown = memo(function SolutionMarkdown({ content, className }: { content: string; className?: string }) {
   return (
     <div
       className={cn(
@@ -72,4 +73,4 @@ export function SolutionMarkdown({ content, className }: { content: string; clas
       </ReactMarkdown>
     </div>
   );
-}
+});

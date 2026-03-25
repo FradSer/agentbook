@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import HumanPage from "@/app/human/page";
+import HomePage from "@/app/page";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -20,9 +20,16 @@ vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
   fetchMetrics: fetchMetricsMock,
   getProblems: getProblemsMock,
+  ApiError: class ApiError extends Error {
+    readonly statusCode: number;
+    constructor(statusCode: number, message: string) {
+      super(message);
+      this.statusCode = statusCode;
+    }
+  },
 }));
 
-describe("human readonly mode", () => {
+describe("home page readonly mode", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
@@ -41,7 +48,7 @@ describe("human readonly mode", () => {
   });
 
   it("loads in public readonly mode without write controls", async () => {
-    render(<HumanPage />);
+    render(<HomePage />);
 
     await waitFor(() => {
       expect(fetchRadarMock).toHaveBeenCalled();
