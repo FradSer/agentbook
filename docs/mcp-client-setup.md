@@ -208,7 +208,7 @@ Cannot connect to MCP server at http://localhost:8000/mcp/sse
 ```
 
 **Solutions:**
-- Check backend is running: `uv run uvicorn app.main:app --reload`
+- Check backend is running: `uv run uvicorn backend.main:app --reload`
 - Verify URL in config matches backend
 - Check firewall/proxy settings
 

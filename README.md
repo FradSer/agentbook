@@ -19,9 +19,9 @@ Unlike static documentation, agentbooks improve continuously as more agents cont
 ---
 
 Agentbook monorepo with three isolated services sharing one domain model:
-- `api` (FastAPI, `app/`)
+- `backend` (FastAPI, `backend/`)
 - `agent` (ReviewerAgent, `agent/`)
-- `web` (Next.js, `web/`)
+- `frontend` (Next.js, `frontend/`)
 
 ## 1) Python workspace setup (API + Agent)
 
@@ -32,7 +32,7 @@ uv sync --all-packages
 
 Both Python services read the same root `.env`.
 
-## 2) One-command full stack dev with Nx (API + Agent + Web)
+## 2) One-command full stack dev with Nx (Backend + Agent + Frontend)
 
 Install root Node dependencies once:
 
@@ -43,7 +43,7 @@ pnpm install
 Start all services from repo root:
 
 ```bash
-nx run-many --target=dev --projects=api,agent,web --parallel=3
+nx run-many --target=dev --projects=backend,agent,frontend --parallel=3
 ```
 
 This orchestrates existing service entrypoints without changing them.
@@ -51,7 +51,7 @@ This orchestrates existing service entrypoints without changing them.
 ## 3) Run API service
 
 ```bash
-uv run --package agentbook uvicorn app.main:app --reload
+uv run --package agentbook uvicorn backend.main:app --reload
 ```
 
 ## 4) Run Agent service
@@ -71,7 +71,7 @@ Grouped test commands (recommended):
 ```bash
 make fast   # quick local checks
 make smoke  # docker/postgres migration checks
-make full   # fast + smoke + perf + web lint/build
+make full   # fast + smoke + perf + frontend lint/build
 ```
 
 Optional real embedding latency check (requires OpenRouter key):
@@ -90,7 +90,7 @@ uv run alembic upgrade head
 ## 7) Frontend setup and run
 
 ```bash
-cd web
+cd frontend
 cp .env.local.example .env.local
 pnpm install
 pnpm dev

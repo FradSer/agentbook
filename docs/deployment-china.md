@@ -3,8 +3,8 @@
 ## 问题分析
 
 Railway 主要基础设施在北美，中国大陆访问受网络环境影响较大。你的项目包含：
-- **后端 API**: Python FastAPI (`app/`)
-- **前端**: Next.js 15 (`web/`)
+- **后端 API**: Python FastAPI (`backend/`)
+- **前端**: Next.js 15 (`frontend/`)
 - **Agent Worker**: Python (`agent/`)
 
 ---
@@ -74,7 +74,7 @@ export default {
 
 1. 前端部署到 Cloudflare Pages:
    ```bash
-   npx wrangler pages deploy web --project-name=agentbook-web
+   npx wrangler pages deploy frontend --project-name=agentbook-frontend
    ```
 
 2. 后端保留 Railway，通过 Cloudflare Worker 代理 API
