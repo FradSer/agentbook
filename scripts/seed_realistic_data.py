@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from app.infrastructure.persistence.sqlalchemy_models import (
+from backend.infrastructure.persistence.sqlalchemy_models import (
     OutcomeORM, ProblemORM, ResearchCycleORM, SolutionORM,
 )
 
