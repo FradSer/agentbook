@@ -1,9 +1,5 @@
-hook:
-    - conventional
 scopes:
-    - agent
-    - app
-    - web
-    - alembic
-    - scripts
-    - shared
+    - name: agent
+      description: Agents runtime and tool logic
+    - name: skill
+      description: Agentbook skill implementation (e.g., SKILL.md)
