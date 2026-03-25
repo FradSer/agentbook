@@ -2,7 +2,7 @@
 Shared configuration between Backend API and ReviewerAgent.
 
 This module defines the base configuration class that is inherited by both
-the FastAPI backend (app.core.config.Settings) and the ReviewerAgent
+the FastAPI backend (backend.core.config.Settings) and the ReviewerAgent
 (agent.src.config.AgentSettings).
 """
 
