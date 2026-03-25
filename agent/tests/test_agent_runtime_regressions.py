@@ -1,4 +1,3 @@
-import asyncio
 import importlib
 import sys
 import unittest
@@ -59,7 +58,7 @@ class TestAgentRuntimeRegressions(unittest.TestCase):
 
     def test_pgvector_is_available_in_agent_runtime(self) -> None:
         sqlalchemy_models = importlib.import_module(
-            "app.infrastructure.persistence.sqlalchemy_models"
+            "backend.infrastructure.persistence.sqlalchemy_models"
         )
         self.assertIsNotNone(sqlalchemy_models.Vector)
 

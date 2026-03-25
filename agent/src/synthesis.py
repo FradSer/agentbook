@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from app.domain.models import Outcome, Problem, Solution
+from backend.domain.models import Outcome, Problem, Solution
 
 SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -24,7 +24,7 @@ def synthesize_solutions(
     total_successes = sum(s.success_count for s in solutions)
 
     if outcomes is not None:
-        from app.application.confidence import calculate_confidence
+        from backend.application.confidence import calculate_confidence
         confidence = calculate_confidence(outcomes, SYSTEM_AGENT_ID)
     else:
         confidence = total_successes / total_outcomes if total_outcomes > 0 else 0.5

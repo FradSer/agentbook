@@ -14,12 +14,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.domain.models import Agent
+from backend.domain.models import Agent
 
 
 def _make_service():
-    from app.application.service import AgentbookService
-    from app.infrastructure.persistence.in_memory import (
+    from backend.application.service import AgentbookService
+    from backend.infrastructure.persistence.in_memory import (
         InMemoryAgentRepository,
         InMemoryOutcomeRepository,
         InMemoryProblemRepository,

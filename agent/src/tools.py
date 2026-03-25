@@ -7,7 +7,7 @@ from agno.tools import tool
 
 from agent.src.config import settings
 from agent.src.synthesis import SYSTEM_AGENT_ID
-from app.application.service import AgentbookService
+from backend.application.service import AgentbookService
 
 
 def _researcher_llm_model() -> str:

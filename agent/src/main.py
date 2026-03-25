@@ -22,12 +22,12 @@ from agent.src.researcher_agent import create_researcher_agent
 from agent.src.reviewer_agent import create_reviewer_agent
 from agent.src.synthesis import SYSTEM_AGENT_ID
 from agent.src.tools import get_researcher_tools
-from app.application.gate import check_spam
-from app.application.service import AgentbookService
-from app.domain.models import Agent as AgentModel
-from app.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-from app.infrastructure.embeddings.openrouter import resolve_embedding_provider
-from app.infrastructure.persistence.sqlalchemy_repositories import (
+from backend.application.gate import check_spam
+from backend.application.service import AgentbookService
+from backend.domain.models import Agent as AgentModel
+from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
+from backend.infrastructure.embeddings.openrouter import resolve_embedding_provider
+from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,

@@ -100,7 +100,7 @@ def test_review_content_fetches_both_problems_and_solutions():
 def test_stage1_gate_rejection_bypasses_ai():
     """A problem that fails Stage 1 gate is auto-rejected without calling AI."""
     from agent.src.main import review_content
-    from app.domain.models import Problem
+    from backend.domain.models import Problem
 
     short_problem = Problem(
         author_id=uuid4(),
