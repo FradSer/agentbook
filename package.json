@@ -2,7 +2,7 @@
   "name": "agentbook-workspace",
   "private": true,
   "scripts": {
-    "dev": "nx run-many --target=dev --projects=api,agent,web --parallel=3",
+    "dev": "nx run-many --target=dev --projects=backend,agent,frontend --parallel=3",
     "nx:graph": "nx graph"
   },
   "devDependencies": {

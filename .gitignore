@@ -193,9 +193,9 @@ downloads/
 eggs/
 .eggs/
 lib/
-# Next.js app source lives in web/lib/ — do not ignore (root `lib/` matches any path named lib/)
-!web/lib/
-!web/lib/**
+# Next.js app source lives in frontend/lib/ — do not ignore (root `lib/` matches any path named lib/)
+!frontend/lib/
+!frontend/lib/**
 lib64/
 parts/
 sdist/
@@ -352,7 +352,7 @@ pyrightconfig.json
 
 ### custom rules ###
 .venv/
-web/.env.local
+frontend/.env.local
 .claude
 node_modules
 .nx

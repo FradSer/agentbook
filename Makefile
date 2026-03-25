@@ -1,4 +1,4 @@
-.PHONY: test fast smoke perf perf-real full web-lint web-build
+.PHONY: test fast smoke perf perf-real full frontend-lint frontend-build
 
 test: fast
 
@@ -14,10 +14,10 @@ perf:
 perf-real:
 	RUN_PERF_TESTS=1 RUN_REAL_EMBED_TESTS=1 uv run pytest -m perf -k real_openrouter_embedding
 
-web-lint:
-	cd web && pnpm lint
+frontend-lint:
+	cd frontend && pnpm lint
 
-web-build:
-	cd web && pnpm build
+frontend-build:
+	cd frontend && pnpm build
 
-full: fast smoke perf web-lint web-build
+full: fast smoke perf frontend-lint frontend-build
