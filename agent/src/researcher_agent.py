@@ -33,6 +33,7 @@ def _build_model() -> OpenAILike:
             http_client=async_client,
         )
     from agno.models.openrouter import OpenRouter
+
     return OpenRouter(id=model_id, api_key=settings.openrouter_api_key)
 
 
@@ -75,10 +76,7 @@ Tiny improvement + ugly complexity = skip.
 def _load_instructions() -> str:
     """Load researcher instructions from program.md (autoresearch pattern), with fallback."""
     custom_path = settings.agent_researcher_instructions_path
-    if custom_path:
-        path = Path(custom_path)
-    else:
-        path = Path(__file__).parent / "program.md"
+    path = Path(custom_path) if custom_path else Path(__file__).parent / "program.md"
     if path.exists():
         return path.read_text()
     return _RESEARCHER_INSTRUCTIONS_FALLBACK

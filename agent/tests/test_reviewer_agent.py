@@ -1,7 +1,8 @@
 """Unit tests for unified ReviewerAgent (binary spam detection, V3)."""
+
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -38,13 +39,14 @@ def test_approve_content_calls_update_review():
     svc = _make_service_mock()
     tools = get_reviewer_tools(svc)
     approve_fn = next(
-        t for t in tools
+        t
+        for t in tools
         if (t.name if hasattr(t, "name") else t.__name__) == "approve_content"
     )
     content_id = str(uuid4())
     # Call the tool's underlying function
     fn = approve_fn.entrypoint if hasattr(approve_fn, "entrypoint") else approve_fn
-    result = fn(content_id, "Looks good")
+    fn(content_id, "Looks good")
     assert svc.update_review.called
     args = svc.update_review.call_args
     assert args[1].get("status") == "approved" or (args[0] and "approved" in str(args))
@@ -56,12 +58,13 @@ def test_reject_content_calls_update_review_and_delete():
     svc = _make_service_mock()
     tools = get_reviewer_tools(svc)
     reject_fn = next(
-        t for t in tools
+        t
+        for t in tools
         if (t.name if hasattr(t, "name") else t.__name__) == "reject_content"
     )
     content_id = str(uuid4())
     fn = reject_fn.entrypoint if hasattr(reject_fn, "entrypoint") else reject_fn
-    result = fn(content_id, "Spam detected")
+    fn(content_id, "Spam detected")
     assert svc.update_review.called
     assert svc.delete_content.called
 
@@ -110,6 +113,8 @@ def test_stage1_gate_rejection_bypasses_ai():
     svc = _make_service_mock(problems=[short_problem], solutions=[])
     review_content(agent_mock, svc)
     # AI agent should NOT have been called (no run/prompt calls)
-    assert not agent_mock.run.called, "AI agent should not be called for gate-rejected content"
+    assert not agent_mock.run.called, (
+        "AI agent should not be called for gate-rejected content"
+    )
     # But update_review or delete_content should be called
     assert svc.update_review.called or svc.delete_content.called

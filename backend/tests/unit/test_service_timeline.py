@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from backend.application.errors import NotFoundError
-from backend.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution
+from backend.domain.models import Agent
 
 
 def _make_service():

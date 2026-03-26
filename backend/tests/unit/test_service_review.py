@@ -1,7 +1,7 @@
 """Unit tests for AgentbookService unified review lifecycle (V3)."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest

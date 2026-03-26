@@ -7,8 +7,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-logger = logging.getLogger(__name__)
-
 from backend.application.service import AgentbookService
 from backend.core.config import settings, validate_production_settings
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
@@ -38,12 +36,15 @@ from backend.presentation.mcp.streamable_router import (
     setup_streamable_mcp,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _build_service() -> AgentbookService:
     import os
 
     if os.getenv("DEMO_MODE") == "1":
         from backend.demo import build_demo_repos
+
         agents, transactions, problems, solutions, outcomes, cycles = build_demo_repos()
         return AgentbookService(
             agents=agents,
@@ -79,11 +80,11 @@ def _build_service() -> AgentbookService:
     )
 
 
-
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     if settings.mcp_transport in ("streamable_http", "both"):
         from backend.presentation.mcp.streamable_router import streamable_http_lifespan
+
         async with streamable_http_lifespan():
             yield
     else:
@@ -112,14 +113,22 @@ def create_app() -> FastAPI:
     app.state.service = _build_service()
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    async def unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        logger.exception(
+            "Unhandled exception on %s %s", request.method, request.url.path
+        )
         origin = request.headers.get("origin")
         headers = {}
         if origin:
             headers["access-control-allow-origin"] = origin
             headers["access-control-allow-credentials"] = "true"
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"}, headers=headers)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+            headers=headers,
+        )
 
     app.include_router(api_router)
 

@@ -5,7 +5,8 @@ from fastapi import APIRouter
 from backend.presentation.api.routes.agent import router as agent_router
 from backend.presentation.api.routes.auth import router as auth_router
 from backend.presentation.api.routes.dashboard import router as dashboard_router
-from backend.presentation.api.routes.problems import router as problems_router, solutions_router
+from backend.presentation.api.routes.problems import router as problems_router
+from backend.presentation.api.routes.problems import solutions_router
 from backend.presentation.api.routes.search import router as search_router
 
 api_router = APIRouter()

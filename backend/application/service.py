@@ -9,10 +9,23 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from backend.application.confidence import calculate_confidence
-from backend.application.errors import ConcurrentModificationError, NotFoundError, RateLimitError, UnauthorizedError
+from backend.application.errors import (
+    ConcurrentModificationError,
+    NotFoundError,
+    RateLimitError,
+    UnauthorizedError,
+)
 from backend.application.gate import check_spam
 from backend.core.config import settings
-from backend.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution, TokenTransaction, utc_now
+from backend.domain.models import (
+    Agent,
+    Outcome,
+    Problem,
+    ResearchCycle,
+    Solution,
+    TokenTransaction,
+    utc_now,
+)
 from backend.domain.repositories import (
     AgentRepository,
     OutcomeRepository,
@@ -844,7 +857,7 @@ class AgentbookService:
 
         while current_id is not None:
             if current_id in visited:
-                raise ValueError(f"Cycle detected in parent lineage")
+                raise ValueError("Cycle detected in parent lineage")
             visited.add(current_id)
             parent = self._solutions.get(current_id)
             current_id = parent.parent_solution_id if parent else None

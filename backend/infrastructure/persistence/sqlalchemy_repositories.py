@@ -4,11 +4,17 @@ from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from backend.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution, TokenTransaction
+from backend.domain.models import (
+    Agent,
+    Outcome,
+    Problem,
+    ResearchCycle,
+    Solution,
+    TokenTransaction,
+)
 from backend.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
     OutcomeORM,
@@ -32,7 +38,6 @@ except Exception:  # pragma: no cover
 SessionFactory = Callable[[], Session]
 
 
-
 def _to_agent_domain(row: AgentORM) -> Agent:
     return Agent(
         agent_id=parse_uuid(row.agent_id),
@@ -41,52 +46,6 @@ def _to_agent_domain(row: AgentORM) -> Agent:
         token_balance=row.token_balance,
         created_at=row.created_at,
         last_active_at=row.last_active_at,
-    )
-
-
-def _to_thread_domain(row: ThreadORM) -> Thread:
-    return Thread(
-        thread_id=parse_uuid(row.thread_id),
-        author_id=parse_uuid(row.author_id),
-        title=row.title,
-        body=row.body,
-        tags=list(row.tags or []),
-        error_log=row.error_log,
-        environment=row.environment_context,
-        embedding=row.embedding,
-        created_at=row.created_at,
-        reviewed_at=row.reviewed_at,
-        review_status=row.review_status,
-        review_score=row.review_score,
-    )
-
-
-def _to_comment_domain(row: CommentORM) -> Comment:
-    return Comment(
-        comment_id=parse_uuid(row.comment_id),
-        thread_id=parse_uuid(row.thread_id),
-        author_id=parse_uuid(row.author_id),
-        parent_id=None if row.parent_id is None else parse_uuid(row.parent_id),
-        path=str(row.path),
-        content=row.content,
-        is_solution=row.is_solution,
-        upvotes=row.upvotes,
-        downvotes=row.downvotes,
-        wilson_score=row.wilson_score,
-        created_at=row.created_at,
-        reviewed_at=row.reviewed_at,
-        review_status=row.review_status,
-        review_score=row.review_score,
-    )
-
-
-def _to_vote_domain(row: VoteORM) -> Vote:
-    return Vote(
-        vote_id=parse_uuid(row.vote_id),
-        comment_id=parse_uuid(row.comment_id),
-        voter_id=parse_uuid(row.voter_id),
-        vote_type=row.vote_type,
-        voted_at=row.voted_at,
     )
 
 
@@ -135,211 +94,6 @@ class SQLAlchemyAgentRepository:
             if row is None:
                 return None
             return _to_agent_domain(row)
-
-
-class SQLAlchemyThreadRepository:
-    def __init__(self, session_factory: SessionFactory) -> None:
-        self._session_factory = session_factory
-
-    def add(self, thread: Thread) -> None:
-        with self._session_factory() as session:
-            existing = session.get(ThreadORM, str(thread.thread_id))
-            if existing is None:
-                existing = ThreadORM(thread_id=str(thread.thread_id))
-            existing.author_id = str(thread.author_id)
-            existing.title = thread.title
-            existing.body = thread.body
-            existing.tags = thread.tags
-            existing.error_log = thread.error_log
-            existing.environment_context = thread.environment
-            existing.embedding = thread.embedding
-            existing.created_at = thread.created_at
-            existing.reviewed_at = thread.reviewed_at
-            existing.review_status = thread.review_status
-            existing.review_score = thread.review_score
-            session.merge(existing)
-            session.commit()
-
-    def get(self, thread_id: UUID) -> Thread | None:
-        with self._session_factory() as session:
-            row = session.get(ThreadORM, str(thread_id))
-            if row is None:
-                return None
-            return _to_thread_domain(row)
-
-    def delete(self, thread_id: UUID) -> None:
-        with self._session_factory() as session:
-            row = session.get(ThreadORM, str(thread_id))
-            if row is None:
-                return
-            session.delete(row)
-            session.commit()
-
-    def list_all(self) -> list[Thread]:
-        with self._session_factory() as session:
-            statement = select(ThreadORM)
-            rows = session.execute(statement).scalars().all()
-            return [_to_thread_domain(row) for row in rows]
-
-    def search_similar(
-        self, query_embedding: list[float]
-    ) -> list[tuple[Thread, float]]:
-        if Vector is None or not query_embedding:
-            return []
-
-        with self._session_factory() as session:
-            if session.bind is None or session.bind.dialect.name != "postgresql":
-                return []
-
-            try:
-                distance_expr = ThreadORM.embedding.cosine_distance(query_embedding)
-                statement = (
-                    select(ThreadORM, (1 - distance_expr).label("similarity"))
-                    .where(ThreadORM.embedding.is_not(None))
-                    .order_by(distance_expr)
-                )
-                rows = session.execute(statement).all()
-                return [
-                    (_to_thread_domain(thread_row), float(similarity))
-                    for thread_row, similarity in rows
-                    if similarity is not None and float(similarity) > 0
-                ]
-            except Exception:
-                # pgvector extension not available in database
-                return []
-
-    def find_unreviewed(
-        self,
-        limit: int,
-        retry_error_before: datetime | None = None,
-    ) -> list[Thread]:
-        conditions = [ThreadORM.reviewed_at.is_(None)]
-        if retry_error_before is not None:
-            conditions.append(
-                and_(
-                    ThreadORM.review_status == "error",
-                    ThreadORM.reviewed_at.is_not(None),
-                    ThreadORM.reviewed_at <= retry_error_before,
-                )
-            )
-
-        with self._session_factory() as session:
-            statement = (
-                select(ThreadORM)
-                .where(or_(*conditions))
-                .order_by(ThreadORM.created_at.desc())
-                .limit(limit)
-            )
-            rows = session.execute(statement).scalars().all()
-            return [_to_thread_domain(row) for row in rows]
-
-
-class SQLAlchemyCommentRepository:
-    def __init__(self, session_factory: SessionFactory) -> None:
-        self._session_factory = session_factory
-
-    def add(self, comment: Comment) -> None:
-        with self._session_factory() as session:
-            existing = session.get(CommentORM, str(comment.comment_id))
-            if existing is None:
-                existing = CommentORM(comment_id=str(comment.comment_id))
-            existing.thread_id = str(comment.thread_id)
-            existing.author_id = str(comment.author_id)
-            existing.parent_id = (
-                None if comment.parent_id is None else str(comment.parent_id)
-            )
-            existing.path = _to_ltree_value(comment.path)
-            existing.content = comment.content
-            existing.is_solution = comment.is_solution
-            existing.upvotes = comment.upvotes
-            existing.downvotes = comment.downvotes
-            existing.wilson_score = comment.wilson_score
-            existing.created_at = comment.created_at
-            existing.reviewed_at = comment.reviewed_at
-            existing.review_status = comment.review_status
-            existing.review_score = comment.review_score
-            session.merge(existing)
-            session.commit()
-
-    def get(self, comment_id: UUID) -> Comment | None:
-        with self._session_factory() as session:
-            row = session.get(CommentORM, str(comment_id))
-            if row is None:
-                return None
-            return _to_comment_domain(row)
-
-    def delete(self, comment_id: UUID) -> None:
-        with self._session_factory() as session:
-            row = session.get(CommentORM, str(comment_id))
-            if row is None:
-                return
-            session.delete(row)
-            session.commit()
-
-    def list_by_thread(self, thread_id: UUID) -> list[Comment]:
-        with self._session_factory() as session:
-            statement = select(CommentORM).where(CommentORM.thread_id == str(thread_id))
-            rows = session.execute(statement).scalars().all()
-            return [_to_comment_domain(row) for row in rows]
-
-    def find_unreviewed(
-        self,
-        limit: int,
-        retry_error_before: datetime | None = None,
-    ) -> list[Comment]:
-        conditions = [CommentORM.reviewed_at.is_(None)]
-        if retry_error_before is not None:
-            conditions.append(
-                and_(
-                    CommentORM.review_status == "error",
-                    CommentORM.reviewed_at.is_not(None),
-                    CommentORM.reviewed_at <= retry_error_before,
-                )
-            )
-
-        with self._session_factory() as session:
-            statement = (
-                select(CommentORM)
-                .where(or_(*conditions))
-                .order_by(CommentORM.created_at.desc())
-                .limit(limit)
-            )
-            rows = session.execute(statement).scalars().all()
-            return [_to_comment_domain(row) for row in rows]
-
-
-class SQLAlchemyVoteRepository:
-    def __init__(self, session_factory: SessionFactory) -> None:
-        self._session_factory = session_factory
-
-    def add(self, vote: Vote) -> None:
-        with self._session_factory() as session:
-            existing = session.get(VoteORM, str(vote.vote_id))
-            if existing is None:
-                existing = VoteORM(vote_id=str(vote.vote_id))
-            existing.comment_id = str(vote.comment_id)
-            existing.voter_id = str(vote.voter_id)
-            existing.vote_type = vote.vote_type
-            existing.voted_at = vote.voted_at
-            session.merge(existing)
-            try:
-                session.commit()
-            except IntegrityError as error:
-                session.rollback()
-                raise ValueError(
-                    "You have already voted on this comment"
-                ) from error
-
-    def get(self, comment_id: UUID, voter_id: UUID) -> Vote | None:
-        with self._session_factory() as session:
-            statement = select(VoteORM).where(
-                VoteORM.comment_id == str(comment_id),
-                VoteORM.voter_id == str(voter_id),
-            )
-            row = session.execute(statement).scalar_one_or_none()
-            if row is None:
-                return None
-            return _to_vote_domain(row)
 
 
 class SQLAlchemyTokenTransactionRepository:
@@ -406,7 +160,9 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         created_at=row.created_at,
         last_activity_at=row.last_activity_at,
         review_status=getattr(row, "review_status", None),
-        canonical_solution_id=parse_uuid(row.canonical_solution_id) if getattr(row, "canonical_solution_id", None) else None,
+        canonical_solution_id=parse_uuid(row.canonical_solution_id)
+        if getattr(row, "canonical_solution_id", None)
+        else None,
         research_started_at=getattr(row, "research_started_at", None),
     )
 
@@ -422,9 +178,13 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         success_count=row.success_count,
         failure_count=row.failure_count,
         canonical_id=parse_uuid(row.canonical_id) if row.canonical_id else None,
-        parent_solution_id=parse_uuid(row.parent_solution_id) if row.parent_solution_id else None,
+        parent_solution_id=parse_uuid(row.parent_solution_id)
+        if row.parent_solution_id
+        else None,
         promotion_status=getattr(row, "promotion_status", None),
-        environment_scores=dict(row.environment_scores) if getattr(row, "environment_scores", None) else {},
+        environment_scores=dict(row.environment_scores)
+        if getattr(row, "environment_scores", None)
+        else {},
         review_status=getattr(row, "review_status", None),
         review_score=getattr(row, "review_score", None),
         reviewed_at=getattr(row, "reviewed_at", None),
@@ -470,7 +230,11 @@ class SQLAlchemyProblemRepository:
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
             existing.review_status = problem.review_status
-            existing.canonical_solution_id = str(problem.canonical_solution_id) if problem.canonical_solution_id else None
+            existing.canonical_solution_id = (
+                str(problem.canonical_solution_id)
+                if problem.canonical_solution_id
+                else None
+            )
             session.merge(existing)
             session.commit()
 
@@ -541,7 +305,11 @@ class SQLAlchemyProblemRepository:
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
             existing.review_status = problem.review_status
-            existing.canonical_solution_id = str(problem.canonical_solution_id) if problem.canonical_solution_id else None
+            existing.canonical_solution_id = (
+                str(problem.canonical_solution_id)
+                if problem.canonical_solution_id
+                else None
+            )
             existing.research_started_at = problem.research_started_at
             session.merge(existing)
             session.commit()
@@ -570,13 +338,17 @@ class SQLAlchemyProblemRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_problem_domain(r) for r in rows]
 
-    def find_research_candidates(self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0) -> list[Problem]:
+    def find_research_candidates(
+        self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0
+    ) -> list[Problem]:
         with self._session_factory() as session:
             stmt = (
                 select(ProblemORM)
                 .where(ProblemORM.review_status == "approved")
                 .where(ProblemORM.best_confidence < max_confidence)
-                .order_by(ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc())
+                .order_by(
+                    ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc()
+                )
                 .offset(offset)
                 .limit(limit)
             )
@@ -601,8 +373,14 @@ class SQLAlchemySolutionRepository:
             existing.outcome_count = solution.outcome_count
             existing.success_count = solution.success_count
             existing.failure_count = solution.failure_count
-            existing.canonical_id = str(solution.canonical_id) if solution.canonical_id else None
-            existing.parent_solution_id = str(solution.parent_solution_id) if solution.parent_solution_id else None
+            existing.canonical_id = (
+                str(solution.canonical_id) if solution.canonical_id else None
+            )
+            existing.parent_solution_id = (
+                str(solution.parent_solution_id)
+                if solution.parent_solution_id
+                else None
+            )
             existing.promotion_status = solution.promotion_status
             existing.environment_scores = solution.environment_scores
             existing.created_at = solution.created_at
@@ -637,7 +415,10 @@ class SQLAlchemySolutionRepository:
             stmt = (
                 select(SolutionORM)
                 .where(SolutionORM.problem_id == str(problem_id))
-                .order_by(SolutionORM.canonical_id.is_(None).desc(), SolutionORM.confidence.desc())
+                .order_by(
+                    SolutionORM.canonical_id.is_(None).desc(),
+                    SolutionORM.confidence.desc(),
+                )
             )
             rows = session.execute(stmt).scalars().all()
             return [_to_solution_domain(r) for r in rows]
@@ -707,7 +488,9 @@ class SQLAlchemyOutcomeRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_outcome_domain(r) for r in rows]
 
-    def list_by_problem(self, problem_id: UUID, solution_ids: list[UUID]) -> list[Outcome]:
+    def list_by_problem(
+        self, problem_id: UUID, solution_ids: list[UUID]
+    ) -> list[Outcome]:
         if not solution_ids:
             return []
         with self._session_factory() as session:
@@ -735,7 +518,9 @@ def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
     return ResearchCycle(
         problem_id=parse_uuid(row.problem_id),
         researcher_id=parse_uuid(row.researcher_id),
-        proposed_solution_id=parse_uuid(row.proposed_solution_id) if row.proposed_solution_id else None,
+        proposed_solution_id=parse_uuid(row.proposed_solution_id)
+        if row.proposed_solution_id
+        else None,
         previous_best_confidence=row.previous_best_confidence,
         new_confidence=row.new_confidence,
         status=row.status,
@@ -756,7 +541,9 @@ class SQLAlchemyResearchCycleRepository:
                 cycle_id=str(cycle.cycle_id),
                 problem_id=str(cycle.problem_id),
                 researcher_id=str(cycle.researcher_id),
-                proposed_solution_id=str(cycle.proposed_solution_id) if cycle.proposed_solution_id else None,
+                proposed_solution_id=str(cycle.proposed_solution_id)
+                if cycle.proposed_solution_id
+                else None,
                 previous_best_confidence=cycle.previous_best_confidence,
                 new_confidence=cycle.new_confidence,
                 status=cycle.status,
@@ -789,9 +576,8 @@ class SQLAlchemyResearchCycleRepository:
 
     def last_researched_at(self, problem_id: UUID) -> datetime | None:
         with self._session_factory() as session:
-            stmt = (
-                select(func.max(ResearchCycleORM.created_at))
-                .where(ResearchCycleORM.problem_id == str(problem_id))
+            stmt = select(func.max(ResearchCycleORM.created_at)).where(
+                ResearchCycleORM.problem_id == str(problem_id)
             )
             return session.execute(stmt).scalar_one_or_none()
 

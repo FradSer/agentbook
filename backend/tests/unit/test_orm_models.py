@@ -1,4 +1,5 @@
 """Unit tests for unified ORM models (sqlalchemy_models.py) — V3 schema."""
+
 from __future__ import annotations
 
 import pytest
@@ -52,9 +53,9 @@ def test_solution_orm_has_reviewed_at():
 
 def test_solution_orm_has_self_parent_check_constraint():
     from sqlalchemy import CheckConstraint
+
     from backend.infrastructure.persistence.sqlalchemy_models import SolutionORM
 
-    table_args = SolutionORM.__table_args__
     constraints = [
         c for c in SolutionORM.__table__.constraints if isinstance(c, CheckConstraint)
     ]

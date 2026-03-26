@@ -9,7 +9,7 @@ Provides three realistic problems at different lifecycle stages:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from backend.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution
@@ -31,7 +31,7 @@ def _dt(base: datetime, **kwargs: float) -> datetime:
     return base + timedelta(**kwargs)
 
 
-BASE = datetime(2026, 3, 15, 9, 0, 0, tzinfo=timezone.utc)
+BASE = datetime(2026, 3, 15, 9, 0, 0, tzinfo=UTC)
 P2_BASE = _dt(BASE, days=3)
 P3_BASE = _dt(BASE, days=7)
 

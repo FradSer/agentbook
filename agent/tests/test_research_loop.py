@@ -6,13 +6,12 @@ Validates the autoresearch (karpathy/autoresearch hill-climbing) pattern with:
 - Superseded-solution filtering in _build_research_prompt
 - Cold-start → bad outcomes → second improvement → more bad outcomes → third improvement
 """
+
 from __future__ import annotations
 
 import asyncio
 import re
 from uuid import UUID, uuid4
-
-import pytest
 
 from backend.domain.models import Agent
 
@@ -30,7 +29,14 @@ def _make_service():
 
     agents = InMemoryAgentRepository()
     author_id = uuid4()
-    agents.add(Agent(api_key_hash="test-hash", model_type="test", token_balance=100, agent_id=author_id))
+    agents.add(
+        Agent(
+            api_key_hash="test-hash",
+            model_type="test",
+            token_balance=100,
+            agent_id=author_id,
+        )
+    )
 
     service = AgentbookService(
         agents=agents,
@@ -45,7 +51,14 @@ def _make_service():
 
 def _add_external_reporter(service) -> UUID:
     reporter_id = uuid4()
-    service._agents.add(Agent(api_key_hash=f"ext-{reporter_id}", model_type="ext", token_balance=100, agent_id=reporter_id))
+    service._agents.add(
+        Agent(
+            api_key_hash=f"ext-{reporter_id}",
+            model_type="ext",
+            token_balance=100,
+            agent_id=reporter_id,
+        )
+    )
     return reporter_id
 
 
@@ -70,6 +83,7 @@ def _setup_problem_with_solution(service, author_id, confidence: float = 0.25):
 # ---------------------------------------------------------------------------
 # Service-level: 2 direct iterations
 # ---------------------------------------------------------------------------
+
 
 def test_iteration_1_cold_start_improvement():
     """Iteration 1: baseline below cold-start default (0.25 → 0.3) → accepted."""
@@ -224,6 +238,7 @@ def test_good_outcomes_block_second_iteration():
 # ---------------------------------------------------------------------------
 # run_research_cycle integration: mock agent calls real tools
 # ---------------------------------------------------------------------------
+
 
 class _ToolCallingAgent:
     """Mock agent that inspects the prompt and directly invokes the propose/skip tool."""
@@ -410,7 +425,9 @@ def test_three_iterations_with_external_feedback():
     assert str(s2_id) in ids_in_lineage
     assert str(s3_id) in ids_in_lineage
     assert str(s4_id) in ids_in_lineage
-    assert len(lineage) == 4, f"Expected 4-node lineage, got {len(lineage)}: {ids_in_lineage}"
+    assert len(lineage) == 4, (
+        f"Expected 4-node lineage, got {len(lineage)}: {ids_in_lineage}"
+    )
 
 
 def test_run_research_cycle_three_iterations():
@@ -434,7 +451,9 @@ def test_run_research_cycle_three_iterations():
 
     # --- Iteration 1 ---
     m1 = asyncio.run(run_research_cycle(agent, service, cooldown_hours=0))
-    assert m1["improved"] >= 1, f"Iteration 1 should produce at least one improvement: {m1}"
+    assert m1["improved"] >= 1, (
+        f"Iteration 1 should produce at least one improvement: {m1}"
+    )
 
     # Find new best active solution and degrade it with external failures
     ctx1 = service.get_context(id=p.problem_id, include=["solutions"])
@@ -495,7 +514,6 @@ def test_run_research_cycle_filters_superseded_solutions():
     """Research loop must not select a superseded solution as the improvement target."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
-    from agent.src.synthesis import SYSTEM_AGENT_ID
 
     service, author_id = _make_service()
     p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.4)
@@ -517,9 +535,11 @@ def test_run_research_cycle_filters_superseded_solutions():
     # Now degrade s2 so the research loop would pick s1 if it doesn't filter
     reporter = _add_external_reporter(service)
     for _ in range(5):
-        service.report_outcome(reporter_id=reporter, solution_id=s2.solution_id, success=False)
+        service.report_outcome(
+            reporter_id=reporter, solution_id=s2.solution_id, success=False
+        )
 
-    s2_degraded = service._solutions.get(s2.solution_id)
+    service._solutions.get(s2.solution_id)
     # s1 (confidence=0.4) should NOT be picked over s2 (degraded but active)
     # because s1 is superseded (canonical_id is not None)
 
@@ -569,11 +589,11 @@ def test_run_research_cycle_filters_superseded_solutions():
 # Cooldown escape fix: invalid/timeout/exception paths record a ResearchCycle
 # ---------------------------------------------------------------------------
 
+
 def test_invalid_agent_response_records_research_cycle():
     """When the agent returns no recognisable status, a ResearchCycle skip must be recorded
     so the cooldown prevents an immediate hot-loop retry."""
     from agent.src.research_loop import run_research_cycle
-    from agent.src.synthesis import SYSTEM_AGENT_ID
 
     service, author_id = _make_service()
     p, s = _setup_problem_with_solution(service, author_id, confidence=0.25)
@@ -582,7 +602,9 @@ def test_invalid_agent_response_records_research_cycle():
         def run(self, prompt: str) -> str:
             return "I cannot determine an answer at this time."
 
-    metrics = asyncio.run(run_research_cycle(_GarbageAgent(), service, cooldown_hours=0))
+    metrics = asyncio.run(
+        run_research_cycle(_GarbageAgent(), service, cooldown_hours=0)
+    )
     assert metrics["no_improvement"] >= 1
 
     # A ResearchCycle skip must have been recorded
@@ -595,6 +617,7 @@ def test_invalid_agent_response_records_research_cycle():
 def test_timeout_records_research_cycle():
     """A per-candidate timeout must record a ResearchCycle skip to prevent hot-loop retry."""
     import asyncio as _asyncio
+
     from agent.src.research_loop import run_research_cycle
 
     service, author_id = _make_service()
@@ -607,12 +630,17 @@ def test_timeout_records_research_cycle():
 
     # Patch timeout to 0 seconds so the timeout fires immediately
     import agent.src.config as _cfg
+
     original = _cfg.settings.agent_research_per_candidate_timeout_seconds
     _cfg.settings.__dict__["agent_research_per_candidate_timeout_seconds"] = 0
     try:
-        metrics = asyncio.run(run_research_cycle(_HangingAgent(), service, cooldown_hours=0))
+        metrics = asyncio.run(
+            run_research_cycle(_HangingAgent(), service, cooldown_hours=0)
+        )
     finally:
-        _cfg.settings.__dict__["agent_research_per_candidate_timeout_seconds"] = original
+        _cfg.settings.__dict__["agent_research_per_candidate_timeout_seconds"] = (
+            original
+        )
 
     assert metrics["no_improvement"] >= 1
     last_researched = service._research_cycles.last_researched_at(p.problem_id)

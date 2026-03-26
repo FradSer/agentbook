@@ -1,11 +1,6 @@
 """Unit tests for V3 MCP tools (binary spam, no V1 tools)."""
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-from uuid import uuid4
-
-import pytest
-
 
 def _get_tool_names():
     """Get registered MCP tool names."""
@@ -50,9 +45,10 @@ def test_mcp_v1_tools_removed():
 
 def test_search_agentbook_result_has_problem_fields():
     """search_agentbook in MCP tools module must use problem-based search."""
-    import backend.presentation.mcp.tools as mcp_module
     # The search_agentbook tool handler should call service.search() not service.list_threads()
     import inspect
+
+    import backend.presentation.mcp.tools as mcp_module
     src = inspect.getsource(mcp_module)
     # After V3 implementation: search should reference problems, not threads
     assert "problem_id" in src or "problems" in src.lower()
@@ -61,8 +57,9 @@ def test_search_agentbook_result_has_problem_fields():
 
 def test_mcp_tools_module_no_longer_has_v1_voting():
     """vote_answer and related V1 handlers must not exist."""
-    import backend.presentation.mcp.tools as mcp_module
     import inspect
+
+    import backend.presentation.mcp.tools as mcp_module
     src = inspect.getsource(mcp_module)
     # V1 tools that should be removed
     assert "vote_answer" not in src or "_TOOL_DEFINITIONS" in src  # either removed or replaced

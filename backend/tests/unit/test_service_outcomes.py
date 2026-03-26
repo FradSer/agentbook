@@ -1,7 +1,7 @@
 """Unit tests for AgentbookService outcome reporting and token economy (V3)."""
+
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -11,6 +11,7 @@ from backend.application.errors import RateLimitError
 
 def _make_service():
     from backend.application.service import AgentbookService
+    from backend.domain.models import Agent
     from backend.infrastructure.persistence.in_memory import (
         InMemoryAgentRepository,
         InMemoryOutcomeRepository,
@@ -19,13 +20,26 @@ def _make_service():
         InMemorySolutionRepository,
         InMemoryTokenTransactionRepository,
     )
-    from backend.domain.models import Agent
 
     agents = InMemoryAgentRepository()
     alice_id = uuid4()
     bob_id = uuid4()
-    agents.add(Agent(api_key_hash="alice-hash", model_type="test", token_balance=100, agent_id=alice_id))
-    agents.add(Agent(api_key_hash="bob-hash", model_type="test", token_balance=100, agent_id=bob_id))
+    agents.add(
+        Agent(
+            api_key_hash="alice-hash",
+            model_type="test",
+            token_balance=100,
+            agent_id=alice_id,
+        )
+    )
+    agents.add(
+        Agent(
+            api_key_hash="bob-hash",
+            model_type="test",
+            token_balance=100,
+            agent_id=bob_id,
+        )
+    )
 
     service = AgentbookService(
         agents=agents,
@@ -58,7 +72,7 @@ def test_external_reporter_increases_confidence():
     p, s = _setup_problem_and_solution(service, alice_id)
     initial_confidence = s.confidence
 
-    result = service.report_outcome(
+    service.report_outcome(
         reporter_id=bob_id,
         solution_id=s.solution_id,
         success=True,
@@ -82,10 +96,14 @@ def test_rate_limit_10_reports_per_hour():
     p, s = _setup_problem_and_solution(service, alice_id)
 
     for _ in range(10):
-        service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=True)
+        service.report_outcome(
+            reporter_id=bob_id, solution_id=s.solution_id, success=True
+        )
 
     with pytest.raises(RateLimitError):
-        service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=True)
+        service.report_outcome(
+            reporter_id=bob_id, solution_id=s.solution_id, success=True
+        )
 
 
 def test_partial_failure_note_sets_weight_half():
@@ -108,7 +126,9 @@ def test_self_report_does_not_raise_confidence_above_baseline():
     p, s = _setup_problem_and_solution(service, alice_id)
 
     for _ in range(5):
-        service.report_outcome(reporter_id=alice_id, solution_id=s.solution_id, success=True)
+        service.report_outcome(
+            reporter_id=alice_id, solution_id=s.solution_id, success=True
+        )
 
     updated = service._solutions.get(s.solution_id)
     assert updated.confidence <= 0.3
@@ -128,7 +148,9 @@ def test_token_reward_issued_on_successful_external_outcome():
     p, s = _setup_problem_and_solution(service, alice_id)
 
     alice_before = service._agents.get(alice_id).token_balance
-    result = service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=True)
+    result = service.report_outcome(
+        reporter_id=bob_id, solution_id=s.solution_id, success=True
+    )
 
     alice_after = service._agents.get(alice_id).token_balance
     assert alice_after > alice_before
@@ -140,7 +162,9 @@ def test_no_token_reward_on_failed_outcome():
     p, s = _setup_problem_and_solution(service, alice_id)
 
     alice_before = service._agents.get(alice_id).token_balance
-    result = service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=False)
+    result = service.report_outcome(
+        reporter_id=bob_id, solution_id=s.solution_id, success=False
+    )
 
     alice_after = service._agents.get(alice_id).token_balance
     assert alice_after == alice_before
@@ -152,7 +176,9 @@ def test_no_self_reward_when_author_reports_own_outcome():
     p, s = _setup_problem_and_solution(service, alice_id)
 
     alice_before = service._agents.get(alice_id).token_balance
-    result = service.report_outcome(reporter_id=alice_id, solution_id=s.solution_id, success=True)
+    result = service.report_outcome(
+        reporter_id=alice_id, solution_id=s.solution_id, success=True
+    )
 
     alice_after = service._agents.get(alice_id).token_balance
     assert alice_after == alice_before

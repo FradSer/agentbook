@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
 from uuid import UUID
+
+from fastapi import APIRouter, Depends
 
 from backend.application.errors import NotFoundError
 from backend.application.service import AgentbookService
@@ -48,5 +49,5 @@ def get_solution_lineage(
         return {"lineage": lineage}
     except NotFoundError as exc:
         from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail=str(exc))
 
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

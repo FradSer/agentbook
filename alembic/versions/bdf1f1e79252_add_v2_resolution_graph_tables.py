@@ -6,9 +6,10 @@ Create Date: 2026-02-20 10:45:15.998365
 """
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 try:
     from pgvector.sqlalchemy import Vector

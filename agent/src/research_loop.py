@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from uuid import UUID
 
@@ -40,7 +41,11 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
     if not settings.agent_research_enabled:
         return {"skipped": True, "reason": "research disabled"}
 
-    effective_cooldown = settings.agent_research_cooldown_hours if cooldown_hours is None else cooldown_hours
+    effective_cooldown = (
+        settings.agent_research_cooldown_hours
+        if cooldown_hours is None
+        else cooldown_hours
+    )
     candidates = service.find_research_candidates(
         limit=settings.agent_research_batch_size,
         cooldown_hours=effective_cooldown,
@@ -56,10 +61,8 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
 
     for problem_dict in candidates:
         problem_id = problem_dict["problem_id"]
-        try:
+        with contextlib.suppress(Exception):
             service.set_research_status(UUID(str(problem_id)), True)
-        except Exception:
-            pass
         try:
             try:
                 context = service.get_context(id=problem_id, include=["solutions"])
@@ -75,22 +78,30 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
             # Filter superseded solutions (canonical_id is not None means superseded or synthesized)
             active_solutions = [s for s in solutions if s.get("canonical_id") is None]
             if not active_solutions:
-                logger.debug(f"Problem {problem_id} has no active (non-superseded) solutions")
+                logger.debug(
+                    f"Problem {problem_id} has no active (non-superseded) solutions"
+                )
                 continue
             # Sort by confidence descending so solutions[0] is the best (explicit, not implicit)
-            solutions = sorted(active_solutions, key=lambda s: s.get("confidence", 0), reverse=True)
+            solutions = sorted(
+                active_solutions, key=lambda s: s.get("confidence", 0), reverse=True
+            )
 
             # Fetch outcomes for each solution to give the agent real signal
             outcomes_by_solution: dict[str, list[dict]] = {}
             for sol in solutions:
                 sol_id = str(sol["solution_id"])
                 try:
-                    sol_context = service.get_context(id=UUID(sol_id), include=["outcomes"])
+                    sol_context = service.get_context(
+                        id=UUID(sol_id), include=["outcomes"]
+                    )
                     outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
                 except Exception:
                     outcomes_by_solution[sol_id] = []
 
-            prompt = _build_research_prompt(problem_dict, solutions, outcomes_by_solution)
+            prompt = _build_research_prompt(
+                problem_dict, solutions, outcomes_by_solution
+            )
 
             try:
                 response_text = await asyncio.wait_for(
@@ -113,7 +124,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                         f"{response_text[:200]!r}"
                     )
                     no_improvement += 1
-                    try:
+                    with contextlib.suppress(Exception):
                         service.record_research_skip(
                             problem_id=UUID(str(problem_id)),
                             researcher_id=SYSTEM_AGENT_ID,
@@ -121,16 +132,14 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                             status="no_solution_proposed",
                             llm_model=_researcher_llm_model(),
                         )
-                    except Exception:
-                        pass
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     f"Research candidate {problem_id} timed out after "
                     f"{settings.agent_research_per_candidate_timeout_seconds}s"
                 )
                 no_improvement += 1
-                try:
+                with contextlib.suppress(Exception):
                     service.record_research_skip(
                         problem_id=UUID(str(problem_id)),
                         researcher_id=SYSTEM_AGENT_ID,
@@ -138,12 +147,10 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                         status="no_solution_proposed",
                         llm_model=_researcher_llm_model(),
                     )
-                except Exception:
-                    pass
             except Exception as exc:
                 logger.error(f"Research cycle error for problem {problem_id}: {exc}")
                 no_improvement += 1
-                try:
+                with contextlib.suppress(Exception):
                     service.record_research_skip(
                         problem_id=UUID(str(problem_id)),
                         researcher_id=SYSTEM_AGENT_ID,
@@ -151,13 +158,9 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                         status="no_solution_proposed",
                         llm_model=_researcher_llm_model(),
                     )
-                except Exception:
-                    pass
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 service.set_research_status(UUID(str(problem_id)), False)
-            except Exception:
-                pass
 
     return {
         "candidates": len(candidates),
@@ -172,9 +175,12 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
         return
     try:
         from uuid import UUID as _UUID
+
         if service._research_cycles is None:
             return
-        stalled = service._research_cycles.consecutive_no_improvement(_UUID(str(problem_id)))
+        stalled = service._research_cycles.consecutive_no_improvement(
+            _UUID(str(problem_id))
+        )
         if stalled < settings.agent_research_stall_threshold:
             return
         logger.info(
@@ -205,11 +211,17 @@ def _build_research_prompt(
 
     best = solutions[0]
     best_id = str(best["solution_id"])
-    lines.append(f"Current best solution (confidence: {best.get('confidence', 0):.2f}):")
+    lines.append(
+        f"Current best solution (confidence: {best.get('confidence', 0):.2f}):"
+    )
     lines.append(best.get("content", ""))
     lines.append("")
 
-    total_outcomes = sum(len(v) for v in outcomes_by_solution.values()) if outcomes_by_solution else 0
+    total_outcomes = (
+        sum(len(v) for v in outcomes_by_solution.values())
+        if outcomes_by_solution
+        else 0
+    )
 
     if outcomes_by_solution:
         outcomes = outcomes_by_solution.get(best_id, [])
@@ -218,7 +230,8 @@ def _build_research_prompt(
             failures = len(outcomes) - successes
             lines.append(f"Outcomes: {successes} success, {failures} failure(s)")
             failure_notes = [
-                o.get("notes") for o in outcomes
+                o.get("notes")
+                for o in outcomes
                 if not o.get("success") and o.get("notes")
             ]
             if failure_notes:
@@ -236,7 +249,9 @@ def _build_research_prompt(
                 lines.append("Per-environment success rates:")
                 for env_key, results in list(env_stats.items())[:4]:
                     rate = sum(results) / len(results)
-                    lines.append(f"  {env_key}: {rate:.0%} ({sum(results)}/{len(results)})")
+                    lines.append(
+                        f"  {env_key}: {rate:.0%} ({sum(results)}/{len(results)})"
+                    )
             lines.append("")
 
     if total_outcomes == 0:
@@ -251,8 +266,14 @@ def _build_research_prompt(
         lines.append("Other solutions (with failure patterns):")
         for sol in solutions[1:3]:
             sol_id = str(sol["solution_id"])
-            sol_outcomes = outcomes_by_solution.get(sol_id, []) if outcomes_by_solution else []
-            sol_failures = [o.get("notes") for o in sol_outcomes if not o.get("success") and o.get("notes")]
+            sol_outcomes = (
+                outcomes_by_solution.get(sol_id, []) if outcomes_by_solution else []
+            )
+            sol_failures = [
+                o.get("notes")
+                for o in sol_outcomes
+                if not o.get("success") and o.get("notes")
+            ]
             sol_line = f"- (confidence: {sol.get('confidence', 0):.2f}) {sol.get('content', '')[:150]}"
             if sol_failures:
                 sol_line += f" | Failures: {'; '.join(sol_failures[:2])}"

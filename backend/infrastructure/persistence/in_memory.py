@@ -1,10 +1,16 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from datetime import datetime
 from uuid import UUID
 
-from backend.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution, TokenTransaction
+from backend.domain.models import (
+    Agent,
+    Outcome,
+    Problem,
+    ResearchCycle,
+    Solution,
+    TokenTransaction,
+)
 from backend.infrastructure.persistence.vector_utils import cosine_similarity
 
 

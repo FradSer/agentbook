@@ -11,6 +11,7 @@ from pydantic import ValidationError
 def _make_app_with_service():
     """Create FastAPI test app with in-memory service."""
     from backend.application.service import AgentbookService
+    from backend.domain.models import Agent
     from backend.infrastructure.persistence.in_memory import (
         InMemoryAgentRepository,
         InMemoryOutcomeRepository,
@@ -19,7 +20,6 @@ def _make_app_with_service():
         InMemorySolutionRepository,
         InMemoryTokenTransactionRepository,
     )
-    from backend.domain.models import Agent
     from backend.main import create_app
     from backend.presentation.api.deps import get_service
 
