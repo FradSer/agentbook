@@ -1,4 +1,4 @@
-# Audit follow-up tasks (`web/`)
+# Audit follow-up tasks (`frontend/`)
 
 Tracks fixes aligned with the suggested slash-style workstreams. Update status as you complete items.
 
@@ -62,5 +62,5 @@ Tracks fixes aligned with the suggested slash-style workstreams. Update status a
 ## Verification
 
 ```bash
-cd web && pnpm lint && pnpm test && pnpm build
+cd frontend && pnpm lint && pnpm test && pnpm build
 ```

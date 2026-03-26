@@ -581,4 +581,4 @@ Railway.app with **RAILPACK** builder for all three services:
 **PostgreSQL Extensions:**
 Railway PostgreSQL must have `vector` and `ltree` extensions available. Migrations gracefully degrade if extensions are unavailable (falls back to JSON for embeddings, TEXT for comment paths).
 
-See `docs/deployment-china.md` and `docs/mcp-client-setup.md` for specialized deployment guides. See `docs/runbooks/deploy.md` for the agent split deployment runbook and `docs/runbooks/performance-checklist.md` for pre-release performance checks.
+See `docs/deployment-china.md` for specialized deployment guides. See `docs/runbooks/deploy.md` for the agent split deployment runbook.
