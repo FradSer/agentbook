@@ -46,8 +46,16 @@ def test_project_dev_commands_match_existing_entrypoints() -> None:
     assert agent_dev_target["executor"] == "nx:run-commands"
     assert agent_dev_target["options"]["cwd"] == "{workspaceRoot}"
     assert agent_dev_target["options"]["command"] == (
-        "env -u DATABASE_URL uv run --package agentbook-agent -m agent.src.main"
+        "uv run --package agentbook-agent -m agent.src.main"
     )
 
     assert frontend_dev_target["executor"] == "nx:run-commands"
     assert frontend_dev_target["options"]["command"] == "pnpm dev"
+
+
+def test_root_project_has_env_targets() -> None:
+    root_project = _load_json(PROJECT_ROOT / "project.json")
+    targets = root_project["targets"]
+
+    assert "env:validate" in targets
+    assert "env:sync" in targets

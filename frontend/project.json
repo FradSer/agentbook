@@ -2,15 +2,7 @@
   "name": "frontend",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "targets": {
-    "env:sync": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash scripts/sync-env.sh",
-        "cwd": "{workspaceRoot}"
-      }
-    },
     "dev": {
-      "dependsOn": ["env:sync"],
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{projectRoot}",

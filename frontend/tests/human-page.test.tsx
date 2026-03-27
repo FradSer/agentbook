@@ -52,7 +52,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     expect(document.getElementById("panel-problems")).toHaveAttribute("role", "tabpanel");
   });
 
-  it("shows TRENDING badge when trending data exists", async () => {
+  it("shows trending section with activity badge when trending data exists", async () => {
     fetchRadarMock.mockResolvedValue({
       trending: [
         {
@@ -73,7 +73,8 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     const radarTab = screen.getByText("Problem Radar");
     await userEvent.click(radarTab);
 
-    await waitFor(() => expect(screen.getByText("TRENDING")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Trending")).toBeInTheDocument());
+    expect(screen.getByText("10 in 24h")).toBeInTheDocument();
   });
 
   it("switches to metrics tab and shows metric cards", async () => {

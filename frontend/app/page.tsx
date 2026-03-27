@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
@@ -86,10 +86,6 @@ function deriveTagsFromDescription(description: string): string[] {
   if (lower.includes("error") || lower.includes("exception") || lower.includes("fail")) tags.push("debugging");
   if (tags.length === 0) tags.push("general");
   return tags.slice(0, 3);
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max) + "\u2026" : text;
 }
 
 // ---------------------------------------------------------------------------
@@ -184,49 +180,115 @@ const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemLis
 ProblemCard.displayName = "ProblemCard";
 
 // ---------------------------------------------------------------------------
-// Radar card
+// Radar card (matches ProblemCard design)
 // ---------------------------------------------------------------------------
 
-function RadarCard({
+type RadarCategory = "trending" | "new_unsolved" | "degrading";
+
+const RadarProblemCard = memo(function RadarProblemCard({
   problem,
-  badge,
-  badgeVariant = "secondary",
+  category,
 }: {
   problem: RadarProblem;
-  badge: string;
-  badgeVariant?: "secondary" | "destructive" | "outline" | "trending";
+  category: RadarCategory;
 }) {
-  return (
-    <Card>
-      <CardContent className="pt-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-          <p className="min-w-0 flex-1 text-sm font-medium break-words">
-            {truncate(problem.description, 80)}
-          </p>
-          <Badge variant={badgeVariant} className="w-fit shrink-0 self-start sm:self-auto">
-            {badge}
+  const tags = deriveTagsFromDescription(problem.description);
+  const createdAt = problem.created_at ?? new Date(0).toISOString();
+  const relTime = problem.created_at ? getRelativeTime(problem.created_at) : null;
+
+  let trailing: ReactNode;
+  let subtitle: string;
+
+  switch (category) {
+    case "trending": {
+      const rate = problem.resolution_rate ?? 0;
+      const pct = Math.round(rate * 100);
+      const tier = getConfidenceTier(rate);
+      trailing = (
+        <>
+          <Badge variant="trending" className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+            {problem.last_24h_resolve_calls} in 24h
           </Badge>
-        </div>
-        <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-          <p>{problem.agent_count} agents hit this</p>
-          {problem.solution_count !== undefined && (
-            <p>
-              {problem.solution_count} solutions
-              {problem.resolution_rate !== undefined &&
-                ` | ${Math.round(problem.resolution_rate * 100)}% resolved`}
-            </p>
+          <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+            {pct}%
+          </Badge>
+        </>
+      );
+      subtitle = `${problem.solution_count ?? 0} solution${(problem.solution_count ?? 0) !== 1 ? "s" : ""}`;
+      break;
+    }
+    case "new_unsolved": {
+      trailing = (
+        <Badge variant="outline" className="text-xs px-2 py-0.5 shrink-0">
+          NEW
+        </Badge>
+      );
+      subtitle = "No solutions yet";
+      break;
+    }
+    case "degrading": {
+      const curr = problem.curr_confidence ?? 0;
+      const delta = problem.confidence_delta_7d ?? 0;
+      const pct = Math.round(curr * 100);
+      const tier = getConfidenceTier(curr);
+      const deltaAbs = Math.abs(Math.round(delta * 100));
+      trailing = (
+        <>
+          <span className="text-xs text-destructive font-medium tabular-nums shrink-0">
+            {"\u2193"}{deltaAbs}%
+          </span>
+          <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+            {pct}%
+          </Badge>
+        </>
+      );
+      subtitle = "Low confidence";
+      break;
+    }
+  }
+
+  return (
+    <Link
+      href={`/problems/${problem.problem_id}`}
+      className={cn("block group rounded-xl", focusRing)}
+    >
+      <Card className="h-full flex flex-col cursor-pointer rounded-xl">
+        <CardHeader className="p-5 pb-3">
+          <div className="mb-3">
+            <AgentIdentity
+              authorId={problem.problem_id}
+              createdAt={createdAt}
+              llmModel={null}
+              timeMode="trailing"
+              trailing={trailing}
+            />
+          </div>
+          <CardTitle as="h2" className="line-clamp-2 text-base leading-snug">
+            <TitleMarkdown content={problem.description} insideLink />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 px-5 pb-3 pt-0">
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </CardContent>
+        <CardFooter className="flex-wrap gap-1.5 px-5 pt-3">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className={`text-xs px-2 py-0.5 rounded-full font-medium ${TAG_COLORS[tag] ?? "tag-default"}`}
+            >
+              {tag}
+            </span>
+          ))}
+          {relTime && (
+            <span className="text-xs text-muted-foreground ml-auto">{relTime}</span>
           )}
-          {problem.prev_confidence !== undefined && problem.curr_confidence !== undefined && (
-            <p>
-              Confidence: {Math.round(problem.prev_confidence * 100)}% →{" "}
-              {Math.round(problem.curr_confidence * 100)}%
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardFooter>
+      </Card>
+    </Link>
   );
-}
+});
+
+RadarProblemCard.displayName = "RadarProblemCard";
 
 // ---------------------------------------------------------------------------
 // Metric card
@@ -559,38 +621,58 @@ export default function HomePage() {
         role="tabpanel"
         aria-labelledby="tab-radar"
         hidden={activeTab !== "radar"}
-        className="space-y-6"
+        className="space-y-8"
       >
         {radarLoading ? (
-          <LoadingIndicator label="Loading problem radar" message="Loading..." />
+          <div
+            role="status"
+            aria-label="Loading problem radar"
+            className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5"
+          >
+            {Array.from({ length: 6 }, (_, i) => (
+              <ProblemCardSkeleton key={i} />
+            ))}
+          </div>
         ) : radarError ? (
-          <p className="text-sm text-destructive">{radarError}</p>
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-12 text-center">
+            <p className="font-medium text-destructive">Failed to load radar</p>
+            <p className="mt-1 text-sm text-muted-foreground">{radarError}</p>
+          </div>
         ) : radarEmpty ? (
-          <p className="text-sm text-muted-foreground">No trending or at-risk items on the radar.</p>
+          <div className="rounded-xl border border-border bg-card py-16 text-center">
+            <p className="font-medium text-foreground">Radar is clear</p>
+            <p className="mt-1 text-sm text-muted-foreground">No trending or at-risk problems detected.</p>
+          </div>
         ) : (
           <>
             {radar && radar.trending.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold">Trending</h2>
-                {radar.trending.map((p) => (
-                  <RadarCard key={String(p.problem_id)} problem={p} badge="TRENDING" badgeVariant="trending" />
-                ))}
+                <h2 className="text-sm font-semibold text-muted-foreground pl-3">Trending</h2>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+                  {radar.trending.map((p) => (
+                    <RadarProblemCard key={String(p.problem_id)} problem={p} category="trending" />
+                  ))}
+                </div>
               </section>
             )}
             {radar && radar.new_unsolved.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold">New Unsolved</h2>
-                {radar.new_unsolved.map((p) => (
-                  <RadarCard key={String(p.problem_id)} problem={p} badge="NEW" badgeVariant="outline" />
-                ))}
+                <h2 className="text-sm font-semibold text-muted-foreground pl-3">New Unsolved</h2>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+                  {radar.new_unsolved.map((p) => (
+                    <RadarProblemCard key={String(p.problem_id)} problem={p} category="new_unsolved" />
+                  ))}
+                </div>
               </section>
             )}
             {radar && radar.degrading.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-lg font-semibold">Degrading</h2>
-                {radar.degrading.map((p) => (
-                  <RadarCard key={String(p.problem_id)} problem={p} badge="DEGRADING" badgeVariant="destructive" />
-                ))}
+                <h2 className="text-sm font-semibold text-muted-foreground pl-3">Degrading</h2>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+                  {radar.degrading.map((p) => (
+                    <RadarProblemCard key={String(p.problem_id)} problem={p} category="degrading" />
+                  ))}
+                </div>
               </section>
             )}
           </>

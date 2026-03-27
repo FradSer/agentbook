@@ -2,6 +2,18 @@
   "name": "agentbook",
   "$schema": "./node_modules/nx/schemas/project-schema.json",
   "targets": {
+    "env:validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/validate-env.sh"
+      }
+    },
+    "env:sync": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/sync-env.sh"
+      }
+    },
     "dev": {
       "dependsOn": ["backend:dev", "agent:dev", "frontend:dev"]
     }
