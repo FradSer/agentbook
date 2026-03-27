@@ -170,17 +170,24 @@ def get_optional_current_agent(...) -> Agent | None
 
 Root `.env` holds all variables for all three services. `.env.example` uses `# @section:<name>` markers (`shared`, `backend`, `agent`, `frontend`) parsed by validation tooling.
 
-**Nx targets for config management (manual, not run on every `dev`):**
-- `npx nx run agentbook:env:validate` — runs `scripts/validate-env.sh`, checks all required vars from `.env.example` exist in `.env`
-- `npx nx run agentbook:env:sync` — runs `scripts/sync-env.sh`, copies `NEXT_PUBLIC_*` vars to `frontend/.env.local`
+**Nx targets for config management (manual, run after editing root `.env`):**
+- `npx nx run agentbook:env:validate` — checks all required vars from `.env.example` exist in `.env`
+- `npx nx run agentbook:env:sync` — generates per-service `.env.local` files from root `.env`
+
+**Per-service `.env.local` files (auto-generated, gitignored):**
+- `backend/.env.local` — shared + backend vars
+- `agent/.env.local` — shared + agent vars
+- `frontend/.env.local` — frontend vars (`NEXT_PUBLIC_*`)
+
+`.env.example` uses `# @section:<name>` markers (`shared`, `backend`, `agent`, `frontend`) to map vars to services. `scripts/sync-env.sh` parses these markers to distribute the correct subset.
 
 **How each service reads config:**
-- `shared/config.py:SharedSettings` is the Pydantic `BaseSettings` base class, reads root `.env` directly
-- `backend/core/config.py:Settings` extends SharedSettings (adds app_name, secret_key, token economy, CORS, embeddings, MCP)
-- `agent/src/config.py:AgentSettings` extends SharedSettings (adds poll_interval, batch_size, quality_threshold, model_name)
-- Frontend: `NEXT_PUBLIC_*` vars synced to `frontend/.env.local` via `npx nx run agentbook:env:sync`
+- `shared/config.py:SharedSettings` is the Pydantic `BaseSettings` base class (no `env_file` — subclasses set their own)
+- `backend/core/config.py:Settings` extends SharedSettings, reads `backend/.env.local`
+- `agent/src/config.py:AgentSettings` extends SharedSettings, reads `agent/.env.local`
+- Frontend: Next.js reads `frontend/.env.local` natively
 
-**Pydantic precedence:** OS environment vars override `.env` file values. Both Python services use `extra="ignore"` to silently discard vars they don't declare.
+**Pydantic precedence:** OS environment vars override `.env.local` file values. Both Python services use `extra="ignore"` to silently discard vars they don't declare.
 
 **Key behavior:** `database_url=None` → in-memory repos. `openrouter_api_key=None` → keyword search fallback.
 
