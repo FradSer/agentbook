@@ -2,7 +2,7 @@
 # Sync NEXT_PUBLIC_* vars from root .env to frontend/.env.local
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT_DIR="$(unset CDPATH; cd "$(dirname "$0")/.." && pwd)"
 ROOT_ENV="$ROOT_DIR/.env"
 FRONTEND_ENV="$ROOT_DIR/frontend/.env.local"
 
