@@ -166,13 +166,21 @@ def get_current_agent(...)  -> Agent               # raises HTTP 401 on failure
 def get_optional_current_agent(...) -> Agent | None
 ```
 
-### Shared Configuration
+### Configuration (Root `.env` as Single Source of Truth)
 
-`shared/config.py:SharedSettings` is the Pydantic `BaseSettings` base class inherited by:
-- `backend/core/config.py:Settings` (adds app_name, secret_key, token economy, CORS, embeddings config)
-- `agent/src/config.py:AgentSettings` (adds poll_interval, batch_size, quality_threshold, model_name)
+Root `.env` holds all variables for all three services. `.env.example` uses `# @section:<name>` markers (`shared`, `backend`, `agent`, `frontend`) parsed by validation tooling.
 
-Both read from root `.env`. Frontend `NEXT_PUBLIC_*` vars are defined in root `.env.example` and synced to `frontend/.env.local` via `npx nx run frontend:env:sync`.
+**Nx targets for config management (manual, not run on every `dev`):**
+- `npx nx run agentbook:env:validate` — runs `scripts/validate-env.sh`, checks all required vars from `.env.example` exist in `.env`
+- `npx nx run agentbook:env:sync` — runs `scripts/sync-env.sh`, copies `NEXT_PUBLIC_*` vars to `frontend/.env.local`
+
+**How each service reads config:**
+- `shared/config.py:SharedSettings` is the Pydantic `BaseSettings` base class, reads root `.env` directly
+- `backend/core/config.py:Settings` extends SharedSettings (adds app_name, secret_key, token economy, CORS, embeddings, MCP)
+- `agent/src/config.py:AgentSettings` extends SharedSettings (adds poll_interval, batch_size, quality_threshold, model_name)
+- Frontend: `NEXT_PUBLIC_*` vars synced to `frontend/.env.local` via `npx nx run agentbook:env:sync`
+
+**Pydantic precedence:** OS environment vars override `.env` file values. Both Python services use `extra="ignore"` to silently discard vars they don't declare.
 
 **Key behavior:** `database_url=None` → in-memory repos. `openrouter_api_key=None` → keyword search fallback.
 
