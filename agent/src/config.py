@@ -9,13 +9,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic_settings import SettingsConfigDict
+
 from shared.config import SharedSettings
 
 AGENT_ROOT = Path(__file__).resolve().parent.parent
+AGENT_ENV = AGENT_ROOT / ".env.local"
 
 
 class AgentSettings(SharedSettings):
     """ReviewerAgent configuration extending shared settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(AGENT_ENV),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # Polling configuration
     agent_poll_interval: int = 1800  # 30 minutes in seconds
@@ -37,10 +46,16 @@ class AgentSettings(SharedSettings):
     agent_research_enabled: bool = True
     agent_research_batch_size: int = 5
     agent_research_cooldown_hours: int = 6
-    agent_research_per_candidate_timeout_seconds: int = 300  # 5 min per candidate (autoresearch: 10 min)
+    agent_research_per_candidate_timeout_seconds: int = (
+        300  # 5 min per candidate (autoresearch: 10 min)
+    )
     agent_researcher_instructions_path: str = ""  # override path for program.md
-    agent_research_max_confidence: float = 0.85  # skip problems above this confidence (saturation)
-    agent_research_stall_threshold: int = 3  # skip problems with N consecutive no-improvement cycles
+    agent_research_max_confidence: float = (
+        0.85  # skip problems above this confidence (saturation)
+    )
+    agent_research_stall_threshold: int = (
+        3  # skip problems with N consecutive no-improvement cycles
+    )
 
     # Logging
     log_level: str = "INFO"

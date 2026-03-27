@@ -13,7 +13,6 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ROOT_ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class SharedSettings(BaseSettings):
@@ -23,6 +22,10 @@ class SharedSettings(BaseSettings):
     Both systems connect to the same PostgreSQL database and may use
     the same OpenRouter API key for different purposes (backend for
     embeddings, agent for AI review).
+
+    Each service has its own .env file generated from the root .env
+    by scripts/sync-env.sh. Subclasses override env_file to point
+    to their service-specific .env.
 
     Attributes:
         database_url: PostgreSQL connection string. If None, backend falls
@@ -38,7 +41,6 @@ class SharedSettings(BaseSettings):
     openrouter_api_key: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=str(ROOT_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )

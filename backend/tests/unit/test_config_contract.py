@@ -40,18 +40,28 @@ def _class_assigns_model_config(path: Path, class_name: str) -> bool:
     raise AssertionError(f"Class {class_name} not found in {path}")
 
 
-def test_shared_settings_uses_absolute_root_env_file() -> None:
-    assert SharedSettings.model_config.get("env_file") == str(PROJECT_ROOT / ".env")
+def test_shared_settings_has_no_env_file() -> None:
+    assert SharedSettings.model_config.get("env_file") is None
 
 
-def test_backend_settings_does_not_define_model_config() -> None:
+def test_backend_settings_points_to_own_env() -> None:
     path = PROJECT_ROOT / "backend/core/config.py"
-    assert _class_assigns_model_config(path, "Settings") is False
+    assert _class_assigns_model_config(path, "Settings") is True
+    from backend.core.config import Settings
+
+    assert Settings.model_config.get("env_file") == str(
+        PROJECT_ROOT / "backend" / ".env.local"
+    )
 
 
-def test_agent_settings_does_not_define_model_config() -> None:
+def test_agent_settings_points_to_own_env() -> None:
     path = PROJECT_ROOT / "agent/src/config.py"
-    assert _class_assigns_model_config(path, "AgentSettings") is False
+    assert _class_assigns_model_config(path, "AgentSettings") is True
+    from agent.src.config import AgentSettings
+
+    assert AgentSettings.model_config.get("env_file") == str(
+        PROJECT_ROOT / "agent" / ".env.local"
+    )
 
 
 def test_agent_runtime_modules_do_not_call_sys_path_insert() -> None:

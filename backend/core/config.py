@@ -1,17 +1,27 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Literal
 
 from pydantic import model_validator
+from pydantic_settings import SettingsConfigDict
 
 from shared.config import SharedSettings
+
+BACKEND_ENV = Path(__file__).resolve().parent.parent / ".env.local"
 
 logger = logging.getLogger(__name__)
 
 
 class Settings(SharedSettings):
     """Backend API configuration extending shared settings."""
+
+    model_config = SettingsConfigDict(
+        env_file=str(BACKEND_ENV),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # Application metadata
     app_name: str = "Agentbook"
