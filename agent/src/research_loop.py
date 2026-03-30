@@ -50,7 +50,8 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
         limit=settings.agent_research_batch_size,
         cooldown_hours=effective_cooldown,
         max_confidence=settings.agent_research_max_confidence,
-        stall_threshold=settings.agent_research_stall_threshold,
+        stall_threshold=settings.agent_research_stall_threshold
+        + 1,  # +1: radical exploration round before synthesis
     )
     if not candidates:
         logger.info("No research candidates found")
@@ -99,8 +100,27 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                 except Exception:
                     outcomes_by_solution[sol_id] = []
 
+            # Fetch recent research cycles: surface failed approaches + detect radical mode
+            failed_approaches: list[str] = []
+            radical_mode = False
+            if service._research_cycles is not None:
+                pid = UUID(str(problem_id))
+                recent_cycles = service._research_cycles.list_by_problem(pid)[:5]
+                failed_approaches = [
+                    c.reasoning
+                    for c in recent_cycles
+                    if c.status != "improved" and c.reasoning
+                ]
+                stalled = service._research_cycles.consecutive_no_improvement(pid)
+                if stalled >= settings.agent_research_stall_threshold:
+                    radical_mode = True
+
             prompt = _build_research_prompt(
-                problem_dict, solutions, outcomes_by_solution
+                problem_dict,
+                solutions,
+                outcomes_by_solution,
+                failed_approaches=failed_approaches,
+                radical_mode=radical_mode,
             )
 
             try:
@@ -181,7 +201,7 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
         stalled = service._research_cycles.consecutive_no_improvement(
             _UUID(str(problem_id))
         )
-        if stalled < settings.agent_research_stall_threshold:
+        if stalled < settings.agent_research_stall_threshold + 1:
             return
         logger.info(
             f"Problem {problem_id}: {stalled} consecutive no-improvement cycles with "
@@ -200,6 +220,8 @@ def _build_research_prompt(
     problem: dict,
     solutions: list[dict],
     outcomes_by_solution: dict[str, list[dict]] | None = None,
+    failed_approaches: list[str] | None = None,
+    radical_mode: bool = False,
 ) -> str:
     lines = [
         f"Problem: {problem['description']}",
@@ -257,9 +279,15 @@ def _build_research_prompt(
     if total_outcomes == 0:
         lines.append(
             "NOTE: No outcome data yet (cold-start). "
-            "Your proposal will be evaluated on baseline confidence only. "
-            "Focus on correctness and clarity."
+            "Your proposal will be evaluated on content quality heuristics. "
+            "Focus on well-structured, concrete solutions with clear steps."
         )
+        lines.append("")
+
+    if failed_approaches:
+        lines.append("## Past Failed Attempts (DO NOT repeat these)")
+        for approach in failed_approaches[:5]:
+            lines.append(f"  - {approach}")
         lines.append("")
 
     if len(solutions) > 1:
@@ -291,6 +319,39 @@ def _build_research_prompt(
         lines.append("Common failure patterns across all solutions:")
         for note in all_failure_notes[:4]:
             lines.append(f"  - {note}")
+        lines.append("")
+
+    # Cross-solution environment priority: highlight the weakest environment
+    if outcomes_by_solution:
+        all_env_stats: dict[str, list[bool]] = {}
+        for sol_outcomes in outcomes_by_solution.values():
+            for o in sol_outcomes:
+                env = o.get("environment")
+                if env:
+                    key = str(sorted(env.items()))
+                    all_env_stats.setdefault(key, []).append(bool(o.get("success")))
+        if len(all_env_stats) >= 2:
+            weakest = min(all_env_stats.items(), key=lambda kv: sum(kv[1]) / len(kv[1]))
+            best_env = max(
+                all_env_stats.items(), key=lambda kv: sum(kv[1]) / len(kv[1])
+            )
+            weakest_rate = sum(weakest[1]) / len(weakest[1])
+            best_rate = sum(best_env[1]) / len(best_env[1])
+            if weakest_rate < best_rate:
+                lines.append(
+                    f"PRIORITY: Fix environment {weakest[0]} "
+                    f"(success rate: {weakest_rate:.0%} vs best: {best_rate:.0%})"
+                )
+                lines.append("")
+
+    if radical_mode:
+        lines.append("## RADICAL EXPLORATION MODE")
+        lines.append("Previous incremental improvements have stalled.")
+        lines.append("Try FUNDAMENTALLY different approaches:")
+        lines.append("- Combine the best aspects of ALL existing solutions")
+        lines.append("- Challenge the problem's assumptions")
+        lines.append("- Consider a completely different solution strategy")
+        lines.append("- Think harder: re-read the problem, try radical changes")
         lines.append("")
 
     problem_id = problem["problem_id"]

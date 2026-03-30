@@ -172,7 +172,9 @@ class AgentbookService:
         rows = self._search_problems(query=query, limit=limit, error_log=error_log)
         return {"results": rows, "total": len(rows)}
 
-    def _search_problems(self, query: str, limit: int, error_log: str | None = None) -> list[dict]:
+    def _search_problems(
+        self, query: str, limit: int, error_log: str | None = None
+    ) -> list[dict]:
         search_text = self._compose_search_text(query=query, error_log=error_log)
         normalized_query = search_text.lower()
         query_embedding = self._safe_embed(search_text)
@@ -184,15 +186,17 @@ class AgentbookService:
                 if problem.review_status != "approved":
                     continue
                 best_solution = self._pick_best_solution(problem.problem_id)
-                rows.append({
-                    "problem_id": str(problem.problem_id),
-                    "description": problem.description,
-                    "best_confidence": problem.best_confidence,
-                    "solution_count": problem.solution_count,
-                    "similarity_score": similarity,
-                    "best_solution": best_solution,
-                    "created_at": problem.created_at.isoformat(),
-                })
+                rows.append(
+                    {
+                        "problem_id": str(problem.problem_id),
+                        "description": problem.description,
+                        "best_confidence": problem.best_confidence,
+                        "solution_count": problem.solution_count,
+                        "similarity_score": similarity,
+                        "best_solution": best_solution,
+                        "created_at": problem.created_at.isoformat(),
+                    }
+                )
 
         if not rows:
             query_terms = self._extract_terms(normalized_query)
@@ -200,19 +204,25 @@ class AgentbookService:
                 if problem.review_status != "approved":
                     continue
                 desc_lower = problem.description.lower()
-                matched = any(term in desc_lower for term in query_terms) if query_terms else True
+                matched = (
+                    any(term in desc_lower for term in query_terms)
+                    if query_terms
+                    else True
+                )
                 if normalized_query and not matched:
                     continue
                 best_solution = self._pick_best_solution(problem.problem_id)
-                rows.append({
-                    "problem_id": str(problem.problem_id),
-                    "description": problem.description,
-                    "best_confidence": problem.best_confidence,
-                    "solution_count": problem.solution_count,
-                    "similarity_score": 1.0 if matched else 0.0,
-                    "best_solution": best_solution,
-                    "created_at": problem.created_at.isoformat(),
-                })
+                rows.append(
+                    {
+                        "problem_id": str(problem.problem_id),
+                        "description": problem.description,
+                        "best_confidence": problem.best_confidence,
+                        "solution_count": problem.solution_count,
+                        "similarity_score": 1.0 if matched else 0.0,
+                        "best_solution": best_solution,
+                        "created_at": problem.created_at.isoformat(),
+                    }
+                )
 
         rows.sort(key=lambda item: item["similarity_score"], reverse=True)
         return rows[: max(limit, 0)]
@@ -221,7 +231,9 @@ class AgentbookService:
         if self._agents.get(agent_id) is None:
             raise UnauthorizedError("Invalid API Key")
 
-    def _llm_model_for_author(self, author_id: UUID, override: str | None = None) -> str | None:
+    def _llm_model_for_author(
+        self, author_id: UUID, override: str | None = None
+    ) -> str | None:
         if override is not None:
             return override
         agent = self._agents.get(author_id)
@@ -338,14 +350,18 @@ class AgentbookService:
         limit: int = 100,
         retry_error_before: datetime | None = None,
     ) -> list[Problem]:
-        return self._problems.find_unreviewed(limit=limit, retry_error_before=retry_error_before)
+        return self._problems.find_unreviewed(
+            limit=limit, retry_error_before=retry_error_before
+        )
 
     def get_unreviewed_solutions(
         self,
         limit: int = 100,
         retry_error_before: datetime | None = None,
     ) -> list[Solution]:
-        return self._solutions.find_unreviewed(limit=limit, retry_error_before=retry_error_before)
+        return self._solutions.find_unreviewed(
+            limit=limit, retry_error_before=retry_error_before
+        )
 
     def list_problems(
         self,
@@ -368,34 +384,38 @@ class AgentbookService:
         result = []
         for p in all_problems:
             if p.review_status == "approved":
-                result.append({
-                    "problem_id": str(p.problem_id),
-                    "description": p.description,
-                    "best_confidence": p.best_confidence,
-                    "solution_count": p.solution_count,
-                    "review_status": p.review_status,
-                    "has_canonical": p.canonical_solution_id is not None,
-                    "tags": p.tags,
-                    "error_signature": p.error_signature,
-                    "environment": p.environment,
-                    "created_at": p.created_at.isoformat(),
-                    "last_activity_at": p.last_activity_at.isoformat(),
-                    "is_being_researched": _is_being_researched(p),
-                })
+                result.append(
+                    {
+                        "problem_id": str(p.problem_id),
+                        "description": p.description,
+                        "best_confidence": p.best_confidence,
+                        "solution_count": p.solution_count,
+                        "review_status": p.review_status,
+                        "has_canonical": p.canonical_solution_id is not None,
+                        "tags": p.tags,
+                        "error_signature": p.error_signature,
+                        "environment": p.environment,
+                        "created_at": p.created_at.isoformat(),
+                        "last_activity_at": p.last_activity_at.isoformat(),
+                        "is_being_researched": _is_being_researched(p),
+                    }
+                )
             elif include_pending and viewer_id is not None and p.author_id == viewer_id:
-                result.append({
-                    "problem_id": str(p.problem_id),
-                    "description": p.description,
-                    "best_confidence": p.best_confidence,
-                    "solution_count": p.solution_count,
-                    "review_status": p.review_status or "pending",
-                    "has_canonical": p.canonical_solution_id is not None,
-                    "tags": p.tags,
-                    "error_signature": p.error_signature,
-                    "environment": p.environment,
-                    "created_at": p.created_at.isoformat(),
-                    "last_activity_at": p.last_activity_at.isoformat(),
-                })
+                result.append(
+                    {
+                        "problem_id": str(p.problem_id),
+                        "description": p.description,
+                        "best_confidence": p.best_confidence,
+                        "solution_count": p.solution_count,
+                        "review_status": p.review_status or "pending",
+                        "has_canonical": p.canonical_solution_id is not None,
+                        "tags": p.tags,
+                        "error_signature": p.error_signature,
+                        "environment": p.environment,
+                        "created_at": p.created_at.isoformat(),
+                        "last_activity_at": p.last_activity_at.isoformat(),
+                    }
+                )
         return result[offset : offset + limit]
 
     def get_agentbook(self, problem_id: UUID) -> dict:
@@ -406,7 +426,8 @@ class AgentbookService:
         all_solutions = self._solutions.list_by_problem(problem_id)
         # Exclude candidates from public view; show only validated (promoted/legacy) solutions
         visible_solutions = [
-            s for s in all_solutions
+            s
+            for s in all_solutions
             if s.review_status == "approved" and s.promotion_status != "candidate"
         ]
 
@@ -430,8 +451,12 @@ class AgentbookService:
                 "outcome_count": canonical_sol.outcome_count,
                 "success_count": canonical_sol.success_count,
                 "author_id": str(canonical_sol.author_id),
-                "llm_model": self._display_llm(models, canonical_sol.author_id, canonical_sol.llm_model),
-                "parent_solution_id": str(canonical_sol.parent_solution_id) if canonical_sol.parent_solution_id else None,
+                "llm_model": self._display_llm(
+                    models, canonical_sol.author_id, canonical_sol.llm_model
+                ),
+                "parent_solution_id": str(canonical_sol.parent_solution_id)
+                if canonical_sol.parent_solution_id
+                else None,
                 "environment_scores": canonical_sol.environment_scores,
                 "created_at": canonical_sol.created_at.isoformat(),
             }
@@ -446,13 +471,16 @@ class AgentbookService:
                 "success_count": s.success_count,
                 "author_id": str(s.author_id),
                 "llm_model": self._display_llm(models, s.author_id, s.llm_model),
-                "parent_solution_id": str(s.parent_solution_id) if s.parent_solution_id else None,
+                "parent_solution_id": str(s.parent_solution_id)
+                if s.parent_solution_id
+                else None,
                 "environment_scores": s.environment_scores,
                 "created_at": s.created_at.isoformat(),
                 "review_status": s.review_status,
             }
             for s in visible_solutions
-            if problem.canonical_solution_id is None or s.solution_id != problem.canonical_solution_id
+            if problem.canonical_solution_id is None
+            or s.solution_id != problem.canonical_solution_id
         ]
 
         return {
@@ -518,8 +546,13 @@ class AgentbookService:
                     all_solutions.append(sol)
 
         if all_solutions:
+
             def _rank(sol: Solution) -> float:
-                rate = sol.success_count / sol.outcome_count if sol.outcome_count > 0 else sol.confidence
+                rate = (
+                    sol.success_count / sol.outcome_count
+                    if sol.outcome_count > 0
+                    else sol.confidence
+                )
                 return 0.6 * rate + 0.4 * sol.confidence
 
             all_solutions.sort(key=_rank, reverse=True)
@@ -528,7 +561,10 @@ class AgentbookService:
             return {
                 "status": "resolved",
                 "problem_id": matched_problems[0].problem_id,
-                "solutions": [_solution_to_dict(s, sol_models.get(s.author_id)) for s in all_solutions],
+                "solutions": [
+                    _solution_to_dict(s, sol_models.get(s.author_id))
+                    for s in all_solutions
+                ],
             }
 
         if auto_post:
@@ -541,7 +577,11 @@ class AgentbookService:
                 embedding=embedding,
             )
             self._problems.add(new_problem)
-            return {"status": "registered", "problem_id": new_problem.problem_id, "solutions": []}
+            return {
+                "status": "registered",
+                "problem_id": new_problem.problem_id,
+                "solutions": [],
+            }
 
         return {"status": "no_solutions", "problem_id": None, "solutions": []}
 
@@ -571,7 +611,9 @@ class AgentbookService:
                 )
                 solution_id = new_solution.solution_id
             return {
-                "status": "solution_added" if solution_id is not None else "problem_created",
+                "status": "solution_added"
+                if solution_id is not None
+                else "problem_created",
                 "problem_id": str(existing_problem.problem_id),
                 "solution_id": str(solution_id) if solution_id is not None else None,
             }
@@ -658,10 +700,17 @@ class AgentbookService:
         solution.confidence = new_confidence
 
         # Candidate promotion/demotion: validate improvement against parent before superseding
-        if solution.promotion_status == "candidate" and solution.parent_solution_id is not None:
+        if (
+            solution.promotion_status == "candidate"
+            and solution.parent_solution_id is not None
+        ):
             parent = self._solutions.get(solution.parent_solution_id)
             if parent is not None:
-                ext_reporters = {o.reporter_id for o in all_outcomes if o.reporter_id != solution.author_id}
+                ext_reporters = {
+                    o.reporter_id
+                    for o in all_outcomes
+                    if o.reporter_id != solution.author_id
+                }
                 if ext_reporters and new_confidence >= parent.confidence:
                     # Confirmed improvement — promote and supersede parent
                     solution.promotion_status = "promoted"
@@ -686,13 +735,15 @@ class AgentbookService:
                 reward_amount = settings.reward_per_successful_outcome
                 author.token_balance += reward_amount
                 self._agents.add(author)
-                self._transactions.add(TokenTransaction(
-                    agent_id=author.agent_id,
-                    amount=reward_amount,
-                    tx_type="outcome_reward",
-                    related_solution_id=solution.solution_id,
-                    description="Received successful outcome report",
-                ))
+                self._transactions.add(
+                    TokenTransaction(
+                        agent_id=author.agent_id,
+                        amount=reward_amount,
+                        tx_type="outcome_reward",
+                        related_solution_id=solution.solution_id,
+                        description="Received successful outcome report",
+                    )
+                )
                 reward_issued = True
 
         return {
@@ -723,7 +774,9 @@ class AgentbookService:
             pdata["llm_model"] = self._display_llm(pmap, problem.author_id, None)
             result: dict = {"type": "problem", "data": pdata}
             if "solutions" in effective:
-                result["solutions"] = [_solution_to_dict(s, pmap.get(s.author_id)) for s in sols]
+                result["solutions"] = [
+                    _solution_to_dict(s, pmap.get(s.author_id)) for s in sols
+                ]
             if "similar" in effective and problem.embedding:
                 similar = self._problems.find_similar(problem.embedding, threshold=0.6)
                 sim_ids: set[UUID] = set()
@@ -755,7 +808,9 @@ class AgentbookService:
             sdata = _solution_to_dict(solution, omap.get(solution.author_id))
             result = {"type": "solution", "data": sdata}
             if "outcomes" in effective:
-                result["outcomes"] = [_outcome_to_dict(o, omap.get(o.reporter_id)) for o in outs]
+                result["outcomes"] = [
+                    _outcome_to_dict(o, omap.get(o.reporter_id)) for o in outs
+                ]
             return result
 
         raise NotFoundError(f"No problem or solution found with id {id}")
@@ -773,14 +828,16 @@ class AgentbookService:
             if recent_count > 0:
                 n_sols = len(self._solutions.list_by_problem(p.problem_id))
                 rate = round(p.best_confidence, 2) if n_sols > 0 else 0.0
-                trending.append({
-                    "problem_id": p.problem_id,
-                    "description": p.description,
-                    "agent_count": 1,
-                    "solution_count": p.solution_count,
-                    "resolution_rate": rate,
-                    "last_24h_resolve_calls": recent_count,
-                })
+                trending.append(
+                    {
+                        "problem_id": p.problem_id,
+                        "description": p.description,
+                        "agent_count": 1,
+                        "solution_count": p.solution_count,
+                        "resolution_rate": rate,
+                        "last_24h_resolve_calls": recent_count,
+                    }
+                )
         trending.sort(key=lambda x: x["last_24h_resolve_calls"], reverse=True)
 
         new_unsolved = [
@@ -806,21 +863,29 @@ class AgentbookService:
             if p.solution_count > 0 and p.best_confidence < 0.5
         ][:10]
 
-        return {"trending": trending, "new_unsolved": new_unsolved, "degrading": degrading}
+        return {
+            "trending": trending,
+            "new_unsolved": new_unsolved,
+            "degrading": degrading,
+        }
 
     def get_metrics(self) -> dict:
         all_problems = self._problems.list_all()
         total_problems = len(all_problems)
 
         solved = sum(1 for p in all_problems if p.solution_count > 0)
-        resolution_rate = round(solved / total_problems, 2) if total_problems > 0 else 0.0
+        resolution_rate = (
+            round(solved / total_problems, 2) if total_problems > 0 else 0.0
+        )
 
         all_solutions = []
         for p in all_problems:
             all_solutions.extend(self._solutions.list_by_problem(p.problem_id))
-        avg_confidence = round(
-            sum(s.confidence for s in all_solutions) / len(all_solutions), 2
-        ) if all_solutions else 0.0
+        avg_confidence = (
+            round(sum(s.confidence for s in all_solutions) / len(all_solutions), 2)
+            if all_solutions
+            else 0.0
+        )
 
         all_outcomes = []
         for sol in all_solutions:
@@ -829,18 +894,29 @@ class AgentbookService:
         median_ttr = int(sum(timed) / len(timed)) if timed else 0
 
         needs_synthesis = sum(
-            1 for s in all_solutions
-            if s.outcome_count >= 10 and s.confidence < 0.3
+            1 for s in all_solutions if s.outcome_count >= 10 and s.confidence < 0.3
         )
 
         stale = sum(1 for s in all_solutions if s.outcome_count == 0)
 
         return {
-            "resolution_rate": {"value": resolution_rate, "trend": None, "target": 0.80},
+            "resolution_rate": {
+                "value": resolution_rate,
+                "trend": None,
+                "target": 0.80,
+            },
             "median_ttr_seconds": {"value": median_ttr, "trend": None, "target": 300},
-            "avg_solution_confidence": {"value": avg_confidence, "trend": None, "target": 0.75},
+            "avg_solution_confidence": {
+                "value": avg_confidence,
+                "trend": None,
+                "target": 0.75,
+            },
             "knowledge_coverage": {"value": total_problems, "trend": None},
-            "knowledge_freshness": {"value": round(resolution_rate * 0.9, 2), "trend": None, "target": 0.60},
+            "knowledge_freshness": {
+                "value": round(resolution_rate * 0.9, 2),
+                "trend": None,
+                "target": 0.60,
+            },
             "solutions_needing_synthesis": needs_synthesis,
             "stale_solutions": stale,
         }
@@ -887,10 +963,12 @@ class AgentbookService:
                 if attempt == max_retries - 1:
                     raise
                 # Exponential backoff with jitter: prevents thundering herd
-                base_delay = 0.1 * (2 ** attempt)
+                base_delay = 0.1 * (2**attempt)
                 jitter = random.uniform(0, 0.05)  # 0-50ms random jitter
                 delay = base_delay + jitter
-                logger.warning(f"Concurrent modification detected, retrying in {delay:.3f}s: {e}")
+                logger.warning(
+                    f"Concurrent modification detected, retrying in {delay:.3f}s: {e}"
+                )
                 time.sleep(delay)
                 # Reload problem to get latest version
                 continue
@@ -907,9 +985,15 @@ class AgentbookService:
     ) -> dict:
         """Public API with retry logic."""
         from uuid import UUID as _UUID
+
         _author_id = author_id or _UUID("00000000-0000-0000-0000-000000000001")
         return self._improve_solution_with_retry(
-            _author_id, solution_id, improved_content, improved_steps, reasoning, llm_model
+            _author_id,
+            solution_id,
+            improved_content,
+            improved_steps,
+            reasoning,
+            llm_model,
         )
 
     def _improve_solution_impl(
@@ -925,7 +1009,11 @@ class AgentbookService:
         if existing is None:
             raise NotFoundError(f"Solution {solution_id} not found")
 
-        gate_result = check_spam(improved_content, "solution", {"steps": improved_steps} if improved_steps else None)
+        gate_result = check_spam(
+            improved_content,
+            "solution",
+            {"steps": improved_steps} if improved_steps else None,
+        )
         ok = gate_result.passed
         # Check content regression before quality gate — too-short content is a regression, not an error
         new_step_count = len(improved_steps or [])
@@ -968,11 +1056,36 @@ class AgentbookService:
         )
         content_bloat = (
             len(improved_content) > len(existing.content) * 2.0
+            and new_step_count <= existing_step_count
             and new_confidence <= existing.confidence + 0.05
         )
 
-        if not content_regression and not content_bloat and new_confidence > existing.confidence:
-            # Hill-climbing: new is strictly better — mark as candidate (deferred validation)
+        # Cold-start tiebreaker: when the parent has no outcomes, Bayesian confidence
+        # is identical (baseline 0.3) for all solutions.  Use content quality heuristics
+        # to enable hill-climbing before real signal arrives.
+        if existing.outcome_count == 0 and new_confidence == existing.confidence:
+            from backend.application.cold_start import cold_start_compare
+
+            hill_climb_accepted = cold_start_compare(existing, new_solution)
+        else:
+            hill_climb_accepted = new_confidence > existing.confidence
+
+        # Simplification reward (Karpathy rule): a shorter solution that maintains
+        # confidence and step coverage is strictly preferred.
+        simplification_reward = (
+            len(improved_content) < len(existing.content) * 0.8
+            and new_step_count >= existing_step_count
+            and new_confidence >= existing.confidence
+        )
+
+        accepted = (
+            not content_regression
+            and not content_bloat
+            and (hill_climb_accepted or simplification_reward)
+        )
+
+        if accepted:
+            # Hill-climbing: new is better — mark as candidate (deferred validation)
             # The old solution is NOT immediately superseded; promotion happens when real
             # outcome data confirms the improvement (see report_outcome promotion logic).
             new_solution.promotion_status = "candidate"
@@ -1036,6 +1149,7 @@ class AgentbookService:
         total_failures = sum(s.failure_count for s in active)
 
         from uuid import UUID as _UUID
+
         _author_id = author_id or _UUID("00000000-0000-0000-0000-000000000001")
         _all_outcomes = [
             o for s in active for o in self._outcomes.list_by_solution(s.solution_id)
@@ -1043,12 +1157,14 @@ class AgentbookService:
         confidence = calculate_confidence(_all_outcomes, _author_id)
         if synthesized_content is None:
             synthesized_content = "\n\n".join(
-                f"Solution {i+1}:\n{s.content}" for i, s in enumerate(active[:5])
+                f"Solution {i + 1}:\n{s.content}" for i, s in enumerate(active[:5])
             )
 
         gate_result = check_spam(synthesized_content, "solution")
         if not gate_result.passed:
-            synthesized_content = active[0].content if active else "Synthesized solution"
+            synthesized_content = (
+                active[0].content if active else "Synthesized solution"
+            )
 
         canonical = Solution(
             problem_id=problem_id,
@@ -1085,21 +1201,32 @@ class AgentbookService:
         max_confidence: float = 0.85,
         stall_threshold: int = 3,
     ) -> list[dict]:
-        needs_filtering = (cooldown_hours > 0 or stall_threshold > 0) and self._research_cycles is not None
+        needs_filtering = (
+            cooldown_hours > 0 or stall_threshold > 0
+        ) and self._research_cycles is not None
         if not needs_filtering:
-            candidates = self._problems.find_research_candidates(limit=limit, max_confidence=max_confidence)
+            candidates = self._problems.find_research_candidates(
+                limit=limit, max_confidence=max_confidence
+            )
             cids = {p.author_id for p in candidates}
             cmap = self._agent_models_map(cids)
             return [
-                {**_problem_to_dict(p), "llm_model": self._display_llm(cmap, p.author_id, None)}
+                {
+                    **_problem_to_dict(p),
+                    "llm_model": self._display_llm(cmap, p.author_id, None),
+                }
                 for p in candidates
             ]
-        cutoff = utc_now() - timedelta(hours=cooldown_hours) if cooldown_hours > 0 else None
+        cutoff = (
+            utc_now() - timedelta(hours=cooldown_hours) if cooldown_hours > 0 else None
+        )
         page_size = max(limit, 10)
         offset = 0
         filtered: list = []
         while len(filtered) < limit:
-            batch = self._problems.find_research_candidates(limit=page_size, offset=offset, max_confidence=max_confidence)
+            batch = self._problems.find_research_candidates(
+                limit=page_size, offset=offset, max_confidence=max_confidence
+            )
             if not batch:
                 break
             for p in batch:
@@ -1108,7 +1235,9 @@ class AgentbookService:
                     if last is not None and last >= cutoff:
                         continue
                 if stall_threshold > 0:
-                    stalled = self._research_cycles.consecutive_no_improvement(p.problem_id)
+                    stalled = self._research_cycles.consecutive_no_improvement(
+                        p.problem_id
+                    )
                     if stalled >= stall_threshold:
                         continue
                 filtered.append(p)
@@ -1118,7 +1247,10 @@ class AgentbookService:
         fids = {p.author_id for p in filtered}
         fmap = self._agent_models_map(fids)
         return [
-            {**_problem_to_dict(p), "llm_model": self._display_llm(fmap, p.author_id, None)}
+            {
+                **_problem_to_dict(p),
+                "llm_model": self._display_llm(fmap, p.author_id, None),
+            }
             for p in filtered
         ]
 
@@ -1169,7 +1301,10 @@ class AgentbookService:
         chain: list[Solution] = [solution]
         visited: set[UUID] = {solution_id}
         current = solution
-        while current.parent_solution_id is not None and current.parent_solution_id not in visited:
+        while (
+            current.parent_solution_id is not None
+            and current.parent_solution_id not in visited
+        ):
             parent = self._solutions.get(current.parent_solution_id)
             if parent is None:
                 break
@@ -1266,6 +1401,7 @@ class AgentbookService:
 
     def get_problem_timeline(self, problem_id: UUID) -> dict:
         from uuid import UUID as _UUID
+
         SYSTEM_AGENT_ID = _UUID("00000000-0000-0000-0000-000000000001")
 
         problem = self._problems.get(problem_id)
@@ -1302,15 +1438,17 @@ class AgentbookService:
         events: list[dict] = []
 
         # Event: problem_created
-        events.append({
-            "event_type": "problem_created",
-            "created_at": problem.created_at.isoformat(),
-            "author_id": str(problem.author_id),
-            "llm_model": self._display_llm(models, problem.author_id, None),
-            "description": problem.description,
-            "tags": problem.tags,
-            "error_signature": problem.error_signature,
-        })
+        events.append(
+            {
+                "event_type": "problem_created",
+                "created_at": problem.created_at.isoformat(),
+                "author_id": str(problem.author_id),
+                "llm_model": self._display_llm(models, problem.author_id, None),
+                "description": problem.description,
+                "tags": problem.tags,
+                "error_signature": problem.error_signature,
+            }
+        )
 
         # Events: solution_proposed / solution_improved / synthesis_created
         for s in all_solutions:
@@ -1338,7 +1476,9 @@ class AgentbookService:
                 "confidence": s.confidence,
                 "promotion_status": s.promotion_status,
                 "canonical_id": str(s.canonical_id) if s.canonical_id else None,
-                "parent_solution_id": str(s.parent_solution_id) if s.parent_solution_id else None,
+                "parent_solution_id": str(s.parent_solution_id)
+                if s.parent_solution_id
+                else None,
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
@@ -1349,7 +1489,9 @@ class AgentbookService:
 
             if cycle:
                 entry["reasoning"] = cycle.reasoning
-                entry["confidence_delta"] = round(cycle.new_confidence - cycle.previous_best_confidence, 4)
+                entry["confidence_delta"] = round(
+                    cycle.new_confidence - cycle.previous_best_confidence, 4
+                )
                 entry["previous_best_confidence"] = cycle.previous_best_confidence
                 entry["research_status"] = cycle.status
 
@@ -1358,37 +1500,47 @@ class AgentbookService:
         # Events: research_skipped (cycles without a proposed solution)
         for c in research_cycles:
             if c.proposed_solution_id is None:
-                events.append({
-                    "event_type": "research_skipped",
-                    "created_at": c.created_at.isoformat(),
-                    "author_id": str(c.researcher_id),
-                    "llm_model": self._display_llm(models, c.researcher_id, c.llm_model),
-                    "reasoning": c.reasoning,
-                    "status": c.status,
-                    "previous_best_confidence": c.previous_best_confidence,
-                })
+                events.append(
+                    {
+                        "event_type": "research_skipped",
+                        "created_at": c.created_at.isoformat(),
+                        "author_id": str(c.researcher_id),
+                        "llm_model": self._display_llm(
+                            models, c.researcher_id, c.llm_model
+                        ),
+                        "reasoning": c.reasoning,
+                        "status": c.status,
+                        "previous_best_confidence": c.previous_best_confidence,
+                    }
+                )
 
         # Events: outcome_reported
         for o in all_outcomes:
-            events.append({
-                "event_type": "outcome_reported",
-                "created_at": o.created_at.isoformat(),
-                "author_id": str(o.reporter_id),
-                "llm_model": self._display_llm(models, o.reporter_id, None),
-                "solution_id": str(o.solution_id),
-                "success": o.success,
-                "environment": o.environment,
-                "notes": o.notes,
-                "time_saved_seconds": o.time_saved_seconds,
-                "weight": o.weight,
-            })
+            events.append(
+                {
+                    "event_type": "outcome_reported",
+                    "created_at": o.created_at.isoformat(),
+                    "author_id": str(o.reporter_id),
+                    "llm_model": self._display_llm(models, o.reporter_id, None),
+                    "solution_id": str(o.solution_id),
+                    "success": o.success,
+                    "environment": o.environment,
+                    "notes": o.notes,
+                    "time_saved_seconds": o.time_saved_seconds,
+                    "weight": o.weight,
+                }
+            )
 
         events.sort(key=lambda e: e["created_at"])
 
         # Latest activity = newest timeline event (solutions, outcomes, research, etc.)
-        updated_at = events[-1]["created_at"] if events else problem.created_at.isoformat()
+        updated_at = (
+            events[-1]["created_at"] if events else problem.created_at.isoformat()
+        )
 
-        book_solution = self._resolve_book_solution(problem, all_solutions, models, SYSTEM_AGENT_ID)
+        book_solution = self._resolve_book_solution(
+            problem, all_solutions, models, SYSTEM_AGENT_ID
+        )
 
         return {
             "problem": {
@@ -1451,7 +1603,9 @@ def _solution_to_dict(s: Solution, author_model: str | None = None) -> dict:
     }
 
 
-def _research_cycle_to_dict(c: ResearchCycle, researcher_model: str | None = None) -> dict:
+def _research_cycle_to_dict(
+    c: ResearchCycle, researcher_model: str | None = None
+) -> dict:
     return {
         "cycle_id": c.cycle_id,
         "problem_id": c.problem_id,
