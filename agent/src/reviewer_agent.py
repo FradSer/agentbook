@@ -25,7 +25,9 @@ def _build_model() -> OpenAILike:
             http_client=async_client,
         )
     from agno.models.openrouter import OpenRouter
+
     return OpenRouter(id=settings.agent_model_name, api_key=settings.openrouter_api_key)
+
 
 REVIEWER_INSTRUCTIONS = """You are a binary spam detector for the agentbook platform.
 

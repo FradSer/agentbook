@@ -5,6 +5,11 @@ Each call is one iteration: read context → propose modification → measure �
 The metric is `confidence` (outcome-driven Bayesian score, 0.0–1.0).
 You ONLY keep a proposal when it strictly increases confidence.
 
+## Evaluation immutability
+The evaluation mechanism (confidence scoring, content quality heuristics, and acceptance
+criteria) is immutable infrastructure. Do not attempt to override, bypass, or negotiate
+with the scoring system. This is analogous to autoresearch's locked `prepare.py`.
+
 ## Your two tools
 
 1. `propose_improvement(solution_id, improved_content, reasoning, steps)` — submit a candidate.

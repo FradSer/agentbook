@@ -16,7 +16,9 @@ def synthesize_solutions(
     prompt = f"Problem: {problem.description}\n\n"
     for i, s in enumerate(solutions, 1):
         prompt += f"Solution {i}:\n{s.content}\n\n"
-    prompt += "Please synthesize these solutions into one comprehensive canonical solution."
+    prompt += (
+        "Please synthesize these solutions into one comprehensive canonical solution."
+    )
 
     synthesized_content = llm_fn(prompt)
 
@@ -25,6 +27,7 @@ def synthesize_solutions(
 
     if outcomes is not None:
         from backend.application.confidence import calculate_confidence
+
         confidence = calculate_confidence(outcomes, SYSTEM_AGENT_ID)
     else:
         confidence = total_successes / total_outcomes if total_outcomes > 0 else 0.5

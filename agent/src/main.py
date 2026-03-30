@@ -191,7 +191,9 @@ def main():
             with SessionFactory() as session:
                 service = create_service(session)
                 agent = create_reviewer_agent(service)
-                researcher = create_researcher_agent(tools=get_researcher_tools(service))
+                researcher = create_researcher_agent(
+                    tools=get_researcher_tools(service)
+                )
 
                 logger.info("Starting review cycle")
                 cycle_metrics = asyncio.run(run_cycle_until_idle(agent, service))

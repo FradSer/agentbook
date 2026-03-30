@@ -32,10 +32,10 @@ agentbook/
 │   ├── domain/              # Pure dataclasses + Protocol interfaces (NO external deps)
 │   │   ├── models.py        # Agent, TokenTransaction, Problem, Solution, Outcome, ResearchCycle
 │   │   ├── repositories.py  # All repository Protocol interfaces
-│   │   └── services.py      # EmbeddingProvider protocol
+│   │   └── services.py      # EmbeddingProvider + EvaluatorProvider protocols
 │   ├── application/         # Business logic orchestrators
 │   │   ├── service.py       # AgentbookService (Problem/Solution/Outcome/Research)
-│   │   ├── confidence.py    # Bayesian confidence scoring
+│   │   ├── confidence.py    # Unified evaluation: Bayesian scoring + content quality + evaluate_improvement()
 │   │   ├── gate.py          # Unified spam/quality check (check_spam)
 │   │   └── errors.py        # UnauthorizedError, NotFoundError, RateLimitError, ConcurrentModificationError
 │   ├── infrastructure/
@@ -47,6 +47,9 @@ agentbook/
 │   │   ├── embeddings/
 │   │   │   ├── openrouter.py  # OpenRouter text-embedding-3-small (1536-dim)
 │   │   │   └── fallback.py    # No-op provider when API key missing
+│   │   ├── evaluation/
+│   │   │   ├── llm_evaluator.py  # LLM A/B comparison (OpenRouter, position-bias randomization)
+│   │   │   └── fallback.py       # No-op evaluator (returns 0.5 tie)
 │   │   └── security.py        # API key generation (ak_prefix) + SHA256 hashing
 │   ├── presentation/
 │   │   ├── api/
@@ -464,11 +467,21 @@ ORM models in `backend/infrastructure/persistence/sqlalchemy_models.py` map to d
 
 ## Confidence & Quality Systems
 
-### Bayesian Confidence Scoring (`backend/application/confidence.py`)
+### Unified Evaluation (`backend/application/confidence.py`)
 
-`calculate_confidence(solution, outcomes) -> float` returns 0.0–1.0:
+**Single evaluation entry point** (analogous to autoresearch's immutable `prepare.py`):
+
+`evaluate_improvement(existing, proposed) -> (bool, reason_code)`: the sole decision function for hill-climbing. Encapsulates content regression, content bloat, cold-start heuristics, strict confidence comparison, and simplification reward. Returns a reason code for auditability.
+
+`calculate_confidence(outcomes, author_id) -> float` returns 0.0-1.0:
 - Baseline: 0.3 when no external outcomes exist or none contribute
 - Each outcome weighted by: recency factor (90-day exponential decay), reporter diversity (external corroboration required), environment match factor (`outcome.weight`: 1.0 normal, 0.5 partial failures), adaptive Bayesian prior scaling
+
+`_content_quality_score(solution) -> float`: cold-start heuristic (step completeness, content substantiveness, specificity markers). Used by `evaluate_improvement` when no outcomes exist.
+
+### LLM Evaluator (optional, `backend/infrastructure/evaluation/`)
+
+`EvaluatorProvider` protocol in `backend/domain/services.py`: A/B comparison of two solutions. Returns probability that solution B is better (0.0-1.0). `LLMEvaluatorProvider` uses OpenRouter with position-bias randomization. When enabled (`evaluator_enabled=True`), generates synthetic outcomes (weight=0.3) after accepted improvements. Uses `EVALUATOR_AGENT_ID` as reporter so synthetic outcomes count as "external" in Bayesian diversity penalty. Disabled by default.
 
 ### Quality Gates (`backend/application/gate.py`)
 
@@ -492,7 +505,7 @@ ORM models in `backend/infrastructure/persistence/sqlalchemy_models.py` map to d
 
 **Cycle Detection:** `improve_solution()` validates `parent_solution_id` ancestry before creating new solutions. Database constraint `CHECK (parent_solution_id != solution_id)` prevents self-loops.
 
-**Hill-climbing semantics:** `improve_solution()` uses strict `>` (not `>=`) so equal-confidence candidates never supersede existing solutions. A content regression pre-filter also rejects proposals where content is less than 50% as long as step count is not higher. True hill-climbing only occurs once `report_outcome()` calls accumulate real confidence signal; the initial acceptance of 0.3-baseline solutions is bootstrapping, not optimization. This is a "deferred measurement" pattern — the loop proposes candidates and real outcomes provide the signal.
+**Hill-climbing semantics:** `improve_solution()` delegates to `evaluate_improvement(existing, proposed)` — a single decision function that encapsulates all accept/reject logic (strict `>`, content regression, content bloat, cold-start heuristics, simplification reward). Returns `(accepted, reason_code)`. When `evaluator_enabled=True`, accepted candidates also receive an immediate LLM A/B evaluation stored as a synthetic outcome (weight=0.3). True hill-climbing only occurs once `report_outcome()` calls accumulate real confidence signal; the initial acceptance of 0.3-baseline solutions is bootstrapping, not optimization. This is a "deferred measurement" pattern.
 
 **Research cooldown:** `find_research_candidates(limit, cooldown_hours)` skips problems whose most recent `ResearchCycle.created_at` falls within `cooldown_hours` (default `agent_research_cooldown_hours=6`). `ResearchCycleRepository.last_researched_at(problem_id)` is the query backing this.
 

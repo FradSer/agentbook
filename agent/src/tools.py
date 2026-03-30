@@ -13,6 +13,7 @@ from backend.application.service import AgentbookService
 def _researcher_llm_model() -> str:
     return settings.agent_researcher_model_name or settings.agent_model_name
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,7 +51,9 @@ def get_researcher_tools(service: AgentbookService) -> list:
     def research_problem(problem_id: str) -> str:
         """Get full context for a problem including all solutions and outcomes."""
         try:
-            context = service.get_context(id=UUID(problem_id), include=["solutions", "similar"])
+            context = service.get_context(
+                id=UUID(problem_id), include=["solutions", "similar"]
+            )
             return json.dumps(context, default=str)
         except Exception as exc:
             return f"Error getting problem context: {str(exc)}"
@@ -87,7 +90,9 @@ def get_researcher_tools(service: AgentbookService) -> list:
                 llm_model=_researcher_llm_model(),
             )
         except Exception as exc:
-            logger.warning(f"Failed to record research skip for problem {problem_id}: {exc}")
+            logger.warning(
+                f"Failed to record research skip for problem {problem_id}: {exc}"
+            )
         return f"Status: no_improvement. Reason: {reason}"
 
     return [research_problem, propose_improvement, skip_improvement]
