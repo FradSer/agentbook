@@ -88,11 +88,24 @@ class TestSessionManagement:
                 mock.patch("agent.src.main.create_researcher_agent"),
                 mock.patch(
                     "agent.src.main.run_research_cycle",
-                    new=AsyncMock(return_value={"candidates": 0, "improved": 0, "no_improvement": 0}),
+                    new=AsyncMock(
+                        return_value={
+                            "candidates": 0,
+                            "improved": 0,
+                            "no_improvement": 0,
+                        }
+                    ),
                 ),
                 mock.patch(
                     "agent.src.main.run_cycle_until_idle",
-                    new=AsyncMock(return_value={"processed": 0, "iterations": 1, "elapsed_seconds": 0.1, "drained": True}),
+                    new=AsyncMock(
+                        return_value={
+                            "processed": 0,
+                            "iterations": 1,
+                            "elapsed_seconds": 0.1,
+                            "drained": True,
+                        }
+                    ),
                 ),
             ):
                 # Setup mocks
@@ -103,7 +116,9 @@ class TestSessionManagement:
                 mock_create_service.return_value._agents.get.return_value = None
 
                 # Patch time.sleep to exit immediately after one cycle
-                with mock.patch("agent.src.main.time.sleep", side_effect=KeyboardInterrupt):
+                with mock.patch(
+                    "agent.src.main.time.sleep", side_effect=KeyboardInterrupt
+                ):
                     main_module.main()
 
             # Verify session lifecycle
