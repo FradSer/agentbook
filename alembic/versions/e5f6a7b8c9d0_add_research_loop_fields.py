@@ -21,7 +21,12 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "solutions",
-        sa.Column("parent_solution_id", sa.String(36), sa.ForeignKey("solutions.solution_id"), nullable=True),
+        sa.Column(
+            "parent_solution_id",
+            sa.String(36),
+            sa.ForeignKey("solutions.solution_id"),
+            nullable=True,
+        ),
     )
 
     # Add constraint to prevent self-loops
@@ -53,7 +58,9 @@ def upgrade() -> None:
             sa.ForeignKey("solutions.solution_id"),
             nullable=True,
         ),
-        sa.Column("previous_best_confidence", sa.Float(), nullable=False, server_default="0.0"),
+        sa.Column(
+            "previous_best_confidence", sa.Float(), nullable=False, server_default="0.0"
+        ),
         sa.Column("new_confidence", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("status", sa.String(30), nullable=False),
         sa.Column("reasoning", sa.Text(), nullable=False, server_default=""),

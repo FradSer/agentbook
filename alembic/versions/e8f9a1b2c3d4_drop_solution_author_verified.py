@@ -4,6 +4,7 @@ Revision ID: e8f9a1b2c3d4
 Revises: dab0405cde18
 Create Date: 2026-03-23
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -23,6 +24,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.add_column(
         "solutions",
-        sa.Column("author_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "author_verified", sa.Boolean(), nullable=False, server_default=sa.false()
+        ),
     )
     op.alter_column("solutions", "author_verified", server_default=None)

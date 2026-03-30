@@ -5,6 +5,7 @@ Revises: 4b624264d69e
 Create Date: 2026-03-19 00:00:00.000000
 
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
@@ -21,7 +22,9 @@ def upgrade() -> None:
     # Add review fields to problems
     op.add_column("problems", sa.Column("review_status", sa.String(20), nullable=True))
     op.add_column("problems", sa.Column("review_score", sa.Float(), nullable=True))
-    op.add_column("problems", sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "problems", sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.add_column(
         "problems",
         sa.Column("canonical_solution_id", sa.String(36), nullable=True),
@@ -30,7 +33,9 @@ def upgrade() -> None:
     # Add review fields to solutions
     op.add_column("solutions", sa.Column("review_status", sa.String(20), nullable=True))
     op.add_column("solutions", sa.Column("review_score", sa.Float(), nullable=True))
-    op.add_column("solutions", sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "solutions", sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.add_column(
         "solutions",
         sa.Column(

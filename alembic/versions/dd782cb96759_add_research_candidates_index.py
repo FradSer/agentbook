@@ -4,12 +4,13 @@ Revision ID: dd782cb96759
 Revises: e5f6a7b8c9d0
 Create Date: 2026-03-15 18:13:30.378941
 """
+
 from __future__ import annotations
 
 from alembic import op
 
-revision = 'dd782cb96759'
-down_revision = 'e5f6a7b8c9d0'
+revision = "dd782cb96759"
+down_revision = "e5f6a7b8c9d0"
 branch_labels = None
 depends_on = None
 
