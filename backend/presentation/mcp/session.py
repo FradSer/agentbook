@@ -71,12 +71,8 @@ def generate_session_id(length: int = DEFAULT_SESSION_ID_LENGTH) -> str:
         - Generated IDs contain only visible ASCII characters (0x21-0x7E)
     """
     if length < MIN_SESSION_ID_LENGTH:
-        raise ValueError(
-            f"Session ID length must be at least {MIN_SESSION_ID_LENGTH}"
-        )
+        raise ValueError(f"Session ID length must be at least {MIN_SESSION_ID_LENGTH}")
     if length > MAX_SESSION_ID_LENGTH:
-        raise ValueError(
-            f"Session ID length must be at most {MAX_SESSION_ID_LENGTH}"
-        )
+        raise ValueError(f"Session ID length must be at most {MAX_SESSION_ID_LENGTH}")
 
     return "".join(secrets.choice(_SESSION_CHARS) for _ in range(length))

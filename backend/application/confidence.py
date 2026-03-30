@@ -4,7 +4,7 @@ import math
 from datetime import UTC, datetime
 from uuid import UUID
 
-from backend.domain.models import Outcome
+from backend.domain.models import Outcome, Solution
 
 
 def utc_now() -> datetime:
@@ -67,3 +67,100 @@ def calculate_confidence(
     confidence = (sum_sv_w + baseline * prior_weight) / (sum_w + prior_weight)
 
     return max(0.0, min(1.0, confidence))
+
+
+# ---------------------------------------------------------------------------
+# Unified evaluation – single entry point for hill-climbing decisions.
+# Analogous to autoresearch's immutable prepare.py:evaluate_bpb().
+# ---------------------------------------------------------------------------
+
+_SPECIFICITY_MARKERS = ("```", "$ ", "sudo ", "pip ", "npm ", "apt ", "brew ")
+
+
+def _content_quality_score(solution: Solution) -> float:
+    """Heuristic quality score for a solution with no outcome data.
+
+    Factors:
+    - Step completeness (structured steps indicate actionable solutions)
+    - Content substantiveness (reasonable length, diminishing returns)
+    - Specificity markers (code blocks, commands, paths)
+    """
+    score = 0.0
+
+    step_count = len(solution.steps) if solution.steps else 0
+    score += min(step_count, 10) * 0.05  # max 0.5
+
+    content_len = len(solution.content)
+    if content_len >= 50:
+        score += min(content_len / 500, 1.0) * 0.3  # max 0.3
+
+    marker_count = sum(1 for m in _SPECIFICITY_MARKERS if m in solution.content)
+    score += min(marker_count, 4) * 0.05  # max 0.2
+
+    return score
+
+
+def is_content_regression(
+    existing: Solution,
+    proposed: Solution,
+) -> bool:
+    """Content <50% of original length without extra steps."""
+    new_steps = len(proposed.steps) if proposed.steps else 0
+    old_steps = len(existing.steps) if existing.steps else 0
+    return (
+        len(proposed.content) < len(existing.content) * 0.5 and new_steps <= old_steps
+    )
+
+
+def evaluate_improvement(
+    existing: Solution,
+    proposed: Solution,
+) -> tuple[bool, str]:
+    """Single decision function: should proposed replace existing?
+
+    Like autoresearch's ``new_val_bpb < old_val_bpb`` but multi-factor.
+    Encapsulates content regression, content bloat, cold-start heuristics,
+    strict hill-climbing, and simplification reward.
+
+    Returns ``(accepted, reason_code)`` for auditability.
+
+    This function is immutable evaluation infrastructure — agents must not
+    attempt to bypass, override, or negotiate with the scoring system.
+    """
+    new_steps = len(proposed.steps) if proposed.steps else 0
+    old_steps = len(existing.steps) if existing.steps else 0
+
+    # 1. Content regression: <50% length without extra steps
+    if is_content_regression(existing, proposed):
+        return False, "content_regression"
+
+    # 2. Content bloat: >2x length, no extra steps, negligible confidence gain
+    if (
+        len(proposed.content) > len(existing.content) * 2.0
+        and new_steps <= old_steps
+        and proposed.confidence <= existing.confidence + 0.05
+    ):
+        return False, "content_bloat"
+
+    # 3. Cold-start: both at baseline with no outcomes — use content quality
+    if existing.outcome_count == 0 and proposed.confidence == existing.confidence:
+        proposed_score = _content_quality_score(proposed)
+        existing_score = _content_quality_score(existing)
+        if proposed_score > existing_score:
+            return True, "cold_start_better"
+        return False, "cold_start_no_improvement"
+
+    # 4. Strict hill-climbing on Bayesian confidence
+    if proposed.confidence > existing.confidence:
+        return True, "confidence_improved"
+
+    # 5. Simplification reward (Karpathy rule): shorter + same steps + same confidence
+    if (
+        len(proposed.content) < len(existing.content) * 0.8
+        and new_steps >= old_steps
+        and proposed.confidence >= existing.confidence
+    ):
+        return True, "simplification"
+
+    # 6. No improvement
+    return False, "no_improvement"

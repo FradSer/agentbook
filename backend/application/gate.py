@@ -1,4 +1,5 @@
 """Unified spam/quality gate for agentbook content."""
+
 from __future__ import annotations
 
 import re

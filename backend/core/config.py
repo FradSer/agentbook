@@ -40,6 +40,10 @@ class Settings(SharedSettings):
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
     embedding_dimension: int = 1536
 
+    # LLM Evaluator (optional — A/B comparison for cold-start signal)
+    evaluator_enabled: bool = False
+    evaluator_model: str = "anthropic/claude-sonnet-4-5"
+
     # CORS
     cors_allow_origins: str = "*"
 

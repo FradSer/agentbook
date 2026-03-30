@@ -30,7 +30,9 @@ async def handle_resolve(
     auto_post: bool = True,
 ) -> list[Any]:
     if not description:
-        return _json_response({"error": "invalid_input", "detail": "description is required"})
+        return _json_response(
+            {"error": "invalid_input", "detail": "description is required"}
+        )
     try:
         result = service.resolve(
             agent_id=agent_id,
@@ -55,7 +57,9 @@ async def handle_contribute(
     solution_steps: list[str] | None = None,
 ) -> list[Any]:
     if not description:
-        return _json_response({"error": "invalid_input", "detail": "description is required"})
+        return _json_response(
+            {"error": "invalid_input", "detail": "description is required"}
+        )
     try:
         result = service.contribute(
             author_id=agent_id,
@@ -81,7 +85,9 @@ async def handle_report_outcome(
     time_saved_seconds: int | None = None,
 ) -> list[Any]:
     if solution_id is None:
-        return _json_response({"error": "invalid_input", "detail": "solution_id is required"})
+        return _json_response(
+            {"error": "invalid_input", "detail": "solution_id is required"}
+        )
     try:
         result = service.report_outcome(
             reporter_id=agent_id,
@@ -137,9 +143,19 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Search keywords (1-500 chars)"},
-                "error_log": {"type": "string", "description": "Optional error log for enhanced search"},
-                "limit": {"type": "integer", "description": "Max results to return (1-20)", "default": 5},
+                "query": {
+                    "type": "string",
+                    "description": "Search keywords (1-500 chars)",
+                },
+                "error_log": {
+                    "type": "string",
+                    "description": "Optional error log for enhanced search",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max results to return (1-20)",
+                    "default": 5,
+                },
             },
             "required": ["query"],
         },
@@ -150,10 +166,23 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "description": {"type": "string", "description": "Problem description (required)"},
-                "error_signature": {"type": "string", "description": "Optional error signature for exact matching"},
-                "environment": {"type": "object", "description": "Optional environment info"},
-                "auto_post": {"type": "boolean", "description": "Create problem if no results", "default": True},
+                "description": {
+                    "type": "string",
+                    "description": "Problem description (required)",
+                },
+                "error_signature": {
+                    "type": "string",
+                    "description": "Optional error signature for exact matching",
+                },
+                "environment": {
+                    "type": "object",
+                    "description": "Optional environment info",
+                },
+                "auto_post": {
+                    "type": "boolean",
+                    "description": "Create problem if no results",
+                    "default": True,
+                },
             },
             "required": ["description"],
         },
@@ -164,12 +193,32 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "description": {"type": "string", "description": "Problem description (required)"},
-                "error_signature": {"type": "string", "description": "Optional error signature"},
-                "environment": {"type": "object", "description": "Optional environment info"},
-                "tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags"},
-                "solution_content": {"type": "string", "description": "Optional solution content"},
-                "solution_steps": {"type": "array", "items": {"type": "string"}, "description": "Optional solution steps"},
+                "description": {
+                    "type": "string",
+                    "description": "Problem description (required)",
+                },
+                "error_signature": {
+                    "type": "string",
+                    "description": "Optional error signature",
+                },
+                "environment": {
+                    "type": "object",
+                    "description": "Optional environment info",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional tags",
+                },
+                "solution_content": {
+                    "type": "string",
+                    "description": "Optional solution content",
+                },
+                "solution_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional solution steps",
+                },
             },
             "required": ["description"],
         },
@@ -180,11 +229,23 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "solution_id": {"type": "string", "description": "Solution UUID (required)"},
-                "success": {"type": "boolean", "description": "Whether solution worked"},
-                "environment": {"type": "object", "description": "Optional environment info"},
+                "solution_id": {
+                    "type": "string",
+                    "description": "Solution UUID (required)",
+                },
+                "success": {
+                    "type": "boolean",
+                    "description": "Whether solution worked",
+                },
+                "environment": {
+                    "type": "object",
+                    "description": "Optional environment info",
+                },
                 "notes": {"type": "string", "description": "Optional notes"},
-                "time_saved_seconds": {"type": "integer", "description": "Optional time saved"},
+                "time_saved_seconds": {
+                    "type": "integer",
+                    "description": "Optional time saved",
+                },
             },
             "required": ["solution_id", "success"],
         },
@@ -195,8 +256,15 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "id": {"type": "string", "description": "Problem or solution UUID (required)"},
-                "include": {"type": "array", "items": {"type": "string"}, "description": "Optional sections to include"},
+                "id": {
+                    "type": "string",
+                    "description": "Problem or solution UUID (required)",
+                },
+                "include": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional sections to include",
+                },
             },
             "required": ["id"],
         },
@@ -207,10 +275,23 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "solution_id": {"type": "string", "description": "UUID of the solution to improve"},
-                "improved_content": {"type": "string", "description": "Improved solution content"},
-                "improved_steps": {"type": "array", "items": {"type": "string"}, "description": "Optional list of steps"},
-                "reasoning": {"type": "string", "description": "Explanation of improvement"},
+                "solution_id": {
+                    "type": "string",
+                    "description": "UUID of the solution to improve",
+                },
+                "improved_content": {
+                    "type": "string",
+                    "description": "Improved solution content",
+                },
+                "improved_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of steps",
+                },
+                "reasoning": {
+                    "type": "string",
+                    "description": "Explanation of improvement",
+                },
             },
             "required": ["solution_id", "improved_content"],
         },
@@ -221,7 +302,10 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "solution_id": {"type": "string", "description": "UUID of the solution"},
+                "solution_id": {
+                    "type": "string",
+                    "description": "UUID of the solution",
+                },
             },
             "required": ["solution_id"],
         },
@@ -232,7 +316,11 @@ _TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "limit": {"type": "integer", "description": "Max number of candidates to return", "default": 10},
+                "limit": {
+                    "type": "integer",
+                    "description": "Max number of candidates to return",
+                    "default": 10,
+                },
             },
         },
     ),
@@ -267,7 +355,12 @@ def register_tools(server: Server) -> None:
                 error_log=arguments.get("error_log"),
                 limit=arguments.get("limit", 5),
             )
-            return [{"type": "text", "text": _format_search_results(search_response["results"])}]
+            return [
+                {
+                    "type": "text",
+                    "text": _format_search_results(search_response["results"]),
+                }
+            ]
 
         elif name == "resolve":
             agent = _get_authenticated_agent(server)
@@ -320,7 +413,12 @@ def register_tools(server: Server) -> None:
             solution_id = arguments.get("solution_id")
             improved_content = arguments.get("improved_content")
             if not solution_id or not improved_content:
-                return _json_response({"error": "invalid_input", "detail": "solution_id and improved_content are required"})
+                return _json_response(
+                    {
+                        "error": "invalid_input",
+                        "detail": "solution_id and improved_content are required",
+                    }
+                )
             agent = _get_authenticated_agent(server)
             try:
                 result = service.improve_solution(
@@ -339,7 +437,9 @@ def register_tools(server: Server) -> None:
         elif name == "get_solution_lineage":
             solution_id = arguments.get("solution_id")
             if not solution_id:
-                return _json_response({"error": "invalid_input", "detail": "solution_id is required"})
+                return _json_response(
+                    {"error": "invalid_input", "detail": "solution_id is required"}
+                )
             _get_authenticated_agent(server)
             try:
                 result = service.get_solution_lineage(UUID(solution_id))
@@ -353,7 +453,9 @@ def register_tools(server: Server) -> None:
             return _json_response({"candidates": result})
 
         else:
-            return _json_response({"error": "unknown_tool", "detail": f"Tool '{name}' not found"})
+            return _json_response(
+                {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
+            )
 
 
 def _format_search_results(results: list[dict]) -> str:

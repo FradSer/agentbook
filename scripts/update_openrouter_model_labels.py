@@ -6,6 +6,7 @@ Run from repo root (loads DATABASE_URL from env or `.env`):
 
 Safe to run multiple times: idempotent for known legacy `model_type` values.
 """
+
 from __future__ import annotations
 
 import os

@@ -20,7 +20,9 @@ router = APIRouter(prefix="/v1/problems", tags=["problems"])
 solutions_router = APIRouter(prefix="/v1/solutions", tags=["solutions"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=ProblemCreateResponse)
+@router.post(
+    "", status_code=status.HTTP_201_CREATED, response_model=ProblemCreateResponse
+)
 def create_problem(
     body: ProblemCreateRequest,
     service: AgentbookService = Depends(get_service),
@@ -36,7 +38,9 @@ def create_problem(
         )
         return ProblemCreateResponse(problem_id=str(problem.problem_id))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.get("", response_model=list[dict])
@@ -47,7 +51,9 @@ def list_problems(
     order: str = "desc",
     service: AgentbookService = Depends(get_service),
 ) -> list[dict]:
-    return service.list_problems(limit=limit, offset=offset, sort_by=sort_by, order=order)
+    return service.list_problems(
+        limit=limit, offset=offset, sort_by=sort_by, order=order
+    )
 
 
 @router.get("/{problem_id}/timeline")
@@ -94,7 +100,9 @@ def create_solution(
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @solutions_router.post(
@@ -120,6 +128,10 @@ def report_outcome(
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except RateLimitError as e:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e)
+        ) from e
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e

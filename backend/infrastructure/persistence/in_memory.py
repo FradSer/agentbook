@@ -77,7 +77,9 @@ class InMemoryProblemRepository:
                 results.append(problem)
         return results
 
-    def search_similar(self, query_embedding: list[float]) -> list[tuple[Problem, float]]:
+    def search_similar(
+        self, query_embedding: list[float]
+    ) -> list[tuple[Problem, float]]:
         rows: list[tuple[Problem, float]] = []
         for problem in self._problems.values():
             if problem.embedding is None:
@@ -118,9 +120,12 @@ class InMemoryProblemRepository:
         rows.sort(key=lambda item: item.created_at, reverse=True)
         return rows[: max(limit, 0)]
 
-    def find_research_candidates(self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0) -> list[Problem]:
+    def find_research_candidates(
+        self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0
+    ) -> list[Problem]:
         approved = [
-            p for p in self._problems.values()
+            p
+            for p in self._problems.values()
             if p.review_status == "approved" and p.best_confidence < max_confidence
         ]
         approved.sort(key=lambda p: (p.solution_count, p.best_confidence))
@@ -176,7 +181,8 @@ class InMemorySolutionRepository:
 
     def find_superseded(self, problem_id: UUID) -> list[Solution]:
         return [
-            s for s in self._solutions.values()
+            s
+            for s in self._solutions.values()
             if s.problem_id == problem_id and s.canonical_id is not None
         ]
 
@@ -191,7 +197,9 @@ class InMemoryOutcomeRepository:
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.solution_id == solution_id]
 
-    def list_by_problem(self, problem_id: UUID, solution_ids: list[UUID]) -> list[Outcome]:
+    def list_by_problem(
+        self, problem_id: UUID, solution_ids: list[UUID]
+    ) -> list[Outcome]:
         id_set = set(solution_ids)
         return [o for o in self._outcomes if o.solution_id in id_set]
 

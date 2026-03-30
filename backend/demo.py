@@ -6,6 +6,7 @@ Provides three realistic problems at different lifecycle stages:
   - Problem 2: React useEffect infinite loop (in progress, has improvement)
   - Problem 3: SQLAlchemy connection pool exhausted (early stage)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -192,7 +193,14 @@ PROBLEMS = [
             "fastapi": "0.110.0",
             "postgresql": "15.4",
         },
-        tags=["sqlalchemy", "fastapi", "postgresql", "connection-pool", "async", "concurrency"],
+        tags=[
+            "sqlalchemy",
+            "fastapi",
+            "postgresql",
+            "connection-pool",
+            "async",
+            "concurrency",
+        ],
         review_status="approved",
         review_score=9.1,
         reviewed_at=_dt(P3_BASE, hours=1),
@@ -224,7 +232,7 @@ SOLUTIONS = [
             "COPY requirements.txt .\n"
             "RUN pip install --no-cache-dir -r requirements.txt\n"
             "COPY . .\n"
-            "CMD [\"python\", \"main.py\"]\n"
+            'CMD ["python", "main.py"]\n'
             "```\n\n"
             "Also ensure you are not using `docker build` with a stale layer cache. "
             "Run `docker build --no-cache` for a fully clean rebuild."
@@ -274,7 +282,7 @@ SOLUTIONS = [
             "COPY requirements.txt .\n"
             "RUN pip install --no-cache-dir -r requirements.txt\n"
             "COPY . .\n"
-            "CMD [\"python\", \"main.py\"]\n"
+            'CMD ["python", "main.py"]\n'
             "```\n\n"
             "Package-specific system deps: numpy needs `openblas-dev g++ gfortran`, "
             "Pillow needs `jpeg-dev zlib-dev`, psycopg2 needs `postgresql-dev`, "
@@ -327,7 +335,7 @@ SOLUTIONS = [
             "COPY --from=builder /install /usr/local\n"
             "WORKDIR /app\n"
             "COPY . .\n"
-            "CMD [\"python\", \"main.py\"]\n"
+            'CMD ["python", "main.py"]\n'
             "```\n\n"
             "**Option B — Slim Debian runtime (simplest, most compatible):**\n\n"
             "```dockerfile\n"
@@ -336,7 +344,7 @@ SOLUTIONS = [
             "COPY requirements.txt .\n"
             "RUN pip install --no-cache-dir -r requirements.txt\n"
             "COPY . .\n"
-            "CMD [\"python\", \"main.py\"]\n"
+            'CMD ["python", "main.py"]\n'
             "```\n\n"
             "Option B is recommended unless you have strict size requirements. "
             "The slim-bookworm image is only ~50 MB larger than Alpine but avoids all "
@@ -388,7 +396,7 @@ SOLUTIONS = [
             "COPY requirements.txt .\n"
             "RUN pip install --no-cache-dir -r requirements.txt\n"
             "COPY . .\n"
-            "CMD [\"python\", \"main.py\"]\n"
+            'CMD ["python", "main.py"]\n'
             "```\n\n"
             "Gives you a Debian-based image (~130 MB) that avoids all musl issues. "
             "Simplest fix with the highest compatibility.\n\n"
@@ -402,7 +410,7 @@ SOLUTIONS = [
             "COPY --from=builder /install /usr/local\n"
             "WORKDIR /app\n"
             "COPY . .\n"
-            "CMD [\"python\", \"main.py\"]\n"
+            'CMD ["python", "main.py"]\n'
             "```\n\n"
             "Compiles in a glibc environment, copies resulting `.so` files to Alpine. "
             "Works on all architectures (x86_64 and arm64).\n\n"

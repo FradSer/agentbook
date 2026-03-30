@@ -8,7 +8,11 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from backend.application.confidence import calculate_confidence
+from backend.application.confidence import (
+    calculate_confidence,
+    evaluate_improvement,
+    is_content_regression,
+)
 from backend.application.errors import (
     ConcurrentModificationError,
     NotFoundError,
@@ -34,13 +38,17 @@ from backend.domain.repositories import (
     SolutionRepository,
     TokenTransactionRepository,
 )
-from backend.domain.services import EmbeddingProvider
+from backend.domain.services import EmbeddingProvider, EvaluatorProvider
 from backend.infrastructure.security import generate_api_key, hash_api_key
 
 logger = logging.getLogger(__name__)
 
 _RATE_LIMIT = 10
 _RATE_WINDOW_HOURS = 1
+
+# Dedicated UUID for the LLM evaluator agent so synthetic outcomes count
+# as "external" in the Bayesian reporter-diversity penalty.
+EVALUATOR_AGENT_ID = UUID("00000000-0000-0000-0000-000000000002")
 
 
 class AgentbookService:
@@ -49,6 +57,7 @@ class AgentbookService:
         agents: AgentRepository,
         transactions: TokenTransactionRepository,
         embedding_provider: EmbeddingProvider | None = None,
+        evaluator: EvaluatorProvider | None = None,
         problems: ProblemRepository = None,
         solutions: SolutionRepository = None,
         outcomes: OutcomeRepository = None,
@@ -57,6 +66,7 @@ class AgentbookService:
         self._agents = agents
         self._transactions = transactions
         self._embedding_provider = embedding_provider
+        self._evaluator = evaluator
         self._problems = problems
         self._solutions = solutions
         self._outcomes = outcomes
@@ -1009,27 +1019,27 @@ class AgentbookService:
         if existing is None:
             raise NotFoundError(f"Solution {solution_id} not found")
 
+        # Quality gate — content regression bypasses the gate (evaluate_improvement
+        # will reject it with reason "content_regression" instead of raising).
         gate_result = check_spam(
             improved_content,
             "solution",
             {"steps": improved_steps} if improved_steps else None,
         )
-        ok = gate_result.passed
-        # Check content regression before quality gate — too-short content is a regression, not an error
-        new_step_count = len(improved_steps or [])
-        existing_step_count = len(existing.steps or [])
-        content_regression_early = (
-            len(improved_content) < len(existing.content) * 0.5
-            and new_step_count <= existing_step_count
-        )
-        if not ok and not content_regression_early:
-            raise ValueError("solution_quality_check_failed")
+        if not gate_result.passed:
+            tmp = Solution(
+                problem_id=existing.problem_id,
+                author_id=author_id,
+                content=improved_content,
+                steps=improved_steps or [],
+            )
+            if not is_content_regression(existing, tmp):
+                raise ValueError("solution_quality_check_failed")
 
         problem = self._problems.get(existing.problem_id)
         if problem is None:
             raise NotFoundError(f"Problem {existing.problem_id} not found")
 
-        # Validate no cycle in parent's ancestry (prevents cycles from concurrent modifications)
         self._validate_no_lineage_cycle(solution_id)
 
         resolved_llm = self._llm_model_for_author(author_id, llm_model)
@@ -1046,55 +1056,18 @@ class AgentbookService:
         previous_best = problem.best_confidence
         new_confidence = new_solution.confidence
 
-        # Quality proxy: reject if new content is significantly shorter without more steps.
-        # This acts as a pre-filter against regressions before confidence-based hill-climbing.
-        new_step_count = len(improved_steps or [])
-        existing_step_count = len(existing.steps or [])
-        content_regression = (
-            len(improved_content) < len(existing.content) * 0.5
-            and new_step_count <= existing_step_count
-        )
-        content_bloat = (
-            len(improved_content) > len(existing.content) * 2.0
-            and new_step_count <= existing_step_count
-            and new_confidence <= existing.confidence + 0.05
-        )
-
-        # Cold-start tiebreaker: when the parent has no outcomes, Bayesian confidence
-        # is identical (baseline 0.3) for all solutions.  Use content quality heuristics
-        # to enable hill-climbing before real signal arrives.
-        if existing.outcome_count == 0 and new_confidence == existing.confidence:
-            from backend.application.cold_start import cold_start_compare
-
-            hill_climb_accepted = cold_start_compare(existing, new_solution)
-        else:
-            hill_climb_accepted = new_confidence > existing.confidence
-
-        # Simplification reward (Karpathy rule): a shorter solution that maintains
-        # confidence and step coverage is strictly preferred.
-        simplification_reward = (
-            len(improved_content) < len(existing.content) * 0.8
-            and new_step_count >= existing_step_count
-            and new_confidence >= existing.confidence
-        )
-
-        accepted = (
-            not content_regression
-            and not content_bloat
-            and (hill_climb_accepted or simplification_reward)
-        )
+        accepted, _reason = evaluate_improvement(existing, new_solution)
 
         if accepted:
-            # Hill-climbing: new is better — mark as candidate (deferred validation)
-            # The old solution is NOT immediately superseded; promotion happens when real
-            # outcome data confirms the improvement (see report_outcome promotion logic).
             new_solution.promotion_status = "candidate"
             self._solutions.update(new_solution)
             problem.solution_count += 1
             self._problems.update(problem)
             status = "improved"
+
+            # Run LLM A/B evaluation to generate immediate synthetic signal.
+            self._run_llm_evaluation(problem, existing, new_solution)
         else:
-            # New is worse, equal, or a content regression — mark new as superseded by existing
             new_solution.canonical_id = solution_id
             new_solution.promotion_status = "demoted"
             self._solutions.update(new_solution)
@@ -1122,6 +1095,38 @@ class AgentbookService:
             "previous_problem_best": previous_best,
             "new_confidence": new_confidence,
         }
+
+    def _run_llm_evaluation(
+        self,
+        problem: Problem,
+        existing: Solution,
+        proposed: Solution,
+    ) -> None:
+        """Run LLM A/B comparison and record result as a synthetic outcome."""
+        if self._evaluator is None:
+            return
+        try:
+            score = self._evaluator.compare(
+                problem_description=problem.description,
+                solution_a=existing.content,
+                solution_b=proposed.content,
+            )
+            synthetic = Outcome(
+                solution_id=proposed.solution_id,
+                reporter_id=EVALUATOR_AGENT_ID,
+                success=score > 0.5,
+                weight=0.3,
+                notes="llm_evaluation",
+            )
+            self._outcomes.add(synthetic)
+            proposed.outcome_count += 1
+            if score > 0.5:
+                proposed.success_count += 1
+            else:
+                proposed.failure_count += 1
+            self._solutions.update(proposed)
+        except Exception:
+            logger.warning("LLM evaluation failed", exc_info=True)
 
     def synthesize_solutions(
         self,

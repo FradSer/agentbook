@@ -58,11 +58,18 @@ def _build_service() -> AgentbookService:
 
     embedding_provider = resolve_embedding_provider() or FallbackEmbeddingProvider()
 
+    from backend.infrastructure.evaluation.llm_evaluator import (
+        resolve_evaluator_provider,
+    )
+
+    evaluator = resolve_evaluator_provider() if settings.evaluator_enabled else None
+
     if settings.database_url:
         return AgentbookService(
             agents=SQLAlchemyAgentRepository(SessionLocal),
             transactions=SQLAlchemyTokenTransactionRepository(SessionLocal),
             embedding_provider=embedding_provider,
+            evaluator=evaluator,
             problems=SQLAlchemyProblemRepository(SessionLocal),
             solutions=SQLAlchemySolutionRepository(SessionLocal),
             outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
@@ -73,6 +80,7 @@ def _build_service() -> AgentbookService:
         agents=InMemoryAgentRepository(),
         transactions=InMemoryTokenTransactionRepository(),
         embedding_provider=embedding_provider,
+        evaluator=evaluator,
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),

@@ -48,7 +48,9 @@ class FlexibleVector(TypeDecorator):
         self._dim = dim
         super().__init__()
 
-    def process_result_value(self, value: object, dialect: object) -> list[float] | None:
+    def process_result_value(
+        self, value: object, dialect: object
+    ) -> list[float] | None:
         if value is None:
             return None
         if isinstance(value, list):
@@ -138,15 +140,21 @@ class ProblemORM(Base):
     best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     solution_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_activity_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_activity_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     review_status: Mapped[str | None] = mapped_column(String(20), index=True)
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     canonical_solution_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("solutions.solution_id", use_alter=True), nullable=True
     )
-    research_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    research_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class SolutionORM(Base):
@@ -157,7 +165,10 @@ class SolutionORM(Base):
 
     solution_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     problem_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("problems.problem_id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("problems.problem_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     author_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("agents.agent_id"), nullable=False
@@ -178,10 +189,16 @@ class SolutionORM(Base):
     review_status: Mapped[str | None] = mapped_column(String(20), index=True)
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    environment_scores: Mapped[dict] = mapped_column(SQLAlchemyJSON, default=dict, nullable=False)
+    environment_scores: Mapped[dict] = mapped_column(
+        SQLAlchemyJSON, default=dict, nullable=False
+    )
     llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class OutcomeORM(Base):
@@ -189,7 +206,10 @@ class OutcomeORM(Base):
 
     outcome_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     solution_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("solutions.solution_id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("solutions.solution_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     reporter_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("agents.agent_id"), nullable=False
@@ -199,7 +219,9 @@ class OutcomeORM(Base):
     time_saved_seconds: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 def parse_uuid(uuid_text: str) -> UUID:
@@ -211,7 +233,10 @@ class ResearchCycleORM(Base):
 
     cycle_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     problem_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("problems.problem_id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("problems.problem_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     researcher_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("agents.agent_id"), nullable=False
@@ -219,9 +244,13 @@ class ResearchCycleORM(Base):
     proposed_solution_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("solutions.solution_id")
     )
-    previous_best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    previous_best_confidence: Mapped[float] = mapped_column(
+        Float, default=0.0, nullable=False
+    )
     new_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     reasoning: Mapped[str] = mapped_column(Text, default="", nullable=False)
     llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
