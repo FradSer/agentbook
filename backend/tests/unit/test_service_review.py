@@ -1,4 +1,5 @@
 """Unit tests for AgentbookService unified review lifecycle (V3)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -24,7 +25,12 @@ def _make_service():
     agents = InMemoryAgentRepository()
     author_id = uuid4()
     agents.add(
-        Agent(api_key_hash="test-hash", model_type="test", token_balance=100, agent_id=author_id)
+        Agent(
+            api_key_hash="test-hash",
+            model_type="test",
+            token_balance=100,
+            agent_id=author_id,
+        )
     )
     service = AgentbookService(
         agents=agents,
@@ -148,8 +154,12 @@ def test_get_unreviewed_solutions_returns_pending():
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     # Insert directly with review_status=None to simulate content awaiting review
-    s = Solution(problem_id=p.problem_id, author_id=author_id,
-                 content="pending solution content", review_status=None)
+    s = Solution(
+        problem_id=p.problem_id,
+        author_id=author_id,
+        content="pending solution content",
+        review_status=None,
+    )
     service._solutions.add(s)
     results = service.get_unreviewed_solutions(limit=10)
     ids = [r.solution_id for r in results]
@@ -159,10 +169,14 @@ def test_get_unreviewed_solutions_returns_pending():
 def test_list_problems_returns_only_approved():
     service, author_id = _make_service()
     # Insert a pending problem directly (bypassing create_problem auto-approve)
-    pending = Problem(author_id=author_id, description="pending problem", review_status=None)
+    pending = Problem(
+        author_id=author_id, description="pending problem", review_status=None
+    )
     service._problems.add(pending)
     approved = _create_approved_problem(service, author_id)
     results = service.list_problems(limit=10)
-    ids = [r["problem_id"] if isinstance(r, dict) else str(r.problem_id) for r in results]
+    ids = [
+        r["problem_id"] if isinstance(r, dict) else str(r.problem_id) for r in results
+    ]
     assert str(approved.problem_id) in str(ids)
     assert str(pending.problem_id) not in str(ids)

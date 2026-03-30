@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 from uuid import uuid4
 
 
@@ -76,19 +75,16 @@ def test_improve_solution_accepted_when_strictly_higher_confidence():
 def test_improve_solution_rejected_when_equal_confidence():
     service, author_id = _make_service()
     p, s = _setup_approved_problem_and_solution(service, author_id)
-    # Force the new solution to have same confidence as original
-    original_confidence = s.confidence
+    # Set outcome_count > 0 so the normal confidence path fires (not cold-start).
+    # New solution starts at baseline 0.3, existing at 0.4, so equal fails.
+    s.outcome_count = 1
+    service._solutions.update(s)
 
-    # Patch calculate_confidence to return the same value
-    with patch(
-        "backend.application.service.calculate_confidence",
-        return_value=original_confidence,
-    ):
-        result = service.improve_solution(
-            solution_id=s.solution_id,
-            improved_content="Install numpy with apk add musl-dev gcc then pip install numpy equals same",
-            reasoning="Same confidence",
-        )
+    result = service.improve_solution(
+        solution_id=s.solution_id,
+        improved_content="Install numpy with apk add musl-dev gcc then pip install numpy equals same",
+        reasoning="Same confidence",
+    )
     assert result["status"] == "no_improvement"
 
 
@@ -110,20 +106,22 @@ def test_improve_solution_rejected_content_bloat():
     service, author_id = _make_service()
     p, s = _setup_approved_problem_and_solution(service, author_id)
     s.confidence = 0.5
+    s.outcome_count = 1
     service._solutions.update(s)
 
-    # Content > 2x original with < 0.05 confidence gain
+    # Content > 2x original length. New solution starts at baseline 0.3,
+    # so confidence gain is 0.3 - 0.5 = negative. Bloat check fires because
+    # 0.3 <= 0.5 + 0.05.
     bloated_content = (
         "Install numpy with apk add musl-dev gcc then pip install numpy in Docker Alpine "
         * 10
     )
 
-    with patch("backend.application.service.calculate_confidence", return_value=0.52):
-        result = service.improve_solution(
-            solution_id=s.solution_id,
-            improved_content=bloated_content,
-            reasoning="Bloated with minimal gain",
-        )
+    result = service.improve_solution(
+        solution_id=s.solution_id,
+        improved_content=bloated_content,
+        reasoning="Bloated with minimal gain",
+    )
     assert result["status"] == "no_improvement"
 
 

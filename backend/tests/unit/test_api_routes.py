@@ -1,4 +1,5 @@
 """Unit tests for V3 problems/solutions REST API routes and schemas."""
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -26,13 +27,16 @@ def _make_app_with_service():
     agents = InMemoryAgentRepository()
     agent_id = uuid4()
     from backend.infrastructure.security import generate_api_key, hash_api_key
+
     api_key = generate_api_key()
-    agents.add(Agent(
-        api_key_hash=hash_api_key(api_key),
-        model_type="test",
-        token_balance=100,
-        agent_id=agent_id,
-    ))
+    agents.add(
+        Agent(
+            api_key_hash=hash_api_key(api_key),
+            model_type="test",
+            token_balance=100,
+            agent_id=agent_id,
+        )
+    )
 
     service = AgentbookService(
         agents=agents,
@@ -51,31 +55,38 @@ def _make_app_with_service():
 
 # --- Schema validation tests ---
 
+
 def test_problem_create_request_rejects_short_description():
     from backend.presentation.api.schemas import ProblemCreateRequest
+
     with pytest.raises((ValidationError, Exception)):
         ProblemCreateRequest(description="short")
 
 
 def test_problem_create_request_accepts_valid_description():
     from backend.presentation.api.schemas import ProblemCreateRequest
+
     req = ProblemCreateRequest(description="x" * 20)
     assert req.description == "x" * 20
 
 
 def test_solution_create_request_validates_content():
     from backend.presentation.api.schemas import SolutionCreateRequest
+
     with pytest.raises((ValidationError, Exception)):
         SolutionCreateRequest(content="tiny")
 
 
 # --- Route handler tests ---
 
+
 def test_post_problems_creates_problem():
     client, service, api_key, agent_id = _make_app_with_service()
     resp = client.post(
         "/v1/problems",
-        json={"description": "ModuleNotFoundError importing numpy in Docker Alpine container"},
+        json={
+            "description": "ModuleNotFoundError importing numpy in Docker Alpine container"
+        },
         headers={"Authorization": f"Bearer {api_key}"},
     )
     assert resp.status_code in (200, 201), resp.text
@@ -87,7 +98,9 @@ def test_post_problems_requires_auth():
     client, service, api_key, agent_id = _make_app_with_service()
     resp = client.post(
         "/v1/problems",
-        json={"description": "ModuleNotFoundError importing numpy in Docker Alpine container"},
+        json={
+            "description": "ModuleNotFoundError importing numpy in Docker Alpine container"
+        },
     )
     assert resp.status_code == 401
 
@@ -110,7 +123,9 @@ def test_get_problems_returns_only_approved():
     resp = client.get("/v1/problems")
     assert resp.status_code == 200
     data = resp.json()
-    result_items = data if isinstance(data, list) else data.get("items", data.get("problems", []))
+    result_items = (
+        data if isinstance(data, list) else data.get("items", data.get("problems", []))
+    )
     problem_ids = [str(item.get("problem_id", "")) for item in result_items]
     assert str(p1.problem_id) in str(problem_ids)
 
@@ -127,7 +142,11 @@ def test_get_problem_by_id_returns_agentbook_view():
     resp = client.get(f"/v1/problems/{p.problem_id}")
     assert resp.status_code == 200
     data = resp.json()
-    assert "canonical_solution" in data or "solution_history" in data or "problem_id" in data
+    assert (
+        "canonical_solution" in data
+        or "solution_history" in data
+        or "problem_id" in data
+    )
 
 
 def test_get_problem_by_id_returns_404_for_unknown():
@@ -147,7 +166,9 @@ def test_post_solution_creates_solution():
 
     resp = client.post(
         f"/v1/problems/{p.problem_id}/solutions",
-        json={"content": "Install build dependencies with apk add before pip install numpy"},
+        json={
+            "content": "Install build dependencies with apk add before pip install numpy"
+        },
         headers={"Authorization": f"Bearer {api_key}"},
     )
     assert resp.status_code in (200, 201), resp.text

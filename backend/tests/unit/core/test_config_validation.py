@@ -143,6 +143,7 @@ class TestSecretKeyValidation:
             else:
                 os.environ["DEBUG"] = original_debug
 
+
 class TestCorsWarning:
     """Test CORS warning in different environments."""
 
@@ -170,7 +171,9 @@ class TestCorsWarning:
                 assert settings.cors_allow_origins == "*"
 
             # Verify warning was logged
-            warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+            warning_messages = [
+                r.message for r in caplog.records if r.levelno == logging.WARNING
+            ]
             assert any("CORS_ALLOW_ORIGINS" in str(msg) for msg in warning_messages), (
                 f"Expected CORS warning, but got: {warning_messages}"
             )
@@ -206,8 +209,12 @@ class TestCorsWarning:
                 assert settings.cors_allow_origins == "*"
 
             # Verify no CORS warning was logged
-            warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
-            cors_warnings = [msg for msg in warning_messages if "CORS_ALLOW_ORIGINS" in str(msg)]
+            warning_messages = [
+                r.message for r in caplog.records if r.levelno == logging.WARNING
+            ]
+            cors_warnings = [
+                msg for msg in warning_messages if "CORS_ALLOW_ORIGINS" in str(msg)
+            ]
             assert len(cors_warnings) == 0, (
                 f"Expected no CORS warning in debug mode, but got: {cors_warnings}"
             )

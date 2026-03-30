@@ -7,7 +7,6 @@ BDD Scenarios:
 - Session ID contains only visible ASCII characters (0x21-0x7E)
 """
 
-
 from backend.presentation.mcp.session import (
     DEFAULT_SESSION_ID_LENGTH,
     MAX_SESSION_ID_LENGTH,

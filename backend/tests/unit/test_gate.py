@@ -1,4 +1,5 @@
 """Unit tests for the unified spam/quality gate — app/application/gate.py."""
+
 from __future__ import annotations
 
 import pytest

@@ -4,6 +4,7 @@ Integration tests require a live PostgreSQL instance and are only collected
 when RUN_DOCKER_TESTS=1 is set in the environment. This prevents import-time
 failures from blocking the default unit-test run.
 """
+
 from __future__ import annotations
 
 import os

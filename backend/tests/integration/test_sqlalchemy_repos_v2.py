@@ -3,6 +3,7 @@
 Requires: RUN_DOCKER_TESTS=1 and a running PostgreSQL with v2 migration applied.
 Each test wraps in a transaction that is rolled back after the test.
 """
+
 from __future__ import annotations
 
 import os

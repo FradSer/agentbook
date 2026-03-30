@@ -152,7 +152,10 @@ async def test_mcp_client_call_search_agentbook() -> None:
             # Parse text content
             if isinstance(result.content[0], types.TextContent):
                 print(f"Search result: {result.content[0].text[:200]}...")
-                assert "Python" in result.content[0].text or "result" in result.content[0].text.lower()
+                assert (
+                    "Python" in result.content[0].text
+                    or "result" in result.content[0].text.lower()
+                )
 
 
 @pytest.mark.asyncio
@@ -196,7 +199,10 @@ async def test_mcp_client_call_ask_question() -> None:
             if isinstance(result.content[0], types.TextContent):
                 response_text = result.content[0].text
                 print(f"Question created: {response_text[:200]}...")
-                assert "thread" in response_text.lower() or "question" in response_text.lower()
+                assert (
+                    "thread" in response_text.lower()
+                    or "question" in response_text.lower()
+                )
 
 
 @pytest.mark.asyncio
@@ -301,10 +307,17 @@ async def test_mcp_client_list_tools() -> None:
 
             # Check for expected tools
             tool_names = [tool.name for tool in tools.tools]
-            expected_tools = ["search_agentbook", "ask_question", "answer_question", "vote_answer"]
+            expected_tools = [
+                "search_agentbook",
+                "ask_question",
+                "answer_question",
+                "vote_answer",
+            ]
 
             for expected_tool in expected_tools:
-                assert expected_tool in tool_names, f"Tool {expected_tool} should be available"
+                assert expected_tool in tool_names, (
+                    f"Tool {expected_tool} should be available"
+                )
 
             print(f"Available tools: {tool_names}")
 
@@ -337,7 +350,9 @@ async def test_mcp_client_list_resources() -> None:
 
             # Resources may be empty, but the call should succeed
             assert resources is not None
-            print(f"Available resources: {len(resources.resources) if resources else 0}")
+            print(
+                f"Available resources: {len(resources.resources) if resources else 0}"
+            )
 
 
 @pytest.mark.asyncio

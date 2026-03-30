@@ -26,6 +26,7 @@ Given outcomes from one reporter vs many reporters
 When calculate_confidence is called
 Then diversity of reporters increases confidence
 """
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -170,9 +171,9 @@ def test_diverse_reporters_yield_higher_confidence_than_single_reporter() -> Non
     diverse_outcomes = [
         make_outcome(reporter_id=uuid4(), success=True) for _ in range(10)
     ]
-    assert calculate_confidence(
-        diverse_outcomes, AUTHOR_ID
-    ) > calculate_confidence(single_reporter_outcomes, AUTHOR_ID)
+    assert calculate_confidence(diverse_outcomes, AUTHOR_ID) > calculate_confidence(
+        single_reporter_outcomes, AUTHOR_ID
+    )
 
 
 # ---------------------------------------------------------------------------

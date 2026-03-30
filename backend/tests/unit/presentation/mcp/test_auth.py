@@ -66,6 +66,7 @@ class TestSSEEndpointAuthentication:
         os.environ["DEBUG"] = "true"
 
         from backend.core.config import settings
+
         settings.__dict__["secret_key"] = "test-secret-key-for-testing"
         settings.__dict__["debug"] = True
 
@@ -100,6 +101,7 @@ class TestSSEEndpointAuthentication:
         os.environ["DEBUG"] = "true"
 
         from backend.core.config import settings
+
         settings.__dict__["secret_key"] = "test-secret-key-for-testing"
         settings.__dict__["debug"] = True
 
@@ -135,6 +137,7 @@ class TestSSEEndpointAuthentication:
         os.environ["DEBUG"] = "true"
 
         from backend.core.config import settings
+
         settings.__dict__["secret_key"] = "test-secret-key-for-testing"
         settings.__dict__["debug"] = True
 
@@ -164,7 +167,9 @@ class TestMCPToolAgentValidation:
     a clear authentication error message.
     """
 
-    def test_get_authenticated_agent_raises_without_agent(self, mcp_server_with_service):
+    def test_get_authenticated_agent_raises_without_agent(
+        self, mcp_server_with_service
+    ):
         """Test _get_authenticated_agent raises ValueError when agent is None.
 
         BDD: No authenticated agent -> validation error
@@ -181,7 +186,9 @@ class TestMCPToolAgentValidation:
         with pytest.raises(ValueError, match="Authentication required.*ak_"):
             _get_authenticated_agent(mcp_server_with_service)
 
-    def test_get_authenticated_agent_returns_agent_when_present(self, mcp_server_with_service):
+    def test_get_authenticated_agent_returns_agent_when_present(
+        self, mcp_server_with_service
+    ):
         """Test _get_authenticated_agent returns agent when present.
 
         BDD: Authenticated agent present -> returns agent

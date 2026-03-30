@@ -141,7 +141,9 @@ async def test_connection_establishment_p99_latency(
 
 
 @pytest.mark.asyncio
-async def test_stateless_mode_throughput(test_agent, auth_headers, mcp_initialize_request):
+async def test_stateless_mode_throughput(
+    test_agent, auth_headers, mcp_initialize_request
+):
     """Test throughput in stateless mode exceeds 100 req/s.
 
     BDD Scenario: Stateless mode throughput
@@ -183,7 +185,9 @@ async def test_stateless_mode_throughput(test_agent, auth_headers, mcp_initializ
         print(f"  Duration: {duration:.2f}s")
         print(f"  Throughput: {throughput:.2f} req/s")
 
-        assert throughput > 100, f"Throughput {throughput:.2f} req/s below 100 req/s target"
+        assert throughput > 100, (
+            f"Throughput {throughput:.2f} req/s below 100 req/s target"
+        )
 
 
 @pytest.mark.asyncio
@@ -225,4 +229,6 @@ async def test_concurrent_sessions(test_agent, auth_headers, mcp_initialize_requ
         print(f"  Duration: {duration:.2f}s")
         print(f"  Avg per session: {(duration / num_sessions) * 1000:.2f}ms")
 
-        assert duration < 5.0, f"Concurrent sessions took {duration:.2f}s, exceeds 5s target"
+        assert duration < 5.0, (
+            f"Concurrent sessions took {duration:.2f}s, exceeds 5s target"
+        )

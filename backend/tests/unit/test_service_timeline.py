@@ -1,4 +1,5 @@
 """Unit tests for AgentbookService.get_problem_timeline."""
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -22,7 +23,14 @@ def _make_service():
 
     agents = InMemoryAgentRepository()
     author_id = uuid4()
-    agents.add(Agent(api_key_hash="test-hash", model_type="test", token_balance=100, agent_id=author_id))
+    agents.add(
+        Agent(
+            api_key_hash="test-hash",
+            model_type="test",
+            token_balance=100,
+            agent_id=author_id,
+        )
+    )
 
     service = AgentbookService(
         agents=agents,
@@ -42,8 +50,12 @@ def _create_approved_problem(service, author_id, description="Test error in Dock
     return p
 
 
-def _create_approved_solution(service, problem_id, author_id, content="Fix by running apt-get update"):
-    s = service.create_solution(problem_id=problem_id, author_id=author_id, content=content)
+def _create_approved_solution(
+    service, problem_id, author_id, content="Fix by running apt-get update"
+):
+    s = service.create_solution(
+        problem_id=problem_id, author_id=author_id, content=content
+    )
     s.review_status = "approved"
     service._solutions.update(s)
     return s
@@ -81,7 +93,9 @@ def test_timeline_includes_llm_model_from_agent_fallback():
     created = result["timeline"][0]
     assert created["event_type"] == "problem_created"
     assert created["llm_model"] == "test"
-    sol_event = next(e for e in result["timeline"] if e["event_type"] == "solution_proposed")
+    sol_event = next(
+        e for e in result["timeline"] if e["event_type"] == "solution_proposed"
+    )
     assert sol_event["llm_model"] == "test"
 
 
@@ -109,7 +123,9 @@ def test_timeline_solution_improved_has_parent():
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)
-    improved_events = [e for e in result["timeline"] if e["event_type"] == "solution_improved"]
+    improved_events = [
+        e for e in result["timeline"] if e["event_type"] == "solution_improved"
+    ]
     assert len(improved_events) >= 1
     event = improved_events[0]
     assert event["parent_solution_id"] == str(s.solution_id)
@@ -129,7 +145,9 @@ def test_timeline_solution_improved_merges_research_cycle():
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)
-    improved_events = [e for e in result["timeline"] if e["event_type"] == "solution_improved"]
+    improved_events = [
+        e for e in result["timeline"] if e["event_type"] == "solution_improved"
+    ]
     assert len(improved_events) >= 1
     event = improved_events[0]
     # ResearchCycle reasoning should be merged into the solution event
@@ -150,7 +168,9 @@ def test_timeline_research_skipped_only_for_no_proposed():
         status="no_improvement",
     )
     result = service.get_problem_timeline(p.problem_id)
-    skipped_events = [e for e in result["timeline"] if e["event_type"] == "research_skipped"]
+    skipped_events = [
+        e for e in result["timeline"] if e["event_type"] == "research_skipped"
+    ]
     assert len(skipped_events) == 1
     assert skipped_events[0]["reasoning"] == "No good improvement found"
 
@@ -181,7 +201,14 @@ def test_timeline_includes_outcome_reported():
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
     reporter_id = uuid4()
-    service._agents.add(Agent(api_key_hash="reporter-hash", model_type="test", token_balance=100, agent_id=reporter_id))
+    service._agents.add(
+        Agent(
+            api_key_hash="reporter-hash",
+            model_type="test",
+            token_balance=100,
+            agent_id=reporter_id,
+        )
+    )
     service.report_outcome(
         reporter_id=reporter_id,
         solution_id=s.solution_id,
@@ -189,7 +216,9 @@ def test_timeline_includes_outcome_reported():
         notes="Worked great",
     )
     result = service.get_problem_timeline(p.problem_id)
-    outcome_events = [e for e in result["timeline"] if e["event_type"] == "outcome_reported"]
+    outcome_events = [
+        e for e in result["timeline"] if e["event_type"] == "outcome_reported"
+    ]
     assert len(outcome_events) == 1
     assert outcome_events[0]["success"] is True
     assert outcome_events[0]["solution_id"] == str(s.solution_id)
@@ -228,7 +257,9 @@ def test_timeline_promotion_status_included():
         author_id=author_id,
     )
     result = service.get_problem_timeline(p.problem_id)
-    improved_events = [e for e in result["timeline"] if e["event_type"] == "solution_improved"]
+    improved_events = [
+        e for e in result["timeline"] if e["event_type"] == "solution_improved"
+    ]
     assert len(improved_events) >= 1
     # promotion_status should be present (candidate for hill-climbing accepted)
     assert "promotion_status" in improved_events[0]
@@ -238,15 +269,24 @@ def test_timeline_synthesis_created_event():
     """synthesize_solutions() should appear as synthesis_created, not solution_proposed."""
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
-    _create_approved_solution(service, p.problem_id, author_id, content="Solution A with good detail " * 5)
-    _create_approved_solution(service, p.problem_id, author_id, content="Solution B with different approach " * 5)
+    _create_approved_solution(
+        service, p.problem_id, author_id, content="Solution A with good detail " * 5
+    )
+    _create_approved_solution(
+        service,
+        p.problem_id,
+        author_id,
+        content="Solution B with different approach " * 5,
+    )
     service.synthesize_solutions(
         problem_id=p.problem_id,
         synthesized_content="Canonical synthesis combining both approaches " * 5,
         author_id=UUID("00000000-0000-0000-0000-000000000001"),
     )
     result = service.get_problem_timeline(p.problem_id)
-    synthesis_events = [e for e in result["timeline"] if e["event_type"] == "synthesis_created"]
+    synthesis_events = [
+        e for e in result["timeline"] if e["event_type"] == "synthesis_created"
+    ]
     assert len(synthesis_events) == 1
     canonical_id = result["problem"]["canonical_solution_id"]
     assert canonical_id is not None

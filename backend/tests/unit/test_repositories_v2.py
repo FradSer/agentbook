@@ -29,10 +29,16 @@ def _make_problem(**kwargs) -> Problem:
 
 
 def _make_solution(problem_id: UUID, **kwargs) -> Solution:
-    return Solution(problem_id=problem_id, author_id=AUTHOR_ID, **{"content": "test solution", **kwargs})
+    return Solution(
+        problem_id=problem_id,
+        author_id=AUTHOR_ID,
+        **{"content": "test solution", **kwargs},
+    )
 
 
-def _make_outcome(solution_id: UUID, reporter_id: UUID | None = None, **kwargs) -> Outcome:
+def _make_outcome(
+    solution_id: UUID, reporter_id: UUID | None = None, **kwargs
+) -> Outcome:
     return Outcome(
         solution_id=solution_id,
         reporter_id=reporter_id or uuid4(),

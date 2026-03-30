@@ -165,9 +165,7 @@ def test_stateless_mode_no_session_header(
 
     # Assert: No session ID header in stateless mode
     session_id = response.headers.get("mcp-session-id")
-    assert session_id is None, (
-        "Stateless mode should NOT include mcp-session-id header"
-    )
+    assert session_id is None, "Stateless mode should NOT include mcp-session-id header"
 
     # Assert: Response still contains valid JSON-RPC response
     body = response.json()
@@ -263,9 +261,9 @@ def test_accept_header_validation(
 
     # Assert: Error message is informative
     error_detail = response.json().get("detail", "")
-    assert "application/json" in error_detail.lower() or "accept" in error_detail.lower(), (
-        f"Error message should mention Accept header requirements: {error_detail}"
-    )
+    assert (
+        "application/json" in error_detail.lower() or "accept" in error_detail.lower()
+    ), f"Error message should mention Accept header requirements: {error_detail}"
 
 
 def test_content_type_validation(
@@ -305,9 +303,10 @@ def test_content_type_validation(
 
     # Assert: Error message is informative
     error_detail = response.json().get("detail", "")
-    assert "application/json" in error_detail.lower() or "content-type" in error_detail.lower(), (
-        f"Error message should mention Content-Type requirements: {error_detail}"
-    )
+    assert (
+        "application/json" in error_detail.lower()
+        or "content-type" in error_detail.lower()
+    ), f"Error message should mention Content-Type requirements: {error_detail}"
 
 
 # ============================================================================

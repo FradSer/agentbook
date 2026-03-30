@@ -19,8 +19,10 @@ def test_synthesize_solutions_creates_canonical_solution():
         )
         for i in range(4)
     ]
+
     def llm_stub(prompt):
         return "Canonical unified solution for pydantic v2 migration"
+
     canonical = synthesize_solutions(solutions, problem, llm_stub)
     assert canonical.content == "Canonical unified solution for pydantic v2 migration"
     assert canonical.canonical_id is None
@@ -39,8 +41,10 @@ def test_synthesize_solutions_inherits_outcome_counts():
         )
         for i in range(4)
     ]
+
     def llm_stub(prompt):
         return "synthesized"
+
     canonical = synthesize_solutions(solutions, problem, llm_stub)
     assert canonical.outcome_count == 120
     assert canonical.success_count == 96

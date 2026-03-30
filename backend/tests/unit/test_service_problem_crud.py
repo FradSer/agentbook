@@ -1,4 +1,5 @@
 """Unit tests for AgentbookService problem/solution CRUD (V3)."""
+
 from __future__ import annotations
 
 from uuid import uuid4
@@ -32,6 +33,7 @@ def _make_service(with_embedding=False):
     embedding_provider = None
     if with_embedding:
         from unittest.mock import AsyncMock, MagicMock
+
         provider = MagicMock()
         provider.embed = AsyncMock(return_value=[0.1] * 1536)
         embedding_provider = provider

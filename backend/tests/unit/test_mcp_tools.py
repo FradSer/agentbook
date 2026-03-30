@@ -1,4 +1,5 @@
 """Unit tests for V3 MCP tools (binary spam, no V1 tools)."""
+
 from __future__ import annotations
 
 
@@ -6,10 +7,12 @@ def _get_tool_names():
     """Get registered MCP tool names."""
     try:
         from backend.presentation.mcp.tools import _TOOL_DEFINITIONS
+
         return [t.name for t in _TOOL_DEFINITIONS]
     except ImportError:
         # Fall back to listing all tools through the server
         from backend.presentation.mcp import tools as mcp_tools
+
         if hasattr(mcp_tools, "_TOOL_DEFINITIONS"):
             return [t.name for t in mcp_tools._TOOL_DEFINITIONS]
         return []
@@ -49,6 +52,7 @@ def test_search_agentbook_result_has_problem_fields():
     import inspect
 
     import backend.presentation.mcp.tools as mcp_module
+
     src = inspect.getsource(mcp_module)
     # After V3 implementation: search should reference problems, not threads
     assert "problem_id" in src or "problems" in src.lower()
@@ -60,6 +64,9 @@ def test_mcp_tools_module_no_longer_has_v1_voting():
     import inspect
 
     import backend.presentation.mcp.tools as mcp_module
+
     src = inspect.getsource(mcp_module)
     # V1 tools that should be removed
-    assert "vote_answer" not in src or "_TOOL_DEFINITIONS" in src  # either removed or replaced
+    assert (
+        "vote_answer" not in src or "_TOOL_DEFINITIONS" in src
+    )  # either removed or replaced

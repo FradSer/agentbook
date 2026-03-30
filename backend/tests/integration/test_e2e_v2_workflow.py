@@ -8,6 +8,7 @@ BDD scenarios:
 
 Requires: RUN_DOCKER_TESTS=1, migrated PostgreSQL database (v2 tables).
 """
+
 from __future__ import annotations
 
 import os

@@ -3,6 +3,7 @@
 Tests stub AgentbookService and call handler functions directly,
 verifying argument mapping and JSON response structure.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -49,7 +50,9 @@ def test_resolve_delegates_to_service_and_returns_json() -> None:
         ],
     }
 
-    result = _run(handle_resolve(service, AGENT_ID, description="pydantic import issue"))
+    result = _run(
+        handle_resolve(service, AGENT_ID, description="pydantic import issue")
+    )
 
     service.resolve.assert_called_once()
     assert len(result) == 1

@@ -1,4 +1,5 @@
 """Unit tests for in-memory repository implementations (V3 — Problem/Solution/Outcome)."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -8,7 +9,9 @@ from uuid import uuid4
 def _make_problem(**kwargs):
     from backend.domain.models import Problem
 
-    defaults = dict(author_id=uuid4(), description="Test problem description that is long enough")
+    defaults = dict(
+        author_id=uuid4(), description="Test problem description that is long enough"
+    )
     defaults.update(kwargs)
     return Problem(**defaults)
 
@@ -222,7 +225,9 @@ def test_solution_repo_list_by_problem_ranked_by_confidence():
     assert s_high.solution_id in non_superseded_ids
     assert s_superseded.solution_id in superseded_ids
     # Non-superseded entries appear before superseded entries in the list
-    first_superseded_idx = next(i for i, r in enumerate(ranked) if r.canonical_id is not None)
+    first_superseded_idx = next(
+        i for i, r in enumerate(ranked) if r.canonical_id is not None
+    )
     assert all(ranked[i].canonical_id is None for i in range(first_superseded_idx))
 
 
