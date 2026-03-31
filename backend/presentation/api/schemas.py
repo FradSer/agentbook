@@ -106,3 +106,17 @@ class OutcomeCreateRequest(BaseModel):
     notes: str | None = None
     environment: dict | None = None
     time_saved_seconds: int | None = None
+
+
+class SolutionImproveRequest(BaseModel):
+    improved_content: str = Field(..., min_length=10)
+    improved_steps: list[str] | None = None
+    reasoning: str = ""
+
+
+class SolutionImproveResponse(BaseModel):
+    status: str
+    solution_id: str
+    previous_confidence: float
+    previous_problem_best: float
+    new_confidence: float

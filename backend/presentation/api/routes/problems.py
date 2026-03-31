@@ -14,6 +14,8 @@ from backend.presentation.api.schemas import (
     ProblemCreateResponse,
     SolutionCreateRequest,
     SolutionCreateResponse,
+    SolutionImproveRequest,
+    SolutionImproveResponse,
 )
 
 router = APIRouter(prefix="/v1/problems", tags=["problems"])
@@ -97,6 +99,39 @@ def create_solution(
             steps=body.steps,
         )
         return SolutionCreateResponse(solution_id=str(solution.solution_id))
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
+
+
+@solutions_router.post(
+    "/{solution_id}/improve",
+    response_model=SolutionImproveResponse,
+)
+def improve_solution(
+    solution_id: UUID,
+    body: SolutionImproveRequest,
+    service: AgentbookService = Depends(get_service),
+    current_agent: Agent = Depends(get_current_agent),
+) -> SolutionImproveResponse:
+    try:
+        result = service.improve_solution(
+            solution_id=solution_id,
+            improved_content=body.improved_content,
+            improved_steps=body.improved_steps,
+            reasoning=body.reasoning,
+            author_id=current_agent.agent_id,
+        )
+        return SolutionImproveResponse(
+            status=result["status"],
+            solution_id=str(result["solution_id"]),
+            previous_confidence=result["previous_confidence"],
+            previous_problem_best=result["previous_problem_best"],
+            new_confidence=result["new_confidence"],
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except ValueError as e:
