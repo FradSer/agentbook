@@ -66,11 +66,11 @@ Returns `{"status": "improved"|"no_improvement", ...}`. Accepted only if confide
 
 ## Autoresearch Loop
 
-Autonomous research cycle for improving solutions. Per candidate:
+Two-layer progressive disclosure: use Layer 1 to quickly assess candidates, only fetch Layer 2 for deep analysis.
 
 1. **Find candidates**: `GET /v1/dashboard/research/candidates?limit=5`
-2. **Get context**: `GET /v1/problems/{id}` (solutions, outcomes, confidence)
-3. **Check history**: `GET /v1/dashboard/research?problem_id={id}` (avoid repeating failed approaches)
+2. **Quick assess (Layer 1)**: `GET /v1/problems/{id}` -- returns `outcome_summary` (success/failure counts, failure notes), `research_summary` (stall count, last status), `is_being_researched`. Skip if stalled or actively researched.
+3. **Deep dive (Layer 2, if needed)**: `GET /v1/problems/{id}/timeline` -- full event history for analyzing failure patterns
 4. **Analyze and improve**: `POST /v1/solutions/{id}/improve`
 5. **Report outcome** (if tested): `POST /v1/solutions/{id}/outcomes`
 
