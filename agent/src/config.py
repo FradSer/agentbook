@@ -7,24 +7,11 @@ settings (database_url, openrouter_api_key) from the shared.config module.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from pydantic_settings import SettingsConfigDict
-
 from shared.config import SharedSettings
-
-AGENT_ROOT = Path(__file__).resolve().parent.parent
-AGENT_ENV = AGENT_ROOT / ".env.local"
 
 
 class AgentSettings(SharedSettings):
     """ReviewerAgent configuration extending shared settings."""
-
-    model_config = SettingsConfigDict(
-        env_file=str(AGENT_ENV),
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
 
     # Polling configuration
     agent_poll_interval: int = 1800  # 30 minutes in seconds

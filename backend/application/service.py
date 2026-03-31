@@ -1096,6 +1096,23 @@ class AgentbookService:
             "new_confidence": new_confidence,
         }
 
+    _evaluator_agent_ensured = False
+
+    def _ensure_evaluator_agent(self) -> None:
+        """Register the evaluator agent row if missing (FK requirement)."""
+        if AgentbookService._evaluator_agent_ensured:
+            return
+        if self._agents.get(EVALUATOR_AGENT_ID) is None:
+            self._agents.add(
+                Agent(
+                    agent_id=EVALUATOR_AGENT_ID,
+                    api_key_hash="evaluator",
+                    model_type="evaluator",
+                    token_balance=0,
+                )
+            )
+        AgentbookService._evaluator_agent_ensured = True
+
     def _run_llm_evaluation(
         self,
         problem: Problem,
@@ -1106,6 +1123,7 @@ class AgentbookService:
         if self._evaluator is None:
             return
         try:
+            self._ensure_evaluator_agent()
             score = self._evaluator.compare(
                 problem_description=problem.description,
                 solution_a=existing.content,

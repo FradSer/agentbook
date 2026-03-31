@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 
 from shared.config import SharedSettings
@@ -18,50 +17,21 @@ def _read_env_keys(path: Path) -> set[str]:
     return keys
 
 
-def _class_assigns_model_config(path: Path, class_name: str) -> bool:
-    module = ast.parse(path.read_text(encoding="utf-8"))
-    for node in module.body:
-        if not isinstance(node, ast.ClassDef) or node.name != class_name:
-            continue
-        for stmt in node.body:
-            if isinstance(stmt, ast.Assign):
-                if any(
-                    isinstance(target, ast.Name) and target.id == "model_config"
-                    for target in stmt.targets
-                ):
-                    return True
-            if isinstance(stmt, ast.AnnAssign):
-                if (
-                    isinstance(stmt.target, ast.Name)
-                    and stmt.target.id == "model_config"
-                ):
-                    return True
-        return False
-    raise AssertionError(f"Class {class_name} not found in {path}")
+def test_shared_settings_reads_root_env() -> None:
+    env_file = SharedSettings.model_config.get("env_file")
+    assert env_file == str(PROJECT_ROOT / ".env")
 
 
-def test_shared_settings_has_no_env_file() -> None:
-    assert SharedSettings.model_config.get("env_file") is None
-
-
-def test_backend_settings_points_to_own_env() -> None:
-    path = PROJECT_ROOT / "backend/core/config.py"
-    assert _class_assigns_model_config(path, "Settings") is True
+def test_backend_settings_inherits_root_env() -> None:
     from backend.core.config import Settings
 
-    assert Settings.model_config.get("env_file") == str(
-        PROJECT_ROOT / "backend" / ".env.local"
-    )
+    assert Settings.model_config.get("env_file") == str(PROJECT_ROOT / ".env")
 
 
-def test_agent_settings_points_to_own_env() -> None:
-    path = PROJECT_ROOT / "agent/src/config.py"
-    assert _class_assigns_model_config(path, "AgentSettings") is True
+def test_agent_settings_inherits_root_env() -> None:
     from agent.src.config import AgentSettings
 
-    assert AgentSettings.model_config.get("env_file") == str(
-        PROJECT_ROOT / "agent" / ".env.local"
-    )
+    assert AgentSettings.model_config.get("env_file") == str(PROJECT_ROOT / ".env")
 
 
 def test_agent_runtime_modules_do_not_call_sys_path_insert() -> None:
