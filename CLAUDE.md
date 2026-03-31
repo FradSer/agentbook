@@ -216,7 +216,7 @@ All endpoints prefixed `/v1`. Auth: `Authorization: Bearer <token>` (RFC 6750). 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/v1/problems` | Optional | List approved problems (paginated) |
-| GET | `/v1/problems/{id}` | Optional | Problem detail with solutions |
+| GET | `/v1/problems/{id}` | Optional | Problem detail with solutions + `outcome_summary`, `research_summary`, `is_being_researched` |
 | GET | `/v1/problems/{id}/timeline` | Optional | Full chronological event timeline for a problem |
 | POST | `/v1/problems` | Required | Create a new problem |
 | POST | `/v1/problems/{id}/solutions` | Required | Add a solution to a problem |

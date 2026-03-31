@@ -493,6 +493,53 @@ class AgentbookService:
             or s.solution_id != problem.canonical_solution_id
         ]
 
+        # Outcome summary for the best solution (cheap research signal)
+        best_sol = canonical_sol or (
+            visible_solutions[0] if visible_solutions else None
+        )
+        if best_sol and all_solutions:
+            sol_ids = [s.solution_id for s in all_solutions]
+            all_outcomes = self._outcomes.list_by_problem(problem_id, sol_ids)
+            best_outcomes = [
+                o for o in all_outcomes if o.solution_id == best_sol.solution_id
+            ]
+            successes = sum(1 for o in best_outcomes if o.success)
+            failure_notes = [
+                o.notes for o in best_outcomes if not o.success and o.notes
+            ][-3:]
+            outcome_summary: dict = {
+                "total": len(best_outcomes),
+                "successes": successes,
+                "failures": len(best_outcomes) - successes,
+                "recent_failure_notes": failure_notes,
+            }
+        else:
+            outcome_summary = {
+                "total": 0,
+                "successes": 0,
+                "failures": 0,
+                "recent_failure_notes": [],
+            }
+
+        # Research summary (stall detection for autoresearch)
+        if self._research_cycles is not None:
+            cycles = self._research_cycles.list_by_problem(problem_id)
+            last_at = self._research_cycles.last_researched_at(problem_id)
+            stall_count = self._research_cycles.consecutive_no_improvement(problem_id)
+            research_summary: dict = {
+                "total_cycles": len(cycles),
+                "last_status": cycles[0].status if cycles else None,
+                "consecutive_no_improvement": stall_count,
+                "last_researched_at": last_at.isoformat() if last_at else None,
+            }
+        else:
+            research_summary = {
+                "total_cycles": 0,
+                "last_status": None,
+                "consecutive_no_improvement": 0,
+                "last_researched_at": None,
+            }
+
         return {
             "problem_id": str(problem.problem_id),
             "description": problem.description,
@@ -506,6 +553,9 @@ class AgentbookService:
             "best_confidence": problem.best_confidence,
             "solution_count": problem.solution_count,
             "has_canonical": problem.canonical_solution_id is not None,
+            "outcome_summary": outcome_summary,
+            "research_summary": research_summary,
+            "is_being_researched": _is_being_researched(problem),
         }
 
     def _pick_best_solution(self, problem_id: UUID) -> dict | None:

@@ -202,3 +202,82 @@ def test_search_result_includes_best_solution_fields():
     assert best is not None
     for key in ("confidence", "content_preview"):
         assert key in best, f"Missing key in best_solution: {key}"
+
+
+# --- Progressive disclosure fields ---
+
+
+def test_get_agentbook_includes_outcome_summary_with_data():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    s = _create_approved_solution(service, p.problem_id, author_id)
+    service.report_outcome(
+        solution_id=s.solution_id,
+        reporter_id=author_id,
+        success=True,
+        notes="Worked",
+    )
+    service.report_outcome(
+        solution_id=s.solution_id,
+        reporter_id=author_id,
+        success=False,
+        notes="Failed on Alpine",
+    )
+    result = service.get_agentbook(p.problem_id)
+    summary = result["outcome_summary"]
+    assert summary["total"] == 2
+    assert summary["successes"] == 1
+    assert summary["failures"] == 1
+    assert "Failed on Alpine" in summary["recent_failure_notes"]
+
+
+def test_get_agentbook_outcome_summary_empty_when_no_outcomes():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    _create_approved_solution(service, p.problem_id, author_id)
+    result = service.get_agentbook(p.problem_id)
+    summary = result["outcome_summary"]
+    assert summary["total"] == 0
+    assert summary["recent_failure_notes"] == []
+
+
+def test_get_agentbook_includes_research_summary_with_cycles():
+    from backend.domain.models import ResearchCycle
+
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    _create_approved_solution(service, p.problem_id, author_id)
+    service._research_cycles.add(
+        ResearchCycle(
+            problem_id=p.problem_id,
+            researcher_id=author_id,
+            proposed_solution_id=None,
+            previous_best_confidence=0.3,
+            new_confidence=0.3,
+            status="no_improvement",
+            reasoning="No better approach found",
+        )
+    )
+    result = service.get_agentbook(p.problem_id)
+    summary = result["research_summary"]
+    assert summary["total_cycles"] == 1
+    assert summary["last_status"] == "no_improvement"
+    assert summary["consecutive_no_improvement"] == 1
+    assert summary["last_researched_at"] is not None
+
+
+def test_get_agentbook_research_summary_empty_when_no_cycles():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    result = service.get_agentbook(p.problem_id)
+    summary = result["research_summary"]
+    assert summary["total_cycles"] == 0
+    assert summary["last_status"] is None
+    assert summary["consecutive_no_improvement"] == 0
+
+
+def test_get_agentbook_includes_is_being_researched():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    result = service.get_agentbook(p.problem_id)
+    assert result["is_being_researched"] is False
