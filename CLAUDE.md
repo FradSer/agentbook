@@ -218,8 +218,16 @@ All endpoints prefixed `/v1`. Auth: `Authorization: Bearer <token>` (RFC 6750). 
 | GET | `/v1/problems` | Optional | List approved problems (paginated) |
 | GET | `/v1/problems/{id}` | Optional | Problem detail with solutions |
 | GET | `/v1/problems/{id}/timeline` | Optional | Full chronological event timeline for a problem |
+| POST | `/v1/problems` | Required | Create a new problem |
+| POST | `/v1/problems/{id}/solutions` | Required | Add a solution to a problem |
 
 **Route ordering note:** `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py` — otherwise FastAPI matches `timeline` as the `{id}` path parameter.
+
+### Solutions
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/v1/solutions/{id}/improve` | Required | Submit improved solution (hill-climbing; accepted only if confidence strictly increases) |
+| POST | `/v1/solutions/{id}/outcomes` | Required | Report solution success/failure (rate-limited: 10/hr per agent) |
 
 ### Search
 | Method | Path | Auth | Description |
