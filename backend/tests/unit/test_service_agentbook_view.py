@@ -281,3 +281,40 @@ def test_get_agentbook_includes_is_being_researched():
     p = _create_approved_problem(service, author_id)
     result = service.get_agentbook(p.problem_id)
     assert result["is_being_researched"] is False
+
+
+def test_get_agentbook_outcome_summary_uses_synthesized_canonical_sources():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    first = _create_approved_solution(
+        service, p.problem_id, author_id, content="First approach"
+    )
+    second = _create_approved_solution(
+        service, p.problem_id, author_id, content="Second approach"
+    )
+    service.report_outcome(
+        solution_id=first.solution_id,
+        reporter_id=author_id,
+        success=True,
+        notes="Worked in CI",
+    )
+    service.report_outcome(
+        solution_id=second.solution_id,
+        reporter_id=author_id,
+        success=False,
+        notes="Failed on macOS",
+    )
+
+    service.synthesize_solutions(
+        p.problem_id,
+        synthesized_content="Canonical synthesis of both approaches",
+    )
+
+    result = service.get_agentbook(p.problem_id)
+    summary = result["outcome_summary"]
+
+    assert result["canonical_solution"]["outcome_count"] == 2
+    assert summary["total"] == 2
+    assert summary["successes"] == 1
+    assert summary["failures"] == 1
+    assert "Failed on macOS" in summary["recent_failure_notes"]

@@ -497,29 +497,43 @@ class AgentbookService:
         best_sol = canonical_sol or (
             visible_solutions[0] if visible_solutions else None
         )
-        if best_sol and all_solutions:
-            sol_ids = [s.solution_id for s in all_solutions]
-            all_outcomes = self._outcomes.list_by_problem(problem_id, sol_ids)
-            best_outcomes = [
-                o for o in all_outcomes if o.solution_id == best_sol.solution_id
-            ]
-            successes = sum(1 for o in best_outcomes if o.success)
-            failure_notes = [
-                o.notes for o in best_outcomes if not o.success and o.notes
-            ][-3:]
-            outcome_summary: dict = {
-                "total": len(best_outcomes),
-                "successes": successes,
-                "failures": len(best_outcomes) - successes,
-                "recent_failure_notes": failure_notes,
-            }
-        else:
-            outcome_summary = {
-                "total": 0,
-                "successes": 0,
-                "failures": 0,
-                "recent_failure_notes": [],
-            }
+        outcome_summary = {
+            "total": 0,
+            "successes": 0,
+            "failures": 0,
+            "recent_failure_notes": [],
+        }
+        if best_sol:
+            summary_solution_ids = [best_sol.solution_id]
+            if canonical_sol and best_sol.solution_id == canonical_sol.solution_id:
+                source_ids = [
+                    s.solution_id
+                    for s in all_solutions
+                    if s.canonical_id == canonical_sol.solution_id
+                ]
+                summary_solution_ids.extend(source_ids)
+
+            best_outcomes = self._outcomes.list_by_problem(
+                problem_id, summary_solution_ids
+            )
+            if best_outcomes:
+                successes = sum(1 for o in best_outcomes if o.success)
+                failure_notes = [
+                    o.notes for o in best_outcomes if not o.success and o.notes
+                ][-3:]
+                outcome_summary = {
+                    "total": len(best_outcomes),
+                    "successes": successes,
+                    "failures": len(best_outcomes) - successes,
+                    "recent_failure_notes": failure_notes,
+                }
+            elif best_sol.outcome_count > 0:
+                outcome_summary = {
+                    "total": best_sol.outcome_count,
+                    "successes": best_sol.success_count,
+                    "failures": best_sol.failure_count,
+                    "recent_failure_notes": [],
+                }
 
         # Research summary (stall detection for autoresearch)
         if self._research_cycles is not None:
