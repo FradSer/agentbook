@@ -115,12 +115,18 @@ def is_content_regression(
 def evaluate_improvement(
     existing: Solution,
     proposed: Solution,
+    evaluator_score: float | None = None,
 ) -> tuple[bool, str]:
     """Single decision function: should proposed replace existing?
 
     Like autoresearch's ``new_val_bpb < old_val_bpb`` but multi-factor.
     Encapsulates content regression, content bloat, cold-start heuristics,
     strict hill-climbing, and simplification reward.
+
+    Args:
+        evaluator_score: Optional LLM A/B comparison result (0.0-1.0, >0.5
+            means proposed is better).  Used during cold-start as a proxy
+            for autoresearch's deterministic ``prepare.py`` measurement.
 
     Returns ``(accepted, reason_code)`` for auditability.
 
@@ -142,8 +148,22 @@ def evaluate_improvement(
     ):
         return False, "content_bloat"
 
-    # 3. Cold-start: both at baseline with no outcomes — use content quality
+    # 3. Cold-start: both at baseline with no outcomes
     if existing.outcome_count == 0 and proposed.confidence == existing.confidence:
+        # 3a. Simplification wins even during cold-start (Karpathy rule)
+        if (
+            len(proposed.content) < len(existing.content) * 0.8
+            and new_steps >= old_steps
+        ):
+            return True, "cold_start_simplification"
+
+        # 3b. LLM evaluator signal (proxy for prepare.py)
+        if evaluator_score is not None:
+            if evaluator_score > 0.5:
+                return True, "cold_start_evaluator_better"
+            return False, "cold_start_evaluator_no_improvement"
+
+        # 3c. Content quality heuristic fallback
         proposed_score = _content_quality_score(proposed)
         existing_score = _content_quality_score(existing)
         if proposed_score > existing_score:
