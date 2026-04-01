@@ -1120,7 +1120,21 @@ class AgentbookService:
         previous_best = problem.best_confidence
         new_confidence = new_solution.confidence
 
-        accepted, _reason = evaluate_improvement(existing, new_solution)
+        # During cold-start (both 0 outcomes), run LLM eval BEFORE the
+        # decision -- proxy for autoresearch's deterministic prepare.py.
+        evaluator_score: float | None = None
+        is_cold_start = (
+            existing.outcome_count == 0
+            and new_solution.confidence == existing.confidence
+        )
+        if is_cold_start:
+            evaluator_score = self._get_llm_evaluation_score(
+                problem, existing, new_solution
+            )
+
+        accepted, _reason = evaluate_improvement(
+            existing, new_solution, evaluator_score=evaluator_score
+        )
 
         if accepted:
             new_solution.promotion_status = "candidate"
@@ -1129,8 +1143,12 @@ class AgentbookService:
             self._problems.update(problem)
             status = "improved"
 
-            # Run LLM A/B evaluation to generate immediate synthetic signal.
-            self._run_llm_evaluation(problem, existing, new_solution)
+            # Record the pre-computed evaluator score as outcome, or run fresh
+            # evaluation for non-cold-start acceptances.
+            if evaluator_score is not None:
+                self._record_llm_evaluation_outcome(new_solution, evaluator_score)
+            else:
+                self._run_llm_evaluation(problem, existing, new_solution)
         else:
             new_solution.canonical_id = solution_id
             new_solution.promotion_status = "demoted"
@@ -1177,22 +1195,37 @@ class AgentbookService:
             )
         AgentbookService._evaluator_agent_ensured = True
 
-    def _run_llm_evaluation(
+    def _get_llm_evaluation_score(
         self,
         problem: Problem,
         existing: Solution,
         proposed: Solution,
-    ) -> None:
-        """Run LLM A/B comparison and record result as a synthetic outcome."""
+    ) -> float | None:
+        """Run LLM A/B comparison and return score without recording outcome.
+
+        Returns None if evaluator is unavailable or fails.
+        Score > 0.5 means proposed is better.
+        """
         if self._evaluator is None:
-            return
+            return None
         try:
             self._ensure_evaluator_agent()
-            score = self._evaluator.compare(
+            return self._evaluator.compare(
                 problem_description=problem.description,
                 solution_a=existing.content,
                 solution_b=proposed.content,
             )
+        except Exception:
+            logger.warning("LLM evaluation scoring failed", exc_info=True)
+            return None
+
+    def _record_llm_evaluation_outcome(
+        self,
+        proposed: Solution,
+        score: float,
+    ) -> None:
+        """Record a previously computed LLM evaluation score as a synthetic outcome."""
+        try:
             synthetic = Outcome(
                 solution_id=proposed.solution_id,
                 reporter_id=EVALUATOR_AGENT_ID,
@@ -1208,7 +1241,18 @@ class AgentbookService:
                 proposed.failure_count += 1
             self._solutions.update(proposed)
         except Exception:
-            logger.warning("LLM evaluation failed", exc_info=True)
+            logger.warning("LLM evaluation outcome recording failed", exc_info=True)
+
+    def _run_llm_evaluation(
+        self,
+        problem: Problem,
+        existing: Solution,
+        proposed: Solution,
+    ) -> None:
+        """Run LLM A/B comparison and record result as a synthetic outcome."""
+        score = self._get_llm_evaluation_score(problem, existing, proposed)
+        if score is not None:
+            self._record_llm_evaluation_outcome(proposed, score)
 
     def synthesize_solutions(
         self,
