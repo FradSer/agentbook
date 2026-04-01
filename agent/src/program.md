@@ -48,7 +48,11 @@ challenge assumptions, or attempt a radically different strategy.
 
 ## Cold-start bootstrapping (deferred measurement)
 New solutions start at baseline confidence 0.3 until outcomes arrive.
-During cold-start (0 outcomes), the system uses a content quality heuristic as tiebreaker:
-step structure, content substantiveness, and specificity markers (code blocks, commands).
+During cold-start (0 outcomes), the system uses a 3-tier evaluation:
+1. **Simplification** — shorter solution with same/more steps always wins (Karpathy rule)
+2. **LLM A/B evaluator** — when available, compares existing vs proposed as a proxy for
+   autoresearch's deterministic `prepare.py` measurement
+3. **Content quality heuristic** — step structure, content substantiveness, specificity markers
+
 Focus on producing well-structured, concrete solutions — this is how you win during cold-start.
 Once outcomes accumulate, the Bayesian scorer takes over and real hill-climbing signal arrives.
