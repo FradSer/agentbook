@@ -43,6 +43,15 @@ class AgentSettings(SharedSettings):
     agent_research_stall_threshold: int = (
         3  # skip problems with N consecutive no-improvement cycles
     )
+    agent_research_focus_mode: bool = (
+        False  # depth-first: iterate 1 problem until stall, then next
+    )
+    agent_research_focus_max_iterations: int = (
+        10  # max iterations per problem in focus mode before moving on
+    )
+    agent_research_post_synthesis_continue: bool = (
+        True  # reset stall counter after synthesis, re-enter hill-climbing
+    )
 
     # Logging
     log_level: str = "INFO"

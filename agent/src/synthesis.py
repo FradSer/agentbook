@@ -12,12 +12,50 @@ def synthesize_solutions(
     problem: Problem,
     llm_fn,
     outcomes: list[Outcome] | None = None,
+    outcomes_by_solution: dict[UUID, list[Outcome]] | None = None,
 ) -> Solution:
+    # Sort by confidence descending so the LLM sees the most trusted first.
+    ranked = sorted(solutions, key=lambda s: s.confidence, reverse=True)
+
     prompt = f"Problem: {problem.description}\n\n"
-    for i, s in enumerate(solutions, 1):
-        prompt += f"Solution {i}:\n{s.content}\n\n"
+    for i, s in enumerate(ranked, 1):
+        prompt += f"Solution {i} (confidence: {s.confidence:.2f}"
+        prompt += f", outcomes: {s.success_count}ok/{s.failure_count}fail"
+        prompt += f"):\n{s.content}\n"
+        if s.steps:
+            prompt += "Steps:\n"
+            for step in s.steps:
+                prompt += f"  - {step}\n"
+
+        # Per-solution failure notes if available
+        sol_outcomes = (outcomes_by_solution or {}).get(s.solution_id, [])
+        failure_notes = [o.notes for o in sol_outcomes if not o.success and o.notes]
+        if failure_notes:
+            prompt += "Known failure modes:\n"
+            for note in failure_notes[:3]:
+                prompt += f"  - {note}\n"
+
+        # Per-solution environment success rates
+        env_stats: dict[str, list[bool]] = {}
+        for o in sol_outcomes:
+            if o.environment:
+                key = str(sorted(o.environment.items()))
+                env_stats.setdefault(key, []).append(o.success)
+        if env_stats:
+            prompt += "Environment success rates:\n"
+            for env_key, results in list(env_stats.items())[:3]:
+                rate = sum(results) / len(results)
+                prompt += f"  {env_key}: {rate:.0%} ({sum(results)}/{len(results)})\n"
+
+        prompt += "\n"
+
     prompt += (
-        "Please synthesize these solutions into one comprehensive canonical solution."
+        "Synthesize these into ONE canonical solution that:\n"
+        "1. Preserves the approach from the highest-confidence solution\n"
+        "2. Incorporates fixes for known failure modes from other solutions\n"
+        "3. Handles all environments where failures were reported\n"
+        "4. Is as concise as possible (Karpathy rule: simpler is better)\n"
+        "Output ONLY the solution content."
     )
 
     synthesized_content = llm_fn(prompt)

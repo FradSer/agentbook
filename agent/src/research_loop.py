@@ -33,6 +33,10 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
     3. Agent calls propose_improvement or skip_improvement tool directly
     4. Parse tool return string for "Status: improved" / "Status: no_improvement"
 
+    When ``agent_research_focus_mode`` is enabled, picks ONE candidate and
+    iterates depth-first (up to ``agent_research_focus_max_iterations``) until
+    stall or convergence, matching autoresearch's depth-first pattern.
+
     Args:
         agent: ResearcherAgent instance with propose_improvement / skip_improvement tools.
         service: AgentbookService instance.
@@ -40,6 +44,9 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
     """
     if not settings.agent_research_enabled:
         return {"skipped": True, "reason": "research disabled"}
+
+    if settings.agent_research_focus_mode:
+        return await _run_focused_research_cycle(agent, service, cooldown_hours)
 
     effective_cooldown = (
         settings.agent_research_cooldown_hours
@@ -189,8 +196,215 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
     }
 
 
+async def _run_focused_research_cycle(
+    agent, service, cooldown_hours: int | None = None
+) -> dict:
+    """Depth-first research: pick 1 problem, iterate until stall or max iterations.
+
+    Matches autoresearch's pattern of deep iteration on a single problem.
+    """
+    effective_cooldown = (
+        settings.agent_research_cooldown_hours
+        if cooldown_hours is None
+        else cooldown_hours
+    )
+    candidates = service.find_research_candidates(
+        limit=1,
+        cooldown_hours=effective_cooldown,
+        max_confidence=settings.agent_research_max_confidence,
+        stall_threshold=settings.agent_research_stall_threshold + 1,
+    )
+    if not candidates:
+        logger.info("No research candidates found (focus mode)")
+        return {"candidates": 0, "improved": 0, "no_improvement": 0, "focus_mode": True}
+
+    problem_dict = candidates[0]
+    problem_id = problem_dict["problem_id"]
+    improved = 0
+    no_improvement = 0
+    consecutive_no_improvement = 0
+    max_iterations = settings.agent_research_focus_max_iterations
+
+    logger.info(
+        f"Focus mode: iterating on problem {problem_id} (max {max_iterations} rounds)"
+    )
+
+    with contextlib.suppress(Exception):
+        service.set_research_status(UUID(str(problem_id)), True)
+
+    try:
+        for iteration in range(max_iterations):
+            logger.info(
+                f"Focus mode iteration {iteration + 1}/{max_iterations} "
+                f"for problem {problem_id}"
+            )
+
+            result = await _research_single_problem(
+                agent, service, problem_dict, cooldown_hours=0
+            )
+
+            if result == "improved":
+                improved += 1
+                consecutive_no_improvement = 0
+                # Refresh problem dict for next iteration (confidence may have changed)
+                try:
+                    ctx = service.get_context(id=problem_id, include=[])
+                    problem_dict = {
+                        "problem_id": problem_id,
+                        "description": ctx.get(
+                            "description", problem_dict["description"]
+                        ),
+                        "error_signature": ctx.get(
+                            "error_signature", problem_dict.get("error_signature")
+                        ),
+                        "best_confidence": ctx.get(
+                            "best_confidence", problem_dict.get("best_confidence")
+                        ),
+                    }
+                except Exception:
+                    pass
+            else:
+                no_improvement += 1
+                consecutive_no_improvement += 1
+
+            # Stop if stalled (matches stall_threshold)
+            if consecutive_no_improvement >= settings.agent_research_stall_threshold:
+                logger.info(
+                    f"Focus mode: stalled after {consecutive_no_improvement} "
+                    f"consecutive no-improvement cycles on problem {problem_id}"
+                )
+                # Attempt synthesis
+                try:
+                    ctx = service.get_context(id=problem_id, include=["solutions"])
+                    active_solutions = [
+                        s
+                        for s in ctx.get("solutions", [])
+                        if s.get("canonical_id") is None
+                    ]
+                    _maybe_trigger_synthesis(service, problem_id, active_solutions)
+                except Exception as exc:
+                    logger.warning(f"Focus mode synthesis attempt failed: {exc}")
+                break
+
+    finally:
+        with contextlib.suppress(Exception):
+            service.set_research_status(UUID(str(problem_id)), False)
+
+    return {
+        "candidates": 1,
+        "improved": improved,
+        "no_improvement": no_improvement,
+        "focus_mode": True,
+        "iterations": improved + no_improvement,
+    }
+
+
+async def _research_single_problem(
+    agent, service, problem_dict: dict, cooldown_hours: int = 0
+) -> str:
+    """Run one research iteration on a single problem. Returns 'improved' or 'no_improvement'."""
+    problem_id = problem_dict["problem_id"]
+
+    try:
+        context = service.get_context(id=problem_id, include=["solutions"])
+    except Exception as exc:
+        logger.warning(f"Failed to get context for problem {problem_id}: {exc}")
+        return "no_improvement"
+
+    solutions = context.get("solutions", [])
+    if not solutions:
+        return "no_improvement"
+
+    active_solutions = [s for s in solutions if s.get("canonical_id") is None]
+    if not active_solutions:
+        return "no_improvement"
+
+    solutions = sorted(
+        active_solutions, key=lambda s: s.get("confidence", 0), reverse=True
+    )
+
+    outcomes_by_solution: dict[str, list[dict]] = {}
+    for sol in solutions:
+        sol_id = str(sol["solution_id"])
+        try:
+            sol_context = service.get_context(id=UUID(sol_id), include=["outcomes"])
+            outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
+        except Exception:
+            outcomes_by_solution[sol_id] = []
+
+    failed_approaches: list[str] = []
+    radical_mode = False
+    if service._research_cycles is not None:
+        pid = UUID(str(problem_id))
+        recent_cycles = service._research_cycles.list_by_problem(pid)[:5]
+        failed_approaches = [
+            c.reasoning for c in recent_cycles if c.status != "improved" and c.reasoning
+        ]
+        stalled = service._research_cycles.consecutive_no_improvement(pid)
+        if stalled >= settings.agent_research_stall_threshold:
+            radical_mode = True
+
+    prompt = _build_research_prompt(
+        problem_dict,
+        solutions,
+        outcomes_by_solution,
+        failed_approaches=failed_approaches,
+        radical_mode=radical_mode,
+    )
+
+    try:
+        response_text = await asyncio.wait_for(
+            _run_agent(agent, prompt),
+            timeout=settings.agent_research_per_candidate_timeout_seconds,
+        )
+        if "Status: improved" in response_text:
+            return "improved"
+        if "Status: no_improvement" in response_text:
+            return "no_improvement"
+        logger.warning(
+            f"Agent returned no recognisable tool call for problem {problem_id}: "
+            f"{response_text[:200]!r}"
+        )
+        with contextlib.suppress(Exception):
+            service.record_research_skip(
+                problem_id=UUID(str(problem_id)),
+                researcher_id=SYSTEM_AGENT_ID,
+                reasoning="Agent returned no recognisable tool call",
+                status="no_solution_proposed",
+                llm_model=_researcher_llm_model(),
+            )
+        return "no_improvement"
+    except TimeoutError:
+        logger.warning(f"Focus mode: problem {problem_id} timed out")
+        with contextlib.suppress(Exception):
+            service.record_research_skip(
+                problem_id=UUID(str(problem_id)),
+                researcher_id=SYSTEM_AGENT_ID,
+                reasoning="Research candidate timed out",
+                status="no_solution_proposed",
+                llm_model=_researcher_llm_model(),
+            )
+        return "no_improvement"
+    except Exception as exc:
+        logger.error(f"Focus mode error for problem {problem_id}: {exc}")
+        with contextlib.suppress(Exception):
+            service.record_research_skip(
+                problem_id=UUID(str(problem_id)),
+                researcher_id=SYSTEM_AGENT_ID,
+                reasoning=f"Research cycle error: {exc}",
+                status="no_solution_proposed",
+                llm_model=_researcher_llm_model(),
+            )
+        return "no_improvement"
+
+
 def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) -> None:
-    """Auto-trigger synthesis when research has stalled and enough solutions exist."""
+    """Auto-trigger synthesis when research has stalled and enough solutions exist.
+
+    When ``agent_research_post_synthesis_continue`` is enabled, records a
+    ``synthesis_completed`` research cycle after synthesis so the stall counter
+    resets and the problem re-enters the hill-climbing loop.
+    """
     if len(active_solutions) < 3:
         return
     try:
@@ -198,20 +412,40 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
 
         if service._research_cycles is None:
             return
-        stalled = service._research_cycles.consecutive_no_improvement(
-            _UUID(str(problem_id))
-        )
+        pid = _UUID(str(problem_id))
+        stalled = service._research_cycles.consecutive_no_improvement(pid)
         if stalled < settings.agent_research_stall_threshold + 1:
             return
         logger.info(
             f"Problem {problem_id}: {stalled} consecutive no-improvement cycles with "
             f"{len(active_solutions)} active solutions — triggering synthesis"
         )
-        service.synthesize_solutions(
-            problem_id=_UUID(str(problem_id)),
+        result = service.synthesize_solutions(
+            problem_id=pid,
             author_id=SYSTEM_AGENT_ID,
             llm_model=settings.agent_model_name,
         )
+
+        # Record a synthesis_completed cycle to reset the stall counter,
+        # allowing continued hill-climbing on the synthesized solution.
+        if result and settings.agent_research_post_synthesis_continue:
+            from backend.domain.models import ResearchCycle
+
+            cycle = ResearchCycle(
+                problem_id=pid,
+                researcher_id=SYSTEM_AGENT_ID,
+                proposed_solution_id=result.get("canonical_solution_id"),
+                previous_best_confidence=0.0,
+                new_confidence=result.get("confidence", 0.0),
+                status="synthesis_completed",
+                reasoning=f"Synthesized from {result.get('synthesized_from', 0)} solutions",
+                llm_model=settings.agent_model_name,
+            )
+            service._research_cycles.add(cycle)
+            logger.info(
+                f"Problem {problem_id}: synthesis completed, stall counter reset "
+                f"(post_synthesis_continue=True)"
+            )
     except Exception as exc:
         logger.warning(f"Auto-synthesis failed for problem {problem_id}: {exc}")
 
