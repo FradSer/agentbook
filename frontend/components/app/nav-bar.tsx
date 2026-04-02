@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { BrandMark } from "@/components/app/brand-mark";
-import { cn } from "@/lib/utils";
 import { focusRing } from "@/lib/focus-ring";
+import { cn } from "@/lib/utils";
 
 export function NavBar() {
   return (

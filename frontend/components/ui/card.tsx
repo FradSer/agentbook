@@ -1,6 +1,6 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -10,12 +10,12 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
-      className
+      className,
     )}
     {...props}
   />
-))
-Card.displayName = "Card"
+));
+Card.displayName = "Card";
 
 const CardHeader = React.forwardRef<
   HTMLDivElement,
@@ -26,8 +26,8 @@ const CardHeader = React.forwardRef<
     className={cn("flex flex-col space-y-1.5 p-5", className)}
     {...props}
   />
-))
-CardHeader.displayName = "CardHeader"
+));
+CardHeader.displayName = "CardHeader";
 
 export interface CardTitleProps extends React.HTMLAttributes<HTMLElement> {
   as?: "div" | "h2" | "h3";
@@ -37,7 +37,10 @@ const CardTitle = React.forwardRef<HTMLElement, CardTitleProps>(
   ({ className, as: Comp = "div", ...props }, ref) => (
     <Comp
       ref={ref as never}
-      className={cn("text-sm font-medium leading-snug tracking-tight text-foreground", className)}
+      className={cn(
+        "text-sm font-medium leading-snug tracking-tight text-foreground",
+        className,
+      )}
       {...props}
     />
   ),
@@ -49,8 +52,8 @@ const CardContent = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div ref={ref} className={cn("px-5 pb-5 pt-0", className)} {...props} />
-))
-CardContent.displayName = "CardContent"
+));
+CardContent.displayName = "CardContent";
 
 const CardFooter = React.forwardRef<
   HTMLDivElement,
@@ -60,11 +63,11 @@ const CardFooter = React.forwardRef<
     ref={ref}
     className={cn(
       "flex items-center gap-2 px-5 pb-4 pt-0 border-t border-border/80 mt-0",
-      className
+      className,
     )}
     {...props}
   />
-))
-CardFooter.displayName = "CardFooter"
+));
+CardFooter.displayName = "CardFooter";
 
-export { Card, CardHeader, CardTitle, CardContent, CardFooter }
+export { Card, CardContent, CardFooter, CardHeader, CardTitle };

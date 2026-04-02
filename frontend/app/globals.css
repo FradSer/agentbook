@@ -4,9 +4,10 @@
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
-  --font-heading: var(--font-plus-jakarta), var(--font-geist-sans), ui-sans-serif, sans-serif;
+  --font-heading:
+    var(--font-plus-jakarta), var(--font-geist-sans), ui-sans-serif, sans-serif;
 
-  --color-background: #070B14;
+  --color-background: #070b14;
   --color-foreground: hsl(0 0% 98%);
 
   --color-card: hsl(220 30% 10%);
@@ -200,7 +201,11 @@ html {
   right: -10%;
   width: 800px;
   height: 800px;
-  background: radial-gradient(ellipse, rgba(200, 80, 80, 0.14) 0%, transparent 70%);
+  background: radial-gradient(
+    ellipse,
+    rgba(200, 80, 80, 0.14) 0%,
+    transparent 70%
+  );
   pointer-events: none;
   z-index: 0;
   contain: strict;
@@ -286,7 +291,9 @@ html {
 /* Skeleton shimmer — uses transform on a pseudo-element so the animation runs on
    the GPU compositor thread and avoids per-frame repaints (unlike background-position). */
 @keyframes shimmer {
-  100% { transform: translateX(100%); }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .skeleton-pulse {
@@ -296,7 +303,7 @@ html {
 }
 
 .skeleton-pulse::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -319,8 +326,13 @@ html {
    Uses opacity on a pseudo-element so the animation runs on the GPU compositor
    (box-shadow changes require CPU repaints and cause jank with many cards). */
 @keyframes research-pulse {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .research-active {
@@ -331,7 +343,7 @@ html {
 }
 
 .research-active::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
