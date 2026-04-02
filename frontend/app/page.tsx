@@ -1,19 +1,45 @@
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import {
+  memo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  LoadingIndicator,
+  LoadingSpinner,
+} from "@/components/ui/loading-indicator";
 import { ApiError, fetchMetrics, fetchRadar, getProblems } from "@/lib/api";
-import { LoadingIndicator, LoadingSpinner } from "@/components/ui/loading-indicator";
 import { focusRing } from "@/lib/focus-ring";
-import { cn, getConfidenceTier, getRelativeTime, TAG_COLORS } from "@/lib/utils";
-import { MetricsResponse, ProblemListItem, RadarProblem, RadarResponse } from "@/lib/types";
+import type {
+  MetricsResponse,
+  ProblemListItem,
+  RadarProblem,
+  RadarResponse,
+} from "@/lib/types";
+import {
+  cn,
+  getConfidenceTier,
+  getRelativeTime,
+  TAG_COLORS,
+} from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Tabs
@@ -58,7 +84,9 @@ function ProblemCardSkeleton() {
 
 const TitleMarkdown = dynamic(
   () =>
-    import("@/components/app/title-markdown").then((mod) => ({ default: mod.TitleMarkdown })),
+    import("@/components/app/title-markdown").then((mod) => ({
+      default: mod.TitleMarkdown,
+    })),
   {
     loading: () => (
       <span className="inline-flex items-center gap-2 py-0.5">
@@ -76,14 +104,46 @@ const TitleMarkdown = dynamic(
 function deriveTagsFromDescription(description: string): string[] {
   const lower = description.toLowerCase();
   const tags: string[] = [];
-  if (lower.includes("docker") || lower.includes("container")) tags.push("docker");
-  if (lower.includes("python") || lower.includes("pip") || lower.includes("module")) tags.push("python");
-  if (lower.includes("import") || lower.includes("module")) tags.push("modules");
-  if (lower.includes("api") || lower.includes("http") || lower.includes("request")) tags.push("api");
-  if (lower.includes("database") || lower.includes("sql") || lower.includes("postgres")) tags.push("database");
-  if (lower.includes("auth") || lower.includes("token") || lower.includes("key")) tags.push("auth");
-  if (lower.includes("deploy") || lower.includes("server") || lower.includes("production")) tags.push("deployment");
-  if (lower.includes("error") || lower.includes("exception") || lower.includes("fail")) tags.push("debugging");
+  if (lower.includes("docker") || lower.includes("container"))
+    tags.push("docker");
+  if (
+    lower.includes("python") ||
+    lower.includes("pip") ||
+    lower.includes("module")
+  )
+    tags.push("python");
+  if (lower.includes("import") || lower.includes("module"))
+    tags.push("modules");
+  if (
+    lower.includes("api") ||
+    lower.includes("http") ||
+    lower.includes("request")
+  )
+    tags.push("api");
+  if (
+    lower.includes("database") ||
+    lower.includes("sql") ||
+    lower.includes("postgres")
+  )
+    tags.push("database");
+  if (
+    lower.includes("auth") ||
+    lower.includes("token") ||
+    lower.includes("key")
+  )
+    tags.push("auth");
+  if (
+    lower.includes("deploy") ||
+    lower.includes("server") ||
+    lower.includes("production")
+  )
+    tags.push("deployment");
+  if (
+    lower.includes("error") ||
+    lower.includes("exception") ||
+    lower.includes("fail")
+  )
+    tags.push("debugging");
   if (tags.length === 0) tags.push("general");
   return tags.slice(0, 3);
 }
@@ -106,12 +166,17 @@ const PAGE_SIZE = 20;
 // Problem card (for the grid)
 // ---------------------------------------------------------------------------
 
-const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemListItem }) {
+const ProblemCard = memo(function ProblemCard({
+  problem,
+}: {
+  problem: ProblemListItem;
+}) {
   const tier = getConfidenceTier(problem.best_confidence);
   const pct = Math.round(problem.best_confidence * 100);
-  const tags = (problem.tags && problem.tags.length > 0)
-    ? problem.tags.slice(0, 3)
-    : deriveTagsFromDescription(problem.description);
+  const tags =
+    problem.tags && problem.tags.length > 0
+      ? problem.tags.slice(0, 3)
+      : deriveTagsFromDescription(problem.description);
   const activityStamp = problem.last_activity_at ?? problem.created_at;
   const createdAtForIdentity = activityStamp ?? new Date(0).toISOString();
   const relTime = activityStamp ? getRelativeTime(activityStamp) : null;
@@ -142,7 +207,10 @@ const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemLis
                       Researching
                     </span>
                   )}
-                  <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+                  <Badge
+                    variant={tier}
+                    className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
+                  >
                     {pct}%
                   </Badge>
                 </>
@@ -155,7 +223,8 @@ const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemLis
         </CardHeader>
         <CardContent className="flex-1 px-5 pb-3 pt-0">
           <p className="text-xs text-muted-foreground">
-            {problem.solution_count} solution{problem.solution_count !== 1 ? "s" : ""}
+            {problem.solution_count} solution
+            {problem.solution_count !== 1 ? "s" : ""}
             {problem.has_canonical && " \u00b7 canonical"}
           </p>
         </CardContent>
@@ -169,7 +238,9 @@ const ProblemCard = memo(function ProblemCard({ problem }: { problem: ProblemLis
             </span>
           ))}
           {relTime && (
-            <span className="text-xs text-muted-foreground ml-auto">{relTime}</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {relTime}
+            </span>
           )}
         </CardFooter>
       </Card>
@@ -194,7 +265,9 @@ const RadarProblemCard = memo(function RadarProblemCard({
 }) {
   const tags = deriveTagsFromDescription(problem.description);
   const createdAt = problem.created_at ?? new Date(0).toISOString();
-  const relTime = problem.created_at ? getRelativeTime(problem.created_at) : null;
+  const relTime = problem.created_at
+    ? getRelativeTime(problem.created_at)
+    : null;
 
   let trailing: ReactNode;
   let subtitle: string;
@@ -206,10 +279,16 @@ const RadarProblemCard = memo(function RadarProblemCard({
       const tier = getConfidenceTier(rate);
       trailing = (
         <>
-          <Badge variant="trending" className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+          <Badge
+            variant="trending"
+            className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
+          >
             {problem.last_24h_resolve_calls} in 24h
           </Badge>
-          <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+          <Badge
+            variant={tier}
+            className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
+          >
             {pct}%
           </Badge>
         </>
@@ -235,9 +314,13 @@ const RadarProblemCard = memo(function RadarProblemCard({
       trailing = (
         <>
           <span className="text-xs text-destructive font-medium tabular-nums shrink-0">
-            {"\u2193"}{deltaAbs}%
+            {"\u2193"}
+            {deltaAbs}%
           </span>
-          <Badge variant={tier} className="text-xs px-2 py-0.5 shrink-0 tabular-nums">
+          <Badge
+            variant={tier}
+            className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
+          >
             {pct}%
           </Badge>
         </>
@@ -280,7 +363,9 @@ const RadarProblemCard = memo(function RadarProblemCard({
             </span>
           ))}
           {relTime && (
-            <span className="text-xs text-muted-foreground ml-auto">{relTime}</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {relTime}
+            </span>
           )}
         </CardFooter>
       </Card>
@@ -311,7 +396,9 @@ function MetricCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p
@@ -327,7 +414,9 @@ function MetricCard({
         </p>
         {trend && <p className="text-xs text-muted-foreground mt-1">{trend}</p>}
         {target !== undefined && (
-          <p className="text-xs text-muted-foreground">target: {formatValue(target)}</p>
+          <p className="text-xs text-muted-foreground">
+            target: {formatValue(target)}
+          </p>
         )}
       </CardContent>
     </Card>
@@ -370,12 +459,14 @@ export default function HomePage() {
     const idx = TAB_ORDER.indexOf(current);
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      const next = TAB_ORDER[(idx + 1) % TAB_ORDER.length]!;
+      const next = TAB_ORDER[(idx + 1) % TAB_ORDER.length] as TabId;
       setActiveTab(next);
       focusTab(next);
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      const next = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length]!;
+      const next = TAB_ORDER[
+        (idx - 1 + TAB_ORDER.length) % TAB_ORDER.length
+      ] as TabId;
       setActiveTab(next);
       focusTab(next);
     } else if (e.key === "Home") {
@@ -390,30 +481,34 @@ export default function HomePage() {
   }
 
   // --- Data loaders ---
-  const loadProblems = useCallback(async (newOffset: number, sort: SortOption, replace: boolean) => {
-    if (replace) setLoading(true);
-    else setLoadingMore(true);
+  const loadProblems = useCallback(
+    async (newOffset: number, sort: SortOption, replace: boolean) => {
+      if (replace) setLoading(true);
+      else setLoadingMore(true);
 
-    try {
-      const data = await getProblems({
-        limit: PAGE_SIZE,
-        offset: newOffset,
-        sortBy: sort.sortBy,
-        order: sort.order,
-      });
-      setProblems((prev) => replace ? data : [...prev, ...data]);
-      setHasMore(data.length === PAGE_SIZE);
-      setOffset(newOffset + data.length);
-      if (replace) setError(null);
-    } catch (err: unknown) {
-      const msg = err instanceof ApiError ? err.message : "Failed to load problems";
-      toast.error(msg);
-      if (replace) setError(msg);
-    } finally {
-      if (replace) setLoading(false);
-      else setLoadingMore(false);
-    }
-  }, []);
+      try {
+        const data = await getProblems({
+          limit: PAGE_SIZE,
+          offset: newOffset,
+          sortBy: sort.sortBy,
+          order: sort.order,
+        });
+        setProblems((prev) => (replace ? data : [...prev, ...data]));
+        setHasMore(data.length === PAGE_SIZE);
+        setOffset(newOffset + data.length);
+        if (replace) setError(null);
+      } catch (err: unknown) {
+        const msg =
+          err instanceof ApiError ? err.message : "Failed to load problems";
+        toast.error(msg);
+        if (replace) setError(msg);
+      } finally {
+        if (replace) setLoading(false);
+        else setLoadingMore(false);
+      }
+    },
+    [],
+  );
 
   async function loadRadar() {
     try {
@@ -421,7 +516,9 @@ export default function HomePage() {
       setRadar(data);
       setRadarError(null);
     } catch (err: unknown) {
-      setRadarError(err instanceof Error ? err.message : "Failed to load radar");
+      setRadarError(
+        err instanceof Error ? err.message : "Failed to load radar",
+      );
     } finally {
       setRadarLoading(false);
     }
@@ -433,7 +530,9 @@ export default function HomePage() {
       setMetrics(data);
       setMetricsError(null);
     } catch (err: unknown) {
-      setMetricsError(err instanceof Error ? err.message : "Failed to load metrics");
+      setMetricsError(
+        err instanceof Error ? err.message : "Failed to load metrics",
+      );
     }
   }
 
@@ -466,7 +565,9 @@ export default function HomePage() {
     cn(
       focusRing,
       "shrink-0 min-h-11 touch-manipulation rounded-t-lg px-3 py-2 text-sm font-medium border-b-2 -mb-px",
-      isActive ? "border-foreground text-foreground" : "border-transparent text-muted-foreground",
+      isActive
+        ? "border-foreground text-foreground"
+        : "border-transparent text-muted-foreground",
     );
 
   return (
@@ -480,13 +581,15 @@ export default function HomePage() {
           Problem Definitions
         </h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Browse recurring issues, compare confidence, and open a problem to read its living agentbook.
+          Browse recurring issues, compare confidence, and open a problem to
+          read its living agentbook.
         </p>
       </div>
 
       {/* Tab bar */}
       <p id="tablist-hint" className="sr-only">
-        Use arrow keys to switch between Problems, Problem Radar, and Quality Metrics.
+        Use arrow keys to switch between Problems, Problem Radar, and Quality
+        Metrics.
       </p>
       <div
         role="tablist"
@@ -497,7 +600,9 @@ export default function HomePage() {
       >
         <button
           id="tab-problems"
-          ref={(el) => { tabRefs.current.problems = el; }}
+          ref={(el) => {
+            tabRefs.current.problems = el;
+          }}
           type="button"
           role="tab"
           aria-selected={activeTab === "problems"}
@@ -511,7 +616,9 @@ export default function HomePage() {
         </button>
         <button
           id="tab-radar"
-          ref={(el) => { tabRefs.current.radar = el; }}
+          ref={(el) => {
+            tabRefs.current.radar = el;
+          }}
           type="button"
           role="tab"
           aria-selected={activeTab === "radar"}
@@ -525,7 +632,9 @@ export default function HomePage() {
         </button>
         <button
           id="tab-metrics"
-          ref={(el) => { tabRefs.current.metrics = el; }}
+          ref={(el) => {
+            tabRefs.current.metrics = el;
+          }}
           type="button"
           role="tab"
           aria-selected={activeTab === "metrics"}
@@ -550,6 +659,7 @@ export default function HomePage() {
         <div className="mb-4 flex flex-wrap gap-2 pl-3">
           {SORT_OPTIONS.map((opt) => (
             <button
+              type="button"
               key={opt.sortBy}
               onClick={() => setSortOption(opt)}
               className={cn(
@@ -576,13 +686,17 @@ export default function HomePage() {
           </div>
         ) : error ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-12 text-center">
-            <p className="font-medium text-destructive">Failed to load problems</p>
+            <p className="font-medium text-destructive">
+              Failed to load problems
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">{error}</p>
           </div>
         ) : problems.length === 0 ? (
           <div className="rounded-xl border border-border bg-card py-16 text-center">
             <p className="font-medium text-foreground">No problems yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Agents can contribute via MCP or API.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Agents can contribute via MCP or API.
+            </p>
           </div>
         ) : (
           <>
@@ -641,36 +755,56 @@ export default function HomePage() {
         ) : radarEmpty ? (
           <div className="rounded-xl border border-border bg-card py-16 text-center">
             <p className="font-medium text-foreground">Radar is clear</p>
-            <p className="mt-1 text-sm text-muted-foreground">No trending or at-risk problems detected.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              No trending or at-risk problems detected.
+            </p>
           </div>
         ) : (
           <>
             {radar && radar.trending.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-sm font-semibold text-muted-foreground pl-3">Trending</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground pl-3">
+                  Trending
+                </h2>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
                   {radar.trending.map((p) => (
-                    <RadarProblemCard key={String(p.problem_id)} problem={p} category="trending" />
+                    <RadarProblemCard
+                      key={String(p.problem_id)}
+                      problem={p}
+                      category="trending"
+                    />
                   ))}
                 </div>
               </section>
             )}
             {radar && radar.new_unsolved.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-sm font-semibold text-muted-foreground pl-3">New Unsolved</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground pl-3">
+                  New Unsolved
+                </h2>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
                   {radar.new_unsolved.map((p) => (
-                    <RadarProblemCard key={String(p.problem_id)} problem={p} category="new_unsolved" />
+                    <RadarProblemCard
+                      key={String(p.problem_id)}
+                      problem={p}
+                      category="new_unsolved"
+                    />
                   ))}
                 </div>
               </section>
             )}
             {radar && radar.degrading.length > 0 && (
               <section className="space-y-3">
-                <h2 className="text-sm font-semibold text-muted-foreground pl-3">Degrading</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground pl-3">
+                  Degrading
+                </h2>
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
                   {radar.degrading.map((p) => (
-                    <RadarProblemCard key={String(p.problem_id)} problem={p} category="degrading" />
+                    <RadarProblemCard
+                      key={String(p.problem_id)}
+                      problem={p}
+                      category="degrading"
+                    />
                   ))}
                 </div>
               </section>
@@ -689,7 +823,10 @@ export default function HomePage() {
         {metricsError ? (
           <p className="text-sm text-destructive">{metricsError}</p>
         ) : metrics === null ? (
-          <LoadingIndicator label="Loading quality metrics" message="Loading metrics..." />
+          <LoadingIndicator
+            label="Loading quality metrics"
+            message="Loading metrics..."
+          />
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
@@ -729,8 +866,8 @@ export default function HomePage() {
               />
             </div>
             <p className="text-sm text-muted-foreground break-words">
-              {metrics.solutions_needing_synthesis} solutions needing synthesis ·{" "}
-              {metrics.stale_solutions} stale solutions
+              {metrics.solutions_needing_synthesis} solutions needing synthesis
+              · {metrics.stale_solutions} stale solutions
             </p>
           </div>
         )}

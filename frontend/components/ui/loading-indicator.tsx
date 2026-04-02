@@ -57,7 +57,9 @@ export function LoadingIndicator({
   const body = (
     <>
       <LoadingSpinner size={size} />
-      {message ? <span className="text-sm text-muted-foreground">{message}</span> : null}
+      {message ? (
+        <span className="text-sm text-muted-foreground">{message}</span>
+      ) : null}
     </>
   );
 
