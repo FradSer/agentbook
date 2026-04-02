@@ -3,15 +3,15 @@
  * Red phase: verifies V3 types exist and V1 types are removed.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Type shape tests (compile-time checks expressed as runtime assertions) ---
 
 describe("AgentbookView type", () => {
   it("has canonical_solution field", async () => {
-    const { } = await import("@/lib/types");
+    await import("@/lib/types");
     // Access the type at runtime by checking an object shape
-    const view = {
+    const _view = {
       problem_id: "test-id",
       description: "test",
       canonical_solution: null,
@@ -57,7 +57,9 @@ describe("V1 thread types are removed", () => {
 describe("Agent-write types are removed", () => {
   it("RegisterResponse is not exported from types", async () => {
     const types = await import("@/lib/types");
-    expect("RegisterResponse" in (types as Record<string, unknown>)).toBe(false);
+    expect("RegisterResponse" in (types as Record<string, unknown>)).toBe(
+      false,
+    );
   });
 
   it("UserRole is not exported from types", async () => {
@@ -67,17 +69,23 @@ describe("Agent-write types are removed", () => {
 
   it("ProblemCreateRequest is not exported from types", async () => {
     const types = await import("@/lib/types");
-    expect("ProblemCreateRequest" in (types as Record<string, unknown>)).toBe(false);
+    expect("ProblemCreateRequest" in (types as Record<string, unknown>)).toBe(
+      false,
+    );
   });
 
   it("SolutionCreateRequest is not exported from types", async () => {
     const types = await import("@/lib/types");
-    expect("SolutionCreateRequest" in (types as Record<string, unknown>)).toBe(false);
+    expect("SolutionCreateRequest" in (types as Record<string, unknown>)).toBe(
+      false,
+    );
   });
 
   it("OutcomeCreateRequest is not exported from types", async () => {
     const types = await import("@/lib/types");
-    expect("OutcomeCreateRequest" in (types as Record<string, unknown>)).toBe(false);
+    expect("OutcomeCreateRequest" in (types as Record<string, unknown>)).toBe(
+      false,
+    );
   });
 
   it("SearchResult is not exported from types", async () => {
@@ -105,65 +113,89 @@ describe("API client — problems endpoints", () => {
   it("getProblems() calls GET /v1/problems", async () => {
     const api = await import("@/lib/api");
     // getProblems must exist — will fail if not exported
-    expect(typeof (api as Record<string, unknown>)["getProblems"]).toBe("function");
+    expect(typeof (api as Record<string, unknown>).getProblems).toBe(
+      "function",
+    );
   });
 
   it("getProblemDetail(id) calls GET /v1/problems/{id}", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["getProblemDetail"]).toBe("function");
+    expect(typeof (api as Record<string, unknown>).getProblemDetail).toBe(
+      "function",
+    );
   });
 });
 
 describe("Agent-write API functions are removed", () => {
   it("createProblem is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["createProblem"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).createProblem).toBe(
+      "undefined",
+    );
   });
 
   it("createSolution is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["createSolution"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).createSolution).toBe(
+      "undefined",
+    );
   });
 
   it("reportOutcome is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["reportOutcome"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).reportOutcome).toBe(
+      "undefined",
+    );
   });
 
   it("registerAgent is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["registerAgent"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).registerAgent).toBe(
+      "undefined",
+    );
   });
 
   it("searchProblems is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["searchProblems"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).searchProblems).toBe(
+      "undefined",
+    );
   });
 
   it("getBalance is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["getBalance"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).getBalance).toBe(
+      "undefined",
+    );
   });
 });
 
 describe("V1 thread API functions are removed", () => {
   it("getThreads is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["getThreads"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).getThreads).toBe(
+      "undefined",
+    );
   });
 
   it("createThread is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["createThread"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).createThread).toBe(
+      "undefined",
+    );
   });
 
   it("createComment is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["createComment"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).createComment).toBe(
+      "undefined",
+    );
   });
 
   it("voteComment is not exported from api", async () => {
     const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>)["voteComment"]).toBe("undefined");
+    expect(typeof (api as Record<string, unknown>).voteComment).toBe(
+      "undefined",
+    );
   });
 });

@@ -29,7 +29,9 @@ vi.mock("@/lib/api", async (importOriginal) => {
     ...actual,
     getProblemTimeline: getProblemTimelineMock,
     getProblems: getProblemsListMock,
-    fetchRadar: vi.fn().mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
+    fetchRadar: vi
+      .fn()
+      .mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
     fetchMetrics: vi.fn().mockResolvedValue({
       resolution_rate: { value: 0, trend: null, target: 0.8 },
       median_ttr_seconds: { value: 0, trend: null, target: 300 },
@@ -138,8 +140,12 @@ describe("Problem detail page — notebook timeline display", () => {
 
     await screen.findByText(/research chain/i);
 
-    const upvoteButtons = screen.queryAllByRole("button", { name: /upvote|👍|▲/i });
-    const downvoteButtons = screen.queryAllByRole("button", { name: /downvote|👎|▼/i });
+    const upvoteButtons = screen.queryAllByRole("button", {
+      name: /upvote|👍|▲/i,
+    });
+    const downvoteButtons = screen.queryAllByRole("button", {
+      name: /downvote|👎|▼/i,
+    });
     expect(upvoteButtons).toHaveLength(0);
     expect(downvoteButtons).toHaveLength(0);
   });
@@ -156,7 +162,9 @@ describe("Problem detail page — notebook timeline display", () => {
 
     await screen.findByText(/Failed to load problem/i);
     expect(screen.getByText(/Connection failed/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /back to library/i })).toHaveAttribute("href", "/");
+    expect(
+      screen.getByRole("link", { name: /back to library/i }),
+    ).toHaveAttribute("href", "/");
 
     await user.click(screen.getByRole("button", { name: /retry/i }));
     await screen.findByText(/research chain/i);
@@ -168,7 +176,13 @@ describe("Problem detail page — notebook timeline display", () => {
 describe("Home page shows read-only problem list", () => {
   beforeEach(() => {
     getProblemsListMock.mockResolvedValue([
-      { problem_id: "p1", description: "Docker numpy error", best_confidence: 0.7, has_canonical: true, solution_count: 1 },
+      {
+        problem_id: "p1",
+        description: "Docker numpy error",
+        best_confidence: 0.7,
+        has_canonical: true,
+        solution_count: 1,
+      },
     ]);
   });
 
@@ -180,7 +194,9 @@ describe("Home page shows read-only problem list", () => {
     expect(problem).toBeDefined();
 
     // No create/submit buttons for human role
-    const submitButtons = screen.queryAllByRole("button", { name: /submit|create|post/i });
+    const submitButtons = screen.queryAllByRole("button", {
+      name: /submit|create|post/i,
+    });
     expect(submitButtons).toHaveLength(0);
   });
 });

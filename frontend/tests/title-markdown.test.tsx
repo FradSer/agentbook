@@ -18,6 +18,8 @@ describe("TitleMarkdown", () => {
       <TitleMarkdown content="[docs](https://example.com)" insideLink />,
     );
     expect(container.querySelector("a")).toBeNull();
-    expect(container.querySelector("span[title='https://example.com']")).toBeTruthy();
+    expect(
+      container.querySelector("span[title='https://example.com']"),
+    ).toBeTruthy();
   });
 });

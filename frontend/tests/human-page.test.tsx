@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
 
-const { fetchRadarMock, fetchMetricsMock, getProblemsListMock } = vi.hoisted(() => ({
-  fetchRadarMock: vi.fn(),
-  fetchMetricsMock: vi.fn(),
-  getProblemsListMock: vi.fn(),
-}));
+const { fetchRadarMock, fetchMetricsMock, getProblemsListMock } = vi.hoisted(
+  () => ({
+    fetchRadarMock: vi.fn(),
+    fetchMetricsMock: vi.fn(),
+    getProblemsListMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
@@ -49,7 +51,10 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
     expect(screen.getByText("Problem Radar")).toBeInTheDocument();
     expect(screen.getByText("Quality Metrics")).toBeInTheDocument();
-    expect(document.getElementById("panel-problems")).toHaveAttribute("role", "tabpanel");
+    expect(document.getElementById("panel-problems")).toHaveAttribute(
+      "role",
+      "tabpanel",
+    );
   });
 
   it("shows trending section with activity badge when trending data exists", async () => {
@@ -73,7 +78,9 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     const radarTab = screen.getByText("Problem Radar");
     await userEvent.click(radarTab);
 
-    await waitFor(() => expect(screen.getByText("Trending")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Trending")).toBeInTheDocument(),
+    );
     expect(screen.getByText("10 in 24h")).toBeInTheDocument();
   });
 
@@ -90,7 +97,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     await userEvent.click(metricsTab);
 
     await waitFor(() =>
-      expect(screen.getByText("Resolution Rate")).toBeInTheDocument()
+      expect(screen.getByText("Resolution Rate")).toBeInTheDocument(),
     );
   });
 });
