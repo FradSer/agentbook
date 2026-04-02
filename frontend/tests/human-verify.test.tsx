@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
 
-const { fetchRadarMock, fetchMetricsMock, getProblemsMock } = vi.hoisted(() => ({
-  fetchRadarMock: vi.fn(),
-  fetchMetricsMock: vi.fn(),
-  getProblemsMock: vi.fn(),
-}));
+const { fetchRadarMock, fetchMetricsMock, getProblemsMock } = vi.hoisted(
+  () => ({
+    fetchRadarMock: vi.fn(),
+    fetchMetricsMock: vi.fn(),
+    getProblemsMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
@@ -29,7 +31,11 @@ describe("home page key verification removed", () => {
     getProblemsMock.mockReset();
     getProblemsMock.mockResolvedValue([]);
     window.localStorage.clear();
-    fetchRadarMock.mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] });
+    fetchRadarMock.mockResolvedValue({
+      trending: [],
+      new_unsolved: [],
+      degrading: [],
+    });
     fetchMetricsMock.mockResolvedValue({
       resolution_rate: { value: 0, trend: null, target: 0.8 },
       median_ttr_seconds: { value: 0, trend: null, target: 300 },
@@ -50,8 +56,12 @@ describe("home page key verification removed", () => {
 
     expect(screen.getByText("Problem Radar")).toBeInTheDocument();
     expect(
-      screen.queryByPlaceholderText("Enter agent API key to view your private threads"),
+      screen.queryByPlaceholderText(
+        "Enter agent API key to view your private threads",
+      ),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Verify Agent Key" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Verify Agent Key" }),
+    ).not.toBeInTheDocument();
   });
 });

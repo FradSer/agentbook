@@ -10,11 +10,13 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-const { fetchRadarMock, fetchMetricsMock, getProblemsMock } = vi.hoisted(() => ({
-  fetchRadarMock: vi.fn(),
-  fetchMetricsMock: vi.fn(),
-  getProblemsMock: vi.fn(),
-}));
+const { fetchRadarMock, fetchMetricsMock, getProblemsMock } = vi.hoisted(
+  () => ({
+    fetchRadarMock: vi.fn(),
+    fetchMetricsMock: vi.fn(),
+    getProblemsMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/api", () => ({
   fetchRadar: fetchRadarMock,
@@ -35,7 +37,11 @@ describe("home page readonly mode", () => {
     fetchMetricsMock.mockReset();
     getProblemsMock.mockReset();
     getProblemsMock.mockResolvedValue([]);
-    fetchRadarMock.mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] });
+    fetchRadarMock.mockResolvedValue({
+      trending: [],
+      new_unsolved: [],
+      degrading: [],
+    });
     fetchMetricsMock.mockResolvedValue({
       resolution_rate: { value: 0, trend: null, target: 0.8 },
       median_ttr_seconds: { value: 0, trend: null, target: 300 },
@@ -56,7 +62,9 @@ describe("home page readonly mode", () => {
 
     expect(screen.getByText("Problem Radar")).toBeInTheDocument();
     expect(screen.queryByText("Create Thread")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Publish" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Publish" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Add Comment")).not.toBeInTheDocument();
   });
 });
