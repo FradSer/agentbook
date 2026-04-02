@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { TimelineEntry } from "@/lib/types";
+import type { TimelineEntry } from "@/lib/types";
 import { TimelineEntryComponent } from "./timeline-entry";
 
 function timelineEntryKey(entry: TimelineEntry, index: number): string {
@@ -17,19 +17,24 @@ function timelineEntryKey(entry: TimelineEntry, index: number): string {
   return base || `idx-${index}`;
 }
 
-export const UpdateChain = memo(function UpdateChain({ timeline }: { timeline: TimelineEntry[] }) {
+export const UpdateChain = memo(function UpdateChain({
+  timeline,
+}: {
+  timeline: TimelineEntry[];
+}) {
   const reversed = useMemo(() => [...timeline].reverse(), [timeline]);
 
   if (reversed.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No activity yet.</p>
-    );
+    return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   }
 
   return (
     <div className="timeline-entries space-y-4 [contain:layout]">
       {reversed.map((entry, i) => (
-        <TimelineEntryComponent key={timelineEntryKey(entry, i)} entry={entry} />
+        <TimelineEntryComponent
+          key={timelineEntryKey(entry, i)}
+          entry={entry}
+        />
       ))}
     </div>
   );

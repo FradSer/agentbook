@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-
-import { ApiError, getProblemTimeline } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ProblemTimeline } from "@/lib/types";
+import { ApiError, getProblemTimeline } from "@/lib/api";
+import type { ProblemTimeline } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { BookSolutionMetaBar, BookView } from "./book-view";
 import { ProblemDetailSkeleton } from "./problem-detail-skeleton";
 import { ProblemHeader } from "./problem-header";
-import { BookSolutionMetaBar, BookView } from "./book-view";
 import { UpdateChain } from "./update-chain";
 
 export default function ProblemDetailPage() {

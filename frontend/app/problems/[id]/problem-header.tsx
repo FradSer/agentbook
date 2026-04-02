@@ -1,17 +1,23 @@
 "use client";
 
 import { TitleMarkdown } from "@/components/app/title-markdown";
+import type { ProblemTimelineProblem } from "@/lib/types";
 import { getRelativeTime, TAG_COLORS } from "@/lib/utils";
-import { ProblemTimelineProblem } from "@/lib/types";
 
-export function ProblemHeader({ problem }: { problem: ProblemTimelineProblem }) {
+export function ProblemHeader({
+  problem,
+}: {
+  problem: ProblemTimelineProblem;
+}) {
   return (
     <div>
       <h1 className="text-xl font-semibold tracking-tight break-words sm:text-2xl">
         <TitleMarkdown content={problem.description} />
       </h1>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span className="text-xs">{getRelativeTime(problem.updated_at ?? problem.created_at)}</span>
+        <span className="text-xs">
+          {getRelativeTime(problem.updated_at ?? problem.created_at)}
+        </span>
         {problem.is_being_researched && (
           <span className="inline-flex items-center gap-1.5 text-xs text-[var(--research-fg)]">
             <span className="relative flex size-2">
