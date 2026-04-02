@@ -1,15 +1,27 @@
 "use client";
 
-import { memo, useState } from "react";
 import dynamic from "next/dynamic";
+import { memo, useState } from "react";
 import { AgentIdentity } from "@/components/app/agent-identity";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatLlmModelLabel, getConfidenceTier, getRelativeTime } from "@/lib/utils";
-import { TimelineEntry, PromotionStatus } from "@/lib/types";
+import type { PromotionStatus, TimelineEntry } from "@/lib/types";
+import {
+  cn,
+  formatLlmModelLabel,
+  getConfidenceTier,
+  getRelativeTime,
+} from "@/lib/utils";
 
 const SolutionMarkdown = dynamic(
-  () => import("@/components/app/solution-markdown").then((m) => ({ default: m.SolutionMarkdown })),
-  { loading: () => <div className="h-8 animate-pulse rounded bg-white/[0.04]" /> },
+  () =>
+    import("@/components/app/solution-markdown").then((m) => ({
+      default: m.SolutionMarkdown,
+    })),
+  {
+    loading: () => (
+      <div className="h-8 animate-pulse rounded bg-white/[0.04]" />
+    ),
+  },
 );
 
 /** Row 1 for every chain card: shared AgentIdentity (trailing time) or model-only / time-only fallbacks */
@@ -27,7 +39,9 @@ function TimelineEntryMetaRow({
   if (!authorId && !modelLabel) {
     return (
       <div className="flex justify-end">
-        <span className="shrink-0 text-muted-foreground tabular-nums">{getRelativeTime(createdAt)}</span>
+        <span className="shrink-0 text-muted-foreground tabular-nums">
+          {getRelativeTime(createdAt)}
+        </span>
       </div>
     );
   }
@@ -41,14 +55,21 @@ function TimelineEntryMetaRow({
         >
           {modelLabel}
         </span>
-        <span className="shrink-0 text-muted-foreground tabular-nums">{getRelativeTime(createdAt)}</span>
+        <span className="shrink-0 text-muted-foreground tabular-nums">
+          {getRelativeTime(createdAt)}
+        </span>
       </div>
     );
   }
 
   if (authorId) {
     return (
-      <AgentIdentity authorId={authorId} createdAt={createdAt} llmModel={llmModel} timeMode="trailing" />
+      <AgentIdentity
+        authorId={authorId}
+        createdAt={createdAt}
+        llmModel={llmModel}
+        timeMode="trailing"
+      />
     );
   }
 
@@ -71,7 +92,11 @@ function TimelineEntryCardBody({
 }) {
   return (
     <div className="px-3 py-2.5 space-y-1.5">
-      <TimelineEntryMetaRow authorId={authorId} createdAt={createdAt} llmModel={llmModel} />
+      <TimelineEntryMetaRow
+        authorId={authorId}
+        createdAt={createdAt}
+        llmModel={llmModel}
+      />
       <div className="space-y-1.5 min-w-0">{children}</div>
     </div>
   );
@@ -89,13 +114,43 @@ function ConfidencePct({ confidence }: { confidence: number }) {
 
 function PromotionBadge({ status }: { status: PromotionStatus }) {
   if (!status) return null;
-  if (status === "candidate") return <Badge variant="outline" className="text-xs border-warning/40 text-warning">Pending Validation</Badge>;
-  if (status === "promoted") return <Badge variant="outline" className="text-xs border-success/40 text-success">Confirmed</Badge>;
-  if (status === "demoted") return <Badge variant="outline" className="text-xs border-muted-foreground/30 text-muted-foreground">Superseded</Badge>;
+  if (status === "candidate")
+    return (
+      <Badge
+        variant="outline"
+        className="text-xs border-warning/40 text-warning"
+      >
+        Pending Validation
+      </Badge>
+    );
+  if (status === "promoted")
+    return (
+      <Badge
+        variant="outline"
+        className="text-xs border-success/40 text-success"
+      >
+        Confirmed
+      </Badge>
+    );
+  if (status === "demoted")
+    return (
+      <Badge
+        variant="outline"
+        className="text-xs border-muted-foreground/30 text-muted-foreground"
+      >
+        Superseded
+      </Badge>
+    );
   return null;
 }
 
-function ConfidenceTransition({ confidence, delta }: { confidence: number; delta?: number }) {
+function ConfidenceTransition({
+  confidence,
+  delta,
+}: {
+  confidence: number;
+  delta?: number;
+}) {
   const pct = Math.round(confidence * 100);
   const tier = getConfidenceTier(confidence);
   const deltaPct = delta !== undefined ? Math.round(delta * 100) : 0;
@@ -132,7 +187,13 @@ function ConfidenceTransition({ confidence, delta }: { confidence: number; delta
   );
 }
 
-function CollapsibleContent({ children, label = "Show content" }: { children: React.ReactNode; label?: string }) {
+function CollapsibleContent({
+  children,
+  label = "Show content",
+}: {
+  children: React.ReactNode;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div>
@@ -148,7 +209,13 @@ function CollapsibleContent({ children, label = "Show content" }: { children: Re
   );
 }
 
-function EntryCard({ children, className }: { children: React.ReactNode; className?: string }) {
+function EntryCard({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
@@ -162,7 +229,13 @@ function EntryCard({ children, className }: { children: React.ReactNode; classNa
 }
 
 /** Wrapper for one timeline row (card only; no rail/dot). */
-function TimelineRow({ children, className }: { children: React.ReactNode; className?: string }) {
+function TimelineRow({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return <div className={cn("w-full", className)}>{children}</div>;
 }
 
@@ -179,7 +252,9 @@ function ProblemCreatedEntry({ entry }: { entry: TimelineEntry }) {
         >
           <span className="font-medium text-foreground">Problem posted</span>
           {entry.error_signature && (
-            <p className="font-mono text-muted-foreground break-all">{entry.error_signature}</p>
+            <p className="font-mono text-muted-foreground break-all">
+              {entry.error_signature}
+            </p>
           )}
         </TimelineEntryCardBody>
       </EntryCard>
@@ -200,8 +275,12 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
           llmModel={entry.llm_model}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-foreground">Solution proposed</span>
-            {entry.confidence !== undefined && <ConfidencePct confidence={entry.confidence} />}
+            <span className="font-medium text-foreground">
+              Solution proposed
+            </span>
+            {entry.confidence !== undefined && (
+              <ConfidencePct confidence={entry.confidence} />
+            )}
             <PromotionBadge status={entry.promotion_status ?? null} />
           </div>
           <CollapsibleContent>
@@ -233,13 +312,20 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
           llmModel={entry.llm_model}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-foreground">Research improvement</span>
+            <span className="font-medium text-foreground">
+              Research improvement
+            </span>
             {entry.confidence !== undefined && (
-              <ConfidenceTransition confidence={entry.confidence} delta={entry.confidence_delta} />
+              <ConfidenceTransition
+                confidence={entry.confidence}
+                delta={entry.confidence_delta}
+              />
             )}
             <PromotionBadge status={entry.promotion_status ?? null} />
           </div>
-          {entry.reasoning && <p className="text-sm text-muted-foreground">{entry.reasoning}</p>}
+          {entry.reasoning && (
+            <p className="text-sm text-muted-foreground">{entry.reasoning}</p>
+          )}
           <CollapsibleContent>
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
@@ -267,8 +353,12 @@ function ResearchSkippedEntry({ entry }: { entry: TimelineEntry }) {
           createdAt={entry.created_at}
           llmModel={entry.llm_model}
         >
-          <span className="font-medium text-foreground">No improvement found</span>
-          {entry.reasoning && <p className="text-sm text-muted-foreground">{entry.reasoning}</p>}
+          <span className="font-medium text-foreground">
+            No improvement found
+          </span>
+          {entry.reasoning && (
+            <p className="text-sm text-muted-foreground">{entry.reasoning}</p>
+          )}
         </TimelineEntryCardBody>
       </EntryCard>
     </TimelineRow>
@@ -304,13 +394,18 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
               </span>
             ) : null}
           </div>
-          {entry.notes && <p className="text-sm text-muted-foreground">{entry.notes}</p>}
+          {entry.notes && (
+            <p className="text-sm text-muted-foreground">{entry.notes}</p>
+          )}
           {entry.environment && Object.keys(entry.environment).length > 0 && (
             <div className="flex flex-wrap gap-1">
               {Object.entries(entry.environment)
                 .slice(0, 3)
                 .map(([k, v]) => (
-                  <span key={k} className="px-1 rounded bg-muted text-muted-foreground">
+                  <span
+                    key={k}
+                    className="px-1 rounded bg-muted text-muted-foreground"
+                  >
                     {k}: {v}
                   </span>
                 ))}
@@ -356,7 +451,11 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
 
 // --- Main entry dispatcher ---
 
-export const TimelineEntryComponent = memo(function TimelineEntryComponent({ entry }: { entry: TimelineEntry }) {
+export const TimelineEntryComponent = memo(function TimelineEntryComponent({
+  entry,
+}: {
+  entry: TimelineEntry;
+}) {
   switch (entry.event_type) {
     case "problem_created":
       return <ProblemCreatedEntry entry={entry} />;

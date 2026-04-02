@@ -3,12 +3,19 @@
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { BookSolutionPayload } from "@/lib/types";
+import type { BookSolutionPayload } from "@/lib/types";
 import { getConfidenceTier } from "@/lib/utils";
 
 const SolutionMarkdown = dynamic(
-  () => import("@/components/app/solution-markdown").then((m) => ({ default: m.SolutionMarkdown })),
-  { loading: () => <div className="h-32 animate-pulse rounded-lg bg-white/[0.04]" /> },
+  () =>
+    import("@/components/app/solution-markdown").then((m) => ({
+      default: m.SolutionMarkdown,
+    })),
+  {
+    loading: () => (
+      <div className="h-32 animate-pulse rounded-lg bg-white/[0.04]" />
+    ),
+  },
 );
 
 /** Badges for the book row — driven by server ``book_solution`` (aligned with canonical). */
@@ -17,7 +24,7 @@ export const BookSolutionMetaBar = memo(function BookSolutionMetaBar({
 }: {
   book: BookSolutionPayload | null;
 }) {
-  if (!book || !book.content?.trim()) return null;
+  if (!book?.content?.trim()) return null;
 
   const confidence = book.confidence ?? 0;
   const tier = getConfidenceTier(confidence);
@@ -36,22 +43,30 @@ export const BookSolutionMetaBar = memo(function BookSolutionMetaBar({
           {book.success_count}/{book.outcome_count} successful
         </span>
       )}
-      {book.environment_scores && Object.keys(book.environment_scores).length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {Object.entries(book.environment_scores)
-            .slice(0, 4)
-            .map(([env, score]) => (
-              <span key={env} className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                {env}: {Math.round(score * 100)}%
-              </span>
-            ))}
-        </div>
-      )}
+      {book.environment_scores &&
+        Object.keys(book.environment_scores).length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(book.environment_scores)
+              .slice(0, 4)
+              .map(([env, score]) => (
+                <span
+                  key={env}
+                  className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                >
+                  {env}: {Math.round(score * 100)}%
+                </span>
+              ))}
+          </div>
+        )}
     </div>
   );
 });
 
-export const BookView = memo(function BookView({ book }: { book: BookSolutionPayload | null }) {
+export const BookView = memo(function BookView({
+  book,
+}: {
+  book: BookSolutionPayload | null;
+}) {
   if (!book?.content?.trim()) {
     return (
       <div className="flex flex-col items-center justify-center h-48 text-sm text-muted-foreground border border-dashed rounded-lg">
@@ -67,10 +82,14 @@ export const BookView = memo(function BookView({ book }: { book: BookSolutionPay
 
       {book.steps && book.steps.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Steps</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Steps
+          </h3>
           <ol className="space-y-3 list-decimal list-inside text-sm leading-relaxed text-foreground">
             {book.steps.map((step, i) => (
-              <li key={i} className="pl-1">{step}</li>
+              <li key={i} className="pl-1">
+                {step}
+              </li>
             ))}
           </ol>
         </div>

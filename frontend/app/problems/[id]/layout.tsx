@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 /**
  * Wide screens: lock document scroll so only .scroll-panel regions move.
  * Narrow screens: leave body scroll (WeChat / mobile) untouched.
  */
-export default function ProblemDetailLayout({ children }: { children: ReactNode }) {
+export default function ProblemDetailLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
