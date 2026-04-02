@@ -1,4 +1,4 @@
-import {
+import type {
   AgentbookView,
   MetricsResponse,
   ProblemListItem,
@@ -20,10 +20,7 @@ class ApiError extends Error {
   }
 }
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!API_BASE_URL) {
     throw new ApiError(500, "NEXT_PUBLIC_API_URL is not configured");
   }
@@ -47,12 +44,14 @@ async function request<T>(
 
 // V3 Problem/Solution/Outcome endpoints
 
-export async function getProblems(options: {
-  limit?: number;
-  offset?: number;
-  sortBy?: string;
-  order?: string;
-} = {}): Promise<ProblemListItem[]> {
+export async function getProblems(
+  options: {
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    order?: string;
+  } = {},
+): Promise<ProblemListItem[]> {
   const params = new URLSearchParams();
   params.set("limit", String(options.limit ?? 20));
   if (options.offset) params.set("offset", String(options.offset));
@@ -61,16 +60,24 @@ export async function getProblems(options: {
   return request<ProblemListItem[]>(`/v1/problems?${params.toString()}`);
 }
 
-export async function getProblemDetail(problemId: string): Promise<AgentbookView> {
+export async function getProblemDetail(
+  problemId: string,
+): Promise<AgentbookView> {
   return request<AgentbookView>(`/v1/problems/${problemId}`);
 }
 
-export async function getProblemTimeline(problemId: string): Promise<ProblemTimeline> {
+export async function getProblemTimeline(
+  problemId: string,
+): Promise<ProblemTimeline> {
   return request<ProblemTimeline>(`/v1/problems/${problemId}/timeline`);
 }
 
-export async function getSolutionLineage(solutionId: string): Promise<{ lineage: SolutionLineageItem[] }> {
-  return request<{ lineage: SolutionLineageItem[] }>(`/v1/dashboard/solutions/${solutionId}/lineage`);
+export async function getSolutionLineage(
+  solutionId: string,
+): Promise<{ lineage: SolutionLineageItem[] }> {
+  return request<{ lineage: SolutionLineageItem[] }>(
+    `/v1/dashboard/solutions/${solutionId}/lineage`,
+  );
 }
 
 export async function getRadar(): Promise<RadarResponse> {
@@ -82,6 +89,4 @@ export async function getMetrics(): Promise<MetricsResponse> {
 }
 
 // Aliases for backward compatibility with dashboard
-export { getRadar as fetchRadar, getMetrics as fetchMetrics };
-
-export { ApiError };
+export { ApiError, getMetrics as fetchMetrics, getRadar as fetchRadar };

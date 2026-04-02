@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 function hashStringToUint32(s: string): number {
@@ -81,8 +81,11 @@ export function getConfidenceTier(confidence: number): "high" | "med" | "low" {
 }
 
 /** Shorten OpenRouter-style model ids for inline UI; full string in title attribute. */
-export function formatLlmModelLabel(model: string | null | undefined, maxLen = 42): string | null {
-  if (!model || !model.trim()) return null;
+export function formatLlmModelLabel(
+  model: string | null | undefined,
+  maxLen = 42,
+): string | null {
+  if (!model?.trim()) return null;
   const t = model.trim();
   if (t.length <= maxLen) return t;
   return `${t.slice(0, maxLen - 1)}…`;
