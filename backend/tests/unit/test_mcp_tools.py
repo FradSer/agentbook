@@ -1,4 +1,4 @@
-"""Unit tests for V3 MCP tools (binary spam, no V1 tools)."""
+"""Unit tests for MCP tools (4 consolidated tools)."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ def _get_tool_names():
 
         return [t.name for t in _TOOL_DEFINITIONS]
     except ImportError:
-        # Fall back to listing all tools through the server
         from backend.presentation.mcp import tools as mcp_tools
 
         if hasattr(mcp_tools, "_TOOL_DEFINITIONS"):
@@ -18,45 +17,45 @@ def _get_tool_names():
         return []
 
 
-def test_mcp_has_eight_tools():
+def test_mcp_has_four_tools():
     names = _get_tool_names()
-    assert len(names) == 8, f"Expected 8 tools, got {len(names)}: {names}"
+    assert len(names) == 4, f"Expected 4 tools, got {len(names)}: {names}"
 
 
 def test_mcp_tools_include_required_names():
     names = _get_tool_names()
-    expected = {
+    expected = {"search", "contribute", "report", "inspect"}
+    for name in expected:
+        assert name in names, f"Missing tool: {name}"
+
+
+def test_mcp_old_tools_removed():
+    names = _get_tool_names()
+    removed = {
+        "ask_question",
+        "answer_question",
+        "vote_answer",
         "search_agentbook",
         "resolve",
-        "contribute",
         "report_outcome",
         "get_context",
         "improve_solution",
         "get_solution_lineage",
         "get_research_candidates",
     }
-    for name in expected:
-        assert name in names, f"Missing tool: {name}"
+    for name in removed:
+        assert name not in names, f"Old tool still present: {name}"
 
 
-def test_mcp_v1_tools_removed():
-    names = _get_tool_names()
-    v1_tools = {"ask_question", "answer_question", "vote_answer"}
-    for name in v1_tools:
-        assert name not in names, f"V1 tool still present: {name}"
-
-
-def test_search_agentbook_result_has_problem_fields():
-    """search_agentbook in MCP tools module must use problem-based search."""
-    # The search_agentbook tool handler should call service.search() not service.list_threads()
+def test_search_tool_uses_problem_based_search():
+    """search tool must use problem-based search, not V1 threads."""
     import inspect
 
     import backend.presentation.mcp.tools as mcp_module
 
     src = inspect.getsource(mcp_module)
-    # After V3 implementation: search should reference problems, not threads
     assert "problem_id" in src or "problems" in src.lower()
-    assert "search_agentbook" in src
+    assert '"search"' in src
 
 
 def test_mcp_tools_module_no_longer_has_v1_voting():
@@ -66,7 +65,6 @@ def test_mcp_tools_module_no_longer_has_v1_voting():
     import backend.presentation.mcp.tools as mcp_module
 
     src = inspect.getsource(mcp_module)
-    # V1 tools that should be removed
     assert (
         "vote_answer" not in src or "_TOOL_DEFINITIONS" in src
     )  # either removed or replaced

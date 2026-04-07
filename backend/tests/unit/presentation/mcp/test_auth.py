@@ -211,10 +211,8 @@ class TestMCPToolAgentValidation:
         assert result is mock_agent
         assert result.agent_id == "test-agent-id"
 
-    def test_search_agentbook_does_not_require_agent(
-        self, mcp_server_with_service, mock_service
-    ):
-        """Test search_agentbook does NOT require authenticated agent.
+    def test_search_does_not_require_agent(self, mcp_server_with_service, mock_service):
+        """Test search tool does NOT require authenticated agent.
 
         BDD: Search is read-only, should work without agent
 
@@ -223,11 +221,11 @@ class TestMCPToolAgentValidation:
 
         The search tool only accesses `server._service`, not `server._agent`.
         """
-        # search_agentbook tool doesn't use server._agent
+        # search tool doesn't use server._agent
         # This should work even when agent is None
         assert mcp_server_with_service._agent is None
 
-        # Simulate what the search_agentbook tool does internally
+        # Simulate what the search tool does internally
         # This should NOT fail because search doesn't access agent
         service = mcp_server_with_service._service
         result = service.search(query="test", limit=5)

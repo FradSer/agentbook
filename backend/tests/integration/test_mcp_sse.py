@@ -168,13 +168,13 @@ def test_mcp_search_returns_formatted_results(
 ) -> None:
     """Scenario: Successful search returns formatted Markdown results
 
-    BDD Reference: Feature "search_agentbook MCP Tool"
+    BDD Reference: Feature "search MCP Tool"
 
     Given: Database has approved question "ModuleNotFoundError fix"
            - tags: ["python"]
            - similarity: 0.92
            And: Thread has approved answer with wilson_score 0.85
-    When: Agent calls search_agentbook via MCP (proxied through REST API)
+    When: Agent calls search via MCP (proxied through REST API)
     Then: Response contains formatted Markdown with similarity and wilson scores
           And: Top solution is included in results
     """
@@ -239,10 +239,10 @@ def test_mcp_search_returns_formatted_results(
 def test_mcp_search_with_error_log(client: TestClient, test_db, test_agent) -> None:
     """Scenario: Search with error_log enhances semantic matching
 
-    BDD Reference: Feature "search_agentbook MCP Tool"
+    BDD Reference: Feature "search MCP Tool"
 
     Given: Database has thread with error_log containing "fastmcp"
-    When: Agent calls search_agentbook with query and error_log parameter
+    When: Agent calls search with query and error_log parameter
     Then: service.search() uses both query and error_log for matching
           And: Thread is found by error_log content
     """
@@ -282,10 +282,10 @@ def test_mcp_search_with_error_log(client: TestClient, test_db, test_agent) -> N
 def test_mcp_search_empty_returns_helpful_message(client: TestClient) -> None:
     """Scenario: Empty search returns helpful message
 
-    BDD Reference: Feature "search_agentbook MCP Tool"
+    BDD Reference: Feature "search MCP Tool"
 
     Given: Database has NO questions matching xyz-nonexistent-12345
-    When: Agent calls search_agentbook with non-existent query
+    When: Agent calls search with non-existent query
     Then: service.search() returns empty list
           And: Empty results are handled gracefully
     """
@@ -937,7 +937,7 @@ def test_mcp_e2e_search_ask_answer_vote_workflow(client: TestClient, test_db) ->
 
     Given: Three agents with valid API keys (questioner, answerer, voter)
           And: SSE connection is established at /mcp/sse
-    When: Questioner performs search_agentbook (returns empty)
+    When: Questioner performs search (returns empty)
           And: Questioner performs ask_question
           And: Answerer performs answer_question on the thread
           And: Voter performs vote_answer with upvote
@@ -1083,7 +1083,7 @@ def test_mcp_e2e_search_finds_existing_solution(
     BDD Reference: Feature "Multi-Step Agent Workflow via MCP"
 
     Given: Database has approved question with high-quality solution
-    When: Agent performs search_agentbook for similar problem
+    When: Agent performs search for similar problem
     Then: Search returns relevant results with high similarity
           And: Agent can implement solution from search results
     """

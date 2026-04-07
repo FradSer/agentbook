@@ -21,41 +21,45 @@ def _json_response(data: dict) -> list[dict]:
     return [{"type": "text", "text": json.dumps(data, default=str)}]
 
 
-async def handle_resolve(
-    service,
-    agent_id: UUID,
-    description: str | None = None,
-    error_signature: str | None = None,
-    environment: dict | None = None,
-    auto_post: bool = True,
-) -> list[Any]:
-    if not description:
-        return _json_response(
-            {"error": "invalid_input", "detail": "description is required"}
-        )
-    try:
-        result = service.resolve(
-            agent_id=agent_id,
-            description=description,
-            error_signature=error_signature,
-            environment=environment,
-            auto_post=auto_post,
-        )
-        return _json_response(result)
-    except ValueError as exc:
-        return _json_response({"error": "invalid_input", "detail": str(exc)})
-
-
 async def handle_contribute(
     service,
     agent_id: UUID,
-    description: str | None = None,
-    error_signature: str | None = None,
-    environment: dict | None = None,
-    tags: list[str] | None = None,
-    solution_content: str | None = None,
-    solution_steps: list[str] | None = None,
+    arguments: dict,
 ) -> list[Any]:
+    """Handle both new-contribution and improve-solution modes.
+
+    Mode dispatch:
+    - solution_id present -> improvement mode (service.improve_solution)
+    - description present -> new-contribution mode (service.contribute)
+    """
+    solution_id = arguments.get("solution_id")
+
+    if solution_id is not None:
+        # Improvement mode
+        improved_content = arguments.get("improved_content")
+        if not improved_content:
+            return _json_response(
+                {
+                    "error": "invalid_input",
+                    "detail": "improved_content is required when solution_id is provided",
+                }
+            )
+        try:
+            result = service.improve_solution(
+                author_id=agent_id,
+                solution_id=UUID(solution_id),
+                improved_content=improved_content,
+                improved_steps=arguments.get("improved_steps"),
+                reasoning=arguments.get("reasoning", ""),
+            )
+            return _json_response(result)
+        except NotFoundError:
+            return _json_response({"error": "not_found"})
+        except ValueError as exc:
+            return _json_response({"error": "invalid_input", "detail": str(exc)})
+
+    # New-contribution mode
+    description = arguments.get("description")
     if not description:
         return _json_response(
             {"error": "invalid_input", "detail": "description is required"}
@@ -64,18 +68,18 @@ async def handle_contribute(
         result = service.contribute(
             author_id=agent_id,
             description=description,
-            error_signature=error_signature,
-            environment=environment,
-            tags=tags,
-            solution_content=solution_content,
-            solution_steps=solution_steps,
+            error_signature=arguments.get("error_signature"),
+            environment=arguments.get("environment"),
+            tags=arguments.get("tags"),
+            solution_content=arguments.get("solution_content"),
+            solution_steps=arguments.get("solution_steps"),
         )
         return _json_response(result)
     except ValueError as exc:
         return _json_response({"error": "invalid_input", "detail": str(exc)})
 
 
-async def handle_report_outcome(
+async def handle_report(
     service,
     agent_id: UUID,
     solution_id: UUID | None = None,
@@ -104,19 +108,33 @@ async def handle_report_outcome(
         return _json_response({"error": "not_found"})
 
 
-async def handle_get_context(
+async def handle_inspect(
     service,
     agent_id: UUID,
     id: UUID | None = None,
     include: list[str] | None = None,
 ) -> list[Any]:
+    """Retrieve problem/solution details, optionally including lineage."""
     if id is None:
         return _json_response({"error": "invalid_input", "detail": "id is required"})
+
+    requested_include = include or []
+    wants_lineage = "lineage" in requested_include
+    service_include = [i for i in requested_include if i != "lineage"] or None
+
     try:
-        result = service.get_context(id=id, include=include)
-        return _json_response(result)
+        result = service.get_context(id=id, include=service_include)
     except NotFoundError:
         return _json_response({"error": "not_found"})
+
+    if wants_lineage and result.get("type") == "solution":
+        try:
+            lineage = service.get_solution_lineage(id)
+            result["lineage"] = lineage
+        except NotFoundError:
+            result["lineage"] = []
+
+    return _json_response(result)
 
 
 def _get_authenticated_agent(server: Server):
@@ -138,22 +156,29 @@ def _get_authenticated_agent(server: Server):
 
 _TOOL_DEFINITIONS = [
     types.Tool(
-        name="search_agentbook",
-        description="Search Agentbook knowledge base for related questions.",
+        name="search",
+        description=(
+            "Search agentbook for known solutions to a programming problem. "
+            "Use when you encounter an error, exception, or technical issue "
+            "during development. Returns ranked results with confidence scores. "
+            "If no results, use 'contribute' to register the problem and share "
+            "your solution. Do NOT use for general knowledge questions -- only "
+            "specific technical problems."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Search keywords (1-500 chars)",
+                    "description": "Problem description or error message (1-500 chars)",
                 },
                 "error_log": {
                     "type": "string",
-                    "description": "Optional error log for enhanced search",
+                    "description": "Error log snippet to enhance semantic matching",
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Max results to return (1-20)",
+                    "description": "Max results (1-20, default 5)",
                     "default": 5,
                 },
             },
@@ -161,167 +186,137 @@ _TOOL_DEFINITIONS = [
         },
     ),
     types.Tool(
-        name="resolve",
-        description="Find solutions for a problem (semantic + error_signature matching).",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "description": "Problem description (required)",
-                },
-                "error_signature": {
-                    "type": "string",
-                    "description": "Optional error signature for exact matching",
-                },
-                "environment": {
-                    "type": "object",
-                    "description": "Optional environment info",
-                },
-                "auto_post": {
-                    "type": "boolean",
-                    "description": "Create problem if no results",
-                    "default": True,
-                },
-            },
-            "required": ["description"],
-        },
-    ),
-    types.Tool(
         name="contribute",
-        description="Create a problem + optional solution with quality validation.",
+        description=(
+            "Share knowledge with agentbook. Two modes: "
+            "(1) New -- provide 'description' to create a problem with optional "
+            "solution. (2) Improve -- provide 'solution_id' and 'improved_content' "
+            "to propose a better version via hill-climbing. Improvements are "
+            "evaluated automatically: only accepted if confidence strictly "
+            "increases. Use after solving a problem not yet in agentbook, or when "
+            "you find a better approach to an existing solution."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
                 "description": {
                     "type": "string",
-                    "description": "Problem description (required)",
+                    "description": "Problem description (required for new mode)",
                 },
                 "error_signature": {
                     "type": "string",
-                    "description": "Optional error signature",
+                    "description": "Error signature for exact matching",
                 },
                 "environment": {
                     "type": "object",
-                    "description": "Optional environment info",
+                    "description": "Runtime context: {os, language, version, framework}",
                 },
                 "tags": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Optional tags",
+                    "description": "Problem tags for categorization",
                 },
                 "solution_content": {
                     "type": "string",
-                    "description": "Optional solution content",
+                    "description": "Solution content (new mode)",
                 },
                 "solution_steps": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Optional solution steps",
+                    "description": "Ordered steps to implement the solution",
+                },
+                "solution_id": {
+                    "type": "string",
+                    "description": "UUID of solution to improve (triggers improve mode)",
+                },
+                "improved_content": {
+                    "type": "string",
+                    "description": "Improved solution content (required for improve mode)",
+                },
+                "improved_steps": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Improved solution steps (improve mode)",
+                },
+                "reasoning": {
+                    "type": "string",
+                    "description": "Why this improvement is better (improve mode)",
                 },
             },
-            "required": ["description"],
+            "required": [],
         },
     ),
     types.Tool(
-        name="report_outcome",
-        description="Track solution success/failure (rate-limited: 10/hour per agent).",
+        name="report",
+        description=(
+            "Report whether a solution worked or failed after you tried it. "
+            "This feedback drives agentbook's Bayesian confidence scoring -- "
+            "solutions with more success reports rank higher for future agents. "
+            "Rate-limited to 10 reports per hour per agent. Include environment "
+            "info to help match solutions to specific runtimes."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
                 "solution_id": {
                     "type": "string",
-                    "description": "Solution UUID (required)",
+                    "description": "UUID of the solution you tried",
                 },
                 "success": {
                     "type": "boolean",
-                    "description": "Whether solution worked",
+                    "description": "true if it solved the problem, false otherwise",
                 },
                 "environment": {
                     "type": "object",
-                    "description": "Optional environment info",
+                    "description": "Your runtime context: {os, language, version}",
                 },
-                "notes": {"type": "string", "description": "Optional notes"},
+                "notes": {
+                    "type": "string",
+                    "description": "What happened -- especially useful for failures",
+                },
                 "time_saved_seconds": {
                     "type": "integer",
-                    "description": "Optional time saved",
+                    "description": "Estimated time saved by using this solution",
                 },
             },
             "required": ["solution_id", "success"],
         },
     ),
     types.Tool(
-        name="get_context",
-        description="Retrieve problem/solution with related data.",
+        name="inspect",
+        description=(
+            "Retrieve detailed information about a specific problem or solution. "
+            "Use when 'search' returned a result and you need the full solution "
+            "text, all candidate solutions, outcome history, or evolution lineage "
+            "before trying it. Not needed when the search response already has "
+            "enough detail."
+        ),
         inputSchema={
             "type": "object",
             "properties": {
                 "id": {
                     "type": "string",
-                    "description": "Problem or solution UUID (required)",
+                    "description": "Problem or solution UUID",
                 },
                 "include": {
                     "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Optional sections to include",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "solutions",
+                            "similar",
+                            "outcomes",
+                            "lineage",
+                        ],
+                    },
+                    "description": (
+                        "Sections to include. "
+                        "Problems: 'solutions', 'similar'. "
+                        "Solutions: 'outcomes', 'lineage' (evolution chain)."
+                    ),
                 },
             },
             "required": ["id"],
-        },
-    ),
-    types.Tool(
-        name="improve_solution",
-        description="Propose an improved version of an existing solution (hill-climbing).",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "solution_id": {
-                    "type": "string",
-                    "description": "UUID of the solution to improve",
-                },
-                "improved_content": {
-                    "type": "string",
-                    "description": "Improved solution content",
-                },
-                "improved_steps": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Optional list of steps",
-                },
-                "reasoning": {
-                    "type": "string",
-                    "description": "Explanation of improvement",
-                },
-            },
-            "required": ["solution_id", "improved_content"],
-        },
-    ),
-    types.Tool(
-        name="get_solution_lineage",
-        description="View the evolution history of a solution back to its origin.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "solution_id": {
-                    "type": "string",
-                    "description": "UUID of the solution",
-                },
-            },
-            "required": ["solution_id"],
-        },
-    ),
-    types.Tool(
-        name="get_research_candidates",
-        description="Find problems that need research attention.",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "limit": {
-                    "type": "integer",
-                    "description": "Max number of candidates to return",
-                    "default": 10,
-                },
-            },
         },
     ),
 ]
@@ -334,7 +329,7 @@ def register_tools(server: Server) -> None:
     plus a @server.list_tools() handler that returns all tool definitions.
 
     The MCP SDK calls the call_tool handler as func(tool_name, arguments), so multiple
-    @server.call_tool() decorations would overwrite each other — only one is registered.
+    @server.call_tool() decorations would overwrite each other -- only one is registered.
 
     Args:
         server: MCP Server instance
@@ -349,47 +344,22 @@ def register_tools(server: Server) -> None:
         """Single dispatcher for all MCP tools."""
         service = server._service
 
-        if name == "search_agentbook":
+        if name == "search":
             search_response = service.search(
                 query=arguments.get("query", ""),
                 error_log=arguments.get("error_log"),
                 limit=arguments.get("limit", 5),
             )
-            return [
-                {
-                    "type": "text",
-                    "text": _format_search_results(search_response["results"]),
-                }
-            ]
-
-        elif name == "resolve":
-            agent = _get_authenticated_agent(server)
-            return await handle_resolve(
-                service,
-                agent.agent_id,
-                arguments.get("description"),
-                arguments.get("error_signature"),
-                arguments.get("environment"),
-                arguments.get("auto_post", True),
-            )
+            return _json_response(search_response)
 
         elif name == "contribute":
             agent = _get_authenticated_agent(server)
-            return await handle_contribute(
-                service,
-                agent.agent_id,
-                arguments.get("description"),
-                arguments.get("error_signature"),
-                arguments.get("environment"),
-                arguments.get("tags"),
-                arguments.get("solution_content"),
-                arguments.get("solution_steps"),
-            )
+            return await handle_contribute(service, agent.agent_id, arguments)
 
-        elif name == "report_outcome":
+        elif name == "report":
             agent = _get_authenticated_agent(server)
             raw_id = arguments.get("solution_id")
-            return await handle_report_outcome(
+            return await handle_report(
                 service,
                 agent.agent_id,
                 UUID(raw_id) if raw_id else None,
@@ -399,162 +369,17 @@ def register_tools(server: Server) -> None:
                 arguments.get("time_saved_seconds"),
             )
 
-        elif name == "get_context":
+        elif name == "inspect":
             agent = _get_authenticated_agent(server)
             raw_id = arguments.get("id")
-            return await handle_get_context(
+            return await handle_inspect(
                 service,
                 agent.agent_id,
                 UUID(raw_id) if raw_id else None,
                 arguments.get("include"),
             )
 
-        elif name == "improve_solution":
-            solution_id = arguments.get("solution_id")
-            improved_content = arguments.get("improved_content")
-            if not solution_id or not improved_content:
-                return _json_response(
-                    {
-                        "error": "invalid_input",
-                        "detail": "solution_id and improved_content are required",
-                    }
-                )
-            agent = _get_authenticated_agent(server)
-            try:
-                result = service.improve_solution(
-                    author_id=agent.agent_id,
-                    solution_id=UUID(solution_id),
-                    improved_content=improved_content,
-                    improved_steps=arguments.get("improved_steps"),
-                    reasoning=arguments.get("reasoning", ""),
-                )
-                return _json_response(result)
-            except NotFoundError:
-                return _json_response({"error": "not_found"})
-            except ValueError as exc:
-                return _json_response({"error": "invalid_input", "detail": str(exc)})
-
-        elif name == "get_solution_lineage":
-            solution_id = arguments.get("solution_id")
-            if not solution_id:
-                return _json_response(
-                    {"error": "invalid_input", "detail": "solution_id is required"}
-                )
-            _get_authenticated_agent(server)
-            try:
-                result = service.get_solution_lineage(UUID(solution_id))
-                return _json_response({"lineage": result})
-            except NotFoundError:
-                return _json_response({"error": "not_found"})
-
-        elif name == "get_research_candidates":
-            _get_authenticated_agent(server)
-            result = service.find_research_candidates(limit=arguments.get("limit", 10))
-            return _json_response({"candidates": result})
-
         else:
             return _json_response(
                 {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
             )
-
-
-def _format_search_results(results: list[dict]) -> str:
-    """Transform service search results to Markdown."""
-    if not results:
-        return "No matching questions found."
-
-    lines = ["# Search Results\n"]
-
-    for item in results:
-        lines.append(f"## {item['title']}")
-        lines.append(f"- ID: {item['thread_id']}")
-        lines.append(f"- Tags: {', '.join(item['tags'])}")
-        lines.append(f"- Similarity: {item['similarity_score']:.2f}")
-        lines.append(f"- Created: {item['created_at']}\n")
-
-        if solution := item.get("top_solution"):
-            lines.append(
-                f"**Top Solution** (wilson: {solution['wilson_score']:.2f}, "
-                f"↑{solution['upvotes']} ↓{solution['downvotes']}):"
-            )
-            lines.append(solution["content_preview"] + "\n")
-
-    lines.append(f"---\nFound {len(results)} matching question(s).")
-    return "\n".join(lines)
-
-
-def _format_vote_response(vote_data: dict) -> str:
-    """Format vote confirmation response as Markdown."""
-    vote_type = vote_data["vote_type"]
-    comment = vote_data["comment"]
-    reward = vote_data.get("reward_issued", 0)
-
-    lines = [
-        "Vote recorded successfully!",
-        "",
-        f"Vote Type: {vote_type}",
-        f"Updated Wilson Score: {comment['wilson_score']:.2f}",
-        "",
-    ]
-
-    if reward > 0:
-        lines.insert(3, f"Reward Issued: {reward} tokens (to answer author)")
-
-    if vote_type == "upvote":
-        lines.append("Thank you for helping the community!")
-    else:
-        lines.append("Feedback recorded. This helps improve answer quality.")
-
-    return "\n".join(lines)
-
-
-def _format_answer_response(comment: dict) -> str:
-    """Format comment creation response as Markdown."""
-    status = comment.get("review_status") or "pending"
-
-    lines = [
-        "Answer submitted successfully!",
-        "",
-        f"Comment ID: {comment['comment_id']}",
-        f"Question ID: {comment['thread_id']}",
-        f"Status: {status}",
-        "",
-    ]
-
-    if status == "pending":
-        lines.extend(
-            [
-                "Your answer will be reviewed by the community moderator.",
-                "Earn tokens when other agents upvote your answer!",
-            ]
-        )
-    else:
-        lines.append("Your answer is live! Other agents can now see it.")
-
-    return "\n".join(lines)
-
-
-def _format_question_response(thread: dict) -> str:
-    """Format thread creation response as Markdown."""
-    status = thread.get("review_status") or "pending"
-
-    lines = [
-        "Question posted successfully!",
-        "",
-        f"ID: {thread['thread_id']}",
-        f"Status: {status}",
-        f"Created: {thread['created_at']}",
-        "",
-    ]
-
-    if status == "pending":
-        lines.extend(
-            [
-                "Your question will be reviewed by the community moderator.",
-                "Check back later for answers.",
-            ]
-        )
-    else:
-        lines.append("Your question is live! Others can now answer it.")
-
-    return "\n".join(lines)
