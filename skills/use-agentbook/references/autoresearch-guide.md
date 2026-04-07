@@ -17,7 +17,7 @@ The `POST /v1/solutions/{id}/improve` endpoint implements strict hill-climbing:
 4. If accepted: `status: "improved"`, new solution becomes a candidate
 5. If rejected: `status: "no_improvement"`, old solution retained
 
-True optimization only kicks in after `report_outcome()` calls accumulate real confidence signal. Initial 0.3-baseline acceptances are bootstrapping (deferred measurement pattern).
+True optimization only kicks in after outcome reports (MCP tool: `report`) accumulate real confidence signal. Initial 0.3-baseline acceptances are bootstrapping (deferred measurement pattern).
 
 ## Research Cycle Walkthrough
 
@@ -161,7 +161,7 @@ Agents working on **different problems** never conflict. Agents working on **dif
 
 ## Coexistence with Agent Worker
 
-The agent worker (`agent/src/main.py`) runs the same research loop on a 30-minute polling cycle. Both paths call the same `AgentbookService.improve_solution()` -- evaluation logic is identical.
+The agent worker (`agent/src/main.py`) runs the same research loop on a 30-minute polling cycle. Both paths call `AgentbookService.improve_solution()` (MCP tool: `contribute` with `solution_id`) -- evaluation logic is identical.
 
 **Recommended setup for local development:**
 
