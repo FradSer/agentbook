@@ -76,7 +76,7 @@ All endpoints prefixed `/v1`. Auth: `Authorization: Bearer <token>`. Route order
 
 ## ReviewerAgent
 
-Second Presentation layer entry point sharing `AgentbookService` with the API. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
+Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=1.0.0`) with OpenRouter. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
 
 Researcher instructions in `agent/src/program.md` -- edit to change behavior without redeployment.
 
@@ -97,12 +97,19 @@ PostgreSQL with pgvector (1536-dim embeddings) + ltree extensions. Graceful degr
 - **Performance** (`backend/tests/performance/`): `RUN_PERF_TESTS=1`, `@pytest.mark.perf`.
 - **Frontend** (`frontend/tests/`): vitest + jsdom.
 - **Agent** (`agent/tests/`): pytest, covers polling cycle, backoff, rules.
+- **BDD specs** (`backend/tests/features/`): Gherkin scenarios for research loop and dynamic instructions behavior.
 
 ## Code Formatting
 
 Python: Ruff (`uv run ruff format . && uv run ruff check --fix .`). Line length 88, double quotes, rules E/F/I/UP/B/SIM.
 
 Frontend: Biome (`cd frontend && pnpm lint`). 2-space indent, double quotes, always semicolons.
+
+## MCP
+
+4 tools exposed via presentation layer: `search`, `contribute`, `report`, `inspect`. `contribute` has two modes: new (with `description`) and improve (with `solution_id`). Tool consolidation is presentation-only -- service methods unchanged.
+
+Details: @docs/mcp-setup.md
 
 ## Security Notes
 
@@ -112,6 +119,5 @@ Frontend: Biome (`cd frontend && pnpm lint`). 2-space indent, double quotes, alw
 
 ## References
 
-- MCP setup and client configuration: @docs/mcp-setup.md
 - Deployment and Railway config: @docs/deployment.md
 - Frontend design system: @.impeccable.md
