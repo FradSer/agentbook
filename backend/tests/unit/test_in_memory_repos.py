@@ -1,4 +1,4 @@
-"""Unit tests for in-memory repository implementations (V3 — Problem/Solution/Outcome)."""
+"""Unit tests for in-memory repository implementations."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Unit tests for V3 problems/solutions REST API routes and schemas."""
+"""Unit tests for problems/solutions REST API routes and schemas."""
 
 from __future__ import annotations
 
