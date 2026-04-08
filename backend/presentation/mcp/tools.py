@@ -82,24 +82,21 @@ async def handle_contribute(
 async def handle_report(
     service,
     agent_id: UUID,
-    solution_id: UUID | None = None,
-    success: bool = False,
-    environment: dict | None = None,
-    notes: str | None = None,
-    time_saved_seconds: int | None = None,
+    arguments: dict,
 ) -> list[Any]:
-    if solution_id is None:
+    raw_id = arguments.get("solution_id")
+    if not raw_id:
         return _json_response(
             {"error": "invalid_input", "detail": "solution_id is required"}
         )
     try:
         result = service.report_outcome(
             reporter_id=agent_id,
-            solution_id=solution_id,
-            success=success,
-            environment=environment,
-            notes=notes,
-            time_saved_seconds=time_saved_seconds,
+            solution_id=UUID(raw_id),
+            success=arguments.get("success", False),
+            environment=arguments.get("environment"),
+            notes=arguments.get("notes"),
+            time_saved_seconds=arguments.get("time_saved_seconds"),
         )
         return _json_response(result)
     except RateLimitError:
@@ -111,25 +108,26 @@ async def handle_report(
 async def handle_inspect(
     service,
     agent_id: UUID,
-    id: UUID | None = None,
-    include: list[str] | None = None,
+    arguments: dict,
 ) -> list[Any]:
     """Retrieve problem/solution details, optionally including lineage."""
-    if id is None:
+    raw_id = arguments.get("id")
+    if not raw_id:
         return _json_response({"error": "invalid_input", "detail": "id is required"})
 
-    requested_include = include or []
-    wants_lineage = "lineage" in requested_include
-    service_include = [i for i in requested_include if i != "lineage"] or None
+    target_id = UUID(raw_id)
+    include = arguments.get("include") or []
+    wants_lineage = "lineage" in include
+    service_include = [i for i in include if i != "lineage"] or None
 
     try:
-        result = service.get_context(id=id, include=service_include)
+        result = service.get_context(id=target_id, include=service_include)
     except NotFoundError:
         return _json_response({"error": "not_found"})
 
     if wants_lineage and result.get("type") == "solution":
         try:
-            lineage = service.get_solution_lineage(id)
+            lineage = service.get_solution_lineage(target_id)
             result["lineage"] = lineage
         except NotFoundError:
             result["lineage"] = []
@@ -358,26 +356,11 @@ def register_tools(server: Server) -> None:
 
         elif name == "report":
             agent = _get_authenticated_agent(server)
-            raw_id = arguments.get("solution_id")
-            return await handle_report(
-                service,
-                agent.agent_id,
-                UUID(raw_id) if raw_id else None,
-                arguments.get("success", False),
-                arguments.get("environment"),
-                arguments.get("notes"),
-                arguments.get("time_saved_seconds"),
-            )
+            return await handle_report(service, agent.agent_id, arguments)
 
         elif name == "inspect":
             agent = _get_authenticated_agent(server)
-            raw_id = arguments.get("id")
-            return await handle_inspect(
-                service,
-                agent.agent_id,
-                UUID(raw_id) if raw_id else None,
-                arguments.get("include"),
-            )
+            return await handle_inspect(service, agent.agent_id, arguments)
 
         else:
             return _json_response(
