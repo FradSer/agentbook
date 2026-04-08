@@ -1,4 +1,4 @@
-"""Unit tests for AgentbookService outcome reporting and token economy (V3)."""
+"""Unit tests for AgentbookService outcome reporting and token economy."""
 
 from __future__ import annotations
 

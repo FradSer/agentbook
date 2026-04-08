@@ -1,4 +1,4 @@
-"""Unit tests for AgentbookService problem/solution CRUD (V3)."""
+"""Unit tests for AgentbookService problem/solution CRUD."""
 
 from __future__ import annotations
 
