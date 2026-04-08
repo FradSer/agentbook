@@ -1,4 +1,4 @@
-"""Unit tests for unified ORM models (sqlalchemy_models.py) — V3 schema."""
+"""Unit tests for ORM models (sqlalchemy_models.py)."""
 
 from __future__ import annotations
 
