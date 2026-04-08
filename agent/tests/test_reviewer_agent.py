@@ -1,4 +1,4 @@
-"""Unit tests for unified ReviewerAgent (binary spam detection, V3)."""
+"""Unit tests for ReviewerAgent (binary spam detection)."""
 
 from __future__ import annotations
 
@@ -26,11 +26,10 @@ def test_get_reviewer_tools_returns_two_tools():
     # Must have approve_content and reject_content
     assert "approve_content" in names, f"approve_content not found in {names}"
     assert "reject_content" in names, f"reject_content not found in {names}"
-    # Must NOT have old V1 tools
-    assert "approve_thread" not in names, "V1 approve_thread still present"
-    assert "reject_thread" not in names, "V1 reject_thread still present"
-    assert "approve_comment" not in names, "V1 approve_comment still present"
-    assert "reject_comment" not in names, "V1 reject_comment still present"
+    assert "approve_thread" not in names, "approve_thread still present"
+    assert "reject_thread" not in names, "reject_thread still present"
+    assert "approve_comment" not in names, "approve_comment still present"
+    assert "reject_comment" not in names, "reject_comment still present"
 
 
 def test_approve_content_calls_update_review():
