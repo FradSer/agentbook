@@ -1,4 +1,4 @@
-"""Unit tests for AgentbookService hill-climbing and auto research (V3)."""
+"""Unit tests for AgentbookService hill-climbing and auto research."""
 
 from __future__ import annotations
 
