@@ -254,25 +254,51 @@ class SQLAlchemyProblemRepository:
             row = session.execute(stmt).scalar_one_or_none()
             return None if row is None else _to_problem_domain(row)
 
+    def _vector_query(self, session, embedding: list[float]):
+        """Build base cosine-distance query. Returns (distance_expr, base_stmt) or None."""
+        if session.bind is None or session.bind.dialect.name != "postgresql":
+            return None
+        distance_expr = ProblemORM.embedding.cosine_distance(embedding)
+        base = (
+            select(ProblemORM)
+            .where(ProblemORM.embedding.is_not(None))
+            .order_by(distance_expr)
+        )
+        return distance_expr, base
+
     def find_similar(self, embedding: list[float], threshold: float) -> list[Problem]:
         if Vector is None or not embedding:
             return []
-
         with self._session_factory() as session:
-            if session.bind is None or session.bind.dialect.name != "postgresql":
-                return []
-
             try:
-                distance_expr = ProblemORM.embedding.cosine_distance(embedding)
-                stmt = (
-                    select(ProblemORM)
-                    .where(ProblemORM.embedding.is_not(None))
-                    .where(distance_expr < (1.0 - threshold))
-                    .order_by(distance_expr)
-                    .limit(10)
-                )
+                result = self._vector_query(session, embedding)
+                if result is None:
+                    return []
+                distance_expr, base = result
+                stmt = base.where(distance_expr < (1.0 - threshold)).limit(10)
                 rows = session.execute(stmt).scalars().all()
                 return [_to_problem_domain(r) for r in rows]
+            except Exception:
+                return []
+
+    def find_similar_scored(
+        self, query_embedding: list[float]
+    ) -> list[tuple[Problem, float]]:
+        if Vector is None or not query_embedding:
+            return []
+        with self._session_factory() as session:
+            try:
+                result = self._vector_query(session, query_embedding)
+                if result is None:
+                    return []
+                distance_expr, base = result
+                stmt = (
+                    base.add_columns((1.0 - distance_expr).label("similarity"))
+                    .where(ProblemORM.review_status == "approved")
+                    .limit(20)
+                )
+                rows = session.execute(stmt).all()
+                return [(_to_problem_domain(r[0]), float(r[1])) for r in rows]
             except Exception:
                 return []
 
@@ -354,6 +380,13 @@ class SQLAlchemyProblemRepository:
             )
             rows = session.execute(stmt).scalars().all()
             return [_to_problem_domain(r) for r in rows]
+
+    def delete(self, problem_id: UUID) -> None:
+        with self._session_factory() as session:
+            row = session.get(ProblemORM, str(problem_id))
+            if row is not None:
+                session.delete(row)
+                session.commit()
 
 
 class SQLAlchemySolutionRepository:
@@ -456,6 +489,13 @@ class SQLAlchemySolutionRepository:
             )
             rows = session.execute(stmt).scalars().all()
             return [_to_solution_domain(r) for r in rows]
+
+    def delete(self, solution_id: UUID) -> None:
+        with self._session_factory() as session:
+            row = session.get(SolutionORM, str(solution_id))
+            if row is not None:
+                session.delete(row)
+                session.commit()
 
 
 class SQLAlchemyOutcomeRepository:
@@ -574,14 +614,14 @@ class SQLAlchemyResearchCycleRepository:
             )
             return session.execute(stmt).scalar_one()
 
-    def last_researched_at(self, problem_id: UUID) -> datetime | None:
+    def get_last_researched_at(self, problem_id: UUID) -> datetime | None:
         with self._session_factory() as session:
             stmt = select(func.max(ResearchCycleORM.created_at)).where(
                 ResearchCycleORM.problem_id == str(problem_id)
             )
             return session.execute(stmt).scalar_one_or_none()
 
-    def consecutive_no_improvement(self, problem_id: UUID) -> int:
+    def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
         with self._session_factory() as session:
             stmt = (
                 select(ResearchCycleORM.status)

@@ -120,3 +120,72 @@ class SolutionImproveResponse(BaseModel):
     previous_confidence: float
     previous_problem_best: float
     new_confidence: float
+
+
+class TimelineEvent(BaseModel):
+    event_type: str
+    created_at: str
+
+
+class ProblemTimelineProblem(BaseModel):
+    problem_id: str
+    author_id: str
+    description: str
+    best_confidence: float
+    solution_count: int
+    created_at: str
+    updated_at: str
+    has_canonical: bool
+
+
+class BookSolutionPayload(BaseModel):
+    solution_id: str
+    content: str
+    confidence: float
+
+
+class ProblemTimelineResponse(BaseModel):
+    problem: ProblemTimelineProblem
+    book_solution: BookSolutionPayload | None = None
+    timeline: list[TimelineEvent]
+
+
+class RadarApiResponse(BaseModel):
+    trending: list[dict]
+    new_unsolved: list[dict]
+    degrading: list[dict]
+
+
+class MetricValue(BaseModel):
+    value: float | int
+    trend: float | None = None
+    target: float | None = None
+
+
+class MetricsApiResponse(BaseModel):
+    resolution_rate: MetricValue
+    median_ttr_seconds: MetricValue
+    avg_solution_confidence: MetricValue
+    knowledge_coverage: dict
+    knowledge_freshness: MetricValue
+    solutions_needing_synthesis: int
+    stale_solutions: int
+
+
+class ResearchHistoryResponse(BaseModel):
+    history: list[dict]
+
+
+class ResearchCandidatesResponse(BaseModel):
+    candidates: list[dict]
+
+
+class SolutionLineageResponse(BaseModel):
+    lineage: list[dict]
+
+
+class OutcomeReportResponse(BaseModel):
+    status: str
+    outcome_id: Any
+    solution_confidence_updated: float
+    reward_issued: bool = False

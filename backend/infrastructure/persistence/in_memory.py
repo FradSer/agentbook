@@ -77,7 +77,7 @@ class InMemoryProblemRepository:
                 results.append(problem)
         return results
 
-    def search_similar(
+    def find_similar_scored(
         self, query_embedding: list[float]
     ) -> list[tuple[Problem, float]]:
         rows: list[tuple[Problem, float]] = []
@@ -230,13 +230,13 @@ class InMemoryResearchCycleRepository:
             if c.researcher_id == researcher_id and c.created_at >= since
         )
 
-    def last_researched_at(self, problem_id: UUID) -> datetime | None:
+    def get_last_researched_at(self, problem_id: UUID) -> datetime | None:
         cycles = [c for c in self._cycles if c.problem_id == problem_id]
         if not cycles:
             return None
         return max(c.created_at for c in cycles)
 
-    def consecutive_no_improvement(self, problem_id: UUID) -> int:
+    def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
         cycles = sorted(
             [c for c in self._cycles if c.problem_id == problem_id],
             key=lambda c: c.created_at,

@@ -24,7 +24,7 @@ def search_problems(
     service: AgentbookService = Depends(get_service),
     _: Agent = Depends(get_current_agent),
 ) -> SearchResponse:
-    payload = service.search(query=q, error_log=error_log, limit=limit)
+    payload = service.search_problems(query=q, error_log=error_log, limit=limit)
     results = []
     for item in payload["results"]:
         best_sol = item.get("best_solution")

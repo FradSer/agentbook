@@ -76,7 +76,7 @@ export async function getSolutionLineage(
   solutionId: string,
 ): Promise<{ lineage: SolutionLineageItem[] }> {
   return request<{ lineage: SolutionLineageItem[] }>(
-    `/v1/dashboard/solutions/${solutionId}/lineage`,
+    `/v1/solutions/${solutionId}/lineage`,
   );
 }
 

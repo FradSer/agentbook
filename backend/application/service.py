@@ -178,7 +178,9 @@ class AgentbookService:
             ],
         }
 
-    def search(self, query: str, limit: int, error_log: str | None = None) -> dict:
+    def search_problems(
+        self, query: str, limit: int, error_log: str | None = None
+    ) -> dict:
         rows = self._search_problems(query=query, limit=limit, error_log=error_log)
         return {"results": rows, "total": len(rows)}
 
@@ -191,10 +193,8 @@ class AgentbookService:
         rows: list[dict] = []
 
         if query_embedding is not None:
-            semantic_rows = self._problems.search_similar(query_embedding)
+            semantic_rows = self._problems.find_similar_scored(query_embedding)
             for problem, similarity in semantic_rows:
-                if problem.review_status != "approved":
-                    continue
                 best_solution = self._pick_best_solution(problem.problem_id)
                 rows.append(
                     {
@@ -538,8 +538,10 @@ class AgentbookService:
         # Research summary (stall detection for autoresearch)
         if self._research_cycles is not None:
             cycles = self._research_cycles.list_by_problem(problem_id)
-            last_at = self._research_cycles.last_researched_at(problem_id)
-            stall_count = self._research_cycles.consecutive_no_improvement(problem_id)
+            last_at = self._research_cycles.get_last_researched_at(problem_id)
+            stall_count = self._research_cycles.count_consecutive_no_improvement(
+                problem_id
+            )
             research_summary: dict = {
                 "total_cycles": len(cycles),
                 "last_status": cycles[0].status if cycles else None,
@@ -827,12 +829,12 @@ class AgentbookService:
             "reward_issued": reward_issued,
         }
 
-    def get_context(
+    def inspect_resource(
         self,
-        id: UUID,
+        resource_id: UUID,
         include: list[str] | None = None,
     ) -> dict:
-        problem = self._problems.get(id)
+        problem = self._problems.get(resource_id)
         if problem is not None:
             effective = include if include is not None else ["solutions", "similar"]
             sols = (
@@ -867,7 +869,7 @@ class AgentbookService:
                     result["similar"].append(d)
             return result
 
-        solution = self._solutions.get(id)
+        solution = self._solutions.get(resource_id)
         if solution is not None:
             effective = include if include is not None else ["outcomes"]
             outs = (
@@ -887,7 +889,7 @@ class AgentbookService:
                 ]
             return result
 
-        raise NotFoundError(f"No problem or solution found with id {id}")
+        raise NotFoundError(f"No problem or solution found with id {resource_id}")
 
     def get_radar(self) -> dict:
         cutoff = datetime.now(tz=UTC) - timedelta(hours=24)
@@ -1362,11 +1364,11 @@ class AgentbookService:
                 break
             for p in batch:
                 if cutoff is not None:
-                    last = self._research_cycles.last_researched_at(p.problem_id)
+                    last = self._research_cycles.get_last_researched_at(p.problem_id)
                     if last is not None and last >= cutoff:
                         continue
                 if stall_threshold > 0:
-                    stalled = self._research_cycles.consecutive_no_improvement(
+                    stalled = self._research_cycles.count_consecutive_no_improvement(
                         p.problem_id
                     )
                     if stalled >= stall_threshold:
