@@ -121,7 +121,9 @@ async def handle_inspect(
     service_include = [i for i in include if i != "lineage"] or None
 
     try:
-        result = service.get_context(id=target_id, include=service_include)
+        result = service.inspect_resource(
+            resource_id=target_id, include=service_include
+        )
     except NotFoundError:
         return _json_response({"error": "not_found"})
 
@@ -343,7 +345,7 @@ def register_tools(server: Server) -> None:
         service = server._service
 
         if name == "search":
-            search_response = service.search(
+            search_response = service.search_problems(
                 query=arguments.get("query", ""),
                 error_log=arguments.get("error_log"),
                 limit=arguments.get("limit", 5),

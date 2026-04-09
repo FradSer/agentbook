@@ -30,9 +30,9 @@ PROBLEM_ID: UUID = uuid4()
 
 
 def test_search_delegates_to_service_search() -> None:
-    """search tool calls service.search() and returns JSON."""
+    """search tool calls service.search_problems() and returns JSON."""
     service = MagicMock()
-    service.search.return_value = {
+    service.search_problems.return_value = {
         "results": [
             {
                 "problem_id": str(PROBLEM_ID),
@@ -50,10 +50,10 @@ def test_search_delegates_to_service_search() -> None:
     from backend.presentation.mcp.tools import _json_response
 
     result = _json_response(
-        service.search(query="pydantic import issue", error_log=None, limit=5)
+        service.search_problems(query="pydantic import issue", error_log=None, limit=5)
     )
 
-    service.search.assert_called_once()
+    service.search_problems.assert_called_once()
     assert len(result) == 1
     data = json.loads(result[0]["text"])
     assert "results" in data
@@ -62,11 +62,11 @@ def test_search_delegates_to_service_search() -> None:
 
 def test_search_returns_empty_results() -> None:
     service = MagicMock()
-    service.search.return_value = {"results": [], "total": 0}
+    service.search_problems.return_value = {"results": [], "total": 0}
 
     from backend.presentation.mcp.tools import _json_response
 
-    result = _json_response(service.search(query="nonexistent", limit=5))
+    result = _json_response(service.search_problems(query="nonexistent", limit=5))
     data = json.loads(result[0]["text"])
     assert data["total"] == 0
     assert data["results"] == []
@@ -263,7 +263,7 @@ async def test_report_not_found_returns_error_json() -> None:
 @pytest.mark.asyncio
 async def test_inspect_delegates_to_service_and_returns_json() -> None:
     service = MagicMock()
-    service.get_context.return_value = {
+    service.inspect_resource.return_value = {
         "type": "problem",
         "data": {"problem_id": PROBLEM_ID, "description": "test"},
         "solutions": [],
@@ -271,7 +271,7 @@ async def test_inspect_delegates_to_service_and_returns_json() -> None:
 
     result = await handle_inspect(service, AGENT_ID, {"id": str(PROBLEM_ID)})
 
-    service.get_context.assert_called_once()
+    service.inspect_resource.assert_called_once()
     data = json.loads(result[0]["text"])
     assert data["type"] == "problem"
 
@@ -279,7 +279,7 @@ async def test_inspect_delegates_to_service_and_returns_json() -> None:
 @pytest.mark.asyncio
 async def test_inspect_not_found_returns_error_json() -> None:
     service = MagicMock()
-    service.get_context.side_effect = NotFoundError("not found")
+    service.inspect_resource.side_effect = NotFoundError("not found")
 
     result = await handle_inspect(service, AGENT_ID, {"id": str(uuid4())})
 
@@ -290,7 +290,7 @@ async def test_inspect_not_found_returns_error_json() -> None:
 @pytest.mark.asyncio
 async def test_inspect_with_lineage_calls_get_solution_lineage() -> None:
     service = MagicMock()
-    service.get_context.return_value = {
+    service.inspect_resource.return_value = {
         "type": "solution",
         "data": {"solution_id": SOLUTION_ID, "content": "test"},
     }
@@ -305,7 +305,9 @@ async def test_inspect_with_lineage_calls_get_solution_lineage() -> None:
         {"id": str(SOLUTION_ID), "include": ["outcomes", "lineage"]},
     )
 
-    service.get_context.assert_called_once_with(id=SOLUTION_ID, include=["outcomes"])
+    service.inspect_resource.assert_called_once_with(
+        resource_id=SOLUTION_ID, include=["outcomes"]
+    )
     service.get_solution_lineage.assert_called_once_with(SOLUTION_ID)
 
     data = json.loads(result[0]["text"])
@@ -316,7 +318,7 @@ async def test_inspect_with_lineage_calls_get_solution_lineage() -> None:
 @pytest.mark.asyncio
 async def test_inspect_lineage_ignored_for_problems() -> None:
     service = MagicMock()
-    service.get_context.return_value = {
+    service.inspect_resource.return_value = {
         "type": "problem",
         "data": {"problem_id": PROBLEM_ID, "description": "test"},
     }

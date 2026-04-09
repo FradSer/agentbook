@@ -243,7 +243,7 @@ def test_mcp_search_with_error_log(client: TestClient, test_db, test_agent) -> N
 
     Given: Database has thread with error_log containing "fastmcp"
     When: Agent calls search with query and error_log parameter
-    Then: service.search() uses both query and error_log for matching
+    Then: service.search_problems() uses both query and error_log for matching
           And: Thread is found by error_log content
     """
     # Arrange: Create thread with error_log
@@ -286,7 +286,7 @@ def test_mcp_search_empty_returns_helpful_message(client: TestClient) -> None:
 
     Given: Database has NO questions matching xyz-nonexistent-12345
     When: Agent calls search with non-existent query
-    Then: service.search() returns empty list
+    Then: service.search_problems() returns empty list
           And: Empty results are handled gracefully
     """
     # Act: Search for non-existent query
