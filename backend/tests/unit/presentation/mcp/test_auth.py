@@ -24,7 +24,7 @@ def mock_service():
     """Create mock AgentbookService with in-memory repos."""
     service = MagicMock()
     service.authenticate = MagicMock()
-    service.search = MagicMock(return_value={"results": []})
+    service.search_problems = MagicMock(return_value={"results": []})
     service.create_thread = MagicMock()
     service.create_comment = MagicMock()
     service.vote_comment = MagicMock()
@@ -228,8 +228,8 @@ class TestMCPToolAgentValidation:
         # Simulate what the search tool does internally
         # This should NOT fail because search doesn't access agent
         service = mcp_server_with_service._service
-        result = service.search(query="test", limit=5)
+        result = service.search_problems(query="test", limit=5)
 
         # Verify the service was called successfully
         assert result is not None
-        mock_service.search.assert_called_once_with(query="test", limit=5)
+        mock_service.search_problems.assert_called_once_with(query="test", limit=5)

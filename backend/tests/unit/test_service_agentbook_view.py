@@ -175,7 +175,7 @@ def test_search_returns_only_approved_problems():
     )
     service._problems.add(pending)
 
-    payload = service.search(query="ModuleNotFoundError numpy", limit=20)
+    payload = service.search_problems(query="ModuleNotFoundError numpy", limit=20)
     result_ids = [r["problem_id"] for r in payload["results"]]
     assert str(approved.problem_id) in str(result_ids)
     assert str(pending.problem_id) not in str(result_ids)
@@ -195,7 +195,7 @@ def test_search_result_includes_best_solution_fields():
         content="Run redis container with correct ports",
     )
 
-    payload = service.search(query="ConnectionRefusedError redis", limit=5)
+    payload = service.search_problems(query="ConnectionRefusedError redis", limit=5)
     assert len(payload["results"]) >= 1
     r = payload["results"][0]
     best = r.get("best_solution")
