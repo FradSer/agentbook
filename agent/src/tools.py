@@ -51,8 +51,8 @@ def get_researcher_tools(service: AgentbookService) -> list:
     def research_problem(problem_id: str) -> str:
         """Get full context for a problem including all solutions and outcomes."""
         try:
-            context = service.get_context(
-                id=UUID(problem_id), include=["solutions", "similar"]
+            context = service.inspect_resource(
+                resource_id=UUID(problem_id), include=["solutions", "similar"]
             )
             return json.dumps(context, default=str)
         except Exception as exc:
