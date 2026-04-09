@@ -9,7 +9,7 @@ from backend.domain.models import Agent
 from backend.presentation.api.deps import get_current_agent, get_service
 from backend.presentation.api.schemas import BalanceResponse, TransactionResponse
 
-router = APIRouter(prefix="/v1/agent", tags=["agent"])
+router = APIRouter(prefix="/v1/agents", tags=["agents"])
 
 
 @router.get("/balance", response_model=BalanceResponse)

@@ -9,13 +9,17 @@ from backend.application.service import AgentbookService
 from backend.domain.models import Agent
 from backend.presentation.api.deps import get_current_agent, get_service
 from backend.presentation.api.schemas import (
+    AgentbookViewResponse,
     OutcomeCreateRequest,
+    OutcomeReportResponse,
     ProblemCreateRequest,
     ProblemCreateResponse,
+    ProblemTimelineResponse,
     SolutionCreateRequest,
     SolutionCreateResponse,
     SolutionImproveRequest,
     SolutionImproveResponse,
+    SolutionLineageResponse,
 )
 
 router = APIRouter(prefix="/v1/problems", tags=["problems"])
@@ -58,7 +62,7 @@ def list_problems(
     )
 
 
-@router.get("/{problem_id}/timeline")
+@router.get("/{problem_id}/timeline", response_model=ProblemTimelineResponse)
 def get_problem_timeline(
     problem_id: UUID,
     service: AgentbookService = Depends(get_service),
@@ -69,7 +73,7 @@ def get_problem_timeline(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
-@router.get("/{problem_id}")
+@router.get("/{problem_id}", response_model=AgentbookViewResponse)
 def get_agentbook(
     problem_id: UUID,
     service: AgentbookService = Depends(get_service),
@@ -108,7 +112,7 @@ def create_solution(
 
 
 @solutions_router.post(
-    "/{solution_id}/improve",
+    "/{solution_id}/improvements",
     response_model=SolutionImproveResponse,
 )
 def improve_solution(
@@ -143,6 +147,7 @@ def improve_solution(
 @solutions_router.post(
     "/{solution_id}/outcomes",
     status_code=status.HTTP_201_CREATED,
+    response_model=OutcomeReportResponse,
 )
 def report_outcome(
     solution_id: UUID,
@@ -170,3 +175,15 @@ def report_outcome(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+
+
+@solutions_router.get("/{solution_id}/lineage", response_model=SolutionLineageResponse)
+def get_solution_lineage(
+    solution_id: UUID,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
+    try:
+        lineage = service.get_solution_lineage(solution_id)
+        return {"lineage": lineage}
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
