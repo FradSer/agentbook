@@ -306,7 +306,7 @@ def test_run_research_cycle_two_iterations():
     assert metrics1["improved"] >= 1, f"Iteration 1 should improve: {metrics1}"
 
     # Find the new best solution and degrade it via bad outcomes
-    context = service.get_context(id=p.problem_id, include=["solutions"])
+    context = service.inspect_resource(resource_id=p.problem_id, include=["solutions"])
     active = [s for s in context["solutions"] if s.get("canonical_id") is None]
     assert active, "No active solution after iteration 1"
     best = max(active, key=lambda s: s.get("confidence", 0))
@@ -456,7 +456,7 @@ def test_run_research_cycle_three_iterations():
     )
 
     # Find new best active solution and degrade it with external failures
-    ctx1 = service.get_context(id=p.problem_id, include=["solutions"])
+    ctx1 = service.inspect_resource(resource_id=p.problem_id, include=["solutions"])
     active1 = [s for s in ctx1["solutions"] if s.get("canonical_id") is None]
     assert active1, "No active solution after iteration 1"
     best1 = max(active1, key=lambda s: s.get("confidence", 0))
@@ -481,7 +481,7 @@ def test_run_research_cycle_three_iterations():
     )
 
     # Find second-generation best active solution and degrade it
-    ctx2 = service.get_context(id=p.problem_id, include=["solutions"])
+    ctx2 = service.inspect_resource(resource_id=p.problem_id, include=["solutions"])
     active2 = [s for s in ctx2["solutions"] if s.get("canonical_id") is None]
     best2 = max(active2, key=lambda s: s.get("confidence", 0))
 
@@ -608,7 +608,7 @@ def test_invalid_agent_response_records_research_cycle():
     assert metrics["no_improvement"] >= 1
 
     # A ResearchCycle skip must have been recorded
-    last_researched = service._research_cycles.last_researched_at(p.problem_id)
+    last_researched = service._research_cycles.get_last_researched_at(p.problem_id)
     assert last_researched is not None, (
         "ResearchCycle skip should be recorded for invalid agent response to enforce cooldown"
     )
@@ -643,7 +643,7 @@ def test_timeout_records_research_cycle():
         )
 
     assert metrics["no_improvement"] >= 1
-    last_researched = service._research_cycles.last_researched_at(p.problem_id)
+    last_researched = service._research_cycles.get_last_researched_at(p.problem_id)
     assert last_researched is not None, (
         "ResearchCycle skip should be recorded on timeout to enforce cooldown"
     )

@@ -73,7 +73,9 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
             service.set_research_status(UUID(str(problem_id)), True)
         try:
             try:
-                context = service.get_context(id=problem_id, include=["solutions"])
+                context = service.inspect_resource(
+                    resource_id=problem_id, include=["solutions"]
+                )
             except Exception as exc:
                 logger.warning(f"Failed to get context for problem {problem_id}: {exc}")
                 continue
@@ -118,7 +120,7 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                     for c in recent_cycles
                     if c.status != "improved" and c.reasoning
                 ]
-                stalled = service._research_cycles.consecutive_no_improvement(pid)
+                stalled = service._research_cycles.count_consecutive_no_improvement(pid)
                 if stalled >= settings.agent_research_stall_threshold:
                     radical_mode = True
 
@@ -248,7 +250,7 @@ async def _run_focused_research_cycle(
                 consecutive_no_improvement = 0
                 # Refresh problem dict for next iteration (confidence may have changed)
                 try:
-                    ctx = service.get_context(id=problem_id, include=[])
+                    ctx = service.inspect_resource(resource_id=problem_id, include=[])
                     problem_dict = {
                         "problem_id": problem_id,
                         "description": ctx.get(
@@ -275,7 +277,9 @@ async def _run_focused_research_cycle(
                 )
                 # Attempt synthesis
                 try:
-                    ctx = service.get_context(id=problem_id, include=["solutions"])
+                    ctx = service.inspect_resource(
+                        resource_id=problem_id, include=["solutions"]
+                    )
                     active_solutions = [
                         s
                         for s in ctx.get("solutions", [])
@@ -306,7 +310,9 @@ async def _research_single_problem(
     problem_id = problem_dict["problem_id"]
 
     try:
-        context = service.get_context(id=problem_id, include=["solutions"])
+        context = service.inspect_resource(
+            resource_id=problem_id, include=["solutions"]
+        )
     except Exception as exc:
         logger.warning(f"Failed to get context for problem {problem_id}: {exc}")
         return "no_improvement"
@@ -327,7 +333,9 @@ async def _research_single_problem(
     for sol in solutions:
         sol_id = str(sol["solution_id"])
         try:
-            sol_context = service.get_context(id=UUID(sol_id), include=["outcomes"])
+            sol_context = service.inspect_resource(
+                resource_id=UUID(sol_id), include=["outcomes"]
+            )
             outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
         except Exception:
             outcomes_by_solution[sol_id] = []
@@ -340,7 +348,7 @@ async def _research_single_problem(
         failed_approaches = [
             c.reasoning for c in recent_cycles if c.status != "improved" and c.reasoning
         ]
-        stalled = service._research_cycles.consecutive_no_improvement(pid)
+        stalled = service._research_cycles.count_consecutive_no_improvement(pid)
         if stalled >= settings.agent_research_stall_threshold:
             radical_mode = True
 
@@ -413,7 +421,7 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
         if service._research_cycles is None:
             return
         pid = _UUID(str(problem_id))
-        stalled = service._research_cycles.consecutive_no_improvement(pid)
+        stalled = service._research_cycles.count_consecutive_no_improvement(pid)
         if stalled < settings.agent_research_stall_threshold + 1:
             return
         logger.info(
