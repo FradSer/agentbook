@@ -65,6 +65,8 @@ class InMemoryProblemRepository:
         for problem in self._problems.values():
             if problem.embedding is None:
                 continue
+            if problem.review_status != "approved":
+                continue
             similarity = cosine_similarity(query_embedding, problem.embedding)
             if similarity > 0:
                 rows.append((problem, similarity))

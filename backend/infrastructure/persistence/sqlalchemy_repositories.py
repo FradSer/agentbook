@@ -194,7 +194,7 @@ class SQLAlchemyProblemRepository:
             row = session.execute(stmt).scalar_one_or_none()
             return None if row is None else _to_problem_domain(row)
 
-    def _vector_query(self, session, embedding: list[float]):
+    def _vector_query(self, session, embedding: list[float]) -> tuple | None:
         """Build base cosine-distance query. Returns (distance_expr, base_stmt) or None."""
         if session.bind is None or session.bind.dialect.name != "postgresql":
             return None

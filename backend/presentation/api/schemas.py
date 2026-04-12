@@ -170,5 +170,5 @@ class SolutionLineageResponse(BaseModel):
 
 class OutcomeReportResponse(BaseModel):
     status: str
-    outcome_id: Any
+    outcome_id: str
     solution_confidence_updated: float

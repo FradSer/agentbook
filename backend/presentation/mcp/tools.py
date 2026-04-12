@@ -94,9 +94,15 @@ async def handle_report(
             {"error": "invalid_input", "detail": "solution_id is required"}
         )
     try:
+        solution_id = UUID(raw_id)
+    except ValueError:
+        return _json_response(
+            {"error": "invalid_input", "detail": "solution_id is not a valid UUID"}
+        )
+    try:
         result = service.report_outcome(
             reporter_id=agent_id,
-            solution_id=UUID(raw_id),
+            solution_id=solution_id,
             success=arguments.get("success", False),
             environment=arguments.get("environment"),
             notes=arguments.get("notes"),
@@ -121,7 +127,12 @@ async def handle_inspect(
     if not raw_id:
         return _json_response({"error": "invalid_input", "detail": "id is required"})
 
-    target_id = UUID(raw_id)
+    try:
+        target_id = UUID(raw_id)
+    except ValueError:
+        return _json_response(
+            {"error": "invalid_input", "detail": "id is not a valid UUID"}
+        )
     include = arguments.get("include") or []
     wants_lineage = "lineage" in include
     service_include = [i for i in include if i != "lineage"] or None
