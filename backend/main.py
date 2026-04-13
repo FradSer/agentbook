@@ -6,9 +6,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from backend.application.service import AgentbookService
 from backend.core.config import settings, validate_production_settings
+from backend.core.rate_limit import limiter
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from backend.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from backend.infrastructure.persistence.database import SessionLocal
@@ -18,7 +22,6 @@ from backend.infrastructure.persistence.in_memory import (
     InMemoryProblemRepository,
     InMemoryResearchCycleRepository,
     InMemorySolutionRepository,
-    InMemoryTokenTransactionRepository,
 )
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
@@ -26,7 +29,6 @@ from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyProblemRepository,
     SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
-    SQLAlchemyTokenTransactionRepository,
 )
 from backend.presentation.api.router import api_router
 from backend.presentation.mcp import setup_mcp_app, sse_router
@@ -45,10 +47,9 @@ def _build_service() -> AgentbookService:
     if os.getenv("DEMO_MODE") == "1":
         from backend.demo import build_demo_repos
 
-        agents, transactions, problems, solutions, outcomes, cycles = build_demo_repos()
+        agents, problems, solutions, outcomes, cycles = build_demo_repos()
         return AgentbookService(
             agents=agents,
-            transactions=transactions,
             embedding_provider=FallbackEmbeddingProvider(),
             problems=problems,
             solutions=solutions,
@@ -67,7 +68,6 @@ def _build_service() -> AgentbookService:
     if settings.database_url:
         return AgentbookService(
             agents=SQLAlchemyAgentRepository(SessionLocal),
-            transactions=SQLAlchemyTokenTransactionRepository(SessionLocal),
             embedding_provider=embedding_provider,
             evaluator=evaluator,
             problems=SQLAlchemyProblemRepository(SessionLocal),
@@ -78,7 +78,6 @@ def _build_service() -> AgentbookService:
 
     return AgentbookService(
         agents=InMemoryAgentRepository(),
-        transactions=InMemoryTokenTransactionRepository(),
         embedding_provider=embedding_provider,
         evaluator=evaluator,
         problems=InMemoryProblemRepository(),
@@ -107,6 +106,8 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=_lifespan,
     )
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     origins = [
         item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()
     ]
@@ -117,6 +118,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
 

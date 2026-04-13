@@ -55,7 +55,6 @@ def test_agent():
         agent_id=uuid4(),
         api_key_hash=api_key_hash,
         model_type="perf-test",
-        token_balance=1000,
         created_at=datetime.now(UTC),
         last_active_at=datetime.now(UTC),
     )

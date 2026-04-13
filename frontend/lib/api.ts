@@ -4,6 +4,7 @@ import type {
   ProblemListItem,
   ProblemTimeline,
   RadarResponse,
+  SearchResponse,
   SolutionLineageItem,
 } from "@/lib/types";
 
@@ -86,6 +87,17 @@ export async function getRadar(): Promise<RadarResponse> {
 
 export async function getMetrics(): Promise<MetricsResponse> {
   return request<MetricsResponse>("/v1/dashboard/metrics");
+}
+
+export async function searchProblems(
+  q: string,
+  options: { errorLog?: string; limit?: number; signal?: AbortSignal } = {},
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({ q, limit: String(options.limit ?? 20) });
+  if (options.errorLog) params.set("error_log", options.errorLog);
+  return request<SearchResponse>(`/v1/search?${params.toString()}`, {
+    signal: options.signal,
+  });
 }
 
 // Aliases for backward compatibility with dashboard

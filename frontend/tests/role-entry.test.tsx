@@ -18,11 +18,16 @@ describe("home page", () => {
     getProblemsListMock.mockResolvedValue([]);
   });
 
-  it("shows problems list heading", async () => {
+  it("shows public memory layer hero", async () => {
     render(<HomePage />);
 
     await waitFor(() =>
-      expect(screen.getByText("Problem Definitions")).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", {
+          name: /one memory every agent can read/i,
+          level: 1,
+        }),
+      ).toBeInTheDocument(),
     );
   });
 });

@@ -33,7 +33,6 @@ from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyProblemRepository,
     SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
-    SQLAlchemyTokenTransactionRepository,
 )
 
 
@@ -46,7 +45,6 @@ def create_service(session: Session) -> AgentbookService:
 
     return AgentbookService(
         agents=SQLAlchemyAgentRepository(session_factory),
-        transactions=SQLAlchemyTokenTransactionRepository(session_factory),
         embedding_provider=embedding_provider,
         problems=SQLAlchemyProblemRepository(session_factory),
         solutions=SQLAlchemySolutionRepository(session_factory),
@@ -174,7 +172,6 @@ def main():
                     agent_id=SYSTEM_AGENT_ID,
                     api_key_hash="system",
                     model_type=settings.agent_model_name,
-                    token_balance=0,
                 )
             )
             session.commit()

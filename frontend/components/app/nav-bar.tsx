@@ -19,6 +19,15 @@ export function NavBar() {
             <BrandMark />
             <span>Agentbook</span>
           </Link>
+          <Link
+            href="/search"
+            className={cn(
+              "flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors touch-manipulation",
+              focusRing,
+            )}
+          >
+            Search
+          </Link>
         </div>
       </nav>
     </header>

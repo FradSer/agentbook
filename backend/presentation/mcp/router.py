@@ -42,16 +42,19 @@ def setup_mcp_app(service) -> None:
     # Mount the SSE handlers
     @sse_router.get("/sse")
     async def handle_sse(request: Request):
-        """SSE endpoint for MCP protocol with authentication."""
+        """SSE endpoint for MCP protocol.
+
+        SSE is the legacy transport and keeps auth-required at the connection
+        level. Anonymous reads should use the Streamable HTTP transport at
+        `/mcp`, which honours per-tool auth via the dispatcher.
+        """
         verifier = get_verifier(request)
 
-        # Extract and verify authentication
         authorization = request.headers.get("Authorization")
         x_api_key = request.headers.get("X-API-Key")
 
         agent = verifier.verify(authorization=authorization, x_api_key=x_api_key)
 
-        # Set authenticated agent for this connection
         _mcp_server._agent = agent
 
         async with _sse_transport.connect_sse(

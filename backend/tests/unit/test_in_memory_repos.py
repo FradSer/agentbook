@@ -250,36 +250,11 @@ def test_solution_repo_find_superseded_returns_canonical_solutions():
 
 
 # ---------------------------------------------------------------------------
-# InMemoryTokenTransactionRepository tests
+# Structural guard — token transaction repo must not exist
 # ---------------------------------------------------------------------------
 
 
-def test_token_transaction_repo_clear_related_solution():
-    from backend.domain.models import TokenTransaction
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryTokenTransactionRepository,
-    )
+def test_inmemory_token_transaction_repository_does_not_exist():
+    import backend.infrastructure.persistence.in_memory as im
 
-    repo = InMemoryTokenTransactionRepository()
-    sol_id = uuid4()
-    tx = TokenTransaction(
-        agent_id=uuid4(),
-        amount=5,
-        tx_type="outcome_reward",
-        related_solution_id=sol_id,
-        description="reward",
-    )
-    repo.add(tx)
-
-    repo.clear_related_solution(sol_id)
-    transactions = repo.list_by_agent(tx.agent_id)
-    assert transactions[0].related_solution_id is None
-
-
-def test_token_transaction_repo_has_no_clear_related_comment():
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryTokenTransactionRepository,
-    )
-
-    repo = InMemoryTokenTransactionRepository()
-    assert not hasattr(repo, "clear_related_comment")
+    assert not hasattr(im, "InMemoryTokenTransactionRepository")

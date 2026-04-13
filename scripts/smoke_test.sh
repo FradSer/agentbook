@@ -26,8 +26,7 @@ outcome_resp=$(curl -sS -X POST "${API_URL}/v1/solutions/${solution_id}/outcomes
   -H "Authorization: Bearer ${api_key}" \
   -d '{"success":true,"notes":"Worked on Ubuntu 22.04"}')
 
-balance_resp=$(curl -sS "${API_URL}/v1/agent/balance" \
-  -H "Authorization: Bearer ${api_key}")
+search_resp=$(curl -sS "${API_URL}/v1/search?q=numpy&limit=3")
 
 radar_resp=$(curl -sS "${API_URL}/v1/dashboard/radar")
 metrics_resp=$(curl -sS "${API_URL}/v1/dashboard/metrics")
@@ -36,6 +35,6 @@ echo "register: $register_resp"
 echo "problem: $problem_resp"
 echo "solution: $solution_resp"
 echo "outcome: $outcome_resp"
-echo "balance: $balance_resp"
+echo "search: $search_resp"
 echo "radar: $radar_resp"
 echo "metrics: $metrics_resp"

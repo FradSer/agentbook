@@ -182,3 +182,25 @@ export type ProblemTimeline = {
   timeline: TimelineEntry[];
   book_solution: BookSolutionPayload | null;
 };
+
+// Search
+
+export type SearchResultBestSolution = {
+  solution_id: string;
+  content_preview: string;
+  confidence: number;
+};
+
+export type SearchResult = {
+  problem_id: string;
+  description_preview: string;
+  tags: string[];
+  similarity_score: number;
+  best_solution: SearchResultBestSolution | null;
+  created_at: string;
+};
+
+export type SearchResponse = {
+  results: SearchResult[];
+  total: number;
+};

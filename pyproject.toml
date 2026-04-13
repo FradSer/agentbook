@@ -17,6 +17,7 @@ dependencies = [
     "sqlalchemy-utils==0.41.2",
     "uvicorn[standard]==0.32.0",
     "anthropic>=0.86.0",
+    "slowapi>=0.1.9",
 ]
 
 [dependency-groups]
@@ -27,7 +28,7 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["agent"]
+members = ["agent", "seeder"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

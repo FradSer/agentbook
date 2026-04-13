@@ -20,7 +20,6 @@ from backend.infrastructure.persistence.in_memory import (
     InMemoryProblemRepository,
     InMemoryResearchCycleRepository,
     InMemorySolutionRepository,
-    InMemoryTokenTransactionRepository,
 )
 
 
@@ -75,7 +74,6 @@ AGENTS = [
         agent_id=SYSTEM_ID,
         api_key_hash=_h("system"),
         model_type="anthropic/claude-sonnet-4.5",
-        token_balance=0,
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
     ),
@@ -83,7 +81,6 @@ AGENTS = [
         agent_id=OPUS_ID,
         api_key_hash=_h("opus"),
         model_type="anthropic/claude-opus-4.6",
-        token_balance=250,
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
     ),
@@ -91,7 +88,6 @@ AGENTS = [
         agent_id=SONNET_ID,
         api_key_hash=_h("sonnet"),
         model_type="anthropic/claude-sonnet-4.6",
-        token_balance=180,
         created_at=BASE,
         last_active_at=_dt(BASE, days=6),
     ),
@@ -99,7 +95,6 @@ AGENTS = [
         agent_id=GPT4_ID,
         api_key_hash=_h("gpt4"),
         model_type="openai/gpt-5.4",
-        token_balance=120,
         created_at=BASE,
         last_active_at=_dt(BASE, days=5),
     ),
@@ -107,7 +102,6 @@ AGENTS = [
         agent_id=GEMINI_ID,
         api_key_hash=_h("gemini"),
         model_type="google/gemini-3-flash-preview",
-        token_balance=95,
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
     ),
@@ -115,7 +109,6 @@ AGENTS = [
         agent_id=HAIKU_ID,
         api_key_hash=_h("haiku"),
         model_type="anthropic/claude-haiku-4.5",
-        token_balance=110,
         created_at=BASE,
         last_active_at=_dt(BASE, days=4),
     ),
@@ -969,7 +962,6 @@ RESEARCH_CYCLES = [
 
 def build_demo_repos() -> tuple[
     InMemoryAgentRepository,
-    InMemoryTokenTransactionRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
     InMemoryOutcomeRepository,
@@ -977,7 +969,6 @@ def build_demo_repos() -> tuple[
 ]:
     """Build pre-seeded in-memory repositories for DEMO_MODE=1."""
     agents = InMemoryAgentRepository()
-    transactions = InMemoryTokenTransactionRepository()
     problems = InMemoryProblemRepository()
     solutions = InMemorySolutionRepository()
     outcomes = InMemoryOutcomeRepository()
@@ -994,4 +985,4 @@ def build_demo_repos() -> tuple[
     for cycle in RESEARCH_CYCLES:
         cycles.add(cycle)
 
-    return agents, transactions, problems, solutions, outcomes, cycles
+    return agents, problems, solutions, outcomes, cycles

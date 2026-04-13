@@ -107,7 +107,7 @@ async def handle_report(
 
 async def handle_inspect(
     service,
-    agent_id: UUID,
+    agent_id: UUID | None,
     arguments: dict,
 ) -> list[Any]:
     """Retrieve problem/solution details, optionally including lineage."""
@@ -361,8 +361,7 @@ def register_tools(server: Server) -> None:
             return await handle_report(service, agent.agent_id, arguments)
 
         elif name == "inspect":
-            agent = _get_authenticated_agent(server)
-            return await handle_inspect(service, agent.agent_id, arguments)
+            return await handle_inspect(service, None, arguments)
 
         else:
             return _json_response(

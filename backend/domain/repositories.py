@@ -10,7 +10,6 @@ from backend.domain.models import (
     Problem,
     ResearchCycle,
     Solution,
-    TokenTransaction,
 )
 
 
@@ -20,14 +19,6 @@ class AgentRepository(Protocol):
     def get(self, agent_id: UUID) -> Agent | None: ...
 
     def get_by_api_key_hash(self, api_key_hash: str) -> Agent | None: ...
-
-
-class TokenTransactionRepository(Protocol):
-    def add(self, transaction: TokenTransaction) -> None: ...
-
-    def list_by_agent(self, agent_id: UUID) -> list[TokenTransaction]: ...
-
-    def clear_related_solution(self, solution_id: UUID) -> None: ...
 
 
 class ProblemRepository(Protocol):

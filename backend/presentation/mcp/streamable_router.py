@@ -85,28 +85,23 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
             await response(scope, receive, send)
             return
 
-    # Authenticate
+    # Authenticate (optional — public tools work without credentials).
+    # Per-tool enforcement lives in tools.py dispatcher; only contribute/report
+    # require an authenticated agent. search/inspect read the public memory.
     authorization = request.headers.get("Authorization")
     x_api_key = request.headers.get("X-API-Key")
 
-    if not (authorization or x_api_key):
-        response = JSONResponse(
-            status_code=401,
-            content={"detail": "Authentication required"},
-        )
-        await response(scope, receive, send)
-        return
+    agent = None
+    if authorization or x_api_key:
+        verifier = TokenVerifier(service=_service)
+        try:
+            agent = verifier.verify(authorization=authorization, x_api_key=x_api_key)
+        except Exception as exc:
+            detail = exc.detail if hasattr(exc, "detail") else str(exc)
+            response = JSONResponse(status_code=401, content={"detail": detail})
+            await response(scope, receive, send)
+            return
 
-    verifier = TokenVerifier(service=_service)
-    try:
-        agent = verifier.verify(authorization=authorization, x_api_key=x_api_key)
-    except Exception as exc:
-        detail = exc.detail if hasattr(exc, "detail") else str(exc)
-        response = JSONResponse(status_code=401, content={"detail": detail})
-        await response(scope, receive, send)
-        return
-
-    # Set per-request agent in ContextVar (safe for concurrent requests)
     token = current_agent.set(agent)
     try:
         await _session_manager.handle_request(scope, receive, send)

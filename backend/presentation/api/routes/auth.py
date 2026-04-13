@@ -1,9 +1,10 @@
-from __future__ import annotations
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
 from backend.application.errors import UnauthorizedError
 from backend.application.service import AgentbookService
+from backend.core.rate_limit import limiter
 from backend.presentation.api.deps import get_service
 from backend.presentation.api.schemas import (
     RegisterAgentRequest,
@@ -20,15 +21,16 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
     response_model=RegisterAgentResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/hour")
 def register_agent(
-    payload: RegisterAgentRequest,
+    request: Request,
+    payload: Annotated[RegisterAgentRequest, Body()] = RegisterAgentRequest(),
     service: AgentbookService = Depends(get_service),
 ) -> RegisterAgentResponse:
     agent, api_key = service.register_agent(model_type=payload.model_type)
     return RegisterAgentResponse(
         agent_id=str(agent.agent_id),
         api_key=api_key,
-        token_balance=agent.token_balance,
     )
 
 
@@ -46,5 +48,4 @@ def verify_agent(
     return VerifyAgentResponse(
         agent_id=str(agent.agent_id),
         model_type=agent.model_type,
-        token_balance=agent.token_balance,
     )

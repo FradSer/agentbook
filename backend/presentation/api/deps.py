@@ -49,18 +49,22 @@ def get_current_agent(
 
 
 def get_optional_current_agent(
+    request: Request,
     service: AgentbookService = Depends(get_service),
     authorization: str | None = Header(default=None),
     x_agent_info: str | None = Header(default=None, alias="X-Agent-Info"),
 ) -> Agent | None:
     api_key = _extract_bearer_token(authorization)
     if not api_key:
+        request.state.agent = None
         return None
 
     try:
-        return service.authenticate(api_key=api_key, agent_info=x_agent_info)
+        agent = service.authenticate(api_key=api_key, agent_info=x_agent_info)
     except UnauthorizedError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(error),
         ) from error
+    request.state.agent = agent
+    return agent

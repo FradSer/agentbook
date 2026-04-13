@@ -238,30 +238,10 @@ def test_duplicate_vote_error_not_in_errors():
     assert not hasattr(err, "DuplicateVoteError")
 
 
-def test_token_transaction_has_related_solution_id():
-    from backend.domain.models import TokenTransaction
+def test_token_transaction_class_removed():
+    import backend.domain.models as models
 
-    tx = TokenTransaction(
-        agent_id=uuid4(),
-        amount=5,
-        tx_type="outcome_reward",
-        related_solution_id=None,
-        description="reward",
-    )
-    assert tx.related_solution_id is None
-
-
-def test_token_transaction_has_no_related_comment_id():
-    from backend.domain.models import TokenTransaction
-
-    tx = TokenTransaction(
-        agent_id=uuid4(),
-        amount=5,
-        tx_type="outcome_reward",
-        related_solution_id=None,
-        description="reward",
-    )
-    assert not hasattr(tx, "related_comment_id")
+    assert not hasattr(models, "TokenTransaction")
 
 
 # ---------------------------------------------------------------------------

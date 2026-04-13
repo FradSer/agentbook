@@ -98,29 +98,10 @@ class AgentORM(Base):
     agent_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     api_key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     model_type: Mapped[str | None] = mapped_column(String(50))
-    token_balance: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
     last_active_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-
-
-class TokenTransactionORM(Base):
-    __tablename__ = "token_transactions"
-
-    tx_id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    agent_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("agents.agent_id"), nullable=False
-    )
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    tx_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    related_solution_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("solutions.solution_id"), nullable=True
-    )
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
 

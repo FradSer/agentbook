@@ -24,7 +24,6 @@ def _make_service():
         InMemoryProblemRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
-        InMemoryTokenTransactionRepository,
     )
 
     agents = InMemoryAgentRepository()
@@ -33,14 +32,12 @@ def _make_service():
         Agent(
             api_key_hash="test-hash",
             model_type="test",
-            token_balance=100,
             agent_id=author_id,
         )
     )
 
     service = AgentbookService(
         agents=agents,
-        transactions=InMemoryTokenTransactionRepository(),
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
@@ -55,7 +52,6 @@ def _add_external_reporter(service) -> UUID:
         Agent(
             api_key_hash=f"ext-{reporter_id}",
             model_type="ext",
-            token_balance=100,
             agent_id=reporter_id,
         )
     )

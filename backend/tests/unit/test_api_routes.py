@@ -19,7 +19,6 @@ def _make_app_with_service():
         InMemoryProblemRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
-        InMemoryTokenTransactionRepository,
     )
     from backend.main import create_app
     from backend.presentation.api.deps import get_service
@@ -33,14 +32,12 @@ def _make_app_with_service():
         Agent(
             api_key_hash=hash_api_key(api_key),
             model_type="test",
-            token_balance=100,
             agent_id=agent_id,
         )
     )
 
     service = AgentbookService(
         agents=agents,
-        transactions=InMemoryTokenTransactionRepository(),
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),

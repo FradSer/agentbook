@@ -4,7 +4,6 @@ import json
 import logging
 import random
 import time
-from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -20,14 +19,12 @@ from backend.application.errors import (
     UnauthorizedError,
 )
 from backend.application.gate import check_spam
-from backend.core.config import settings
 from backend.domain.models import (
     Agent,
     Outcome,
     Problem,
     ResearchCycle,
     Solution,
-    TokenTransaction,
     utc_now,
 )
 from backend.domain.repositories import (
@@ -36,13 +33,13 @@ from backend.domain.repositories import (
     ProblemRepository,
     ResearchCycleRepository,
     SolutionRepository,
-    TokenTransactionRepository,
 )
 from backend.domain.services import EmbeddingProvider, EvaluatorProvider
 from backend.infrastructure.security import generate_api_key, hash_api_key
 
 logger = logging.getLogger(__name__)
 
+# Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
 _RATE_WINDOW_HOURS = 1
 
@@ -55,7 +52,6 @@ class AgentbookService:
     def __init__(
         self,
         agents: AgentRepository,
-        transactions: TokenTransactionRepository,
         embedding_provider: EmbeddingProvider | None = None,
         evaluator: EvaluatorProvider | None = None,
         problems: ProblemRepository = None,
@@ -64,7 +60,6 @@ class AgentbookService:
         research_cycles: ResearchCycleRepository = None,
     ) -> None:
         self._agents = agents
-        self._transactions = transactions
         self._embedding_provider = embedding_provider
         self._evaluator = evaluator
         self._problems = problems
@@ -77,7 +72,6 @@ class AgentbookService:
         agent = Agent(
             api_key_hash=hash_api_key(api_key),
             model_type=model_type,
-            token_balance=settings.initial_token_balance,
         )
         self._agents.add(agent)
         return agent, api_key
@@ -158,25 +152,6 @@ class AgentbookService:
         embedding = await self._embedding_provider.embed(problem.description)
         problem.embedding = embedding
         self._problems.update(problem)
-
-    def get_balance(self, agent_id: UUID) -> dict:
-        agent = self._agents.get(agent_id)
-        if agent is None:
-            raise UnauthorizedError("Invalid API Key")
-
-        transactions = self._transactions.list_by_agent(agent_id)
-        total_earned = sum(tx.amount for tx in transactions if tx.amount > 0)
-        total_spent = abs(sum(tx.amount for tx in transactions if tx.amount < 0))
-
-        return {
-            "agent_id": str(agent.agent_id),
-            "token_balance": agent.token_balance,
-            "total_earned": total_earned,
-            "total_spent": total_spent,
-            "recent_transactions": [
-                self._serialize_transaction(tx) for tx in transactions[:10]
-            ],
-        }
 
     def search_problems(
         self, query: str, limit: int, error_log: str | None = None
@@ -299,18 +274,6 @@ class AgentbookService:
             return model
         return model.split("-", maxsplit=1)[0]
 
-    def _serialize_transaction(self, transaction: TokenTransaction) -> dict:
-        row = asdict(transaction)
-        row["tx_id"] = str(transaction.tx_id)
-        row["agent_id"] = str(transaction.agent_id)
-        row["related_solution_id"] = (
-            None
-            if transaction.related_solution_id is None
-            else str(transaction.related_solution_id)
-        )
-        row["created_at"] = transaction.created_at.isoformat()
-        return row
-
     # --- Unified review lifecycle methods ---
 
     def update_review(
@@ -340,13 +303,11 @@ class AgentbookService:
         p = self._problems.get(content_id)
         if p is not None:
             for sol in self._solutions.list_by_problem(p.problem_id):
-                self._transactions.clear_related_solution(sol.solution_id)
                 self._solutions.delete(sol.solution_id)
             self._problems.delete(content_id)
             return
         s = self._solutions.get(content_id)
         if s is not None:
-            self._transactions.clear_related_solution(content_id)
             self._solutions.delete(content_id)
             prob = self._problems.get(s.problem_id)
             if prob is not None:
@@ -804,29 +765,10 @@ class AgentbookService:
             problem.best_confidence = new_confidence
             self._problems.update(problem)
 
-        reward_issued = False
-        if success and reporter_id != solution.author_id:
-            author = self._agents.get(solution.author_id)
-            if author is not None:
-                reward_amount = settings.reward_per_successful_outcome
-                author.token_balance += reward_amount
-                self._agents.add(author)
-                self._transactions.add(
-                    TokenTransaction(
-                        agent_id=author.agent_id,
-                        amount=reward_amount,
-                        tx_type="outcome_reward",
-                        related_solution_id=solution.solution_id,
-                        description="Received successful outcome report",
-                    )
-                )
-                reward_issued = True
-
         return {
             "status": "reported",
             "outcome_id": outcome.outcome_id,
             "solution_confidence_updated": new_confidence,
-            "reward_issued": reward_issued,
         }
 
     def inspect_resource(
@@ -1192,7 +1134,6 @@ class AgentbookService:
                     agent_id=EVALUATOR_AGENT_ID,
                     api_key_hash="evaluator",
                     model_type="evaluator",
-                    token_balance=0,
                 )
             )
         AgentbookService._evaluator_agent_ensured = True

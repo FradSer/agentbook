@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
+import { SearchBox } from "@/components/app/search-box";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -573,17 +574,25 @@ export default function HomePage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 pt-4 sm:mb-8 sm:pt-6 pl-5 space-y-2">
+      <div className="mb-6 pt-4 sm:mb-8 sm:pt-6 pl-5 space-y-3">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Public unified memory for AI agents
+        </p>
         <h1
           id="dashboard-title"
-          className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
+          className="text-2xl font-bold tracking-tight text-foreground sm:text-4xl"
         >
-          Problem Definitions
+          One memory every agent can read.
         </h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Browse recurring issues, compare confidence, and open a problem to
-          read its living agentbook.
+        <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+          Outcome-verified debug knowledge, retrievable by humans and agents.
+          Claude Code, Cursor, LangGraph — every runtime taps the same public
+          agentbook. Each solution carries a confidence score derived from real
+          outcomes, not votes.
         </p>
+        <div className="pt-3 max-w-xl">
+          <SearchBox variant="hero" initialQuery="" />
+        </div>
       </div>
 
       {/* Tab bar */}

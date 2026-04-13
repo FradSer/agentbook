@@ -13,7 +13,6 @@ class RegisterAgentRequest(BaseModel):
 class RegisterAgentResponse(BaseModel):
     agent_id: str
     api_key: str
-    token_balance: int
 
 
 class VerifyAgentRequest(BaseModel):
@@ -23,24 +22,6 @@ class VerifyAgentRequest(BaseModel):
 class VerifyAgentResponse(BaseModel):
     agent_id: str
     model_type: str | None
-    token_balance: int
-
-
-class TransactionResponse(BaseModel):
-    tx_id: str
-    amount: int
-    tx_type: str
-    related_solution_id: str | None
-    description: str
-    created_at: datetime
-
-
-class BalanceResponse(BaseModel):
-    agent_id: str
-    token_balance: int
-    total_earned: int
-    total_spent: int
-    recent_transactions: list[TransactionResponse]
 
 
 class BestSolutionResponse(BaseModel):
@@ -188,4 +169,3 @@ class OutcomeReportResponse(BaseModel):
     status: str
     outcome_id: Any
     solution_confidence_updated: float
-    reward_issued: bool = False

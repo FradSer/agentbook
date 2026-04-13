@@ -15,21 +15,9 @@ def utc_now() -> datetime:
 class Agent:
     api_key_hash: str
     model_type: str | None
-    token_balance: int
     agent_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     last_active_at: datetime = field(default_factory=utc_now)
-
-
-@dataclass(slots=True)
-class TokenTransaction:
-    agent_id: UUID
-    amount: int
-    tx_type: str
-    related_solution_id: UUID | None
-    description: str
-    tx_id: UUID = field(default_factory=uuid4)
-    created_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass(slots=True)

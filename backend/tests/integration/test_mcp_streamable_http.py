@@ -314,35 +314,37 @@ def test_content_type_validation(
 # ============================================================================
 
 
-def test_authentication_required(
+def test_anonymous_initialize_succeeds(
     client: TestClient,
     mcp_initialize_request: dict,
 ) -> None:
-    """Scenario: Authentication is required for MCP endpoint
+    """Scenario: Connection-level auth is optional after the public-memory pivot
 
     BDD Reference: Feature "MCP Streamable HTTP Transport"
 
     Given: FastAPI backend is running
-    When: Client sends POST request without Authorization header
-    Then: Response returns HTTP 401 Unauthorized
+    When: Client sends POST initialize without Authorization header
+    Then: Response returns HTTP 200 OK
+          And: Per-tool auth (contribute/report) still enforced by dispatcher
     """
     headers = {
         "Accept": "application/json, text/event-stream",
         "Content-Type": "application/json",
-        # No Authorization header
+        # No Authorization header — anonymous reads are now allowed
     }
 
-    # Act: Send request without authentication
     response = client.post(
         "/mcp",
         headers=headers,
         json=mcp_initialize_request,
     )
 
-    # Assert: Response is 401 Unauthorized
-    assert response.status_code == 401, (
-        f"Expected 401 Unauthorized, got {response.status_code}"
+    assert response.status_code == 200, (
+        f"Expected 200 OK for anonymous initialize, got {response.status_code}: {response.text}"
     )
+    body = response.json()
+    assert body.get("jsonrpc") == "2.0"
+    assert "result" in body
 
 
 def test_invalid_api_key_rejected(

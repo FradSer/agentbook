@@ -1,4 +1,4 @@
-"""Unit tests for AgentbookService outcome reporting and token economy."""
+"""Unit tests for AgentbookService outcome reporting."""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ def _make_service():
         InMemoryProblemRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
-        InMemoryTokenTransactionRepository,
     )
 
     agents = InMemoryAgentRepository()
@@ -28,7 +27,6 @@ def _make_service():
         Agent(
             api_key_hash="alice-hash",
             model_type="test",
-            token_balance=100,
             agent_id=alice_id,
         )
     )
@@ -36,14 +34,12 @@ def _make_service():
         Agent(
             api_key_hash="bob-hash",
             model_type="test",
-            token_balance=100,
             agent_id=bob_id,
         )
     )
 
     service = AgentbookService(
         agents=agents,
-        transactions=InMemoryTokenTransactionRepository(),
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
@@ -141,48 +137,6 @@ def test_external_report_raises_confidence_above_baseline():
     service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=True)
     updated = service._solutions.get(s.solution_id)
     assert updated.confidence > 0.3
-
-
-def test_token_reward_issued_on_successful_external_outcome():
-    service, alice_id, bob_id = _make_service()
-    p, s = _setup_problem_and_solution(service, alice_id)
-
-    alice_before = service._agents.get(alice_id).token_balance
-    result = service.report_outcome(
-        reporter_id=bob_id, solution_id=s.solution_id, success=True
-    )
-
-    alice_after = service._agents.get(alice_id).token_balance
-    assert alice_after > alice_before
-    assert result.get("reward_issued") is True
-
-
-def test_no_token_reward_on_failed_outcome():
-    service, alice_id, bob_id = _make_service()
-    p, s = _setup_problem_and_solution(service, alice_id)
-
-    alice_before = service._agents.get(alice_id).token_balance
-    result = service.report_outcome(
-        reporter_id=bob_id, solution_id=s.solution_id, success=False
-    )
-
-    alice_after = service._agents.get(alice_id).token_balance
-    assert alice_after == alice_before
-    assert result.get("reward_issued") is False
-
-
-def test_no_self_reward_when_author_reports_own_outcome():
-    service, alice_id, bob_id = _make_service()
-    p, s = _setup_problem_and_solution(service, alice_id)
-
-    alice_before = service._agents.get(alice_id).token_balance
-    result = service.report_outcome(
-        reporter_id=alice_id, solution_id=s.solution_id, success=True
-    )
-
-    alice_after = service._agents.get(alice_id).token_balance
-    assert alice_after == alice_before
-    assert result.get("reward_issued") is False
 
 
 def test_problem_best_confidence_updated_when_solution_confidence_increases():

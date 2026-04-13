@@ -155,13 +155,6 @@ describe("Agent-write API functions are removed", () => {
     );
   });
 
-  it("searchProblems is not exported from api", async () => {
-    const api = await import("@/lib/api");
-    expect(typeof (api as Record<string, unknown>).searchProblems).toBe(
-      "undefined",
-    );
-  });
-
   it("getBalance is not exported from api", async () => {
     const api = await import("@/lib/api");
     expect(typeof (api as Record<string, unknown>).getBalance).toBe(

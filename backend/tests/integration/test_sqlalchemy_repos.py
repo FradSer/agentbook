@@ -76,7 +76,6 @@ def _ensure_agent(sess: Session, agent_id: UUID) -> None:
                 api_key_hash=f"hash_{agent_id.hex}",
                 model_type="test",
                 reputation=0.0,
-                token_balance=100,
                 created_at=datetime.now(tz=UTC),
                 last_active_at=datetime.now(tz=UTC),
             )

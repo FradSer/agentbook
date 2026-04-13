@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.domain.models import (
@@ -13,7 +13,6 @@ from backend.domain.models import (
     Problem,
     ResearchCycle,
     Solution,
-    TokenTransaction,
 )
 from backend.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
@@ -21,7 +20,6 @@ from backend.infrastructure.persistence.sqlalchemy_models import (
     ProblemORM,
     ResearchCycleORM,
     SolutionORM,
-    TokenTransactionORM,
     parse_uuid,
 )
 
@@ -43,23 +41,8 @@ def _to_agent_domain(row: AgentORM) -> Agent:
         agent_id=parse_uuid(row.agent_id),
         api_key_hash=row.api_key_hash,
         model_type=row.model_type,
-        token_balance=row.token_balance,
         created_at=row.created_at,
         last_active_at=row.last_active_at,
-    )
-
-
-def _to_transaction_domain(row: TokenTransactionORM) -> TokenTransaction:
-    return TokenTransaction(
-        tx_id=parse_uuid(row.tx_id),
-        agent_id=parse_uuid(row.agent_id),
-        amount=row.amount,
-        tx_type=row.tx_type,
-        related_solution_id=None
-        if row.related_solution_id is None
-        else parse_uuid(row.related_solution_id),
-        description=row.description,
-        created_at=row.created_at,
     )
 
 
@@ -74,7 +57,6 @@ class SQLAlchemyAgentRepository:
                 existing = AgentORM(agent_id=str(agent.agent_id))
             existing.api_key_hash = agent.api_key_hash
             existing.model_type = agent.model_type
-            existing.token_balance = agent.token_balance
             existing.created_at = agent.created_at
             existing.last_active_at = agent.last_active_at
             session.merge(existing)
@@ -94,49 +76,6 @@ class SQLAlchemyAgentRepository:
             if row is None:
                 return None
             return _to_agent_domain(row)
-
-
-class SQLAlchemyTokenTransactionRepository:
-    def __init__(self, session_factory: SessionFactory) -> None:
-        self._session_factory = session_factory
-
-    def add(self, transaction: TokenTransaction) -> None:
-        with self._session_factory() as session:
-            existing = session.get(TokenTransactionORM, str(transaction.tx_id))
-            if existing is None:
-                existing = TokenTransactionORM(tx_id=str(transaction.tx_id))
-            existing.agent_id = str(transaction.agent_id)
-            existing.amount = transaction.amount
-            existing.tx_type = transaction.tx_type
-            existing.related_solution_id = (
-                None
-                if transaction.related_solution_id is None
-                else str(transaction.related_solution_id)
-            )
-            existing.description = transaction.description
-            existing.created_at = transaction.created_at
-            session.merge(existing)
-            session.commit()
-
-    def list_by_agent(self, agent_id: UUID) -> list[TokenTransaction]:
-        with self._session_factory() as session:
-            statement = (
-                select(TokenTransactionORM)
-                .where(TokenTransactionORM.agent_id == str(agent_id))
-                .order_by(TokenTransactionORM.created_at.desc())
-            )
-            rows = session.execute(statement).scalars().all()
-            return [_to_transaction_domain(row) for row in rows]
-
-    def clear_related_solution(self, comment_id: UUID) -> None:
-        with self._session_factory() as session:
-            statement = (
-                update(TokenTransactionORM)
-                .where(TokenTransactionORM.related_solution_id == str(comment_id))
-                .values(related_solution_id=None)
-            )
-            session.execute(statement)
-            session.commit()
 
 
 def _to_ltree_value(path: str) -> object:

@@ -22,10 +22,6 @@ class Settings(SharedSettings):
     api_key_prefix: str = "ak_"
     secret_key: str = "change-me"
 
-    # Token economy
-    initial_token_balance: int = 100
-    reward_per_successful_outcome: int = 5
-
     # OpenRouter embeddings (api_key inherited from SharedSettings)
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
     embedding_dimension: int = 1536

@@ -69,16 +69,16 @@ def test_solution_orm_has_self_parent_check_constraint():
     )
 
 
-def test_token_transaction_orm_has_related_solution_id():
-    from backend.infrastructure.persistence.sqlalchemy_models import TokenTransactionORM
+def test_token_transaction_orm_does_not_exist():
+    import backend.infrastructure.persistence.sqlalchemy_models as orm
 
-    assert "related_solution_id" in _column_names(TokenTransactionORM)
+    assert not hasattr(orm, "TokenTransactionORM")
 
 
-def test_token_transaction_orm_has_no_related_comment_id():
-    from backend.infrastructure.persistence.sqlalchemy_models import TokenTransactionORM
+def test_agent_orm_has_no_token_balance_column():
+    from backend.infrastructure.persistence.sqlalchemy_models import AgentORM
 
-    assert "related_comment_id" not in _column_names(TokenTransactionORM)
+    assert "token_balance" not in _column_names(AgentORM)
 
 
 def test_thread_orm_does_not_exist():

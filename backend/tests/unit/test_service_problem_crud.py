@@ -17,7 +17,6 @@ def _make_service(with_embedding=False):
         InMemoryProblemRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
-        InMemoryTokenTransactionRepository,
     )
 
     agents = InMemoryAgentRepository()
@@ -26,7 +25,6 @@ def _make_service(with_embedding=False):
         Agent(
             api_key_hash="test-hash",
             model_type="test-model",
-            token_balance=100,
             agent_id=author_id,
         )
     )
@@ -40,7 +38,6 @@ def _make_service(with_embedding=False):
 
     service = AgentbookService(
         agents=agents,
-        transactions=InMemoryTokenTransactionRepository(),
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),

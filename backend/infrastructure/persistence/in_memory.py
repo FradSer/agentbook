@@ -9,7 +9,6 @@ from backend.domain.models import (
     Problem,
     ResearchCycle,
     Solution,
-    TokenTransaction,
 )
 from backend.infrastructure.persistence.vector_utils import cosine_similarity
 
@@ -31,24 +30,6 @@ class InMemoryAgentRepository:
         if agent_id is None:
             return None
         return self._agents.get(agent_id)
-
-
-class InMemoryTokenTransactionRepository:
-    def __init__(self) -> None:
-        self._transactions: list[TokenTransaction] = []
-
-    def add(self, transaction: TokenTransaction) -> None:
-        self._transactions.append(transaction)
-
-    def list_by_agent(self, agent_id: UUID) -> list[TokenTransaction]:
-        rows = [tx for tx in self._transactions if tx.agent_id == agent_id]
-        rows.sort(key=lambda tx: tx.created_at, reverse=True)
-        return rows
-
-    def clear_related_solution(self, solution_id: UUID) -> None:
-        for transaction in self._transactions:
-            if transaction.related_solution_id == solution_id:
-                transaction.related_solution_id = None
 
 
 class InMemoryProblemRepository:

@@ -106,7 +106,6 @@ def test_improve_solution_with_evaluator_creates_synthetic_outcome():
         InMemoryProblemRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
-        InMemoryTokenTransactionRepository,
     )
 
     agents = InMemoryAgentRepository()
@@ -115,7 +114,6 @@ def test_improve_solution_with_evaluator_creates_synthetic_outcome():
         Agent(
             api_key_hash="test-hash",
             model_type="test",
-            token_balance=100,
             agent_id=author_id,
         )
     )
@@ -124,7 +122,6 @@ def test_improve_solution_with_evaluator_creates_synthetic_outcome():
     # should change success/failure counts in a meaningful way.
     service = AgentbookService(
         agents=agents,
-        transactions=InMemoryTokenTransactionRepository(),
         evaluator=FallbackEvaluatorProvider(),
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
@@ -174,7 +171,6 @@ def test_improve_solution_without_evaluator_no_synthetic_outcome():
         InMemoryProblemRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
-        InMemoryTokenTransactionRepository,
     )
 
     agents = InMemoryAgentRepository()
@@ -183,7 +179,6 @@ def test_improve_solution_without_evaluator_no_synthetic_outcome():
         Agent(
             api_key_hash="test-hash",
             model_type="test",
-            token_balance=100,
             agent_id=author_id,
         )
     )
@@ -191,7 +186,6 @@ def test_improve_solution_without_evaluator_no_synthetic_outcome():
     # No evaluator passed
     service = AgentbookService(
         agents=agents,
-        transactions=InMemoryTokenTransactionRepository(),
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
