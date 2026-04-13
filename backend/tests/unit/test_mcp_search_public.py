@@ -1,8 +1,12 @@
-"""Public-read MCP contract.
+"""Public-read MCP dispatcher contract.
 
-The MCP dispatcher in `tools.py` enforces auth per tool: search and inspect
-must work without an authenticated agent; contribute and report must reject
-unauthenticated callers.
+After the public-memory pivot, the MCP dispatcher must:
+- route `search` and `inspect` to their handlers without any agent context
+- raise on `contribute` and `report` when no agent is present in context
+
+These tests exercise `dispatch_tool` directly so the routing contract is
+asserted behaviourally — re-introducing an auth check around the public
+branches would make the public-memory tool contract fail immediately.
 """
 
 from __future__ import annotations
@@ -16,14 +20,20 @@ from fastapi.testclient import TestClient
 from mcp.server import Server
 
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
-from backend.presentation.mcp.tools import (
-    handle_inspect,
-    register_tools,
-)
+from backend.presentation.mcp.tools import dispatch_tool
+
+
+@pytest.fixture(autouse=True)
+def _reset_agent_ctx():
+    """Ensure every test starts with no authenticated agent in ContextVar."""
+    token = _current_agent_ctx.set(None)
+    try:
+        yield
+    finally:
+        _current_agent_ctx.reset(token)
 
 
 def _make_anonymous_server() -> Server:
-    """Create an MCP server with a stub service and no authenticated agent."""
     service = MagicMock()
     service.search_problems.return_value = {"results": [], "total": 0}
     service.inspect_resource.return_value = {
@@ -34,64 +44,85 @@ def _make_anonymous_server() -> Server:
     server = Server("agentbook-public-test")
     server._service = service
     server._agent = None
-    register_tools(server)
     return server
 
 
-def _reset_agent_context() -> None:
-    _current_agent_ctx.set(None)
-
-
 @pytest.mark.asyncio
-async def test_inspect_handler_accepts_none_agent_id():
-    """handle_inspect must accept agent_id=None (public read path)."""
-    service = MagicMock()
-    service.inspect_resource.return_value = {
-        "type": "problem",
-        "problem_id": str(uuid4()),
-    }
+async def test_dispatch_search_succeeds_without_auth():
+    server = _make_anonymous_server()
 
-    result = await handle_inspect(service, None, {"id": str(uuid4())})
+    result = await dispatch_tool(
+        server,
+        "search",
+        {"query": "hydration error", "error_log": "at Component.render", "limit": 3},
+    )
 
     payload = json.loads(result[0]["text"])
-    assert "type" in payload
-    service.inspect_resource.assert_called_once()
+    assert payload == {"results": [], "total": 0}
+    server._service.search_problems.assert_called_once_with(
+        query="hydration error",
+        error_log="at Component.render",
+        limit=3,
+    )
 
 
 @pytest.mark.asyncio
-async def test_contribute_without_authenticated_agent_returns_auth_error():
-    """contribute is a write — dispatcher must reject anonymous callers.
-
-    The dispatcher calls _get_authenticated_agent() before invoking the
-    handler. We assert the dispatcher contract by simulating the same path:
-    no agent in ContextVar and no agent on the server.
-    """
-    from backend.presentation.mcp.tools import _get_authenticated_agent
-
-    _reset_agent_context()
+async def test_dispatch_inspect_succeeds_without_auth():
     server = _make_anonymous_server()
+    target_id = uuid4()
 
-    with pytest.raises(ValueError, match="Authentication required"):
-        _get_authenticated_agent(server)
+    result = await dispatch_tool(server, "inspect", {"id": str(target_id)})
+
+    payload = json.loads(result[0]["text"])
+    assert payload["type"] == "problem"
+    server._service.inspect_resource.assert_called_once_with(
+        resource_id=target_id, include=None
+    )
 
 
 @pytest.mark.asyncio
-async def test_report_without_authenticated_agent_returns_auth_error():
-    """report is a write — dispatcher must reject anonymous callers."""
-    from backend.presentation.mcp.tools import _get_authenticated_agent
-
-    _reset_agent_context()
+async def test_dispatch_contribute_without_auth_raises():
     server = _make_anonymous_server()
 
     with pytest.raises(ValueError, match="Authentication required"):
-        _get_authenticated_agent(server)
+        await dispatch_tool(
+            server,
+            "contribute",
+            {"description": "Segfault when importing numpy on Alpine"},
+        )
+
+    server._service.contribute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_report_without_auth_raises():
+    server = _make_anonymous_server()
+
+    with pytest.raises(ValueError, match="Authentication required"):
+        await dispatch_tool(
+            server,
+            "report",
+            {"solution_id": str(uuid4()), "success": True},
+        )
+
+    server._service.report_outcome.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dispatch_unknown_tool_returns_error_payload():
+    server = _make_anonymous_server()
+
+    result = await dispatch_tool(server, "definitely-not-a-tool", {})
+
+    payload = json.loads(result[0]["text"])
+    assert payload["error"] == "unknown_tool"
 
 
 def test_streamable_http_initialize_anonymous_returns_200():
     """An anonymous client can establish an MCP Streamable HTTP session.
 
-    The connection-level auth check was removed; per-tool enforcement lives
-    in the tools.py dispatcher.
+    Connection-level auth was removed in the public-memory pivot; per-tool
+    enforcement lives in the dispatcher tested above.
     """
     from backend.main import create_app
 
@@ -119,35 +150,3 @@ def test_streamable_http_initialize_anonymous_returns_200():
     body = response.json()
     assert body.get("jsonrpc") == "2.0"
     assert "result" in body
-
-
-def test_dispatcher_routes_public_tools_without_auth():
-    """Source-level guard: dispatcher in tools.py must skip auth for search/inspect.
-
-    This is a structural regression check — re-introducing _get_authenticated_agent()
-    around the search/inspect branches would silently break the public-memory
-    contract, so we lock the source shape.
-    """
-    import inspect as _inspect
-
-    from backend.presentation.mcp import tools
-
-    src = _inspect.getsource(tools.register_tools)
-
-    assert 'elif name == "search"' in src or 'if name == "search"' in src
-    assert 'elif name == "inspect"' in src
-
-    search_block, _, after_search = src.partition('name == "search"')
-    inspect_block, _, after_inspect = after_search.partition('name == "inspect"')
-    contribute_block, _, _ = after_inspect.partition('name == "contribute"')
-
-    # search and inspect branches must NOT call _get_authenticated_agent.
-    inspect_branch = inspect_block.split("elif")[0]
-    assert "_get_authenticated_agent" not in inspect_branch, (
-        "search branch should not authenticate"
-    )
-
-    contribute_inspect_branch = contribute_block.split("elif")[0]
-    assert "_get_authenticated_agent" not in contribute_inspect_branch, (
-        "inspect branch should not authenticate"
-    )

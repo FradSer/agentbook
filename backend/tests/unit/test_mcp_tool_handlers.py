@@ -269,7 +269,7 @@ async def test_inspect_delegates_to_service_and_returns_json() -> None:
         "solutions": [],
     }
 
-    result = await handle_inspect(service, AGENT_ID, {"id": str(PROBLEM_ID)})
+    result = await handle_inspect(service, {"id": str(PROBLEM_ID)})
 
     service.inspect_resource.assert_called_once()
     data = json.loads(result[0]["text"])
@@ -281,7 +281,7 @@ async def test_inspect_not_found_returns_error_json() -> None:
     service = MagicMock()
     service.inspect_resource.side_effect = NotFoundError("not found")
 
-    result = await handle_inspect(service, AGENT_ID, {"id": str(uuid4())})
+    result = await handle_inspect(service, {"id": str(uuid4())})
 
     data = json.loads(result[0]["text"])
     assert data["error"] == "not_found"
@@ -301,7 +301,6 @@ async def test_inspect_with_lineage_calls_get_solution_lineage() -> None:
 
     result = await handle_inspect(
         service,
-        AGENT_ID,
         {"id": str(SOLUTION_ID), "include": ["outcomes", "lineage"]},
     )
 
@@ -324,7 +323,7 @@ async def test_inspect_lineage_ignored_for_problems() -> None:
     }
 
     result = await handle_inspect(
-        service, AGENT_ID, {"id": str(PROBLEM_ID), "include": ["lineage"]}
+        service, {"id": str(PROBLEM_ID), "include": ["lineage"]}
     )
 
     service.get_solution_lineage.assert_not_called()

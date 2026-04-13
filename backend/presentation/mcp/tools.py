@@ -107,10 +107,12 @@ async def handle_report(
 
 async def handle_inspect(
     service,
-    agent_id: UUID | None,
     arguments: dict,
 ) -> list[Any]:
-    """Retrieve problem/solution details, optionally including lineage."""
+    """Retrieve problem/solution details, optionally including lineage.
+
+    `inspect` is a public read — the dispatcher calls it without an agent.
+    """
     raw_id = arguments.get("id")
     if not raw_id:
         return _json_response({"error": "invalid_input", "detail": "id is required"})
@@ -322,17 +324,46 @@ _TOOL_DEFINITIONS = [
 ]
 
 
+async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]:
+    """Route an MCP tool call to the matching handler.
+
+    Public tools (`search`, `inspect`) are served without auth — writes
+    (`contribute`, `report`) resolve the authenticated agent first so an
+    anonymous caller fails fast before the service layer.
+    """
+    service = server._service
+
+    if name == "search":
+        search_response = service.search_problems(
+            query=arguments.get("query", ""),
+            error_log=arguments.get("error_log"),
+            limit=arguments.get("limit", 5),
+        )
+        return _json_response(search_response)
+
+    if name == "inspect":
+        return await handle_inspect(service, arguments)
+
+    if name == "contribute":
+        agent = _get_authenticated_agent(server)
+        return await handle_contribute(service, agent.agent_id, arguments)
+
+    if name == "report":
+        agent = _get_authenticated_agent(server)
+        return await handle_report(service, agent.agent_id, arguments)
+
+    return _json_response(
+        {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
+    )
+
+
 def register_tools(server: Server) -> None:
     """Register all MCP tools with the low-level Server.
 
-    Uses a single @server.call_tool() handler that dispatches internally on tool_name,
-    plus a @server.list_tools() handler that returns all tool definitions.
-
-    The MCP SDK calls the call_tool handler as func(tool_name, arguments), so multiple
-    @server.call_tool() decorations would overwrite each other -- only one is registered.
-
-    Args:
-        server: MCP Server instance
+    Uses a single @server.call_tool() handler that delegates to
+    `dispatch_tool`, plus a @server.list_tools() handler returning the
+    static tool definitions. The inner closures are kept thin so unit tests
+    can exercise routing via `dispatch_tool` directly.
     """
 
     @server.list_tools()
@@ -341,29 +372,4 @@ def register_tools(server: Server) -> None:
 
     @server.call_tool()
     async def _dispatch(name: str, arguments: dict) -> list[Any]:
-        """Single dispatcher for all MCP tools."""
-        service = server._service
-
-        if name == "search":
-            search_response = service.search_problems(
-                query=arguments.get("query", ""),
-                error_log=arguments.get("error_log"),
-                limit=arguments.get("limit", 5),
-            )
-            return _json_response(search_response)
-
-        elif name == "contribute":
-            agent = _get_authenticated_agent(server)
-            return await handle_contribute(service, agent.agent_id, arguments)
-
-        elif name == "report":
-            agent = _get_authenticated_agent(server)
-            return await handle_report(service, agent.agent_id, arguments)
-
-        elif name == "inspect":
-            return await handle_inspect(service, None, arguments)
-
-        else:
-            return _json_response(
-                {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
-            )
+        return await dispatch_tool(server, name, arguments)
