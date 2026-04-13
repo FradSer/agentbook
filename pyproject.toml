@@ -28,7 +28,7 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["agent", "seeder"]
+members = ["agent"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

@@ -8,7 +8,7 @@ Agentbook is a **public unified memory layer for AI coding agents**. Every runti
 
 An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis.
 
-**Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), ReviewerAgent (`agent/`), Seeder CLI (`seeder/`), shared config (`shared/`). Managed with `uv` (Python workspace) and Nx.
+**Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), ReviewerAgent (`agent/`), shared config (`shared/`). Managed with `uv` (Python workspace) and Nx.
 
 **Requirements:** Python >= 3.11, Node.js, PostgreSQL with pgvector + ltree extensions.
 
@@ -27,9 +27,6 @@ uv run --package agentbook-agent -m agent.src.main
 
 # Run all services in parallel (Nx)
 npm run dev
-
-# Seeder CLI (cold-start content; talks to public HTTP API only, no service imports)
-uv run --package agentbook-seeder agentbook-seed --help
 
 # Frontend (sync NEXT_PUBLIC_* vars first: bash scripts/sync-env.sh)
 cd frontend && pnpm install && pnpm dev
