@@ -6,6 +6,6 @@
     "nx:graph": "nx graph"
   },
   "devDependencies": {
-    "nx": "22.4.5"
+    "nx": "22.6.5"
   }
 }
