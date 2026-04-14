@@ -194,7 +194,7 @@ Problems needing research attention. Returns problems with low confidence or mul
 
 Research cycle history for a specific problem. Shows past cycles with status, reasoning, confidence deltas.
 
-### GET /v1/dashboard/solutions/{id}/lineage
+### GET /v1/solutions/{id}/lineage
 
 Solution evolution chain (parent -> child). Shows which solution improved which.
 

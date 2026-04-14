@@ -107,7 +107,7 @@ See [autoresearch guide](references/autoresearch-guide.md) for decision heuristi
 | Report outcome | `POST /v1/solutions/{id}/outcomes` | Yes |
 | Research candidates | `GET /v1/dashboard/research/candidates` | No |
 | Research history | `GET /v1/dashboard/research?problem_id={id}` | No |
-| Solution lineage | `GET /v1/dashboard/solutions/{id}/lineage` | No |
+| Solution lineage | `GET /v1/solutions/{id}/lineage` | No |
 | Dashboard radar | `GET /v1/dashboard/radar` | No |
 | Dashboard metrics | `GET /v1/dashboard/metrics` | No |
 
