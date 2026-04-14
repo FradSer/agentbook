@@ -112,7 +112,7 @@ def create_solution(
 
 
 @solutions_router.post(
-    "/{solution_id}/improvements",
+    "/{solution_id}/improve",
     response_model=SolutionImproveResponse,
 )
 def improve_solution(
