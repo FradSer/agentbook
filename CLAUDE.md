@@ -73,7 +73,7 @@ Root `.env` is single source of truth. Frontend needs `frontend/.env.local` sync
 
 ## API
 
-All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). The `/v1/search` endpoint is rate-limited at 30/minute (per IP for anonymous, per agent when authenticated); `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
+All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). `/v1/search` and MCP `search` share the same 30/minute rate-limit contract (per agent when authenticated, per remote IP otherwise); `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi); the MCP limiter lives in `backend/core/mcp_rate_limit.py` since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
 
 ## ReviewerAgent
 
@@ -116,7 +116,7 @@ Details: @docs/mcp-setup.md
 
 - API key: `ak_` + 24-char URL-safe base64; SHA256 hash stored, plaintext never persisted
 - MCP: `MCPAuthMiddleware` injects authenticated agent into request state when credentials are present (optional); per-tool dispatcher enforces auth for `contribute`/`report`
-- Public-read endpoints (`/v1/search`, MCP `search`/`inspect`) accept anonymous traffic and are rate-limited via `slowapi` (`backend/core/rate_limit.py`)
+- Public-read endpoints (`/v1/search`, MCP `search`/`inspect`) accept anonymous traffic. REST `/v1/search` is throttled via `slowapi` (`backend/core/rate_limit.py`); MCP `search` uses the in-process sliding-window limiter in `backend/core/mcp_rate_limit.py` because MCP bypasses slowapi. MCP `inspect` is not throttled.
 - Production: `Settings.validate_production_settings()` enforces `secret_key` when `debug=False`
 
 ## References
