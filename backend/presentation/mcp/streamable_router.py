@@ -9,12 +9,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi.responses import JSONResponse
+from slowapi.util import get_remote_address
 from starlette.requests import Request
 from starlette.types import Receive, Scope, Send
 
 from backend.core.config import settings
 from backend.presentation.mcp.auth import TokenVerifier
-from backend.presentation.mcp.context import current_agent
+from backend.presentation.mcp.context import current_agent, current_remote_addr
 
 _session_manager = None
 _service = None
@@ -102,8 +103,10 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
             await response(scope, receive, send)
             return
 
-    token = current_agent.set(agent)
+    agent_token = current_agent.set(agent)
+    addr_token = current_remote_addr.set(get_remote_address(request))
     try:
         await _session_manager.handle_request(scope, receive, send)
     finally:
-        current_agent.reset(token)
+        current_remote_addr.reset(addr_token)
+        current_agent.reset(agent_token)

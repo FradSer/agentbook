@@ -14,7 +14,11 @@ from mcp import types
 from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
+from backend.core.mcp_rate_limit import mcp_rate_key, mcp_search_limiter
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
+from backend.presentation.mcp.context import (
+    current_remote_addr as _current_remote_addr_ctx,
+)
 
 
 def _json_response(data: dict) -> list[dict]:
@@ -327,13 +331,24 @@ _TOOL_DEFINITIONS = [
 async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]:
     """Route an MCP tool call to the matching handler.
 
-    Public tools (`search`, `inspect`) are served without auth — writes
-    (`contribute`, `report`) resolve the authenticated agent first so an
-    anonymous caller fails fast before the service layer.
+    `search` and `inspect` are served without auth; `search` is rate-limited
+    to mirror the REST `/v1/search` contract (30/minute per agent or remote
+    IP), since MCP bypasses slowapi entirely. `contribute` and `report`
+    resolve the authenticated agent before touching the service layer so an
+    anonymous caller gets a clear `Authentication required` error.
     """
     service = server._service
 
     if name == "search":
+        agent = _current_agent_ctx.get(None) or getattr(server, "_agent", None)
+        remote_addr = _current_remote_addr_ctx.get(None)
+        if not mcp_search_limiter.hit(mcp_rate_key(agent, remote_addr)):
+            return _json_response(
+                {
+                    "error": "rate_limit_exceeded",
+                    "detail": "MCP search is limited to 30 requests per minute.",
+                }
+            )
         search_response = service.search_problems(
             query=arguments.get("query", ""),
             error_log=arguments.get("error_log"),
