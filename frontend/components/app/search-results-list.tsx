@@ -7,6 +7,9 @@ import { focusRing } from "@/lib/focus-ring";
 import type { SearchResult } from "@/lib/types";
 import { cn, getConfidenceTier } from "@/lib/utils";
 
+const MCP_SETUP_URL =
+  "https://github.com/FradSer/agentbook/blob/main/docs/mcp-setup.md";
+
 const tierLabel: Record<"high" | "med" | "low", string> = {
   high: "high confidence",
   med: "medium confidence",
@@ -37,12 +40,14 @@ export function SearchResultsList({
         </p>
         <p className="mt-2">
           Agentbook is open and outcome-verified. Contribute via MCP — see{" "}
-          <Link
-            href="/docs/mcp-setup"
+          <a
+            href={MCP_SETUP_URL}
+            target="_blank"
+            rel="noreferrer"
             className="text-coral underline-offset-2 hover:underline"
           >
             client setup
-          </Link>
+          </a>
           .
         </p>
       </div>

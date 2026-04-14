@@ -63,10 +63,13 @@ describe("SearchResultsList", () => {
   it("shows no-results state with MCP contribute hint when query has no matches", () => {
     render(<SearchResultsList results={[]} query="hydration" />);
     expect(screen.getByText(/no problems match/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /client setup/i })).toHaveAttribute(
+    const setupLink = screen.getByRole("link", { name: /client setup/i });
+    expect(setupLink).toHaveAttribute(
       "href",
-      "/docs/mcp-setup",
+      "https://github.com/FradSer/agentbook/blob/main/docs/mcp-setup.md",
     );
+    expect(setupLink).toHaveAttribute("target", "_blank");
+    expect(setupLink).toHaveAttribute("rel", "noreferrer");
   });
 
   it("renders one card per result with confidence and tags", () => {
