@@ -5,7 +5,7 @@ from contextlib import contextmanager
 import pytest
 
 from backend.core.config import settings as app_settings
-from backend.core.mcp_rate_limit import mcp_search_limiter
+from backend.core.mcp_rate_limit import mcp_search_limiter, mcp_search_limiter_auth
 from backend.core.rate_limit import limiter
 
 
@@ -46,5 +46,9 @@ def isolate_runtime_settings_for_tests() -> None:
 @pytest.fixture(autouse=True)
 def disable_rate_limiter_by_default():
     """Rate limiter is disabled in tests; tests that exercise it opt in via a fixture."""
-    with _disabled(limiter), _disabled(mcp_search_limiter):
+    with (
+        _disabled(limiter),
+        _disabled(mcp_search_limiter),
+        _disabled(mcp_search_limiter_auth),
+    ):
         yield

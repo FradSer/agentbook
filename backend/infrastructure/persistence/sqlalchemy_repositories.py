@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from backend.domain.models import (
@@ -240,6 +241,64 @@ class SQLAlchemyProblemRepository:
                 return [(_to_problem_domain(r[0]), float(r[1])) for r in rows]
             except Exception:
                 return []
+
+    def find_hybrid(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> list[tuple[Problem, float]]:
+        from backend.application._rrf import rrf_fuse
+
+        candidate_pool = max(limit, 50)
+        dense: list[Problem] = []
+        sparse: list[Problem] = []
+
+        with self._session_factory() as session:
+            if session.bind is None or session.bind.dialect.name != "postgresql":
+                return []
+
+            if query_embedding and Vector is not None:
+                try:
+                    dense_stmt = (
+                        select(ProblemORM)
+                        .where(
+                            ProblemORM.review_status == "approved",
+                            ProblemORM.embedding.is_not(None),
+                        )
+                        .order_by(ProblemORM.embedding.cosine_distance(query_embedding))
+                        .limit(candidate_pool)
+                    )
+                    dense = [
+                        _to_problem_domain(row)
+                        for row in session.execute(dense_stmt).scalars().all()
+                    ]
+                except (ProgrammingError, OperationalError):
+                    dense = []
+
+            if query_text:
+                try:
+                    tsv = func.to_tsvector("english", ProblemORM.description)
+                    tsq = func.plainto_tsquery("english", query_text)
+                    sparse_stmt = (
+                        select(ProblemORM)
+                        .where(
+                            ProblemORM.review_status == "approved",
+                            tsv.op("@@")(tsq),
+                        )
+                        .order_by(func.ts_rank(tsv, tsq).desc())
+                        .limit(candidate_pool)
+                    )
+                    sparse = [
+                        _to_problem_domain(row)
+                        for row in session.execute(sparse_stmt).scalars().all()
+                    ]
+                except (ProgrammingError, OperationalError):
+                    sparse = []
+
+        if not dense and not sparse:
+            return []
+        return rrf_fuse([dense, sparse], k=60, limit=limit)
 
     def update(self, problem: Problem) -> None:
         """Update problem with optimistic locking."""

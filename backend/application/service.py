@@ -19,6 +19,7 @@ from backend.application.errors import (
     UnauthorizedError,
 )
 from backend.application.gate import check_spam
+from backend.core.search_cache import TTLCache
 from backend.domain.models import (
     Agent,
     Outcome,
@@ -38,6 +39,9 @@ from backend.domain.services import EmbeddingProvider, EvaluatorProvider
 from backend.infrastructure.security import generate_api_key, hash_api_key
 
 logger = logging.getLogger(__name__)
+
+_SEARCH_CACHE_MAXSIZE = 256
+_SEARCH_CACHE_TTL_SECONDS = 300.0
 
 # Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
@@ -66,6 +70,9 @@ class AgentbookService:
         self._solutions = solutions
         self._outcomes = outcomes
         self._research_cycles = research_cycles
+        self._search_cache = TTLCache(
+            maxsize=_SEARCH_CACHE_MAXSIZE, ttl=_SEARCH_CACHE_TTL_SECONDS
+        )
 
     def register_agent(self, model_type: str | None) -> tuple[Agent, str]:
         api_key = generate_api_key()
@@ -154,63 +161,121 @@ class AgentbookService:
         self._problems.update(problem)
 
     def search_problems(
-        self, query: str, limit: int, error_log: str | None = None
+        self,
+        query: str,
+        limit: int,
+        error_log: str | None = None,
+        include: set[str] | None = None,
+        format: str = "concise",
     ) -> dict:
-        rows = self._search_problems(query=query, limit=limit, error_log=error_log)
-        return {"results": rows, "total": len(rows)}
+        cache_key = (
+            query,
+            error_log,
+            limit,
+            tuple(sorted(include)) if include else None,
+            format,
+        )
+        cached = self._search_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        rows = self._search_problems(
+            query=query,
+            limit=limit,
+            error_log=error_log,
+            include=include,
+            format=format,
+        )
+        payload = {"results": rows, "total": len(rows)}
+        self._search_cache.set(cache_key, payload)
+        return payload
 
     def _search_problems(
-        self, query: str, limit: int, error_log: str | None = None
+        self,
+        query: str,
+        limit: int,
+        error_log: str | None = None,
+        include: set[str] | None = None,
+        format: str = "concise",
     ) -> list[dict]:
         search_text = self._compose_search_text(query=query, error_log=error_log)
         normalized_query = search_text.lower()
         query_embedding = self._safe_embed(search_text)
+        full = format == "full"
         rows: list[dict] = []
 
-        if query_embedding is not None:
-            semantic_rows = self._problems.find_similar_scored(query_embedding)
-            for problem, similarity in semantic_rows:
-                best_solution = self._pick_best_solution(problem.problem_id)
-                rows.append(
-                    {
-                        "problem_id": str(problem.problem_id),
-                        "description": problem.description,
-                        "best_confidence": problem.best_confidence,
-                        "solution_count": problem.solution_count,
-                        "similarity_score": similarity,
-                        "best_solution": best_solution,
-                        "created_at": problem.created_at.isoformat(),
-                    }
-                )
+        if query_embedding is not None or normalized_query:
+            hybrid = self._problems.find_hybrid(
+                query_embedding=query_embedding,
+                query_text=normalized_query,
+                limit=max(limit * 2, 20),
+            )
+            rows = [self._row_from_problem(p, score, full) for p, score in hybrid]
+
+        if not rows and query_embedding is not None:
+            semantic = self._problems.find_similar_scored(query_embedding)
+            rows = [self._row_from_problem(p, score, full) for p, score in semantic]
 
         if not rows:
             query_terms = self._extract_terms(normalized_query)
             for problem in self._problems.list_all():
                 if problem.review_status != "approved":
                     continue
-                desc_lower = problem.description.lower()
-                matched = (
-                    any(term in desc_lower for term in query_terms)
-                    if query_terms
-                    else True
-                )
-                if normalized_query and not matched:
-                    continue
-                best_solution = self._pick_best_solution(problem.problem_id)
-                rows.append(
-                    {
-                        "problem_id": str(problem.problem_id),
-                        "description": problem.description,
-                        "best_confidence": problem.best_confidence,
-                        "solution_count": problem.solution_count,
-                        "similarity_score": 1.0 if matched else 0.0,
-                        "best_solution": best_solution,
-                        "created_at": problem.created_at.isoformat(),
-                    }
-                )
+                if normalized_query and query_terms:
+                    desc_lower = problem.description.lower()
+                    if not any(term in desc_lower for term in query_terms):
+                        continue
+                rows.append(self._row_from_problem(problem, 1.0, full))
 
         rows.sort(key=lambda item: item["similarity_score"], reverse=True)
-        return rows[: max(limit, 0)]
+        rows = rows[: max(limit, 0)]
+
+        if include:
+            for row in rows:
+                self._enrich_search_row(row, include)
+
+        return rows
+
+    def _row_from_problem(self, problem: Problem, score: float, full: bool) -> dict:
+        return {
+            "problem_id": str(problem.problem_id),
+            "description": problem.description,
+            "best_confidence": problem.best_confidence,
+            "solution_count": problem.solution_count,
+            "similarity_score": score,
+            "best_solution": self._pick_best_solution(problem.problem_id, full=full),
+            "created_at": problem.created_at.isoformat(),
+        }
+
+    def _enrich_search_row(self, row: dict, include: set[str]) -> None:
+        problem_id = UUID(row["problem_id"])
+        best = row.get("best_solution")
+        best_solution_id = (
+            UUID(best["solution_id"]) if best and best.get("solution_id") else None
+        )
+
+        if "solutions" in include:
+            all_solutions = self._solutions.list_by_problem(problem_id)
+            models = self._agent_models_map({s.author_id for s in all_solutions})
+            row["solutions"] = [
+                _solution_to_dict(s, models.get(s.author_id)) for s in all_solutions
+            ]
+
+        if "outcomes" in include:
+            if best_solution_id is None:
+                row["outcomes"] = []
+            else:
+                outs = self._outcomes.list_by_solution(best_solution_id)
+                models = self._agent_models_map({o.reporter_id for o in outs})
+                row["outcomes"] = [
+                    _outcome_to_dict(o, models.get(o.reporter_id)) for o in outs
+                ]
+
+        if "lineage" in include:
+            row["lineage"] = (
+                self.get_solution_lineage(best_solution_id)
+                if best_solution_id is not None
+                else []
+            )
 
     def _ensure_agent_exists(self, agent_id: UUID) -> None:
         if self._agents.get(agent_id) is None:
@@ -535,16 +600,17 @@ class AgentbookService:
             "is_being_researched": _is_being_researched(problem),
         }
 
-    def _pick_best_solution(self, problem_id: UUID) -> dict | None:
+    def _pick_best_solution(self, problem_id: UUID, full: bool = False) -> dict | None:
         solutions = self._solutions.list_by_problem(problem_id)
         approved = [s for s in solutions if s.review_status == "approved"]
         if not approved:
             return None
         best = max(approved, key=lambda s: s.confidence)
+        content_preview = best.content if full else best.content[:200]
         return {
             "solution_id": str(best.solution_id),
             "confidence": best.confidence,
-            "content_preview": best.content[:200],
+            "content_preview": content_preview,
             "outcome_count": best.outcome_count,
         }
 

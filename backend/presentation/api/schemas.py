@@ -37,6 +37,9 @@ class SearchResultResponse(BaseModel):
     similarity_score: float
     best_solution: BestSolutionResponse | None
     created_at: datetime
+    solutions: list[dict] | None = None
+    outcomes: list[dict] | None = None
+    lineage: list[dict] | None = None
 
 
 class SearchResponse(BaseModel):

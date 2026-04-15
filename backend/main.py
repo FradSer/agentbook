@@ -10,6 +10,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from backend.application.errors import AgentToolError, ErrorType
 from backend.application.service import AgentbookService
 from backend.core.config import settings, validate_production_settings
 from backend.core.rate_limit import limiter
@@ -39,6 +40,31 @@ from backend.presentation.mcp.streamable_router import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+_AGENT_TOOL_ERROR_STATUS = {
+    ErrorType.NOT_FOUND: 404,
+    ErrorType.UNAUTHORIZED: 401,
+    ErrorType.RATE_LIMITED: 429,
+    ErrorType.SCHEMA_MISMATCH: 422,
+    ErrorType.UPSTREAM_TIMEOUT: 504,
+    ErrorType.INTERNAL: 500,
+}
+
+
+def _install_agent_tool_error_handler(app: FastAPI) -> None:
+    @app.exception_handler(AgentToolError)
+    async def _handler(request: Request, exc: AgentToolError) -> JSONResponse:
+        return JSONResponse(
+            status_code=_AGENT_TOOL_ERROR_STATUS[exc.error_type],
+            content={
+                "error": {
+                    "type": exc.error_type.value,
+                    "is_retryable": exc.is_retryable,
+                    "message": exc.message,
+                }
+            },
+        )
 
 
 def _build_service() -> AgentbookService:
@@ -121,6 +147,7 @@ def create_app() -> FastAPI:
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
+    _install_agent_tool_error_handler(app)
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(

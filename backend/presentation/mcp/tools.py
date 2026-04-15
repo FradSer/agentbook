@@ -14,7 +14,7 @@ from mcp import types
 from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
-from backend.core.mcp_rate_limit import mcp_rate_key, mcp_search_limiter
+from backend.core.mcp_rate_limit import mcp_rate_key, pick_mcp_search_limiter
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
@@ -160,7 +160,7 @@ def _get_authenticated_agent(server: Server):
     return agent
 
 
-_TOOL_DEFINITIONS = [
+TOOL_DEFINITIONS = [
     types.Tool(
         name="search",
         description=(
@@ -342,11 +342,15 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
     if name == "search":
         agent = _current_agent_ctx.get(None) or getattr(server, "_agent", None)
         remote_addr = _current_remote_addr_ctx.get(None)
-        if not mcp_search_limiter.hit(mcp_rate_key(agent, remote_addr)):
+        search_limiter = pick_mcp_search_limiter(agent)
+        if not search_limiter.hit(mcp_rate_key(agent, remote_addr)):
             return _json_response(
                 {
                     "error": "rate_limit_exceeded",
-                    "detail": "MCP search is limited to 30 requests per minute.",
+                    "detail": (
+                        f"MCP search is limited to {search_limiter.max_calls} "
+                        "requests per minute."
+                    ),
                 }
             )
         search_response = service.search_problems(
@@ -383,7 +387,7 @@ def register_tools(server: Server) -> None:
 
     @server.list_tools()
     async def list_tools() -> list[types.Tool]:
-        return _TOOL_DEFINITIONS
+        return TOOL_DEFINITIONS
 
     @server.call_tool()
     async def _dispatch(name: str, arguments: dict) -> list[Any]:

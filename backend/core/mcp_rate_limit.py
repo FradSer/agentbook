@@ -34,7 +34,7 @@ class MCPRateLimiter:
         window_seconds: float,
         max_keys: int = 10_000,
     ) -> None:
-        self._max = max_calls
+        self.max_calls = max_calls
         self._window = window_seconds
         self._max_keys = max_keys
         self._buckets: OrderedDict[str, deque[float]] = OrderedDict()
@@ -59,7 +59,7 @@ class MCPRateLimiter:
             cutoff = now - self._window
             while bucket and bucket[0] <= cutoff:
                 bucket.popleft()
-            if len(bucket) >= self._max:
+            if len(bucket) >= self.max_calls:
                 return False
             bucket.append(now)
             return True
@@ -81,5 +81,12 @@ def mcp_rate_key(agent: Agent | None, remote_addr: str | None) -> str:
     return f"ip:{remote_addr or 'unknown'}"
 
 
-# Mirrors the REST `/v1/search` contract: 30 per minute per agent/IP.
+# Mirrors the REST `/v1/search` contract: 30 per minute per IP for anon callers.
 mcp_search_limiter = MCPRateLimiter(max_calls=30, window_seconds=60)
+# Authenticated agents get a higher quota to support batch debugging.
+mcp_search_limiter_auth = MCPRateLimiter(max_calls=300, window_seconds=60)
+
+
+def pick_mcp_search_limiter(agent: Agent | None) -> MCPRateLimiter:
+    """Return the limiter that matches the caller's authentication tier."""
+    return mcp_search_limiter_auth if agent is not None else mcp_search_limiter

@@ -36,6 +36,13 @@ class ProblemRepository(Protocol):
         self, query_embedding: list[float]
     ) -> list[tuple[Problem, float]]: ...
 
+    def find_hybrid(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> list[tuple[Problem, float]]: ...
+
     def find_by_error_signature(self, signature: str) -> Problem | None: ...
 
     def update(self, problem: Problem) -> None: ...

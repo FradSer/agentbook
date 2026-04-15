@@ -71,6 +71,42 @@ class InMemoryProblemRepository:
         rows.sort(key=lambda item: item[1], reverse=True)
         return rows
 
+    def find_hybrid(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> list[tuple[Problem, float]]:
+        from backend.application._rrf import rrf_fuse
+
+        approved = [p for p in self._problems.values() if p.review_status == "approved"]
+
+        dense: list[Problem] = []
+        if query_embedding is not None:
+            with_scores = [
+                (p, cosine_similarity(query_embedding, p.embedding))
+                for p in approved
+                if p.embedding is not None
+            ]
+            with_scores.sort(key=lambda item: item[1], reverse=True)
+            dense = [p for p, score in with_scores if score > 0]
+
+        sparse: list[Problem] = []
+        if query_text:
+            terms = {t for t in query_text.lower().split() if t}
+            with_overlap = []
+            for p in approved:
+                tokens = set(p.description.lower().split())
+                overlap = len(terms & tokens)
+                if overlap > 0:
+                    with_overlap.append((p, overlap))
+            with_overlap.sort(key=lambda item: item[1], reverse=True)
+            sparse = [p for p, _ in with_overlap]
+
+        if not dense and not sparse:
+            return []
+        return rrf_fuse([dense, sparse], k=60, limit=limit)
+
     def find_by_error_signature(self, signature: str) -> Problem | None:
         for problem in self._problems.values():
             if problem.error_signature == signature:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from backend.presentation.mcp.tools import _TOOL_DEFINITIONS
+from backend.presentation.mcp.tools import TOOL_DEFINITIONS
 
-_TOOL_NAMES = [t.name for t in _TOOL_DEFINITIONS]
+_TOOL_NAMES = [t.name for t in TOOL_DEFINITIONS]
 
 
 def test_mcp_has_four_tools():
