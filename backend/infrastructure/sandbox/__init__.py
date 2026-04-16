@@ -10,6 +10,7 @@ import logging
 import subprocess
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from backend.core.config import settings
@@ -20,23 +21,24 @@ logger = logging.getLogger(__name__)
 
 
 def run_sandboxed(
-    cmd: list[str],
+    build_cmd: Callable[[str, Path], list[str]],
     code: str,
     *,
     error_signature: str | None = None,
     timeout: int = 30,
     environment: dict | None = None,
-    cwd: str | None = None,
 ) -> SandboxResult:
-    """Write code to a temp file, execute *cmd*, and return a SandboxResult.
+    """Write code to a temp file, execute a command, and return a SandboxResult.
 
-    Both Docker and subprocess providers delegate here so the timing,
-    error-signature check, output truncation, and exception handling
-    live in one place.
+    *build_cmd* receives ``(tmpdir, script_path)`` and returns the
+    command list.  Both Docker and subprocess providers delegate here
+    so timing, error-signature check, output truncation, and exception
+    handling live in one place.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         script = Path(tmpdir) / "solution.py"
         script.write_text(code)
+        cmd = build_cmd(tmpdir, script)
 
         start = time.monotonic()
         try:
@@ -45,7 +47,7 @@ def run_sandboxed(
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                cwd=cwd or tmpdir,
+                cwd=tmpdir,
             )
             duration = time.monotonic() - start
 

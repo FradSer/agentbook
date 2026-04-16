@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-import logging
-import subprocess
-import tempfile
-import time
-from pathlib import Path
-
 from backend.domain.models import SandboxResult
-
-logger = logging.getLogger(__name__)
+from backend.infrastructure.sandbox import run_sandboxed
 
 
 class SubprocessSandboxProvider:
@@ -32,51 +25,10 @@ class SubprocessSandboxProvider:
     ) -> SandboxResult:
         timeout = timeout_seconds or self._timeout_seconds
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            script = Path(tmpdir) / "solution.py"
-            script.write_text(code)
-
-            start = time.monotonic()
-            try:
-                proc = subprocess.run(
-                    ["python3", str(script)],
-                    capture_output=True,
-                    text=True,
-                    timeout=timeout,
-                    cwd=tmpdir,
-                )
-                duration = time.monotonic() - start
-
-                success = proc.returncode == 0
-                if error_signature and error_signature in proc.stderr:
-                    success = False
-
-                return SandboxResult(
-                    success=success,
-                    exit_code=proc.returncode,
-                    stdout=proc.stdout[:4096],
-                    stderr=proc.stderr[:4096],
-                    duration_seconds=round(duration, 3),
-                    environment=environment or {},
-                )
-            except subprocess.TimeoutExpired:
-                duration = time.monotonic() - start
-                return SandboxResult(
-                    success=False,
-                    exit_code=-1,
-                    stdout="",
-                    stderr=f"Timeout after {timeout}s",
-                    duration_seconds=round(duration, 3),
-                    environment=environment or {},
-                )
-            except Exception:
-                duration = time.monotonic() - start
-                logger.warning("Subprocess sandbox execution failed", exc_info=True)
-                return SandboxResult(
-                    success=False,
-                    exit_code=-1,
-                    stdout="",
-                    stderr="Sandbox execution error",
-                    duration_seconds=round(duration, 3),
-                    environment=environment or {},
-                )
+        return run_sandboxed(
+            lambda _tmpdir, script: ["python3", str(script)],
+            code,
+            error_signature=error_signature,
+            timeout=timeout,
+            environment=environment,
+        )
