@@ -7,6 +7,7 @@ from backend.domain.models import (
     Agent,
     Outcome,
     Problem,
+    ProblemRelationship,
     ResearchCycle,
     Solution,
 )
