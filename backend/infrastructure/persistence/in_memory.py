@@ -268,3 +268,33 @@ class InMemoryResearchCycleRepository:
             else:
                 break
         return count
+
+
+class InMemoryProblemRelationshipRepository:
+    def __init__(self) -> None:
+        self._rels: list[ProblemRelationship] = []
+
+    def add(self, rel: ProblemRelationship) -> None:
+        self._rels.append(rel)
+
+    def find_related(
+        self,
+        problem_id: UUID,
+        relationship_types: list[str] | None = None,
+        min_score: float = 0.0,
+        limit: int = 10,
+    ) -> list[ProblemRelationship]:
+        results = [
+            r
+            for r in self._rels
+            if r.source_problem_id == problem_id
+            and r.score >= min_score
+            and (
+                relationship_types is None or r.relationship_type in relationship_types
+            )
+        ]
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results[:limit]
+
+    def delete_by_source(self, source_problem_id: UUID) -> None:
+        self._rels = [r for r in self._rels if r.source_problem_id != source_problem_id]
