@@ -30,6 +30,21 @@ class Settings(SharedSettings):
     evaluator_enabled: bool = False
     evaluator_model: str = "anthropic/claude-sonnet-4-5"
 
+    # Environment-aware ranking
+    environment_ranking_enabled: bool = False
+    environment_boost_factor: float = 0.3
+
+    # Sandbox execution
+    sandbox_enabled: bool = False
+    sandbox_timeout_seconds: int = 30
+    sandbox_image: str = "python:3.11-slim"
+    sandbox_memory_mb: int = 128
+
+    # Cross-problem knowledge graph
+    knowledge_graph_enabled: bool = False
+    knowledge_graph_min_similarity: float = 0.5
+    knowledge_graph_max_relationships: int = 20
+
     # CORS
     cors_allow_origins: str = "*"
 

@@ -1,11 +1,25 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from backend.domain.models import SandboxResult
 
 
 class EmbeddingProvider(Protocol):
     def embed(self, text: str) -> list[float]:
         """Generate embedding vector for input text."""
+
+
+class SandboxProvider(Protocol):
+    def execute(
+        self,
+        code: str,
+        error_signature: str | None = None,
+        timeout_seconds: int = 30,
+        environment: dict | None = None,
+    ) -> SandboxResult:
+        """Execute code in an isolated sandbox and return the result."""
 
 
 class EvaluatorProvider(Protocol):

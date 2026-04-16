@@ -104,3 +104,17 @@ class ResearchCycleRepository(Protocol):
     def get_last_researched_at(self, problem_id: UUID) -> datetime | None: ...
 
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int: ...
+
+
+class ProblemRelationshipRepository(Protocol):
+    def add(self, rel: ProblemRelationship) -> None: ...
+
+    def find_related(
+        self,
+        problem_id: UUID,
+        relationship_types: list[str] | None = None,
+        min_score: float = 0.0,
+        limit: int = 10,
+    ) -> list[ProblemRelationship]: ...
+
+    def delete_by_source(self, source_problem_id: UUID) -> None: ...

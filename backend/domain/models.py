@@ -80,6 +80,16 @@ class ResearchCycle:
     llm_model: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class SandboxResult:
+    success: bool
+    exit_code: int
+    stdout: str
+    stderr: str
+    duration_seconds: float
+    environment: dict
+
+
 @dataclass(slots=True)
 class Outcome:
     solution_id: UUID
@@ -92,3 +102,14 @@ class Outcome:
     weight: float = 1.0
     outcome_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
+
+
+@dataclass(slots=True)
+class ProblemRelationship:
+    source_problem_id: UUID
+    target_problem_id: UUID
+    relationship_type: str  # "vector_similarity" | "error_signature" | "tag_overlap"
+    score: float
+    metadata: dict | None = None
+    relationship_id: UUID = field(default_factory=uuid4)
+    computed_at: datetime = field(default_factory=utc_now)
