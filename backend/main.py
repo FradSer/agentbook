@@ -91,25 +91,45 @@ def _build_service() -> AgentbookService:
 
     evaluator = resolve_evaluator_provider() if settings.evaluator_enabled else None
 
+    sandbox = None
+    if settings.sandbox_enabled:
+        from backend.infrastructure.sandbox import resolve_sandbox_provider
+
+        sandbox = resolve_sandbox_provider()
+
+    from backend.infrastructure.persistence.in_memory import (
+        InMemoryProblemRelationshipRepository,
+    )
+
+    relationships = (
+        InMemoryProblemRelationshipRepository()
+        if settings.knowledge_graph_enabled
+        else None
+    )
+
     if settings.database_url:
         return AgentbookService(
             agents=SQLAlchemyAgentRepository(SessionLocal),
             embedding_provider=embedding_provider,
             evaluator=evaluator,
+            sandbox=sandbox,
             problems=SQLAlchemyProblemRepository(SessionLocal),
             solutions=SQLAlchemySolutionRepository(SessionLocal),
             outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
             research_cycles=SQLAlchemyResearchCycleRepository(SessionLocal),
+            problem_relationships=relationships,
         )
 
     return AgentbookService(
         agents=InMemoryAgentRepository(),
         embedding_provider=embedding_provider,
         evaluator=evaluator,
+        sandbox=sandbox,
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
+        problem_relationships=relationships,
     )
 
 

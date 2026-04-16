@@ -5,7 +5,11 @@ import logging
 import random
 import time
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from backend.domain.repositories import ProblemRelationshipRepository
 
 from backend.application.confidence import (
     calculate_confidence,
@@ -35,7 +39,11 @@ from backend.domain.repositories import (
     ResearchCycleRepository,
     SolutionRepository,
 )
-from backend.domain.services import EmbeddingProvider, EvaluatorProvider
+from backend.domain.services import (
+    EmbeddingProvider,
+    EvaluatorProvider,
+    SandboxProvider,
+)
 from backend.infrastructure.security import generate_api_key, hash_api_key
 
 logger = logging.getLogger(__name__)
@@ -50,6 +58,7 @@ _RATE_WINDOW_HOURS = 1
 # Dedicated UUID for the LLM evaluator agent so synthetic outcomes count
 # as "external" in the Bayesian reporter-diversity penalty.
 EVALUATOR_AGENT_ID = UUID("00000000-0000-0000-0000-000000000002")
+SANDBOX_AGENT_ID = UUID("00000000-0000-0000-0000-000000000003")
 
 
 class AgentbookService:
@@ -58,18 +67,22 @@ class AgentbookService:
         agents: AgentRepository,
         embedding_provider: EmbeddingProvider | None = None,
         evaluator: EvaluatorProvider | None = None,
+        sandbox: SandboxProvider | None = None,
         problems: ProblemRepository = None,
         solutions: SolutionRepository = None,
         outcomes: OutcomeRepository = None,
         research_cycles: ResearchCycleRepository = None,
+        problem_relationships: ProblemRelationshipRepository | None = None,
     ) -> None:
         self._agents = agents
         self._embedding_provider = embedding_provider
         self._evaluator = evaluator
+        self._sandbox = sandbox
         self._problems = problems
         self._solutions = solutions
         self._outcomes = outcomes
         self._research_cycles = research_cycles
+        self._problem_relationships = problem_relationships
         self._search_cache = TTLCache(
             maxsize=_SEARCH_CACHE_MAXSIZE, ttl=_SEARCH_CACHE_TTL_SECONDS
         )
@@ -160,6 +173,11 @@ class AgentbookService:
         problem.embedding = embedding
         self._problems.update(problem)
 
+        from backend.core.config import settings
+
+        if settings.knowledge_graph_enabled and self._problem_relationships is not None:
+            self._compute_relationships(problem)
+
     def search_problems(
         self,
         query: str,
@@ -167,13 +185,18 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
+        environment: dict | None = None,
     ) -> dict:
+        from backend.application.confidence import normalize_environment
+
+        env_key = normalize_environment(environment) if environment else None
         cache_key = (
             query,
             error_log,
             limit,
             tuple(sorted(include)) if include else None,
             format,
+            env_key,
         )
         cached = self._search_cache.get(cache_key)
         if cached is not None:
@@ -184,6 +207,7 @@ class AgentbookService:
             error_log=error_log,
             include=include,
             format=format,
+            environment=environment,
         )
         payload = {"results": rows, "total": len(rows)}
         self._search_cache.set(cache_key, payload)
@@ -196,7 +220,10 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
+        environment: dict | None = None,
     ) -> list[dict]:
+        from backend.core.config import settings
+
         search_text = self._compose_search_text(query=query, error_log=error_log)
         normalized_query = search_text.lower()
         query_embedding = self._safe_embed(search_text)
@@ -209,6 +236,13 @@ class AgentbookService:
                 query_text=normalized_query,
                 limit=max(limit * 2, 20),
             )
+
+            # Apply environment boost after retrieval (application concern).
+            if environment and settings.environment_ranking_enabled and hybrid:
+                hybrid = self._apply_environment_boost(
+                    hybrid, environment, settings.environment_boost_factor
+                )
+
             rows = [self._row_from_problem(p, score, full) for p, score in hybrid]
 
         if not rows and query_embedding is not None:
@@ -245,6 +279,31 @@ class AgentbookService:
             "best_solution": self._pick_best_solution(problem.problem_id, full=full),
             "created_at": problem.created_at.isoformat(),
         }
+
+    def _apply_environment_boost(
+        self,
+        results: list[tuple[Problem, float]],
+        environment: dict,
+        boost_factor: float,
+    ) -> list[tuple[Problem, float]]:
+        """Re-rank search results by boosting problems with matching env scores."""
+        from backend.application.confidence import normalize_environment
+
+        env_key = normalize_environment(environment)
+        boosted: list[tuple[Problem, float]] = []
+        for problem, score in results:
+            solutions = self._solutions.list_by_problem(problem.problem_id)
+            best_env_scores: dict = {}
+            if solutions:
+                best = max(solutions, key=lambda s: s.confidence)
+                best_env_scores = best.environment_scores or {}
+            env_match = best_env_scores.get(env_key, 0.0)
+            new_score = (
+                score * (1.0 + boost_factor * env_match) if env_match > 0 else score
+            )
+            boosted.append((problem, new_score))
+        boosted.sort(key=lambda item: item[1], reverse=True)
+        return boosted
 
     def _enrich_search_row(self, row: dict, include: set[str]) -> None:
         problem_id = UUID(row["problem_id"])
@@ -802,6 +861,15 @@ class AgentbookService:
         new_confidence = calculate_confidence(all_outcomes, solution.author_id)
         solution.confidence = new_confidence
 
+        # Populate per-environment confidence scores.
+        from backend.application.confidence import calculate_environment_scores
+        from backend.core.config import settings
+
+        if settings.environment_ranking_enabled:
+            solution.environment_scores = calculate_environment_scores(
+                all_outcomes, solution.author_id, global_confidence=new_confidence
+            )
+
         # Candidate promotion/demotion: validate improvement against parent before superseding
         if (
             solution.promotion_status == "candidate"
@@ -833,7 +901,7 @@ class AgentbookService:
 
         return {
             "status": "reported",
-            "outcome_id": outcome.outcome_id,
+            "outcome_id": str(outcome.outcome_id),
             "solution_confidence_updated": new_confidence,
         }
 
@@ -861,20 +929,47 @@ class AgentbookService:
                 result["solutions"] = [
                     _solution_to_dict(s, pmap.get(s.author_id)) for s in sols
                 ]
-            if "similar" in effective and problem.embedding:
-                similar = self._problems.find_similar(problem.embedding, threshold=0.6)
-                sim_ids: set[UUID] = set()
-                for p in similar:
-                    if p.problem_id != problem.problem_id:
-                        sim_ids.add(p.author_id)
-                smap = self._agent_models_map(sim_ids)
-                result["similar"] = []
-                for p in similar:
-                    if p.problem_id == problem.problem_id:
-                        continue
-                    d = _problem_to_dict(p)
-                    d["llm_model"] = self._display_llm(smap, p.author_id, None)
-                    result["similar"].append(d)
+            if "similar" in effective:
+                from backend.core.config import settings as _cfg
+
+                if (
+                    _cfg.knowledge_graph_enabled
+                    and self._problem_relationships is not None
+                ):
+                    rels = self._problem_relationships.find_related(
+                        problem.problem_id, min_score=0.3, limit=10
+                    )
+                    sim_ids: set[UUID] = set()
+                    sim_problems: list[tuple[Problem, str, float]] = []
+                    for rel in rels:
+                        p = self._problems.get(rel.target_problem_id)
+                        if p is not None:
+                            sim_ids.add(p.author_id)
+                            sim_problems.append((p, rel.relationship_type, rel.score))
+                    smap = self._agent_models_map(sim_ids)
+                    result["similar"] = []
+                    for p, rel_type, rel_score in sim_problems:
+                        d = _problem_to_dict(p)
+                        d["llm_model"] = self._display_llm(smap, p.author_id, None)
+                        d["relationship_type"] = rel_type
+                        d["relationship_score"] = rel_score
+                        result["similar"].append(d)
+                elif problem.embedding:
+                    similar = self._problems.find_similar(
+                        problem.embedding, threshold=0.6
+                    )
+                    sim_ids = set()
+                    for p in similar:
+                        if p.problem_id != problem.problem_id:
+                            sim_ids.add(p.author_id)
+                    smap = self._agent_models_map(sim_ids)
+                    result["similar"] = []
+                    for p in similar:
+                        if p.problem_id == problem.problem_id:
+                            continue
+                        d = _problem_to_dict(p)
+                        d["llm_model"] = self._display_llm(smap, p.author_id, None)
+                        result["similar"].append(d)
             return result
 
         solution = self._solutions.get(resource_id)
@@ -1133,6 +1228,7 @@ class AgentbookService:
         # During cold-start (both 0 outcomes), run LLM eval BEFORE the
         # decision -- proxy for autoresearch's deterministic prepare.py.
         evaluator_score: float | None = None
+        sandbox_score: float | None = None
         is_cold_start = (
             existing.outcome_count == 0
             and new_solution.confidence == existing.confidence
@@ -1141,9 +1237,15 @@ class AgentbookService:
             evaluator_score = self._get_llm_evaluation_score(
                 problem, existing, new_solution
             )
+            # Sandbox fills the gap when the LLM evaluator is unavailable.
+            if evaluator_score is None and self._sandbox is not None:
+                sandbox_score = self._get_sandbox_score(problem, existing, new_solution)
 
         accepted, _reason = evaluate_improvement(
-            existing, new_solution, evaluator_score=evaluator_score
+            existing,
+            new_solution,
+            evaluator_score=evaluator_score,
+            sandbox_score=sandbox_score,
         )
 
         if accepted:
@@ -1156,9 +1258,18 @@ class AgentbookService:
             # Record the pre-computed evaluator score as outcome, or run fresh
             # evaluation for non-cold-start acceptances.
             if evaluator_score is not None:
-                self._record_llm_evaluation_outcome(new_solution, evaluator_score)
+                self._record_synthetic_outcome(
+                    new_solution,
+                    EVALUATOR_AGENT_ID,
+                    success=evaluator_score > 0.5,
+                    notes="llm_evaluation",
+                )
             else:
                 self._run_llm_evaluation(problem, existing, new_solution)
+
+            # Post-acceptance: run sandbox to generate real outcome data.
+            if self._sandbox is not None:
+                self._run_sandbox_evaluation(problem, new_solution)
         else:
             new_solution.canonical_id = solution_id
             new_solution.promotion_status = "demoted"
@@ -1188,21 +1299,17 @@ class AgentbookService:
             "new_confidence": new_confidence,
         }
 
-    _evaluator_agent_ensured = False
+    _synthetic_agents_ensured: set[UUID] = set()
 
-    def _ensure_evaluator_agent(self) -> None:
-        """Register the evaluator agent row if missing (FK requirement)."""
-        if AgentbookService._evaluator_agent_ensured:
+    def _ensure_synthetic_agent(self, agent_id: UUID, label: str) -> None:
+        """Register a synthetic agent row if missing (FK requirement)."""
+        if agent_id in AgentbookService._synthetic_agents_ensured:
             return
-        if self._agents.get(EVALUATOR_AGENT_ID) is None:
+        if self._agents.get(agent_id) is None:
             self._agents.add(
-                Agent(
-                    agent_id=EVALUATOR_AGENT_ID,
-                    api_key_hash="evaluator",
-                    model_type="evaluator",
-                )
+                Agent(agent_id=agent_id, api_key_hash=label, model_type=label)
             )
-        AgentbookService._evaluator_agent_ensured = True
+        AgentbookService._synthetic_agents_ensured.add(agent_id)
 
     def _get_llm_evaluation_score(
         self,
@@ -1218,7 +1325,7 @@ class AgentbookService:
         if self._evaluator is None:
             return None
         try:
-            self._ensure_evaluator_agent()
+            self._ensure_synthetic_agent(EVALUATOR_AGENT_ID, "evaluator")
             return self._evaluator.compare(
                 problem_description=problem.description,
                 solution_a=existing.content,
@@ -1228,29 +1335,35 @@ class AgentbookService:
             logger.warning("LLM evaluation scoring failed", exc_info=True)
             return None
 
-    def _record_llm_evaluation_outcome(
+    def _record_synthetic_outcome(
         self,
-        proposed: Solution,
-        score: float,
+        solution: Solution,
+        reporter_id: UUID,
+        success: bool,
+        weight: float = 0.3,
+        notes: str = "",
+        environment: dict | None = None,
     ) -> None:
-        """Record a previously computed LLM evaluation score as a synthetic outcome."""
+        """Record a synthetic outcome from an automated evaluator."""
         try:
+            self._ensure_synthetic_agent(reporter_id, reporter_id.hex[:8])
             synthetic = Outcome(
-                solution_id=proposed.solution_id,
-                reporter_id=EVALUATOR_AGENT_ID,
-                success=score > 0.5,
-                weight=0.3,
-                notes="llm_evaluation",
+                solution_id=solution.solution_id,
+                reporter_id=reporter_id,
+                success=success,
+                weight=weight,
+                notes=notes,
+                environment=environment,
             )
             self._outcomes.add(synthetic)
-            proposed.outcome_count += 1
-            if score > 0.5:
-                proposed.success_count += 1
+            solution.outcome_count += 1
+            if success:
+                solution.success_count += 1
             else:
-                proposed.failure_count += 1
-            self._solutions.update(proposed)
+                solution.failure_count += 1
+            self._solutions.update(solution)
         except Exception:
-            logger.warning("LLM evaluation outcome recording failed", exc_info=True)
+            logger.warning("Synthetic outcome recording failed", exc_info=True)
 
     def _run_llm_evaluation(
         self,
@@ -1261,7 +1374,258 @@ class AgentbookService:
         """Run LLM A/B comparison and record result as a synthetic outcome."""
         score = self._get_llm_evaluation_score(problem, existing, proposed)
         if score is not None:
-            self._record_llm_evaluation_outcome(proposed, score)
+            self._record_synthetic_outcome(
+                proposed,
+                EVALUATOR_AGENT_ID,
+                success=score > 0.5,
+                notes="llm_evaluation",
+            )
+
+    # ------------------------------------------------------------------
+    # Sandbox execution helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_executable_code(solution: Solution) -> str | None:
+        """Extract fenced Python code blocks from a solution.
+
+        Returns the concatenated code if any Python blocks are found,
+        or None if the solution is purely instructional text.
+        """
+        import re
+
+        blocks = re.findall(
+            r"```(?:python|py)?\s*\n(.*?)```",
+            solution.content,
+            re.DOTALL,
+        )
+        if blocks:
+            return "\n\n".join(block.strip() for block in blocks)
+        # Try shell commands -- if the solution is a single command, it's
+        # not executable Python.
+        return None
+
+    def _get_sandbox_score(
+        self,
+        problem: Problem,
+        existing: Solution,
+        proposed: Solution,
+    ) -> float | None:
+        """Run both solutions in sandbox, return >0.5 if proposed is better.
+
+        Returns None if neither solution contains executable code.
+        """
+        existing_code = self._extract_executable_code(existing)
+        proposed_code = self._extract_executable_code(proposed)
+
+        if existing_code is None and proposed_code is None:
+            return None
+
+        from backend.core.config import settings
+
+        env = problem.environment
+        sig = problem.error_signature
+
+        # Proposed has code but existing doesn't: proposed wins if it runs.
+        if existing_code is None and proposed_code is not None:
+            result = self._sandbox.execute(
+                proposed_code,
+                error_signature=sig,
+                timeout_seconds=settings.sandbox_timeout_seconds,
+                environment=env,
+            )
+            return 0.8 if result.success else 0.3
+
+        # Existing has code but proposed doesn't: existing wins.
+        if existing_code is not None and proposed_code is None:
+            return 0.2
+
+        # Both have code: run both and compare.
+        existing_result = self._sandbox.execute(
+            existing_code,
+            error_signature=sig,
+            timeout_seconds=settings.sandbox_timeout_seconds,
+            environment=env,
+        )
+        proposed_result = self._sandbox.execute(
+            proposed_code,
+            error_signature=sig,
+            timeout_seconds=settings.sandbox_timeout_seconds,
+            environment=env,
+        )
+
+        if proposed_result.success and not existing_result.success:
+            return 0.9
+        if not proposed_result.success and existing_result.success:
+            return 0.1
+        if proposed_result.success and existing_result.success:
+            # Both succeed -- slight preference for faster execution.
+            if (
+                proposed_result.duration_seconds
+                < existing_result.duration_seconds * 0.8
+            ):
+                return 0.6
+            return 0.5
+        # Both fail.
+        return 0.5
+
+    def _run_sandbox_evaluation(
+        self,
+        problem: Problem,
+        solution: Solution,
+    ) -> None:
+        """Run a solution in the sandbox and record the outcome."""
+        code = self._extract_executable_code(solution)
+        if code is None:
+            return
+
+        from backend.core.config import settings
+
+        result = self._sandbox.execute(
+            code,
+            error_signature=problem.error_signature,
+            timeout_seconds=settings.sandbox_timeout_seconds,
+            environment=problem.environment,
+        )
+        self._record_synthetic_outcome(
+            solution,
+            SANDBOX_AGENT_ID,
+            success=result.success,
+            notes=f"sandbox: exit={result.exit_code} dur={result.duration_seconds}s",
+            environment=result.environment or None,
+        )
+
+    # ------------------------------------------------------------------
+    # Cross-problem knowledge graph helpers
+    # ------------------------------------------------------------------
+
+    def _compute_relationships(self, problem: Problem) -> None:
+        """Recompute all outgoing relationships for a problem.
+
+        Called after embedding generation when knowledge_graph_enabled.
+        Creates vector_similarity, error_signature, and tag_overlap links.
+        """
+        if self._problem_relationships is None:
+            return
+
+        from backend.core.config import settings
+        from backend.domain.models import ProblemRelationship
+
+        self._problem_relationships.delete_by_source(problem.problem_id)
+
+        max_rels = settings.knowledge_graph_max_relationships
+        min_sim = settings.knowledge_graph_min_similarity
+        added = 0
+
+        # 1. Vector similarity relationships.
+        if problem.embedding is not None:
+            scored = self._problems.find_similar_scored(problem.embedding)
+            for other, sim in scored:
+                if other.problem_id == problem.problem_id:
+                    continue
+                if sim < min_sim:
+                    break
+                if added >= max_rels:
+                    break
+                self._problem_relationships.add(
+                    ProblemRelationship(
+                        source_problem_id=problem.problem_id,
+                        target_problem_id=other.problem_id,
+                        relationship_type="vector_similarity",
+                        score=sim,
+                    )
+                )
+                added += 1
+
+        # 2+3. Error signature and tag overlap (single pass over all problems).
+        needs_errsig = bool(problem.error_signature)
+        errsig_prefix = problem.error_signature.split(":")[0] if needs_errsig else ""
+        needs_tags = bool(problem.tags)
+        source_tags = set(problem.tags) if needs_tags else set()
+
+        if needs_errsig or needs_tags:
+            all_problems = self._problems.list_all()
+            for other in all_problems:
+                if other.problem_id == problem.problem_id:
+                    continue
+                if added >= max_rels:
+                    break
+
+                if (
+                    needs_errsig
+                    and other.error_signature
+                    and other.error_signature.split(":")[0] == errsig_prefix
+                ):
+                    self._problem_relationships.add(
+                        ProblemRelationship(
+                            source_problem_id=problem.problem_id,
+                            target_problem_id=other.problem_id,
+                            relationship_type="error_signature",
+                            score=0.7,
+                        )
+                    )
+                    added += 1
+                    if added >= max_rels:
+                        break
+
+                if needs_tags and other.tags:
+                    target_tags = set(other.tags)
+                    intersection = len(source_tags & target_tags)
+                    union = len(source_tags | target_tags)
+                    if union > 0:
+                        jaccard = intersection / union
+                        if jaccard > 0.3:
+                            self._problem_relationships.add(
+                                ProblemRelationship(
+                                    source_problem_id=problem.problem_id,
+                                    target_problem_id=other.problem_id,
+                                    relationship_type="tag_overlap",
+                                    score=round(jaccard, 3),
+                                )
+                            )
+                            added += 1
+
+    def get_cross_problem_solutions(
+        self,
+        problem_id: UUID,
+        limit: int = 5,
+    ) -> list[dict]:
+        """Get solutions from related problems for cross-problem context.
+
+        Returns a list of dicts with relationship metadata and solution previews
+        from problems related to the given problem_id.
+        """
+        if self._problem_relationships is None:
+            return []
+
+        related = self._problem_relationships.find_related(
+            problem_id, min_score=0.5, limit=limit * 2
+        )
+
+        results: list[dict] = []
+        for rel in related:
+            if len(results) >= limit:
+                break
+            target_problem = self._problems.get(rel.target_problem_id)
+            if target_problem is None:
+                continue
+            solutions = self._solutions.list_by_problem(rel.target_problem_id)
+            if not solutions:
+                continue
+            best = max(solutions, key=lambda s: s.confidence)
+            if best.confidence < 0.3:
+                continue
+            results.append(
+                {
+                    "from_problem_id": str(rel.target_problem_id),
+                    "relationship_type": rel.relationship_type,
+                    "relationship_score": rel.score,
+                    "solution_content_preview": best.content[:300],
+                    "confidence": best.confidence,
+                }
+            )
+
+        return results
 
     def synthesize_solutions(
         self,

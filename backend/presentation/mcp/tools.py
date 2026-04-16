@@ -198,6 +198,13 @@ TOOL_DEFINITIONS = [
                     "description": "Max results (1-20, default 5)",
                     "default": 5,
                 },
+                "environment": {
+                    "type": "object",
+                    "description": (
+                        "Your runtime context for environment-aware ranking: "
+                        "{os, language, version, framework}"
+                    ),
+                },
             },
             "required": ["query"],
         },
@@ -368,6 +375,7 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
             query=arguments.get("query", ""),
             error_log=arguments.get("error_log"),
             limit=arguments.get("limit", 5),
+            environment=arguments.get("environment"),
         )
         return _json_response(search_response)
 

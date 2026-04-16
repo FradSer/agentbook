@@ -116,6 +116,7 @@ def evaluate_improvement(
     existing: Solution,
     proposed: Solution,
     evaluator_score: float | None = None,
+    sandbox_score: float | None = None,
 ) -> tuple[bool, str]:
     """Single decision function: should proposed replace existing?
 
@@ -127,6 +128,10 @@ def evaluate_improvement(
         evaluator_score: Optional LLM A/B comparison result (0.0-1.0, >0.5
             means proposed is better).  Used during cold-start as a proxy
             for autoresearch's deterministic ``prepare.py`` measurement.
+        sandbox_score: Optional sandbox execution result (0.0-1.0, >0.5
+            means proposed ran successfully while existing did not, or
+            proposed otherwise outperformed).  Used during cold-start
+            between the evaluator and the content heuristic.
 
     Returns ``(accepted, reason_code)`` for auditability.
 
@@ -163,6 +168,12 @@ def evaluate_improvement(
                 return True, "cold_start_evaluator_better"
             return False, "cold_start_evaluator_no_improvement"
 
+        # 3b.5. Sandbox execution signal
+        if sandbox_score is not None:
+            if sandbox_score > 0.5:
+                return True, "cold_start_sandbox_better"
+            return False, "cold_start_sandbox_no_improvement"
+
         # 3c. Content quality heuristic fallback
         proposed_score = _content_quality_score(proposed)
         existing_score = _content_quality_score(existing)
@@ -184,3 +195,64 @@ def evaluate_improvement(
 
     # 6. No improvement
     return False, "no_improvement"
+
+
+# ---------------------------------------------------------------------------
+# Environment-aware scoring
+# ---------------------------------------------------------------------------
+
+
+def normalize_environment(env: dict | None) -> str:
+    """Produce a stable, hashable key from a free-form environment dict.
+
+    Keys are sorted alphabetically; values are lowercased and joined with
+    underscores.  Returns ``"_unknown"`` for *None* or empty dicts so callers
+    always get a non-empty string suitable as a dict key or cache component.
+    """
+    if not env:
+        return "_unknown"
+    parts: list[str] = []
+    for key in sorted(env):
+        val = str(env[key]).strip().lower()
+        if val:
+            parts.append(val)
+    return "_".join(parts) if parts else "_unknown"
+
+
+def calculate_environment_scores(
+    outcomes: list[Outcome],
+    author_id: UUID,
+    global_confidence: float | None = None,
+) -> dict[str, float]:
+    """Compute per-environment confidence scores.
+
+    Groups outcomes by their normalized environment key, then runs
+    :func:`calculate_confidence` independently for each group.  The
+    ``_global`` key always holds the ungrouped (all-outcomes) score so
+    existing consumers see no change.
+
+    Pass *global_confidence* to avoid recomputing the ungrouped score
+    when the caller already has it.
+    """
+    from collections import defaultdict
+
+    scores: dict[str, float] = {}
+
+    scores["_global"] = (
+        global_confidence
+        if global_confidence is not None
+        else calculate_confidence(outcomes, author_id)
+    )
+
+    # Group outcomes by normalized environment.
+    env_groups: dict[str, list[Outcome]] = defaultdict(list)
+    for outcome in outcomes:
+        key = normalize_environment(outcome.environment)
+        env_groups[key].append(outcome)
+
+    for env_key, group in env_groups.items():
+        if env_key == "_unknown":
+            continue
+        scores[env_key] = calculate_confidence(group, author_id)
+
+    return scores
