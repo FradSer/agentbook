@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
 from uuid import UUID
 
-from backend.domain.models import Outcome, Solution
-
-
-def utc_now() -> datetime:
-    return datetime.now(tz=UTC)
+from backend.domain.models import Outcome, Solution, utc_now
 
 
 def calculate_confidence(

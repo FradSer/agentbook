@@ -13,8 +13,10 @@ if TYPE_CHECKING:
 
 from backend.application.confidence import (
     calculate_confidence,
+    calculate_environment_scores,
     evaluate_improvement,
     is_content_regression,
+    normalize_environment,
 )
 from backend.application.errors import (
     ConcurrentModificationError,
@@ -23,11 +25,13 @@ from backend.application.errors import (
     UnauthorizedError,
 )
 from backend.application.gate import check_spam
+from backend.core.config import settings
 from backend.core.search_cache import TTLCache
 from backend.domain.models import (
     Agent,
     Outcome,
     Problem,
+    ProblemRelationship,
     ResearchCycle,
     Solution,
     utc_now,
@@ -83,6 +87,7 @@ class AgentbookService:
         self._outcomes = outcomes
         self._research_cycles = research_cycles
         self._problem_relationships = problem_relationships
+        self._synthetic_agents_ensured: set[UUID] = set()
         self._search_cache = TTLCache(
             maxsize=_SEARCH_CACHE_MAXSIZE, ttl=_SEARCH_CACHE_TTL_SECONDS
         )
@@ -173,8 +178,6 @@ class AgentbookService:
         problem.embedding = embedding
         self._problems.update(problem)
 
-        from backend.core.config import settings
-
         if settings.knowledge_graph_enabled and self._problem_relationships is not None:
             self._compute_relationships(problem)
 
@@ -187,7 +190,6 @@ class AgentbookService:
         format: str = "concise",
         environment: dict | None = None,
     ) -> dict:
-        from backend.application.confidence import normalize_environment
 
         env_key = normalize_environment(environment) if environment else None
         cache_key = (
@@ -222,7 +224,6 @@ class AgentbookService:
         format: str = "concise",
         environment: dict | None = None,
     ) -> list[dict]:
-        from backend.core.config import settings
 
         search_text = self._compose_search_text(query=query, error_log=error_log)
         normalized_query = search_text.lower()
@@ -287,7 +288,6 @@ class AgentbookService:
         boost_factor: float,
     ) -> list[tuple[Problem, float]]:
         """Re-rank search results by boosting problems with matching env scores."""
-        from backend.application.confidence import normalize_environment
 
         env_key = normalize_environment(environment)
         boosted: list[tuple[Problem, float]] = []
@@ -862,9 +862,6 @@ class AgentbookService:
         solution.confidence = new_confidence
 
         # Populate per-environment confidence scores.
-        from backend.application.confidence import calculate_environment_scores
-        from backend.core.config import settings
-
         if settings.environment_ranking_enabled:
             solution.environment_scores = calculate_environment_scores(
                 all_outcomes, solution.author_id, global_confidence=new_confidence
@@ -930,10 +927,8 @@ class AgentbookService:
                     _solution_to_dict(s, pmap.get(s.author_id)) for s in sols
                 ]
             if "similar" in effective:
-                from backend.core.config import settings as _cfg
-
                 if (
-                    _cfg.knowledge_graph_enabled
+                    settings.knowledge_graph_enabled
                     and self._problem_relationships is not None
                 ):
                     rels = self._problem_relationships.find_related(
@@ -1299,17 +1294,15 @@ class AgentbookService:
             "new_confidence": new_confidence,
         }
 
-    _synthetic_agents_ensured: set[UUID] = set()
-
     def _ensure_synthetic_agent(self, agent_id: UUID, label: str) -> None:
         """Register a synthetic agent row if missing (FK requirement)."""
-        if agent_id in AgentbookService._synthetic_agents_ensured:
+        if agent_id in self._synthetic_agents_ensured:
             return
         if self._agents.get(agent_id) is None:
             self._agents.add(
                 Agent(agent_id=agent_id, api_key_hash=label, model_type=label)
             )
-        AgentbookService._synthetic_agents_ensured.add(agent_id)
+        self._synthetic_agents_ensured.add(agent_id)
 
     def _get_llm_evaluation_score(
         self,
@@ -1389,8 +1382,7 @@ class AgentbookService:
     def _extract_executable_code(solution: Solution) -> str | None:
         """Extract fenced Python code blocks from a solution.
 
-        Returns the concatenated code if any Python blocks are found,
-        or None if the solution is purely instructional text.
+        Only Python blocks are sandbox-executable; shell/prose is skipped.
         """
         import re
 
@@ -1401,8 +1393,6 @@ class AgentbookService:
         )
         if blocks:
             return "\n\n".join(block.strip() for block in blocks)
-        # Try shell commands -- if the solution is a single command, it's
-        # not executable Python.
         return None
 
     def _get_sandbox_score(
@@ -1420,8 +1410,6 @@ class AgentbookService:
 
         if existing_code is None and proposed_code is None:
             return None
-
-        from backend.core.config import settings
 
         env = problem.environment
         sig = problem.error_signature
@@ -1479,8 +1467,6 @@ class AgentbookService:
         if code is None:
             return
 
-        from backend.core.config import settings
-
         result = self._sandbox.execute(
             code,
             error_signature=problem.error_signature,
@@ -1507,9 +1493,6 @@ class AgentbookService:
         """
         if self._problem_relationships is None:
             return
-
-        from backend.core.config import settings
-        from backend.domain.models import ProblemRelationship
 
         self._problem_relationships.delete_by_source(problem.problem_id)
 
