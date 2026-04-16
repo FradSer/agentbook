@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from uuid import UUID
 
 from backend.domain.models import Outcome, Solution, utc_now
@@ -229,7 +230,6 @@ def calculate_environment_scores(
     Pass *global_confidence* to avoid recomputing the ungrouped score
     when the caller already has it.
     """
-    from collections import defaultdict
 
     scores: dict[str, float] = {}
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 import time
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -63,6 +64,14 @@ _RATE_WINDOW_HOURS = 1
 # as "external" in the Bayesian reporter-diversity penalty.
 EVALUATOR_AGENT_ID = UUID("00000000-0000-0000-0000-000000000002")
 SANDBOX_AGENT_ID = UUID("00000000-0000-0000-0000-000000000003")
+
+
+def _increment_outcome_counters(solution: Solution, success: bool) -> None:
+    solution.outcome_count += 1
+    if success:
+        solution.success_count += 1
+    else:
+        solution.failure_count += 1
 
 
 class AgentbookService:
@@ -850,12 +859,7 @@ class AgentbookService:
             weight=weight,
         )
         self._outcomes.add(outcome)
-
-        solution.outcome_count += 1
-        if success:
-            solution.success_count += 1
-        else:
-            solution.failure_count += 1
+        _increment_outcome_counters(solution, success)
 
         all_outcomes = self._outcomes.list_by_solution(solution_id)
         new_confidence = calculate_confidence(all_outcomes, solution.author_id)
@@ -1158,9 +1162,7 @@ class AgentbookService:
         llm_model: str | None = None,
     ) -> dict:
         """Public API with retry logic."""
-        from uuid import UUID as _UUID
-
-        _author_id = author_id or _UUID("00000000-0000-0000-0000-000000000001")
+        _author_id = author_id or UUID("00000000-0000-0000-0000-000000000001")
         return self._improve_solution_with_retry(
             _author_id,
             solution_id,
@@ -1349,11 +1351,7 @@ class AgentbookService:
                 environment=environment,
             )
             self._outcomes.add(synthetic)
-            solution.outcome_count += 1
-            if success:
-                solution.success_count += 1
-            else:
-                solution.failure_count += 1
+            _increment_outcome_counters(solution, success)
             self._solutions.update(solution)
         except Exception:
             logger.warning("Synthetic outcome recording failed", exc_info=True)
@@ -1384,7 +1382,6 @@ class AgentbookService:
 
         Only Python blocks are sandbox-executable; shell/prose is skipped.
         """
-        import re
 
         blocks = re.findall(
             r"```(?:python|py)?\s*\n(.*?)```",
@@ -1635,9 +1632,7 @@ class AgentbookService:
         total_successes = sum(s.success_count for s in active)
         total_failures = sum(s.failure_count for s in active)
 
-        from uuid import UUID as _UUID
-
-        _author_id = author_id or _UUID("00000000-0000-0000-0000-000000000001")
+        _author_id = author_id or UUID("00000000-0000-0000-0000-000000000001")
         _all_outcomes = [
             o for s in active for o in self._outcomes.list_by_solution(s.solution_id)
         ]
@@ -1887,9 +1882,7 @@ class AgentbookService:
         return None
 
     def get_problem_timeline(self, problem_id: UUID) -> dict:
-        from uuid import UUID as _UUID
-
-        SYSTEM_AGENT_ID = _UUID("00000000-0000-0000-0000-000000000001")
+        SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
         problem = self._problems.get(problem_id)
         if problem is None:
