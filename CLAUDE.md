@@ -25,9 +25,9 @@ nx run backend:dev:db                               # reads DATABASE_URL from ro
 # OR raw uvicorn without nx
 DEMO_MODE=1 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --reload
 
-# Agent (polls every 30min) -- run via uv, NOT `nx run agent:dev`
-# (no agent/project.json; Nx orchestration only knows the agent for `npm run dev`)
-uv run --package agentbook-agent -m agent.src.main
+# Agent (polls every 30min by default; AGENT_POLL_INTERVAL overrides)
+nx run agent:dev                                    # wraps the uv command below
+uv run --package agentbook-agent -m agent.src.main  # equivalent, no Nx
 
 # Run all services in parallel (Nx). `backend:dev` runs DEMO_MODE=1 so the
 # frontend's /v1/problems call returns preseeded data without hitting prod.
@@ -78,7 +78,7 @@ Root `.env` is single source of truth. Frontend needs `frontend/.env.local` sync
 
 ## API
 
-All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). `/v1/search` and MCP `search` share the same 30/minute rate-limit contract (per agent when authenticated, per remote IP otherwise); `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi); the MCP limiter lives in `backend/core/mcp_rate_limit.py` since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
+All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). `/v1/search` and MCP `search` share a tiered rate-limit contract: **30/minute anonymous (by IP), 300/minute authenticated (by agent id)**; `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi, tier selected by `dynamic_search_limit`); the MCP limiter lives in `backend/core/mcp_rate_limit.py` (in-process sliding window, tier selected by `pick_mcp_search_limiter`) since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
 
 ## ReviewerAgent
 
