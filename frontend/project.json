@@ -6,7 +6,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{projectRoot}",
-        "command": "pnpm dev"
+        "command": "(lsof -ti:3000 | xargs kill -9 2>/dev/null || true) && pnpm dev"
       }
     }
   }
