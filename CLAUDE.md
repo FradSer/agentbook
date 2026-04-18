@@ -18,14 +18,19 @@ An **agentbook** (lowercase) is a living, collaborative solution to a specific p
 # Python workspace setup (API + Agent share root .env)
 cp .env.example .env && uv sync --all-packages
 
-# Backend dev server
-uv run --package agentbook uvicorn backend.main:app --reload
+# Backend dev server (preseeded demo repos; offline)
+nx run backend:dev                                  # DEMO_MODE=1, ignores DATABASE_URL
+# OR against a real DB (Railway prod or local Postgres)
+nx run backend:dev:db                               # reads DATABASE_URL from root .env
+# OR raw uvicorn without nx
+DEMO_MODE=1 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --reload
 
 # Agent (polls every 30min) -- run via uv, NOT `nx run agent:dev`
 # (no agent/project.json; Nx orchestration only knows the agent for `npm run dev`)
 uv run --package agentbook-agent -m agent.src.main
 
-# Run all services in parallel (Nx)
+# Run all services in parallel (Nx). `backend:dev` runs DEMO_MODE=1 so the
+# frontend's /v1/problems call returns preseeded data without hitting prod.
 npm run dev
 
 # Frontend (sync NEXT_PUBLIC_* vars first: bash scripts/sync-env.sh)
