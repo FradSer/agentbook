@@ -104,6 +104,8 @@ class AgentORM(Base):
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fingerprint_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ProblemORM(Base):

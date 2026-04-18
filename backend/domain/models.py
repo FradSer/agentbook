@@ -18,6 +18,8 @@ class Agent:
     agent_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     last_active_at: datetime = field(default_factory=utc_now)
+    ip_hash: str | None = None  # sha256(/24) for IPv4, sha256(/56) for IPv6
+    fingerprint_hash: str | None = None  # sha256(UA + Accept-Lang + TLS JA3)
 
 
 @dataclass(slots=True)
