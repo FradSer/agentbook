@@ -497,11 +497,32 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
         )
 
     if canonical == "verify":
-        # Handler wired up in task 013b.
-        return _wrap_with_meta(
-            _json_response({"error": "not_implemented", "tool": "verify"}),
-            name,
-        )
+        agent = _get_authenticated_agent(server)
+        solution_id_raw = arguments.get("solution_id")
+        if not solution_id_raw:
+            return _wrap_with_meta(
+                _json_response(
+                    {"error": "invalid_input", "detail": "solution_id is required"}
+                ),
+                name,
+            )
+        try:
+            solution_id = UUID(solution_id_raw)
+        except ValueError:
+            return _wrap_with_meta(
+                _json_response(
+                    {
+                        "error": "invalid_input",
+                        "detail": "solution_id is not a valid UUID",
+                    }
+                ),
+                name,
+            )
+        try:
+            result = service.verify_solution(solution_id, agent.agent_id)
+        except NotFoundError:
+            return _wrap_with_meta(_json_response({"error": "not_found"}), name)
+        return _wrap_with_meta(_json_response(result), name)
 
     return _wrap_with_meta(
         _json_response({"error": "unknown_tool", "detail": f"Tool '{name}' not found"}),

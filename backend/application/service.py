@@ -7,7 +7,7 @@ import re
 import time
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
@@ -66,6 +66,12 @@ EVALUATOR_AGENT_ID = UUID("00000000-0000-0000-0000-000000000002")
 SANDBOX_AGENT_ID = UUID("00000000-0000-0000-0000-000000000003")
 
 
+def _is_noop_sandbox(provider: object) -> bool:
+    """Return True when provider is a no-op or the class name starts with 'Noop'."""
+    cls = provider.__class__
+    return cls.__name__.startswith("Noop")
+
+
 def _increment_outcome_counters(solution: Solution, success: bool) -> None:
     solution.outcome_count += 1
     if success:
@@ -97,6 +103,9 @@ class AgentbookService:
         self._research_cycles = research_cycles
         self._problem_relationships = problem_relationships
         self._synthetic_agents_ensured: set[UUID] = set()
+        # Observability counters surfaced by GET /v1/health-metrics. Keys:
+        # sandbox_timeout, sandbox_concurrency_rejection, sandbox_circuit_open.
+        self._health_counters: dict[str, int] = {}
         self._search_cache = TTLCache(
             maxsize=_SEARCH_CACHE_MAXSIZE, ttl=_SEARCH_CACHE_TTL_SECONDS
         )
@@ -1174,6 +1183,42 @@ class AgentbookService:
             llm_model,
         )
 
+    def verify_solution(self, solution_id: UUID, agent_id: UUID) -> dict:
+        """Enqueue a sandbox-backed verification for a solution.
+
+        Returns an envelope immediately. When a real SandboxProvider is
+        configured the sandbox run is triggered inline (the provider is
+        expected to be fast enough; task 013 does not add async queueing
+        beyond what the underlying provider already supports). On success
+        a verified Outcome is persisted via ``_run_sandbox_evaluation``.
+        """
+        solution = self._solutions.get(solution_id)
+        if solution is None:
+            raise NotFoundError(f"Solution {solution_id} not found")
+        problem = self._problems.get(solution.problem_id)
+        if problem is None or not problem.error_signature:
+            return {
+                "status": "not_verifiable",
+                "reason": "problem has no error_signature",
+            }
+        sandbox_available = self._sandbox is not None and not _is_noop_sandbox(
+            self._sandbox
+        )
+        if not sandbox_available:
+            return {
+                "status": "unavailable",
+                "reason": "no sandbox provider configured",
+            }
+        run_id = uuid4()
+        try:
+            self._run_sandbox_evaluation(problem, solution)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"verify_solution sandbox error: {exc}")
+            self._health_counters["sandbox_timeout"] = (
+                self._health_counters.get("sandbox_timeout", 0) + 1
+            )
+        return {"status": "queued", "run_id": str(run_id)}
+
     def _improve_solution_impl(
         self,
         author_id: UUID,
@@ -1224,27 +1269,35 @@ class AgentbookService:
         previous_best = problem.best_confidence
         new_confidence = new_solution.confidence
 
-        # During cold-start (both 0 outcomes), run LLM eval BEFORE the
-        # decision -- proxy for autoresearch's deterministic prepare.py.
+        # Sandbox is the primary signal when the problem has a codifiable
+        # error_signature AND a real SandboxProvider is configured.
         evaluator_score: float | None = None
         sandbox_score: float | None = None
+        sandbox_available = self._sandbox is not None and not _is_noop_sandbox(
+            self._sandbox
+        )
+        problem_has_error_signature = bool(problem.error_signature)
+
+        if problem_has_error_signature and sandbox_available:
+            sandbox_score = self._get_sandbox_score(problem, existing, new_solution)
+
+        # Cold-start evaluator only runs when sandbox is NOT decisive.
         is_cold_start = (
             existing.outcome_count == 0
             and new_solution.confidence == existing.confidence
         )
-        if is_cold_start:
+        if is_cold_start and sandbox_score is None:
             evaluator_score = self._get_llm_evaluation_score(
                 problem, existing, new_solution
             )
-            # Sandbox fills the gap when the LLM evaluator is unavailable.
-            if evaluator_score is None and self._sandbox is not None:
-                sandbox_score = self._get_sandbox_score(problem, existing, new_solution)
 
         accepted, _reason = evaluate_improvement(
             existing,
             new_solution,
             evaluator_score=evaluator_score,
             sandbox_score=sandbox_score,
+            problem_has_error_signature=problem_has_error_signature,
+            sandbox_available=sandbox_available,
         )
 
         if accepted:

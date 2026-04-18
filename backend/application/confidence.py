@@ -4,9 +4,11 @@ import math
 from collections import defaultdict
 from uuid import UUID
 
+from backend.application._frozen_policy import frozen_policy
 from backend.domain.models import Outcome, Solution, utc_now
 
 
+@frozen_policy("v4")
 def calculate_confidence(
     outcomes: list[Outcome],
     author_id: UUID,
@@ -114,21 +116,35 @@ def evaluate_improvement(
     proposed: Solution,
     evaluator_score: float | None = None,
     sandbox_score: float | None = None,
+    *,
+    problem_has_error_signature: bool = False,
+    sandbox_available: bool = False,
 ) -> tuple[bool, str]:
     """Single decision function: should proposed replace existing?
 
     Like autoresearch's ``new_val_bpb < old_val_bpb`` but multi-factor.
-    Encapsulates content regression, content bloat, cold-start heuristics,
-    strict hill-climbing, and simplification reward.
+    When ``problem_has_error_signature`` and ``sandbox_available`` are both
+    true and ``sandbox_score`` is supplied, the sandbox verdict is
+    decisive — pass accepts, fail rejects, tie (0.5 < score < 1.0) routes
+    through the Karpathy simplicity rule. Otherwise the legacy tree runs:
+    content regression, content bloat, cold-start heuristics, strict
+    hill-climbing, and simplification reward.
 
     Args:
         evaluator_score: Optional LLM A/B comparison result (0.0-1.0, >0.5
             means proposed is better).  Used during cold-start as a proxy
             for autoresearch's deterministic ``prepare.py`` measurement.
-        sandbox_score: Optional sandbox execution result (0.0-1.0, >0.5
-            means proposed ran successfully while existing did not, or
-            proposed otherwise outperformed).  Used during cold-start
-            between the evaluator and the content heuristic.
+        sandbox_score: Optional sandbox execution result (0.0-1.0).
+            Semantics vary by flag combination — see below.
+        problem_has_error_signature: True when the parent problem has an
+            ``error_signature`` that makes reproduction codifiable.
+        sandbox_available: True when a non-Noop SandboxProvider is
+            configured AND circuit breaker / gates permit a real run.
+
+    sandbox_score encoding (set by the orchestrator in service.py):
+        - 0.0: both solutions fail, or proposed fails while existing passes
+        - 0.6: tie (both pass) — defers to simplicity rule
+        - 1.0: proposed passes while existing fails
 
     Returns ``(accepted, reason_code)`` for auditability.
 
@@ -137,6 +153,20 @@ def evaluate_improvement(
     """
     new_steps = len(proposed.steps) if proposed.steps else 0
     old_steps = len(existing.steps) if existing.steps else 0
+
+    # 0. Sandbox-primary dispatch: decisive when error_signature + sandbox.
+    if problem_has_error_signature and sandbox_available and sandbox_score is not None:
+        if sandbox_score >= 0.99:
+            return True, "sandbox_verified_pass"
+        if sandbox_score <= 0.5:
+            return False, "sandbox_verified_fail"
+        # Tie: both passed. Fall through to simplicity rule with tied reason.
+        if (
+            len(proposed.content) < len(existing.content) * 0.8
+            and new_steps >= old_steps
+        ):
+            return True, "sandbox_tied_simplification"
+        return False, "sandbox_tied_no_improvement"
 
     # 1. Content regression: <50% length without extra steps
     if is_content_regression(existing, proposed):

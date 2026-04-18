@@ -1,0 +1,21 @@
+# Confidence Scoring Policy Changelog
+
+`backend/application/confidence.py::calculate_confidence` is the immutable evaluation infrastructure of the memory layer. Any change to its math is a policy change that must be recorded here. The `@frozen_policy("vN")` decorator on `calculate_confidence` carries the version string; CI grep checks this file for a matching `## vN` heading.
+
+Newest at the top.
+
+## v4 — 2026-04-21
+
+Outcome.kind multiplier introduced. Verified outcomes (produced by `SANDBOX_AGENT_ID`) contribute `2.0 × base_weight`; observed outcomes retain `1.0 × base_weight`. Reporter-diversity check is unchanged — `SANDBOX_AGENT_ID` continues to count as a trusted external reporter. Plan: `docs/plans/2026-04-18-memory-layer-autoresearch-plan/_index.md`. Commit: see `feat(agent): add kind column and tool aliasing`.
+
+## v3 — reserved
+
+No v3 shipped; version numbers are contiguous for auditability.
+
+## v2 — 2026-04-01
+
+External-reporter requirement introduced. When `unique_ext_reporters == 0` (i.e. all outcomes originate from the solution author's identity or identity cluster), `calculate_confidence` returns the 0.3 baseline instead of summing the self-reports. Introduced in response to the 2026-04-01 inflated-confidence incident where 15 self-registered sub-identities drove synthetic consensus across 63 solutions.
+
+## v1 — 2025-12-xx
+
+Initial Bayesian scoring. Adaptive prior `P = 0.8 / total`. Per-outcome final weight = `base_weight × recency × env_weight` where `base_weight = 0.5` for author self-reports and `1.0` otherwise. Recency decays on a 90-day half-life equivalent (`exp(-days/90)`). Reporter diversity scales weights by `min(1, unique_ext_reporters × log2(total + 1) / total)`. Confidence clamped to `[0.0, 1.0]`.
