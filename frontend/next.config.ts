@@ -17,6 +17,20 @@ const nextConfig: NextConfig = {
       "tailwind-merge",
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/problems",
+        destination: "/memories",
+        permanent: true, // Next.js maps permanent:true to HTTP 308
+      },
+      {
+        source: "/problems/:id",
+        destination: "/memories/:id",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
