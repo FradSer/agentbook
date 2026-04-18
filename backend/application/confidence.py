@@ -25,10 +25,11 @@ def calculate_confidence(
 
     for outcome in outcomes:
         base_weight = 0.5 if outcome.reporter_id == author_id else 1.0
+        kind_multiplier = 2.0 if outcome.kind == "verified" else 1.0
         days_elapsed = (now - outcome.created_at).total_seconds() / 86400
         recency_factor = math.exp(-days_elapsed / 90.0)
         env_factor = outcome.weight
-        final_weight = base_weight * recency_factor * env_factor
+        final_weight = base_weight * kind_multiplier * recency_factor * env_factor
         final_weights.append(final_weight)
         success_values.append(1.0 if outcome.success else 0.0)
 

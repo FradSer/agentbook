@@ -141,6 +141,7 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         solution_id=parse_uuid(row.solution_id),
         reporter_id=parse_uuid(row.reporter_id),
         success=row.success,
+        kind=getattr(row, "kind", None) or "observed",
         environment=row.environment,
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,

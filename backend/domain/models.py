@@ -95,6 +95,7 @@ class Outcome:
     solution_id: UUID
     reporter_id: UUID
     success: bool
+    kind: str = "observed"  # "verified" (sandbox) | "observed" (crowd report)
     environment: dict | None = None
     error_after: str | None = None
     time_saved_seconds: int | None = None

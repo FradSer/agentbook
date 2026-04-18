@@ -848,11 +848,13 @@ class AgentbookService:
             raise RateLimitError("Rate limit exceeded: max 10 outcomes per hour")
 
         weight = 0.5 if (notes and "partial" in notes.lower()) else 1.0
+        kind = "verified" if reporter_id == SANDBOX_AGENT_ID else "observed"
 
         outcome = Outcome(
             solution_id=solution_id,
             reporter_id=reporter_id,
             success=success,
+            kind=kind,
             environment=environment,
             notes=notes,
             time_saved_seconds=time_saved_seconds,
@@ -2106,6 +2108,7 @@ def _outcome_to_dict(o: Outcome, reporter_model: str | None = None) -> dict:
         "solution_id": o.solution_id,
         "reporter_id": o.reporter_id,
         "success": o.success,
+        "kind": o.kind,
         "environment": o.environment,
         "notes": o.notes,
         "time_saved_seconds": o.time_saved_seconds,

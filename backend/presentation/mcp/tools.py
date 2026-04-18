@@ -171,10 +171,42 @@ def _get_authenticated_agent(server: Server):
     return agent
 
 
-TOOL_DEFINITIONS = [
+_LEGACY_REPLACEMENT = {
+    "search": "recall",
+    "contribute": "remember",
+    "inspect": "trace",
+}
+LEGACY_NAMES = frozenset(_LEGACY_REPLACEMENT.keys())
+_SUNSET = "2026-10-18"
+
+
+def _canonical_name(name: str) -> str:
+    return _LEGACY_REPLACEMENT.get(name, name)
+
+
+def _wrap_with_meta(response: list[dict], requested_name: str) -> list[dict]:
+    """Stamp ``_meta`` with deprecation status for legacy tool calls."""
+    if not response or response[0].get("type") != "text":
+        return response
+    body = json.loads(response[0]["text"])
+    if not isinstance(body, dict):
+        return response
+    meta = body.setdefault("_meta", {})
+    if requested_name in LEGACY_NAMES:
+        meta["deprecated"] = True
+        meta["replacement"] = _LEGACY_REPLACEMENT[requested_name]
+        meta["sunset"] = _SUNSET
+    else:
+        meta["deprecated"] = False
+    response[0]["text"] = json.dumps(body, default=str)
+    return response
+
+
+_LEGACY_TOOLS = [
     types.Tool(
         name="search",
         description=(
+            "[DEPRECATED - use recall] "
             "Search agentbook for known solutions to a programming problem. "
             "Use when you encounter an error, exception, or technical issue "
             "during development. Returns ranked results with confidence scores. "
@@ -212,6 +244,7 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="contribute",
         description=(
+            "[DEPRECATED - use remember] "
             "Share knowledge with agentbook. Two modes: "
             "(1) New -- provide 'description' to create a problem with optional "
             "solution. (2) Improve -- provide 'solution_id' and 'improved_content' "
@@ -309,6 +342,7 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="inspect",
         description=(
+            "[DEPRECATED - use trace] "
             "Retrieve detailed information about a specific problem or solution. "
             "Use when 'search' returned a result and you need the full solution "
             "text, all candidate solutions, outcome history, or evolution lineage "
@@ -346,30 +380,98 @@ TOOL_DEFINITIONS = [
 ]
 
 
+# Memory-shaped replacements. Each new tool shares the inputSchema of its
+# legacy twin. `verify` is a genuinely new semantic (sandbox enqueue)
+# registered here; its handler is implemented in task 013b.
+_NEW_TOOLS = [
+    types.Tool(
+        name="recall",
+        description=(
+            "Recall known solutions from the shared agent memory layer. "
+            "Queries the public body of outcome-verified debug knowledge. "
+            "Use when you hit an error, exception, or technical issue during "
+            "development. Returns ranked memories with confidence scores. "
+            "If nothing matches, use 'remember' to register the problem and "
+            "share your solution."
+        ),
+        inputSchema=_LEGACY_TOOLS[0].inputSchema,
+    ),
+    types.Tool(
+        name="remember",
+        description=(
+            "Store knowledge into the shared agent memory layer. Two modes: "
+            "(1) New -- provide 'description' to create a memory with an "
+            "optional solution. (2) Improve -- provide 'solution_id' and "
+            "'improved_content' to propose a better version via hill-climbing. "
+            "Improvements are evaluated automatically by the immutable "
+            "scoring infrastructure."
+        ),
+        inputSchema=_LEGACY_TOOLS[1].inputSchema,
+    ),
+    types.Tool(
+        name="trace",
+        description=(
+            "Trace a memory's full lineage: problem detail, candidate "
+            "solutions, outcome history, and evolution chain. Use after "
+            "'recall' returned a candidate and you need the full context "
+            "before applying it."
+        ),
+        inputSchema=_LEGACY_TOOLS[3].inputSchema,
+    ),
+    types.Tool(
+        name="verify",
+        description=(
+            "Enqueue a sandbox run to verify whether a solution resolves "
+            "its parent problem. Produces a verified outcome attributed to "
+            "the sandbox agent once the run completes. Authenticated only; "
+            "rate-limited per-agent."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "solution_id": {
+                    "type": "string",
+                    "description": "UUID of the solution to verify",
+                },
+            },
+            "required": ["solution_id"],
+        },
+    ),
+]
+
+
+TOOL_DEFINITIONS = _LEGACY_TOOLS + _NEW_TOOLS
+
+
 async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]:
     """Route an MCP tool call to the matching handler.
 
-    `search` and `inspect` are served without auth; `search` is rate-limited
-    to mirror the REST `/v1/search` contract (30/minute per agent or remote
-    IP), since MCP bypasses slowapi entirely. `contribute` and `report`
-    resolve the authenticated agent before touching the service layer so an
-    anonymous caller gets a clear `Authentication required` error.
+    `search`/`recall` and `inspect`/`trace` are served without auth; the
+    search family is rate-limited to mirror the REST `/v1/search` contract
+    (30/minute per agent or remote IP) since MCP bypasses slowapi. The
+    shared bucket is keyed on the canonical name so legacy and new names
+    cannot each consume a separate budget. `contribute`/`remember`,
+    `report`, and `verify` require an authenticated agent.
     """
     service = server._service
+    canonical = _canonical_name(name)
 
-    if name == "search":
+    if canonical == "recall":
         agent = _current_agent_ctx.get(None) or getattr(server, "_agent", None)
         remote_addr = _current_remote_addr_ctx.get(None)
         search_limiter = pick_mcp_search_limiter(agent)
         if not search_limiter.hit(mcp_rate_key(agent, remote_addr)):
-            return _json_response(
-                {
-                    "error": "rate_limit_exceeded",
-                    "detail": (
-                        f"MCP search is limited to {search_limiter.max_calls} "
-                        "requests per minute."
-                    ),
-                }
+            return _wrap_with_meta(
+                _json_response(
+                    {
+                        "error": "rate_limit_exceeded",
+                        "detail": (
+                            f"MCP search is limited to {search_limiter.max_calls} "
+                            "requests per minute."
+                        ),
+                    }
+                ),
+                name,
             )
         search_response = service.search_problems(
             query=arguments.get("query", ""),
@@ -377,21 +479,33 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
             limit=arguments.get("limit", 5),
             environment=arguments.get("environment"),
         )
-        return _json_response(search_response)
+        return _wrap_with_meta(_json_response(search_response), name)
 
-    if name == "inspect":
-        return await handle_inspect(service, arguments)
+    if canonical == "trace":
+        return _wrap_with_meta(await handle_inspect(service, arguments), name)
 
-    if name == "contribute":
+    if canonical == "remember":
         agent = _get_authenticated_agent(server)
-        return await handle_contribute(service, agent.agent_id, arguments)
+        return _wrap_with_meta(
+            await handle_contribute(service, agent.agent_id, arguments), name
+        )
 
-    if name == "report":
+    if canonical == "report":
         agent = _get_authenticated_agent(server)
-        return await handle_report(service, agent.agent_id, arguments)
+        return _wrap_with_meta(
+            await handle_report(service, agent.agent_id, arguments), name
+        )
 
-    return _json_response(
-        {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
+    if canonical == "verify":
+        # Handler wired up in task 013b.
+        return _wrap_with_meta(
+            _json_response({"error": "not_implemented", "tool": "verify"}),
+            name,
+        )
+
+    return _wrap_with_meta(
+        _json_response({"error": "unknown_tool", "detail": f"Tool '{name}' not found"}),
+        name,
     )
 
 

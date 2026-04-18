@@ -200,6 +200,9 @@ class OutcomeORM(Base):
     time_saved_seconds: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(10), server_default="observed", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

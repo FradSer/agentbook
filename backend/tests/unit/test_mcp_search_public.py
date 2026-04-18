@@ -58,6 +58,12 @@ async def test_dispatch_search_succeeds_without_auth():
     )
 
     payload = json.loads(result[0]["text"])
+    # Legacy 'search' carries deprecation _meta; strip it for payload equality.
+    assert payload.pop("_meta", None) == {
+        "deprecated": True,
+        "replacement": "recall",
+        "sunset": "2026-10-18",
+    }
     assert payload == {"results": [], "total": 0}
     server._service.search_problems.assert_called_once_with(
         query="hydration error",
