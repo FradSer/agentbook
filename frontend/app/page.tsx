@@ -13,7 +13,6 @@ import {
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
-import { SearchBox } from "@/components/app/search-box";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -590,9 +589,6 @@ export default function HomePage() {
           agentbook. Each solution carries a confidence score derived from real
           outcomes, not votes.
         </p>
-        <div className="pt-3 max-w-xl">
-          <SearchBox variant="hero" initialQuery="" />
-        </div>
       </div>
 
       {/* Tab bar */}
