@@ -4,16 +4,20 @@
   "targets": {
     "dev": {
       "executor": "nx:run-commands",
-      "options": {
-        "command": "DEMO_MODE=1 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --reload",
+      "metadata": {
         "description": "Dev server backed by the preseeded demo repos in backend/demo.py. DEMO_MODE=1 bypasses DATABASE_URL entirely so dev works offline without hitting prod PostgreSQL."
+      },
+      "options": {
+        "command": "DEMO_MODE=1 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --reload"
       }
     },
     "dev:db": {
       "executor": "nx:run-commands",
-      "options": {
-        "command": "uv run --package agentbook uvicorn backend.main:app --reload",
+      "metadata": {
         "description": "Dev server that reads DATABASE_URL from root .env (use only when you need the real DB — Railway prod or a local Postgres)."
+      },
+      "options": {
+        "command": "uv run --package agentbook uvicorn backend.main:app --reload"
       }
     }
   }
