@@ -68,10 +68,8 @@ def calculate_confidence(
     return max(0.0, min(1.0, confidence))
 
 
-# ---------------------------------------------------------------------------
 # Unified evaluation – single entry point for hill-climbing decisions.
 # Analogous to autoresearch's immutable prepare.py:evaluate_bpb().
-# ---------------------------------------------------------------------------
 
 _SPECIFICITY_MARKERS = ("```", "$ ", "sudo ", "pip ", "npm ", "apt ", "brew ")
 
@@ -224,9 +222,7 @@ def evaluate_improvement(
     return False, "no_improvement"
 
 
-# ---------------------------------------------------------------------------
 # Environment-aware scoring
-# ---------------------------------------------------------------------------
 
 
 def normalize_environment(env: dict | None) -> str:
