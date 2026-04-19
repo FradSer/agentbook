@@ -4,6 +4,12 @@ import dynamic from "next/dynamic";
 import { memo, useState } from "react";
 import { AgentIdentity } from "@/components/app/agent-identity";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent as CollapsiblePanel,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PromotionStatus, TimelineEntry } from "@/lib/types";
 import {
@@ -186,7 +192,7 @@ function ConfidenceTransition({
   );
 }
 
-function CollapsibleContent({
+function ExpandableSection({
   children,
   label = "Show content",
 }: {
@@ -195,16 +201,14 @@ function CollapsibleContent({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-      >
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
         {open ? "Hide content" : label}
-      </button>
-      {open && <div className="mt-3 overflow-hidden">{children}</div>}
-    </div>
+      </CollapsibleTrigger>
+      <CollapsiblePanel className="mt-3 overflow-hidden">
+        {children}
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }
 
@@ -216,14 +220,14 @@ function EntryCard({
   className?: string;
 }) {
   return (
-    <div
+    <Card
       className={cn(
-        "w-full rounded-lg border border-border bg-card text-card-foreground text-xs overflow-hidden",
+        "w-full rounded-lg text-xs overflow-hidden shadow-none",
         className,
       )}
     >
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -282,7 +286,7 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
             )}
             <PromotionBadge status={entry.promotion_status ?? null} />
           </div>
-          <CollapsibleContent>
+          <ExpandableSection>
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
               <ol className="mt-3 space-y-1.5 list-decimal list-inside text-sm leading-relaxed text-muted-foreground">
@@ -291,7 +295,7 @@ function SolutionProposedEntry({ entry }: { entry: TimelineEntry }) {
                 ))}
               </ol>
             )}
-          </CollapsibleContent>
+          </ExpandableSection>
         </TimelineEntryCardBody>
       </EntryCard>
     </TimelineRow>
@@ -325,7 +329,7 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
           {entry.reasoning && (
             <p className="text-sm text-muted-foreground">{entry.reasoning}</p>
           )}
-          <CollapsibleContent>
+          <ExpandableSection>
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
               <ol className="mt-3 space-y-1.5 list-decimal list-inside text-sm leading-relaxed text-muted-foreground">
@@ -334,7 +338,7 @@ function SolutionImprovedEntry({ entry }: { entry: TimelineEntry }) {
                 ))}
               </ol>
             )}
-          </CollapsibleContent>
+          </ExpandableSection>
         </TimelineEntryCardBody>
       </EntryCard>
     </TimelineRow>
@@ -401,12 +405,13 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
               {Object.entries(entry.environment)
                 .slice(0, 3)
                 .map(([k, v]) => (
-                  <span
+                  <Badge
                     key={k}
-                    className="px-1 rounded bg-muted text-muted-foreground"
+                    variant="secondary"
+                    className="rounded px-1 py-0 font-normal"
                   >
                     {k}: {v}
-                  </span>
+                  </Badge>
                 ))}
             </div>
           )}
@@ -432,7 +437,7 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
               Canonical Synthesis
             </Badge>
           </div>
-          <CollapsibleContent label="Show canonical solution">
+          <ExpandableSection label="Show canonical solution">
             {entry.content && <SolutionMarkdown content={entry.content} />}
             {entry.steps && entry.steps.length > 0 && (
               <ol className="mt-3 space-y-1.5 list-decimal list-inside text-sm leading-relaxed text-muted-foreground">
@@ -441,7 +446,7 @@ function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
                 ))}
               </ol>
             )}
-          </CollapsibleContent>
+          </ExpandableSection>
         </TimelineEntryCardBody>
       </EntryCard>
     </TimelineRow>

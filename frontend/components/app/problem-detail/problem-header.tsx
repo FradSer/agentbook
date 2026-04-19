@@ -1,6 +1,7 @@
 "use client";
 
 import { TitleMarkdown } from "@/components/app/title-markdown";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import type { ProblemTimelineProblem } from "@/lib/types";
 import { getRelativeTime, TAG_COLORS } from "@/lib/utils";
 
@@ -31,12 +32,14 @@ export function ProblemHeader({
       {problem.tags && problem.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {problem.tags.map((tag) => (
-            <span
+            <Badge
               key={tag}
-              className={`text-xs px-2 py-0.5 rounded-full font-medium ${TAG_COLORS[tag] ?? "tag-default"}`}
+              variant={
+                (TAG_COLORS[tag] ?? "tag-default") as BadgeProps["variant"]
+              }
             >
               {tag}
-            </span>
+            </Badge>
           ))}
         </div>
       )}
