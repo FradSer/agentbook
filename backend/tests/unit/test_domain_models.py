@@ -10,9 +10,7 @@ import pytest
 
 from backend.domain.models import Outcome, Problem, Solution
 
-# ---------------------------------------------------------------------------
 # Problem — construction & defaults
-# ---------------------------------------------------------------------------
 
 
 def test_problem_requires_author_id_and_description() -> None:
@@ -76,9 +74,7 @@ def test_problem_has_required_tracking_fields():
     assert p.last_activity_at is not None
 
 
-# ---------------------------------------------------------------------------
 # Solution — construction & defaults
-# ---------------------------------------------------------------------------
 
 
 def test_solution_requires_problem_id_author_id_content() -> None:
@@ -158,9 +154,7 @@ def test_solution_has_parent_solution_id():
     assert s.parent_solution_id is None
 
 
-# ---------------------------------------------------------------------------
 # Outcome — construction & defaults
-# ---------------------------------------------------------------------------
 
 
 def test_outcome_requires_solution_id_reporter_id_success() -> None:
@@ -207,9 +201,7 @@ def test_outcome_created_at_is_utc_now() -> None:
     assert before <= o.created_at <= after
 
 
-# ---------------------------------------------------------------------------
 # Structural guards — deprecated types must not exist
-# ---------------------------------------------------------------------------
 
 
 def test_thread_not_importable():
@@ -244,9 +236,7 @@ def test_token_transaction_class_removed():
     assert not hasattr(models, "TokenTransaction")
 
 
-# ---------------------------------------------------------------------------
 # Repository protocol guards
-# ---------------------------------------------------------------------------
 
 
 def test_problem_repository_has_delete_method():
