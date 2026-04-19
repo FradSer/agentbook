@@ -36,6 +36,13 @@ const tierLabel: Record<"high" | "med" | "low", string> = {
   low: "low confidence",
 };
 
+/** Horizontal gutter for search dialog body — keeps input, list, and rows aligned. */
+const DIALOG_PAD_X = "px-4";
+
+/** Inset result rows from the group edge; inner `Link` uses `RESULT_LINK_PAD_X` for text padding. */
+const RESULT_ROW_GUTTER_X = "px-2";
+const RESULT_LINK_PAD_X = "px-2";
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Kbd({ children }: { children: React.ReactNode }) {
@@ -48,7 +55,7 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 py-2 text-[10px] font-medium tracking-widest text-muted-foreground/60 uppercase select-none">
+    <div className="py-2 text-[10px] font-medium tracking-widest text-muted-foreground/60 uppercase select-none">
       {children}
     </div>
   );
@@ -56,9 +63,15 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
 
 function SkeletonRows() {
   return (
-    <div className="flex flex-col gap-px py-1">
+    <div className={cn("flex flex-col gap-1.5 py-1", RESULT_ROW_GUTTER_X)}>
       {[72, 88, 60].map((w, i) => (
-        <div key={w} className="flex items-start gap-3 px-4 py-2.5">
+        <div
+          key={w}
+          className={cn(
+            "flex items-start gap-3 rounded-md py-2.5",
+            RESULT_LINK_PAD_X,
+          )}
+        >
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
             <Skeleton className="h-3.5 rounded" style={{ width: `${w}%` }} />
             <Skeleton
@@ -81,7 +94,7 @@ function EmptyState({
   onSelectExample: (q: string) => void;
 }) {
   return (
-    <div className="px-4 py-4 text-center">
+    <div className="py-8 text-center">
       <p className="text-sm text-muted-foreground">
         No results for{" "}
         <span className="font-medium text-foreground/70">
@@ -112,7 +125,7 @@ function EmptyState({
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="px-4 py-3">
+    <div className="py-4">
       <p className="text-sm text-destructive">Search unavailable</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground/60">{message}</p>
     </div>
@@ -130,24 +143,29 @@ function DefaultState({
   const heading = recent.length > 0 ? "RECENT" : "TRY";
 
   return (
-    <>
+    <CommandGroup className="p-0 pb-1">
       <GroupHeading>{heading}</GroupHeading>
-      <div className="flex flex-col pb-1">
-        {items.map((q) => (
-          <button
-            key={q}
-            type="button"
-            onClick={() => onSelectRecent(q)}
+      {items.map((q) => (
+        <CommandItem
+          key={q}
+          value={q}
+          onSelect={() => onSelectRecent(q)}
+          className={cn(
+            "cursor-pointer py-0 data-[selected=true]:bg-secondary data-[selected=true]:text-foreground",
+            RESULT_ROW_GUTTER_X,
+          )}
+        >
+          <div
             className={cn(
-              "cursor-pointer px-4 py-2 text-left text-sm text-muted-foreground hover:bg-[var(--glass-bg-hover)] hover:text-foreground transition-colors rounded",
-              focusRing,
+              "w-full rounded-md py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-[var(--glass-bg-hover)] hover:text-foreground",
+              RESULT_LINK_PAD_X,
             )}
           >
             {q}
-          </button>
-        ))}
-      </div>
-    </>
+          </div>
+        </CommandItem>
+      ))}
+    </CommandGroup>
   );
 }
 
@@ -249,7 +267,10 @@ function ResultRow({
         onSelect();
       }}
       onMouseEnter={onMouseEnter}
-      className="flex w-full cursor-pointer items-start gap-3 rounded-sm px-4 py-2.5 text-sm transition-colors hover:bg-secondary"
+      className={cn(
+        "flex w-full cursor-pointer items-start gap-3 rounded-md py-2.5 text-sm transition-colors hover:bg-secondary",
+        RESULT_LINK_PAD_X,
+      )}
     >
       <div className="min-w-0 flex-1">
         <p className="leading-snug text-foreground">
@@ -317,7 +338,10 @@ function GroupedResults({
         key={result.problem_id}
         value={result.problem_id}
         onSelect={() => onSelect(result)}
-        className="p-0 cursor-pointer data-[selected=true]:bg-secondary data-[selected=true]:text-foreground"
+        className={cn(
+          "cursor-pointer py-0 data-[selected=true]:bg-secondary data-[selected=true]:text-foreground",
+          RESULT_ROW_GUTTER_X,
+        )}
       >
         <ResultRow
           id={`${listboxId}-option-${gi}`}
@@ -344,7 +368,7 @@ function GroupedResults({
         </CommandGroup>
       )}
       {lower.length > 0 && (
-        <CommandGroup className={high.length > 0 ? "mt-2 p-0" : "p-0"}>
+        <CommandGroup className={high.length > 0 ? "mt-3 p-0" : "p-0"}>
           <GroupHeading>
             {high.length > 0 ? "LOWER CONFIDENCE" : "RESULTS"} · {lower.length}
           </GroupHeading>
@@ -355,7 +379,7 @@ function GroupedResults({
           })}
         </CommandGroup>
       )}
-      <div className="flex items-center gap-2 border-t border-border px-4 py-2 text-[11px] text-muted-foreground/50">
+      <div className="-mx-4 mt-4 flex items-center gap-2 border-t border-border px-4 py-3 text-[11px] text-muted-foreground/50">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
@@ -541,7 +565,12 @@ export function SearchDialog({
         contentClassName="max-w-xl"
       >
         {/* Custom input — keeps IME, debounce, ARIA combobox intact */}
-        <div className="flex cursor-text items-center border-b border-border px-4">
+        <div
+          className={cn(
+            "flex cursor-text items-center border-b border-border",
+            DIALOG_PAD_X,
+          )}
+        >
           <input
             ref={inputRef}
             type="search"
@@ -566,7 +595,7 @@ export function SearchDialog({
                 ? `${listboxId}-option-${activeIndex}`
                 : undefined
             }
-            className="h-11 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="h-11 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none [&::-webkit-search-results-decoration]:appearance-none"
           />
           {value && (
             <button
@@ -599,7 +628,10 @@ export function SearchDialog({
           ref={listRef}
           role="listbox"
           aria-label="Search results"
-          className="max-h-[min(70vh,26rem)] overflow-y-auto py-1"
+          className={cn(
+            "max-h-[min(70vh,26rem)] overflow-y-auto",
+            DIALOG_PAD_X,
+          )}
         >
           {loading && <SkeletonRows />}
 
