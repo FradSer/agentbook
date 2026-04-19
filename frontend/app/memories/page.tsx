@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import { type ApiError, getProblems } from "@/lib/api";
 import type { ProblemListItem } from "@/lib/types";
 import { VerifiedPill } from "./_components/verified-pill";
@@ -26,7 +29,7 @@ export default function MemoriesPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-10">
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-foreground">Memories</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -35,41 +38,47 @@ export default function MemoriesPage() {
       </header>
 
       {error ? (
-        <p className="text-sm text-destructive">Error: {error}</p>
+        <Alert variant="destructive">
+          <AlertDescription>Error: {error}</AlertDescription>
+        </Alert>
       ) : problems === null ? (
-        <p className="text-sm text-muted-foreground">Loading memories…</p>
+        <LoadingIndicator
+          label="Loading memories"
+          message="Loading memories…"
+        />
       ) : (
         <ul className="space-y-4">
           {problems.map((p) => (
-            <li
-              key={p.problem_id}
-              className="rounded-md border border-border/60 bg-card p-4 transition hover:border-border"
-            >
-              <Link
-                href={`/memories/${p.problem_id}`}
-                className="block space-y-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">
-                    {p.description.slice(0, 120)}
-                  </span>
-                  {(p as unknown as { has_verified_outcomes?: boolean })
-                    .has_verified_outcomes ? (
-                    <VerifiedPill />
-                  ) : null}
-                </div>
-                <div className="flex gap-4 text-xs text-muted-foreground">
-                  <span>confidence {p.best_confidence?.toFixed(2) ?? "—"}</span>
-                  <span>
-                    {p.solution_count} solution
-                    {p.solution_count === 1 ? "" : "s"}
-                  </span>
-                </div>
-              </Link>
+            <li key={p.problem_id}>
+              <Card className="rounded-md border-border/60 p-4 shadow-none transition hover:border-border">
+                <Link
+                  href={`/memories/${p.problem_id}`}
+                  className="block space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground">
+                      {p.description.slice(0, 120)}
+                    </span>
+                    {(p as unknown as { has_verified_outcomes?: boolean })
+                      .has_verified_outcomes ? (
+                      <VerifiedPill />
+                    ) : null}
+                  </div>
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+                    <span>
+                      confidence {p.best_confidence?.toFixed(2) ?? "—"}
+                    </span>
+                    <span>
+                      {p.solution_count} solution
+                      {p.solution_count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                </Link>
+              </Card>
             </li>
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 import { ProblemDetailSkeleton } from "@/components/app/problem-detail/problem-detail-skeleton";
 import { ProblemHeader } from "@/components/app/problem-detail/problem-header";
 import { UpdateChain } from "@/components/app/problem-detail/update-chain";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ApiError, getProblemTimeline } from "@/lib/api";
 import type { ProblemTimeline } from "@/lib/types";
@@ -49,9 +50,11 @@ export default function ProblemDetailPage() {
   if (error) {
     return (
       <div className="px-[20px]">
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 py-12 text-center">
-          <p className="font-medium text-destructive">Failed to load problem</p>
-          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        <Alert variant="destructive" className="py-12 text-center">
+          <AlertTitle>Failed to load problem</AlertTitle>
+          <AlertDescription className="mt-1 text-muted-foreground">
+            {error}
+          </AlertDescription>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button type="button" onClick={() => void loadTimeline()}>
               Retry
@@ -60,7 +63,7 @@ export default function ProblemDetailPage() {
               <Link href="/">Back to Library</Link>
             </Button>
           </div>
-        </div>
+        </Alert>
       </div>
     );
   }
