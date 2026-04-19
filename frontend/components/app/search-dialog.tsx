@@ -36,12 +36,8 @@ const tierLabel: Record<"high" | "med" | "low", string> = {
   low: "low confidence",
 };
 
-/** Horizontal gutter for search dialog body — keeps input, list, and rows aligned. */
+/** Horizontal gutter shared by input row, list, and result rows. */
 const DIALOG_PAD_X = "px-4";
-
-/** Inset result rows from the group edge; inner `Link` uses `RESULT_LINK_PAD_X` for text padding. */
-const RESULT_ROW_GUTTER_X = "px-2";
-const RESULT_LINK_PAD_X = "px-2";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -55,7 +51,7 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="py-2 text-[10px] font-medium tracking-widest text-muted-foreground/60 uppercase select-none">
+    <div className="pb-1 pt-2 text-[10px] font-medium tracking-widest text-muted-foreground/50 uppercase select-none">
       {children}
     </div>
   );
@@ -63,15 +59,9 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
 
 function SkeletonRows() {
   return (
-    <div className={cn("flex flex-col gap-1.5 py-1", RESULT_ROW_GUTTER_X)}>
+    <div className="flex flex-col gap-1 py-1">
       {[72, 88, 60].map((w, i) => (
-        <div
-          key={w}
-          className={cn(
-            "flex items-start gap-3 rounded-md py-2.5",
-            RESULT_LINK_PAD_X,
-          )}
-        >
+        <div key={w} className="flex items-start gap-3 rounded-md px-2 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
             <Skeleton className="h-3.5 rounded" style={{ width: `${w}%` }} />
             <Skeleton
@@ -104,7 +94,7 @@ function EmptyState({
       <p className="mt-0.5 text-[11px] text-muted-foreground/50">
         Try different keywords or a broader phrase.
       </p>
-      <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+      <div className="mt-3 flex flex-wrap justify-center gap-1.5">
         {EXAMPLE_QUERIES.map((q) => (
           <button
             key={q}
@@ -123,11 +113,27 @@ function EmptyState({
   );
 }
 
-function ErrorState({ message }: { message: string }) {
+function ErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
   return (
-    <div className="py-4">
+    <div className="py-6 text-center">
       <p className="text-sm text-destructive">Search unavailable</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground/60">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className={cn(
+          "mt-3 cursor-pointer rounded px-2.5 py-1 text-[11px] text-muted-foreground border border-border bg-transparent hover:bg-[var(--glass-bg-hover)] hover:text-foreground transition-colors",
+          focusRing,
+        )}
+      >
+        Try again
+      </button>
     </div>
   );
 }
@@ -139,8 +145,9 @@ function DefaultState({
   recent: string[];
   onSelectRecent: (q: string) => void;
 }) {
-  const items = recent.length > 0 ? recent : EXAMPLE_QUERIES;
-  const heading = recent.length > 0 ? "RECENT" : "TRY";
+  const hasRecent = recent.length > 0;
+  const items = hasRecent ? recent : EXAMPLE_QUERIES;
+  const heading = hasRecent ? "RECENT" : "TRY";
 
   return (
     <CommandGroup className="p-0 pb-1">
@@ -150,26 +157,36 @@ function DefaultState({
           key={q}
           value={q}
           onSelect={() => onSelectRecent(q)}
-          className={cn(
-            "cursor-pointer py-0 data-[selected=true]:bg-secondary data-[selected=true]:text-foreground",
-            RESULT_ROW_GUTTER_X,
-          )}
+          className="cursor-pointer rounded-md px-2 py-2 text-sm text-muted-foreground data-[selected=true]:bg-secondary data-[selected=true]:text-foreground hover:bg-[var(--glass-bg-hover)] hover:text-foreground transition-colors"
         >
-          <div
-            className={cn(
-              "w-full rounded-md py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-[var(--glass-bg-hover)] hover:text-foreground",
-              RESULT_LINK_PAD_X,
-            )}
-          >
-            {q}
-          </div>
+          {hasRecent ? (
+            <span className="flex items-center gap-2">
+              <svg
+                aria-hidden="true"
+                width="11"
+                height="11"
+                viewBox="0 0 11 11"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                className="shrink-0 opacity-50"
+              >
+                <circle cx="5.5" cy="5.5" r="4" />
+                <path d="M5.5 3v2.5l1.5 1" />
+              </svg>
+              {q}
+            </span>
+          ) : (
+            q
+          )}
         </CommandItem>
       ))}
     </CommandGroup>
   );
 }
 
-// ─── Highlight helpers (verbatim from original search-box.tsx) ────────────────
+// ─── Highlight helpers ────────────────────────────────────────────────────────
 
 function getHighlightSegments(
   text: string,
@@ -267,10 +284,7 @@ function ResultRow({
         onSelect();
       }}
       onMouseEnter={onMouseEnter}
-      className={cn(
-        "flex w-full cursor-pointer items-start gap-3 rounded-md py-2.5 text-sm transition-colors hover:bg-secondary",
-        RESULT_LINK_PAD_X,
-      )}
+      className="flex w-full cursor-pointer items-start gap-3 rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-secondary"
     >
       <div className="min-w-0 flex-1">
         <p className="leading-snug text-foreground">
@@ -282,25 +296,29 @@ function ResultRow({
             <TitleMarkdown content={result.description_preview} insideLink />
           )}
         </p>
-        {result.tags.length > 0 && (
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            <HighlightedText
-              text={result.tags.slice(0, 3).join(" · ")}
-              query={query}
-            />
-          </p>
+        <div className="mt-1 flex items-center gap-2">
+          {result.tags.length > 0 && (
+            <p className="truncate text-[11px] text-muted-foreground/70">
+              <HighlightedText
+                text={result.tags.slice(0, 3).join(" · ")}
+                query={query}
+              />
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-start">
+        {tier && confidencePct !== null ? (
+          <Badge
+            variant={tier}
+            aria-label={`Best solution ${tierLabel[tier]} (${confidencePct} percent)`}
+          >
+            {confidencePct}%
+          </Badge>
+        ) : (
+          <Badge variant="low">new</Badge>
         )}
       </div>
-      {tier && confidencePct !== null ? (
-        <Badge
-          variant={tier}
-          aria-label={`Best solution ${tierLabel[tier]} (${confidencePct} percent)`}
-        >
-          {confidencePct}%
-        </Badge>
-      ) : (
-        <Badge variant="low">new</Badge>
-      )}
     </Link>
   );
 }
@@ -329,26 +347,23 @@ function GroupedResults({
     (r) => (r.best_solution?.confidence ?? 0) < HIGH_CONFIDENCE_THRESHOLD,
   );
 
-  let globalIndex = 0;
+  // Build a flat ordered array matching render order so indices are stable
+  const ordered = [...high, ...lower];
 
-  function renderRow(result: SearchResult, index: number) {
-    const gi = index;
+  function renderRow(result: SearchResult, globalIndex: number) {
     return (
       <CommandItem
         key={result.problem_id}
         value={result.problem_id}
         onSelect={() => onSelect(result)}
-        className={cn(
-          "cursor-pointer py-0 data-[selected=true]:bg-secondary data-[selected=true]:text-foreground",
-          RESULT_ROW_GUTTER_X,
-        )}
+        className="cursor-pointer p-0 data-[selected=true]:bg-secondary data-[selected=true]:text-foreground"
       >
         <ResultRow
-          id={`${listboxId}-option-${gi}`}
+          id={`${listboxId}-option-${globalIndex}`}
           result={result}
           query={query}
-          active={gi === activeIndex}
-          onMouseEnter={() => onMouseEnter(gi)}
+          active={globalIndex === activeIndex}
+          onMouseEnter={() => onMouseEnter(globalIndex)}
           onSelect={() => onSelect(result)}
         />
       </CommandItem>
@@ -359,27 +374,19 @@ function GroupedResults({
     <>
       {high.length > 0 && (
         <CommandGroup className="p-0">
-          <GroupHeading>HIGH CONFIDENCE · {high.length}</GroupHeading>
-          {high.map((r) => {
-            const el = renderRow(r, globalIndex);
-            globalIndex++;
-            return el;
-          })}
+          <GroupHeading>HIGH CONFIDENCE</GroupHeading>
+          {high.map((r) => renderRow(r, ordered.indexOf(r)))}
         </CommandGroup>
       )}
       {lower.length > 0 && (
-        <CommandGroup className={high.length > 0 ? "mt-3 p-0" : "p-0"}>
+        <CommandGroup className={high.length > 0 ? "mt-2 p-0" : "p-0"}>
           <GroupHeading>
-            {high.length > 0 ? "LOWER CONFIDENCE" : "RESULTS"} · {lower.length}
+            {high.length > 0 ? "LOWER CONFIDENCE" : "RESULTS"}
           </GroupHeading>
-          {lower.map((r) => {
-            const el = renderRow(r, globalIndex);
-            globalIndex++;
-            return el;
-          })}
+          {lower.map((r) => renderRow(r, ordered.indexOf(r)))}
         </CommandGroup>
       )}
-      <div className="-mx-4 mt-4 flex items-center gap-2 border-t border-border px-4 py-3 text-[11px] text-muted-foreground/50">
+      <div className="-mx-4 mt-3 flex items-center gap-2 border-t border-border px-4 py-2.5 text-[10px] text-muted-foreground/40">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>
@@ -389,7 +396,7 @@ function GroupedResults({
           <Kbd>↵</Kbd>
           open
         </span>
-        <span className="flex items-center gap-1">
+        <span className="ml-auto flex items-center gap-1">
           <Kbd>Esc</Kbd>
           close
         </span>
@@ -414,6 +421,7 @@ export function SearchDialog({
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [recent, setRecent] = useState<string[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
   const isComposingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -438,7 +446,7 @@ export function SearchDialog({
     }
   }, [open]);
 
-  // Debounced search
+  // Debounced search — retryCount lets the retry button re-run without changing `value`
   useEffect(() => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -472,7 +480,7 @@ export function SearchDialog({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [value]);
+  }, [value, retryCount]);
 
   // Reset active index on query change
   useEffect(() => {
@@ -494,6 +502,12 @@ export function SearchDialog({
     pushRecent(value.trim());
     onOpenChange(false);
     router.push(`/memories/${result.problem_id}`);
+  }
+
+  function handleRetry() {
+    setRetryCount((c) => c + 1);
+    setError(null);
+    setLoading(true);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -562,15 +576,30 @@ export function SearchDialog({
       <CommandDialog
         open={open}
         onOpenChange={onOpenChange}
-        contentClassName="max-w-xl"
+        contentClassName="max-w-[560px]"
       >
         {/* Custom input — keeps IME, debounce, ARIA combobox intact */}
         <div
           className={cn(
-            "flex cursor-text items-center border-b border-border",
+            "flex cursor-text items-center gap-2.5 border-b border-border",
             DIALOG_PAD_X,
           )}
         >
+          <svg
+            aria-hidden="true"
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-muted-foreground/50"
+          >
+            <circle cx="6" cy="6" r="4.5" />
+            <path d="M9.5 9.5l3 3" />
+          </svg>
           <input
             ref={inputRef}
             type="search"
@@ -595,7 +624,7 @@ export function SearchDialog({
                 ? `${listboxId}-option-${activeIndex}`
                 : undefined
             }
-            className="h-11 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none [&::-webkit-search-results-decoration]:appearance-none"
+            className="h-11 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none [&::-webkit-search-results-decoration]:appearance-none"
           />
           {value && (
             <button
@@ -609,15 +638,15 @@ export function SearchDialog({
             >
               <svg
                 aria-hidden="true"
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.8"
                 strokeLinecap="round"
               >
-                <path d="M1 1l10 10M11 1L1 11" />
+                <path d="M1 1l8 8M9 1L1 9" />
               </svg>
             </button>
           )}
@@ -637,7 +666,7 @@ export function SearchDialog({
 
           {error !== null && !loading && (
             <CommandEmpty className="p-0">
-              <ErrorState message={error} />
+              <ErrorState message={error} onRetry={handleRetry} />
             </CommandEmpty>
           )}
 

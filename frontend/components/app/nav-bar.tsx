@@ -76,7 +76,22 @@ export function NavBar() {
               focusRing,
             )}
           >
-            <span>Search…</span>
+            <svg
+              aria-hidden="true"
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0"
+            >
+              <circle cx="6" cy="6" r="4.5" />
+              <path d="M9.5 9.5l3 3" />
+            </svg>
+            <span className="hidden sm:inline">Search…</span>
             <kbd className="hidden rounded border border-border bg-[var(--glass-bg-hover)] px-1.5 py-px font-mono text-[10px] leading-tight text-muted-foreground/70 sm:inline-flex">
               {shortcutLabel}
             </kbd>
