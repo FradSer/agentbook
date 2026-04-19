@@ -15,9 +15,7 @@ from backend.infrastructure.persistence.in_memory import (
     InMemorySolutionRepository,
 )
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 AUTHOR_ID = UUID("00000000-0000-0000-0000-000000000001")
 EMBEDDING_A = [1.0, 0.0, 0.0]
@@ -47,9 +45,7 @@ def _make_outcome(
     )
 
 
-# ---------------------------------------------------------------------------
 # ProblemRepository
-# ---------------------------------------------------------------------------
 
 
 def test_problem_add_then_get_returns_same_problem() -> None:
@@ -138,9 +134,7 @@ def test_problem_update_persists_changes() -> None:
     assert result.description == "updated description"
 
 
-# ---------------------------------------------------------------------------
 # SolutionRepository
-# ---------------------------------------------------------------------------
 
 
 def test_solution_add_then_get_returns_same_solution() -> None:
@@ -201,9 +195,7 @@ def test_solution_update_persists_changes() -> None:
     assert result.confidence == 0.95
 
 
-# ---------------------------------------------------------------------------
 # OutcomeRepository
-# ---------------------------------------------------------------------------
 
 
 def test_outcome_add_then_list_by_solution_returns_it() -> None:

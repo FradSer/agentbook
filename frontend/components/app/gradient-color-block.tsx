@@ -2,8 +2,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-/** Single source of truth: brand mark and agent avatars use the same tile shape. */
-export const GRADIENT_COLOR_BLOCK_CLASS = "size-7 rounded-lg flex-shrink-0";
+const GRADIENT_COLOR_BLOCK_CLASS = "size-7 rounded-lg flex-shrink-0";
 
 type GradientColorBlockProps = {
   background: string;

@@ -76,9 +76,7 @@ def _seed_problem_and_solution(service, author_id):
     return problem, solution
 
 
-# ---------------------------------------------------------------------------
 # POST /v1/solutions/{id}/outcomes
-# ---------------------------------------------------------------------------
 
 
 def test_post_outcome_succeeds_with_external_reporter():
@@ -142,9 +140,7 @@ def test_post_outcome_rate_limit_returns_429():
     assert limited.status_code == 429
 
 
-# ---------------------------------------------------------------------------
 # POST /v1/solutions/{id}/improve
-# ---------------------------------------------------------------------------
 
 
 def test_post_improve_succeeds_with_auth():
@@ -185,9 +181,7 @@ def test_post_improve_requires_authorization():
     assert response.status_code == 401
 
 
-# ---------------------------------------------------------------------------
 # GET /v1/solutions/{id}/lineage
-# ---------------------------------------------------------------------------
 
 
 def test_get_solution_lineage_is_public_and_returns_list():
@@ -210,9 +204,7 @@ def test_get_solution_lineage_unknown_returns_404():
     assert response.status_code == 404
 
 
-# ---------------------------------------------------------------------------
 # GET /v1/problems/{id}/timeline — route ordering guard
-# ---------------------------------------------------------------------------
 
 
 def test_problem_timeline_route_wins_over_generic_problem_route():
@@ -241,9 +233,7 @@ def test_problem_timeline_unknown_returns_404():
     assert response.status_code == 404
 
 
-# ---------------------------------------------------------------------------
 # POST /v1/problems/{id}/solutions — 404 when parent problem is missing
-# ---------------------------------------------------------------------------
 
 
 def test_post_solution_on_unknown_problem_returns_404():
@@ -258,9 +248,7 @@ def test_post_solution_on_unknown_problem_returns_404():
     assert response.status_code == 404
 
 
-# ---------------------------------------------------------------------------
 # ProblemCreateRequest 422 validation at the HTTP layer
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,6 @@
 "use client";
 
+import { Clock, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
@@ -38,8 +39,6 @@ const tierLabel: Record<"high" | "med" | "low", string> = {
 
 /** Horizontal gutter shared by input row, list, and result rows. */
 const DIALOG_PAD_X = "px-4";
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
@@ -161,20 +160,7 @@ function DefaultState({
         >
           {hasRecent ? (
             <span className="flex items-center gap-2">
-              <svg
-                aria-hidden="true"
-                width="11"
-                height="11"
-                viewBox="0 0 11 11"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                className="shrink-0 opacity-50"
-              >
-                <circle cx="5.5" cy="5.5" r="4" />
-                <path d="M5.5 3v2.5l1.5 1" />
-              </svg>
+              <Clock aria-hidden className="size-[11px] shrink-0 opacity-50" />
               {q}
             </span>
           ) : (
@@ -185,8 +171,6 @@ function DefaultState({
     </CommandGroup>
   );
 }
-
-// ─── Highlight helpers ────────────────────────────────────────────────────────
 
 function getHighlightSegments(
   text: string,
@@ -247,8 +231,6 @@ function HighlightedText({
   );
 }
 
-// ─── Result row ───────────────────────────────────────────────────────────────
-
 function ResultRow({
   id,
   result,
@@ -287,7 +269,7 @@ function ResultRow({
       className="flex w-full cursor-pointer items-start gap-3 rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-secondary"
     >
       <div className="min-w-0 flex-1">
-        <p className="leading-snug text-foreground">
+        <div className="leading-snug text-foreground">
           {query &&
           !result.description_preview.includes("*") &&
           !result.description_preview.includes("`") ? (
@@ -295,17 +277,15 @@ function ResultRow({
           ) : (
             <TitleMarkdown content={result.description_preview} insideLink />
           )}
-        </p>
-        <div className="mt-1 flex items-center gap-2">
-          {result.tags.length > 0 && (
-            <p className="truncate text-[11px] text-muted-foreground/70">
-              <HighlightedText
-                text={result.tags.slice(0, 3).join(" · ")}
-                query={query}
-              />
-            </p>
-          )}
         </div>
+        {result.tags.length > 0 && (
+          <p className="mt-1 truncate text-[11px] text-muted-foreground/70">
+            <HighlightedText
+              text={result.tags.slice(0, 3).join(" · ")}
+              query={query}
+            />
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 items-start">
         {tier && confidencePct !== null ? (
@@ -322,8 +302,6 @@ function ResultRow({
     </Link>
   );
 }
-
-// ─── Results (grouped by confidence) ─────────────────────────────────────────
 
 function GroupedResults({
   results,
@@ -346,9 +324,6 @@ function GroupedResults({
   const lower = results.filter(
     (r) => (r.best_solution?.confidence ?? 0) < HIGH_CONFIDENCE_THRESHOLD,
   );
-
-  // Build a flat ordered array matching render order so indices are stable
-  const ordered = [...high, ...lower];
 
   function renderRow(result: SearchResult, globalIndex: number) {
     return (
@@ -375,7 +350,7 @@ function GroupedResults({
       {high.length > 0 && (
         <CommandGroup className="p-0">
           <GroupHeading>HIGH CONFIDENCE</GroupHeading>
-          {high.map((r) => renderRow(r, ordered.indexOf(r)))}
+          {high.map((r, i) => renderRow(r, i))}
         </CommandGroup>
       )}
       {lower.length > 0 && (
@@ -383,7 +358,7 @@ function GroupedResults({
           <GroupHeading>
             {high.length > 0 ? "LOWER CONFIDENCE" : "RESULTS"}
           </GroupHeading>
-          {lower.map((r) => renderRow(r, ordered.indexOf(r)))}
+          {lower.map((r, i) => renderRow(r, high.length + i))}
         </CommandGroup>
       )}
       <div className="-mx-4 mt-3 flex items-center gap-2 border-t border-border px-4 py-2.5 text-[10px] text-muted-foreground/40">
@@ -404,8 +379,6 @@ function GroupedResults({
     </>
   );
 }
-
-// ─── Main SearchDialog ────────────────────────────────────────────────────────
 
 export function SearchDialog({
   open,
@@ -506,8 +479,6 @@ export function SearchDialog({
 
   function handleRetry() {
     setRetryCount((c) => c + 1);
-    setError(null);
-    setLoading(true);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -585,21 +556,10 @@ export function SearchDialog({
             DIALOG_PAD_X,
           )}
         >
-          <svg
-            aria-hidden="true"
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-muted-foreground/50"
-          >
-            <circle cx="6" cy="6" r="4.5" />
-            <path d="M9.5 9.5l3 3" />
-          </svg>
+          <Search
+            aria-hidden
+            className="size-3.5 shrink-0 text-muted-foreground/50"
+          />
           <input
             ref={inputRef}
             type="search"
@@ -636,18 +596,7 @@ export function SearchDialog({
                 focusRing,
               )}
             >
-              <svg
-                aria-hidden="true"
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              >
-                <path d="M1 1l8 8M9 1L1 9" />
-              </svg>
+              <X aria-hidden className="size-2.5" strokeWidth={1.8} />
             </button>
           )}
         </div>

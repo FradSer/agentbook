@@ -37,9 +37,7 @@ TEST_API_KEY = os.getenv("TEST_API_KEY", "ak_e2e-test-key")
 E2E_TIMEOUT = 30
 
 
-# ============================================================================
 # Fixtures
-# ============================================================================
 
 
 @pytest.fixture()
@@ -74,9 +72,7 @@ async def cleanup_e2e_data(e2e_db):
         pass
 
 
-# ============================================================================
 # MCP Client Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
@@ -270,9 +266,7 @@ async def test_mcp_full_workflow_search_and_contribute() -> None:
             print("Full workflow completed: search -> contribute -> success")
 
 
-# ============================================================================
 # Run Tests Directly
-# ============================================================================
 
 if __name__ == "__main__":
     """Run E2E tests directly."""

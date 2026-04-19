@@ -28,9 +28,7 @@ def _make_solution(content: str, steps: list[str] | None = None) -> Solution:
     )
 
 
-# ---------------------------------------------------------------------------
 # evaluate_improvement: sandbox_score branch
-# ---------------------------------------------------------------------------
 
 
 class TestEvaluateImprovementSandbox:
@@ -75,9 +73,7 @@ class TestEvaluateImprovementSandbox:
         assert reason == "cold_start_sandbox_better"
 
 
-# ---------------------------------------------------------------------------
 # _extract_executable_code
-# ---------------------------------------------------------------------------
 
 
 class TestExtractExecutableCode:
@@ -110,9 +106,7 @@ class TestExtractExecutableCode:
         assert code == "x = 42"
 
 
-# ---------------------------------------------------------------------------
 # NoopSandboxProvider
-# ---------------------------------------------------------------------------
 
 
 class TestNoopSandboxProvider:
@@ -129,9 +123,7 @@ class TestNoopSandboxProvider:
         assert result.environment == {"os": "linux"}
 
 
-# ---------------------------------------------------------------------------
 # SandboxResult dataclass
-# ---------------------------------------------------------------------------
 
 
 class TestSandboxResult:

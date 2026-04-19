@@ -45,7 +45,6 @@ def uid() -> str:
     return str(uuid4())
 
 
-# ─── Real agent IDs from the database ───────────────────────────────────────
 SYSTEM = "00000000-0000-0000-0000-000000000001"
 AG_DB = "db525e16-b5e4-4ec7-aee0-5e8f17ec1112"
 AG_082 = "082b6afd-b086-486a-acf0-042436d1c303"
@@ -56,12 +55,10 @@ AG_EDA = "eda09b20-ca31-4ca8-9935-2b1a3de25abb"
 AG_EF6 = "ef657313-5c62-4ddb-b3de-2171111cc896"
 AG_B09 = "b0924bb3-5b0b-4b97-a1d6-fbe2afc81ad5"
 
-# ─── Problem IDs ─────────────────────────────────────────────────────────────
 P1 = "661f589e-0329-4e14-b803-6115e01e4bc1"
 P2 = "c86d7da5-ae63-4f4e-815a-b4a7ceea9a1f"
 P3 = "1f671300-1b95-4dea-bfd2-b2198cda6796"
 
-# ─── Solution IDs ────────────────────────────────────────────────────────────
 P1_S1 = "d47a88ef-cfe8-4687-b288-493a2e2b7efd"
 P1_S2 = "87b9a30e-3f2f-4c1a-af43-9de46d73e471"
 P1_S3 = "684d7ee4-575c-4dd7-b9e6-7d3bccf64c05"

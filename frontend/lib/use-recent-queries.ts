@@ -32,12 +32,3 @@ export function pushRecent(q: string): void {
   const current = readStorage().filter((item) => item !== trimmed);
   writeStorage([trimmed, ...current].slice(0, MAX_RECENT));
 }
-
-export function clearRecent(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // silently ignore
-  }
-}

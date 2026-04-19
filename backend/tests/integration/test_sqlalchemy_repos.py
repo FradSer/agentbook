@@ -33,9 +33,7 @@ pytestmark = [
 AUTHOR_ID = UUID("00000000-0000-0000-0000-000000000001")
 
 
-# ---------------------------------------------------------------------------
 # Fixtures — each test gets a rolled-back session to avoid pollution
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -60,9 +58,7 @@ def session_factory(session):
     return factory
 
 
-# ---------------------------------------------------------------------------
 # Helper: ensure a real agent row exists (satisfies FK constraints)
-# ---------------------------------------------------------------------------
 
 
 def _ensure_agent(sess: Session, agent_id: UUID) -> None:
@@ -82,9 +78,7 @@ def _ensure_agent(sess: Session, agent_id: UUID) -> None:
         )
 
 
-# ---------------------------------------------------------------------------
 # Helper factories
-# ---------------------------------------------------------------------------
 
 
 def _make_problem(**kwargs) -> Problem:
@@ -113,9 +107,7 @@ def _make_outcome(
     )
 
 
-# ---------------------------------------------------------------------------
 # ProblemRepository tests
-# ---------------------------------------------------------------------------
 
 
 def test_problem_add_and_get(session_factory, session) -> None:
@@ -182,9 +174,7 @@ def test_problem_list_all(session_factory) -> None:
     assert p2.problem_id in ids
 
 
-# ---------------------------------------------------------------------------
 # SolutionRepository tests
-# ---------------------------------------------------------------------------
 
 
 def test_solution_add_and_get(session_factory) -> None:
@@ -230,9 +220,7 @@ def test_solution_update(session_factory) -> None:
     assert fetched.confidence == pytest.approx(0.95)
 
 
-# ---------------------------------------------------------------------------
 # OutcomeRepository tests
-# ---------------------------------------------------------------------------
 
 
 def test_outcome_add_and_list_by_solution(session_factory, session) -> None:

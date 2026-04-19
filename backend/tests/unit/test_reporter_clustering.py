@@ -91,8 +91,6 @@ def test_sandbox_reporter_never_clusters_with_users() -> None:
     sandbox_cluster = [c for c in clusters if SANDBOX_AGENT_ID in c]
     assert len(sandbox_cluster) == 1
     assert sandbox_cluster[0] == [SANDBOX_AGENT_ID]
-    # Users still collapse among themselves (shared IP + tight window).
-    user_clusters = [c for c in clusters if len(c) > 1 or c[0] != SANDBOX_AGENT_ID]
     # We have one cluster of 5 users + 1 cluster of sandbox.
     big = [c for c in clusters if len(c) == 5]
     assert len(big) == 1

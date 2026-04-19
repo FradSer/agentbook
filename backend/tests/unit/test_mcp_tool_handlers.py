@@ -24,9 +24,7 @@ SOLUTION_ID: UUID = uuid4()
 PROBLEM_ID: UUID = uuid4()
 
 
-# ---------------------------------------------------------------------------
 # search tool (tested via dispatcher, no separate handler function)
-# ---------------------------------------------------------------------------
 
 
 def test_search_delegates_to_service_search() -> None:
@@ -72,9 +70,7 @@ def test_search_returns_empty_results() -> None:
     assert data["results"] == []
 
 
-# ---------------------------------------------------------------------------
 # contribute tool -- new mode
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -134,9 +130,7 @@ async def test_contribute_new_missing_description_returns_error() -> None:
     service.contribute.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
 # contribute tool -- improve mode
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -200,9 +194,7 @@ async def test_contribute_improve_missing_content_returns_error() -> None:
     service.improve_solution.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
 # report tool
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -255,9 +247,7 @@ async def test_report_not_found_returns_error_json() -> None:
     assert data["error"] == "not_found"
 
 
-# ---------------------------------------------------------------------------
 # inspect tool
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio

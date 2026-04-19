@@ -21,9 +21,7 @@ from fastapi.testclient import TestClient
 
 from backend.main import create_app
 
-# ============================================================================
 # Fixtures
-# ============================================================================
 
 
 @pytest.fixture()
@@ -78,9 +76,7 @@ def valid_headers(auth_headers: dict[str, str]) -> dict[str, str]:
     }
 
 
-# ============================================================================
 # Session Establishment Tests
-# ============================================================================
 
 
 def test_post_establishes_session(
@@ -219,9 +215,7 @@ def test_initialize_returns_server_capabilities(
     assert isinstance(capabilities, dict), "Capabilities should be a dict"
 
 
-# ============================================================================
 # Header Validation Tests
-# ============================================================================
 
 
 def test_accept_header_validation(
@@ -309,9 +303,7 @@ def test_content_type_validation(
     ), f"Error message should mention Content-Type requirements: {error_detail}"
 
 
-# ============================================================================
 # Authentication Tests
-# ============================================================================
 
 
 def test_anonymous_initialize_succeeds(
@@ -378,9 +370,7 @@ def test_invalid_api_key_rejected(
     )
 
 
-# ============================================================================
 # JSON-RPC Protocol Tests
-# ============================================================================
 
 
 def test_jsonrpc_request_format(

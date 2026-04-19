@@ -76,9 +76,7 @@ def _setup_problem_with_solution(service, author_id, confidence: float = 0.25):
     return p, s
 
 
-# ---------------------------------------------------------------------------
 # Service-level: 2 direct iterations
-# ---------------------------------------------------------------------------
 
 
 def test_iteration_1_cold_start_improvement():
@@ -231,9 +229,7 @@ def test_good_outcomes_block_second_iteration():
     )
 
 
-# ---------------------------------------------------------------------------
 # run_research_cycle integration: mock agent calls real tools
-# ---------------------------------------------------------------------------
 
 
 class _ToolCallingAgent:
@@ -581,9 +577,7 @@ def test_run_research_cycle_filters_superseded_solutions():
         )
 
 
-# ---------------------------------------------------------------------------
 # Cooldown escape fix: invalid/timeout/exception paths record a ResearchCycle
-# ---------------------------------------------------------------------------
 
 
 def test_invalid_agent_response_records_research_cycle():

@@ -50,9 +50,7 @@ def _make_solution(
     )
 
 
-# ---------------------------------------------------------------------------
 # InMemoryProblemRelationshipRepository
-# ---------------------------------------------------------------------------
 
 
 class TestInMemoryProblemRelationshipRepo:
@@ -180,9 +178,7 @@ class TestInMemoryProblemRelationshipRepo:
         assert repo.find_related(uuid4()) == []
 
 
-# ---------------------------------------------------------------------------
 # _compute_relationships
-# ---------------------------------------------------------------------------
 
 
 def _build_service(**overrides):
@@ -264,9 +260,7 @@ class TestComputeRelationships:
         svc._compute_relationships(p1)
 
 
-# ---------------------------------------------------------------------------
 # get_cross_problem_solutions
-# ---------------------------------------------------------------------------
 
 
 class TestGetCrossProblemSolutions:

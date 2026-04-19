@@ -28,9 +28,7 @@ def _make_solution(problem_id=None, **kwargs):
     return Solution(**defaults)
 
 
-# ---------------------------------------------------------------------------
 # InMemoryProblemRepository tests
-# ---------------------------------------------------------------------------
 
 
 def test_problem_repo_add_and_get():
@@ -141,9 +139,7 @@ def test_inmemory_vote_repository_does_not_exist():
     assert not hasattr(im, "InMemoryVoteRepository")
 
 
-# ---------------------------------------------------------------------------
 # InMemorySolutionRepository tests
-# ---------------------------------------------------------------------------
 
 
 def test_solution_repo_delete_removes_solution():
@@ -249,9 +245,7 @@ def test_solution_repo_find_superseded_returns_canonical_solutions():
     assert canonical.solution_id not in ids
 
 
-# ---------------------------------------------------------------------------
 # Structural guard — token transaction repo must not exist
-# ---------------------------------------------------------------------------
 
 
 def test_inmemory_token_transaction_repository_does_not_exist():

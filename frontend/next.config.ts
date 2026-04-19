@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../"),
   experimental: {
     optimizePackageImports: [
-      "@radix-ui/react-label",
       "@radix-ui/react-slot",
       "class-variance-authority",
       "clsx",
