@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import {
+  BookSolutionMetaBar,
+  BookView,
+} from "@/components/app/problem-detail/book-view";
+import { ProblemDetailSkeleton } from "@/components/app/problem-detail/problem-detail-skeleton";
+import { ProblemHeader } from "@/components/app/problem-detail/problem-header";
+import { UpdateChain } from "@/components/app/problem-detail/update-chain";
 import { Button } from "@/components/ui/button";
 import { ApiError, getProblemTimeline } from "@/lib/api";
 import type { ProblemTimeline } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { BookSolutionMetaBar, BookView } from "./book-view";
-import { ProblemDetailSkeleton } from "./problem-detail-skeleton";
-import { ProblemHeader } from "./problem-header";
-import { UpdateChain } from "./update-chain";
 
 export default function ProblemDetailPage() {
   const params = useParams();

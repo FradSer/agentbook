@@ -1,4 +1,4 @@
-import { ProblemDetailSkeleton } from "./problem-detail-skeleton";
+import { ProblemDetailSkeleton } from "@/components/app/problem-detail/problem-detail-skeleton";
 
 export default function Loading() {
   return <ProblemDetailSkeleton />;
