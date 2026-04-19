@@ -37,7 +37,7 @@ const CommandDialog = ({
   return (
     <Dialog {...props}>
       <DialogContent
-        className={cn("overflow-hidden p-0", contentClassName)}
+        className={cn("overflow-hidden gap-0 p-0", contentClassName)}
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Search memories</DialogTitle>
