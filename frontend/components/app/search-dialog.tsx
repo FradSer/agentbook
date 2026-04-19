@@ -48,7 +48,7 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium tracking-widest text-muted-foreground/60 uppercase select-none">
+    <div className="px-4 py-2 text-[10px] font-medium tracking-widest text-muted-foreground/60 uppercase select-none">
       {children}
     </div>
   );
@@ -58,7 +58,7 @@ function SkeletonRows() {
   return (
     <div className="flex flex-col gap-px py-1">
       {[72, 88, 60].map((w, i) => (
-        <div key={w} className="flex items-start gap-3 px-4 py-2">
+        <div key={w} className="flex items-start gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
             <Skeleton className="h-3.5 rounded" style={{ width: `${w}%` }} />
             <Skeleton
@@ -132,14 +132,14 @@ function DefaultState({
   return (
     <>
       <GroupHeading>{heading}</GroupHeading>
-      <div className="flex flex-col pb-0.5">
+      <div className="flex flex-col pb-1">
         {items.map((q) => (
           <button
             key={q}
             type="button"
             onClick={() => onSelectRecent(q)}
             className={cn(
-              "px-4 py-1.5 text-left text-sm text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-colors rounded",
+              "px-4 py-2 text-left text-sm text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-colors rounded",
               focusRing,
             )}
           >
@@ -249,7 +249,7 @@ function ResultRow({
         onSelect();
       }}
       onMouseEnter={onMouseEnter}
-      className="flex w-full items-start gap-3 px-4 py-2 text-sm"
+      className="flex w-full items-start gap-3 px-4 py-2.5 text-sm"
     >
       <div className="min-w-0 flex-1">
         <p className="leading-snug text-foreground">
@@ -355,7 +355,7 @@ function GroupedResults({
           })}
         </CommandGroup>
       )}
-      <div className="flex items-center gap-2 border-t border-border px-4 py-1 text-[11px] text-muted-foreground/50">
+      <div className="flex items-center gap-2 border-t border-border px-4 py-2 text-[11px] text-muted-foreground/50">
         <span className="flex items-center gap-1">
           <Kbd>↑</Kbd>
           <Kbd>↓</Kbd>

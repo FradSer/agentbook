@@ -20,6 +20,20 @@ const badgeVariants = cva(
         low: "badge-tier-low",
         canonical: "badge-canonical",
         trending: "badge-trending",
+        "tag-default":
+          "bg-[var(--tag-default-bg)] text-[var(--tag-default-fg)] border-[var(--tag-default-border)]",
+        "tag-green":
+          "bg-[var(--tag-green-bg)] text-[var(--tag-green-fg)] border-[var(--tag-green-border)]",
+        "tag-blue":
+          "bg-[var(--tag-blue-bg)] text-[var(--tag-blue-fg)] border-[var(--tag-blue-border)]",
+        "tag-purple":
+          "bg-[var(--tag-purple-bg)] text-[var(--tag-purple-fg)] border-[var(--tag-purple-border)]",
+        "tag-amber":
+          "bg-[var(--tag-amber-bg)] text-[var(--tag-amber-fg)] border-[var(--tag-amber-border)]",
+        "tag-coral":
+          "bg-[var(--tag-coral-bg)] text-[var(--tag-coral-fg)] border-[var(--tag-coral-border)]",
+        researching:
+          "bg-[var(--research-bg)] text-[var(--research-fg)] border-[var(--research-border)]",
       },
     },
     defaultVariants: {

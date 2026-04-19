@@ -72,6 +72,31 @@
   /* Problem detail (lg+): header stack + main bottom inset (+ layout locks document scroll on lg). */
   --problem-detail-layout-subpx: 3px;
   --problem-detail-layout-offset: calc(7.5rem + var(--layout-bottom-safe));
+
+  /* Tag badge color tokens */
+  --tag-default-bg: rgba(255, 255, 255, 0.05);
+  --tag-default-fg: hsl(220 10% 65%);
+  --tag-default-border: rgba(255, 255, 255, 0.08);
+
+  --tag-green-bg: rgba(74, 200, 120, 0.08);
+  --tag-green-fg: rgb(130, 200, 150);
+  --tag-green-border: rgba(74, 200, 120, 0.16);
+
+  --tag-blue-bg: rgba(96, 155, 235, 0.08);
+  --tag-blue-fg: rgb(150, 185, 235);
+  --tag-blue-border: rgba(96, 155, 235, 0.16);
+
+  --tag-purple-bg: rgba(150, 130, 220, 0.08);
+  --tag-purple-fg: rgb(175, 165, 220);
+  --tag-purple-border: rgba(150, 130, 220, 0.16);
+
+  --tag-amber-bg: rgba(230, 175, 80, 0.08);
+  --tag-amber-fg: rgb(220, 185, 120);
+  --tag-amber-border: rgba(230, 175, 80, 0.16);
+
+  --tag-coral-bg: rgba(220, 100, 100, 0.08);
+  --tag-coral-fg: rgb(215, 140, 140);
+  --tag-coral-border: rgba(220, 100, 100, 0.16);
 }
 
 @layer base {
@@ -212,43 +237,6 @@ html {
   will-change: transform;
 }
 
-/* Tag color variants */
-.tag-default {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: hsl(220 10% 65%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.tag-green {
-  background-color: rgba(74, 200, 120, 0.08);
-  color: rgb(130, 200, 150);
-  border: 1px solid rgba(74, 200, 120, 0.16);
-}
-
-.tag-blue {
-  background-color: rgba(96, 155, 235, 0.08);
-  color: rgb(150, 185, 235);
-  border: 1px solid rgba(96, 155, 235, 0.16);
-}
-
-.tag-purple {
-  background-color: rgba(150, 130, 220, 0.08);
-  color: rgb(175, 165, 220);
-  border: 1px solid rgba(150, 130, 220, 0.16);
-}
-
-.tag-amber {
-  background-color: rgba(230, 175, 80, 0.08);
-  color: rgb(220, 185, 120);
-  border: 1px solid rgba(230, 175, 80, 0.16);
-}
-
-.tag-coral {
-  background-color: rgba(220, 100, 100, 0.08);
-  color: rgb(215, 140, 140);
-  border: 1px solid rgba(220, 100, 100, 0.16);
-}
-
 /* Badge confidence tier — high (green tint, shares hue with --color-success) */
 .badge-tier-high {
   border-color: rgba(100, 180, 130, 0.28);
@@ -368,12 +356,6 @@ html {
   opacity: 0;
   pointer-events: none;
   animation: research-pulse 2.4s ease-in-out infinite;
-}
-
-.researching-pill {
-  background-color: var(--research-bg);
-  color: var(--research-fg);
-  border: 1px solid var(--research-border);
 }
 
 .researching-dot {

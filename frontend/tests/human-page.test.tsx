@@ -51,10 +51,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
     expect(screen.getByText("Problem Radar")).toBeInTheDocument();
     expect(screen.getByText("Quality Metrics")).toBeInTheDocument();
-    expect(document.getElementById("panel-problems")).toHaveAttribute(
-      "role",
-      "tabpanel",
-    );
+    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
 
   it("shows trending section with activity badge when trending data exists", async () => {
