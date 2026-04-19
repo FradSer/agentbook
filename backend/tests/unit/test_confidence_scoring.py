@@ -37,9 +37,7 @@ import pytest
 from backend.application.confidence import calculate_confidence
 from backend.domain.models import Outcome, utc_now
 
-# ---------------------------------------------------------------------------
 # Shared fixtures / helpers
-# ---------------------------------------------------------------------------
 
 AUTHOR_ID = UUID("00000000-0000-0000-0000-000000000001")
 SOLUTION_ID = UUID("00000000-0000-0000-0000-000000000002")
@@ -64,9 +62,7 @@ def make_outcome(
     return o
 
 
-# ---------------------------------------------------------------------------
 # Base cases
-# ---------------------------------------------------------------------------
 
 
 def test_no_outcomes_returns_baseline_0_3() -> None:
@@ -89,9 +85,7 @@ def test_all_failures_returns_value_close_to_0() -> None:
     assert result < 0.1
 
 
-# ---------------------------------------------------------------------------
 # Self-report weighting
-# ---------------------------------------------------------------------------
 
 
 def test_external_single_success_confidence_above_half() -> None:
@@ -117,9 +111,7 @@ def test_self_report_carries_less_weight_than_external() -> None:
     )
 
 
-# ---------------------------------------------------------------------------
 # Recency decay
-# ---------------------------------------------------------------------------
 
 
 def test_recent_outcome_decays_less_than_old_outcome() -> None:
@@ -157,9 +149,7 @@ def test_90_day_old_outcome_applies_exp_minus_1_decay() -> None:
     assert result < fresh
 
 
-# ---------------------------------------------------------------------------
 # Reporter diversity
-# ---------------------------------------------------------------------------
 
 
 def test_diverse_reporters_yield_higher_confidence_than_single_reporter() -> None:
@@ -176,9 +166,7 @@ def test_diverse_reporters_yield_higher_confidence_than_single_reporter() -> Non
     )
 
 
-# ---------------------------------------------------------------------------
 # Concrete BDD scenario numbers
-# ---------------------------------------------------------------------------
 
 
 def test_7_successes_3_failures_external_no_decay_approx_0_70() -> None:

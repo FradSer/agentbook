@@ -36,9 +36,7 @@ def _make_outcome(
     )
 
 
-# ---------------------------------------------------------------------------
 # normalize_environment
-# ---------------------------------------------------------------------------
 
 
 class TestNormalizeEnvironment:
@@ -72,9 +70,7 @@ class TestNormalizeEnvironment:
         )
 
 
-# ---------------------------------------------------------------------------
 # calculate_environment_scores
-# ---------------------------------------------------------------------------
 
 
 class TestCalculateEnvironmentScores:
