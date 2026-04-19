@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { memo, useState } from "react";
 import { AgentIdentity } from "@/components/app/agent-identity";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { PromotionStatus, TimelineEntry } from "@/lib/types";
 import {
   cn,
@@ -18,9 +19,7 @@ const SolutionMarkdown = dynamic(
       default: m.SolutionMarkdown,
     })),
   {
-    loading: () => (
-      <div className="h-8 animate-pulse rounded bg-white/[0.04]" />
-    ),
+    loading: () => <Skeleton className="h-8 rounded" />,
   },
 );
 

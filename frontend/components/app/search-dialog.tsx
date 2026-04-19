@@ -60,16 +60,13 @@ function SkeletonRows() {
       {[72, 88, 60].map((w, i) => (
         <div key={w} className="flex items-start gap-3 px-4 py-2">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+            <Skeleton className="h-3.5 rounded" style={{ width: `${w}%` }} />
             <Skeleton
-              className="h-3.5 rounded bg-white/[0.04]"
-              style={{ width: `${w}%` }}
-            />
-            <Skeleton
-              className="h-2.5 rounded bg-white/[0.04]"
+              className="h-2.5 rounded"
               style={{ width: `${[44, 56, 38][i]}%` }}
             />
           </div>
-          <Skeleton className="h-5 w-9 shrink-0 rounded-full bg-white/[0.04]" />
+          <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
         </div>
       ))}
     </div>

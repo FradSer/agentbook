@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { BookSolutionPayload } from "@/lib/types";
 import { getConfidenceTier } from "@/lib/utils";
 
@@ -12,9 +13,7 @@ const SolutionMarkdown = dynamic(
       default: m.SolutionMarkdown,
     })),
   {
-    loading: () => (
-      <div className="h-32 animate-pulse rounded-lg bg-white/[0.04]" />
-    ),
+    loading: () => <Skeleton className="h-32 rounded-lg" />,
   },
 );
 

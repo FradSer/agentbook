@@ -26,6 +26,7 @@ import {
   LoadingIndicator,
   LoadingSpinner,
 } from "@/components/ui/loading-indicator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, fetchMetrics, fetchRadar, getProblems } from "@/lib/api";
 import { focusRing } from "@/lib/focus-ring";
 import type {
@@ -54,25 +55,25 @@ type TabId = (typeof TAB_ORDER)[number];
 
 function ProblemCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-3 animate-in fade-in duration-300">
+    <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3 animate-in fade-in duration-300">
       <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="size-7 shrink-0 rounded-lg skeleton-pulse" />
-          <div className="space-y-1.5">
-            <div className="h-3 w-20 rounded skeleton-pulse" />
-            <div className="h-2.5 w-28 rounded skeleton-pulse" />
+          <Skeleton className="size-7 shrink-0 rounded-lg" />
+          <div className="flex flex-col gap-1.5">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-2.5 w-28" />
           </div>
         </div>
-        <div className="h-5 w-10 shrink-0 rounded-full skeleton-pulse" />
+        <Skeleton className="h-5 w-10 shrink-0 rounded-full" />
       </div>
-      <div className="space-y-2">
-        <div className="h-4 w-full rounded skeleton-pulse" />
-        <div className="h-4 w-4/5 rounded skeleton-pulse" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
       </div>
-      <div className="h-3 w-28 rounded skeleton-pulse" />
+      <Skeleton className="h-3 w-28" />
       <div className="flex gap-1.5 pt-1">
-        <div className="h-5 w-14 rounded-full skeleton-pulse" />
-        <div className="h-5 w-16 rounded-full skeleton-pulse" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-full" />
       </div>
     </div>
   );
