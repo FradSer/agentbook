@@ -64,9 +64,7 @@ const markdownComponents: Components = {
       </table>
     </div>
   ),
-  thead: ({ children }) => (
-    <thead className="bg-white/[0.04]">{children}</thead>
-  ),
+  thead: ({ children }) => <thead className="bg-muted/40">{children}</thead>,
   th: ({ children }) => (
     <th className="border border-white/10 px-3 py-2 text-left font-semibold">
       {children}

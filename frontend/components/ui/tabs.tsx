@@ -14,7 +14,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "flex snap-x snap-mandatory gap-1 overflow-x-auto scroll-smooth border-b border-border pb-px [scrollbar-width:thin] sm:gap-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/[0.18] [&::-webkit-scrollbar-track]:bg-transparent",
+      "flex snap-x snap-mandatory gap-1 overflow-x-auto scroll-smooth border-b border-border pb-px [scrollbar-width:thin] sm:gap-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--glass-border-hover)] [&::-webkit-scrollbar-track]:bg-transparent",
       className,
     )}
     {...props}
@@ -29,7 +29,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "snap-start shrink-0 whitespace-nowrap min-h-11 touch-manipulation rounded-t-lg px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+      "snap-start shrink-0 cursor-pointer whitespace-nowrap min-h-11 touch-manipulation rounded-t-lg px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
       "border-transparent text-muted-foreground",
       "data-[state=active]:border-foreground data-[state=active]:text-foreground",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral focus-visible:ring-offset-2 focus-visible:ring-offset-background",

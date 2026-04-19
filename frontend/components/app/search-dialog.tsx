@@ -40,7 +40,7 @@ const tierLabel: Record<"high" | "med" | "low", string> = {
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded border border-border bg-white/[0.06] px-1 py-px font-mono text-[10px] leading-tight text-muted-foreground/70">
+    <kbd className="rounded border border-border bg-[var(--glass-bg-hover)] px-1 py-px font-mono text-[10px] leading-tight text-muted-foreground/70">
       {children}
     </kbd>
   );
@@ -98,7 +98,7 @@ function EmptyState({
             type="button"
             onClick={() => onSelectExample(q)}
             className={cn(
-              "rounded px-2 py-0.5 text-[11px] text-coral-light border border-border bg-transparent hover:bg-white/[0.04] transition-colors",
+              "cursor-pointer rounded px-2 py-0.5 text-[11px] text-coral-light border border-border bg-transparent hover:bg-[var(--glass-bg-hover)] transition-colors",
               focusRing,
             )}
           >
@@ -139,7 +139,7 @@ function DefaultState({
             type="button"
             onClick={() => onSelectRecent(q)}
             className={cn(
-              "px-4 py-2 text-left text-sm text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-colors rounded",
+              "cursor-pointer px-4 py-2 text-left text-sm text-muted-foreground hover:bg-[var(--glass-bg-hover)] hover:text-foreground transition-colors rounded",
               focusRing,
             )}
           >
@@ -249,7 +249,7 @@ function ResultRow({
         onSelect();
       }}
       onMouseEnter={onMouseEnter}
-      className="flex w-full items-start gap-3 px-4 py-2.5 text-sm"
+      className="flex w-full cursor-pointer items-start gap-3 rounded-sm px-4 py-2.5 text-sm transition-colors hover:bg-secondary"
     >
       <div className="min-w-0 flex-1">
         <p className="leading-snug text-foreground">
@@ -317,7 +317,7 @@ function GroupedResults({
         key={result.problem_id}
         value={result.problem_id}
         onSelect={() => onSelect(result)}
-        className="p-0 data-[selected=true]:bg-secondary data-[selected=true]:text-foreground"
+        className="p-0 cursor-pointer data-[selected=true]:bg-secondary data-[selected=true]:text-foreground"
       >
         <ResultRow
           id={`${listboxId}-option-${gi}`}
@@ -541,7 +541,7 @@ export function SearchDialog({
         contentClassName="max-w-xl"
       >
         {/* Custom input — keeps IME, debounce, ARIA combobox intact */}
-        <div className="flex items-center border-b border-border px-4">
+        <div className="flex cursor-text items-center border-b border-border px-4">
           <input
             ref={inputRef}
             type="search"
@@ -574,7 +574,7 @@ export function SearchDialog({
               aria-label="Clear search"
               onClick={() => setValue("")}
               className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground",
+                "flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground",
                 focusRing,
               )}
             >

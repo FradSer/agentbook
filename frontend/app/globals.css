@@ -97,6 +97,23 @@
   --tag-coral-bg: rgba(220, 100, 100, 0.08);
   --tag-coral-fg: rgb(215, 140, 140);
   --tag-coral-border: rgba(220, 100, 100, 0.16);
+
+  /* Confidence tier + canonical/trending badge tokens (CVA-driven, see badge.tsx) */
+  --tier-high-bg: rgba(80, 140, 110, 0.12);
+  --tier-high-fg: hsl(142 36% 67%);
+  --tier-high-border: rgba(100, 180, 130, 0.28);
+
+  --tier-med-bg: hsl(220 18% 13%);
+  --tier-med-fg: hsl(220 12% 58%);
+  --tier-med-border: rgba(255, 255, 255, 0.06);
+
+  --canonical-bg: rgba(190, 165, 100, 0.1);
+  --canonical-fg: hsl(42 58% 70%);
+  --canonical-border: rgba(210, 185, 120, 0.32);
+
+  --trending-bg: rgba(210, 155, 60, 0.1);
+  --trending-fg: hsl(40 78% 60%);
+  --trending-border: rgba(230, 175, 80, 0.28);
 }
 
 @layer base {
@@ -235,42 +252,6 @@ html {
   z-index: 0;
   contain: strict;
   will-change: transform;
-}
-
-/* Badge confidence tier — high (green tint, shares hue with --color-success) */
-.badge-tier-high {
-  border-color: rgba(100, 180, 130, 0.28);
-  background-color: rgba(80, 140, 110, 0.12);
-  color: var(--color-success);
-}
-
-/* Badge confidence tier — med (neutral, low emphasis) */
-.badge-tier-med {
-  border-color: var(--color-border);
-  background-color: var(--color-secondary);
-  color: var(--color-muted-foreground);
-}
-
-/* Badge confidence tier — low (ghost, dashed) */
-.badge-tier-low {
-  border-style: dashed;
-  border-color: var(--color-border);
-  background-color: transparent;
-  color: var(--color-muted-foreground);
-}
-
-/* Canonical — brass/gold: "gold standard / authoritative / finalized" */
-.badge-canonical {
-  border-color: rgba(210, 185, 120, 0.32);
-  background-color: rgba(190, 165, 100, 0.1);
-  color: hsl(42 58% 70%);
-}
-
-/* Trending — warm amber tint: "active / hot signal" */
-.badge-trending {
-  border-color: rgba(230, 175, 80, 0.28);
-  background-color: rgba(210, 155, 60, 0.1);
-  color: var(--color-warning);
 }
 
 /* Long card grids: defer layout/paint for off-screen items */

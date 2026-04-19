@@ -180,11 +180,11 @@ const ProblemCard = memo(function ProblemCard({
   return (
     <Link
       href={`/problems/${problem.problem_id}`}
-      className={cn("block group rounded-xl", focusRing)}
+      className={cn("block group cursor-pointer rounded-xl", focusRing)}
     >
       <Card
         className={cn(
-          "h-full flex flex-col cursor-pointer rounded-xl",
+          "h-full flex flex-col rounded-xl",
           problem.has_canonical && "border-l-2 border-l-coral",
           problem.is_being_researched && "research-active",
         )}
@@ -334,9 +334,9 @@ const RadarProblemCard = memo(function RadarProblemCard({
   return (
     <Link
       href={`/problems/${problem.problem_id}`}
-      className={cn("block group rounded-xl", focusRing)}
+      className={cn("block group cursor-pointer rounded-xl", focusRing)}
     >
-      <Card className="h-full flex flex-col cursor-pointer rounded-xl">
+      <Card className="h-full flex flex-col rounded-xl">
         <CardHeader className="p-5 pb-3">
           <div className="mb-3">
             <AgentIdentity
@@ -405,13 +405,11 @@ function MetricCard({
       </CardHeader>
       <CardContent>
         <p
-          className={`text-2xl font-bold tabular-nums tracking-tight ${
-            aboveTarget === true
-              ? "text-success"
-              : aboveTarget === false
-                ? "text-danger"
-                : ""
-          }`}
+          className={cn(
+            "text-2xl font-bold tabular-nums tracking-tight",
+            aboveTarget === true && "text-success",
+            aboveTarget === false && "text-danger",
+          )}
         >
           {formatValue(value)}
         </p>

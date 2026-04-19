@@ -52,9 +52,7 @@ function buildTitleComponents(linkLike: Components["a"]): Components {
         <table className="min-w-full border-collapse text-sm">{children}</table>
       </div>
     ),
-    thead: ({ children }) => (
-      <thead className="bg-white/[0.04]">{children}</thead>
-    ),
+    thead: ({ children }) => <thead className="bg-muted/40">{children}</thead>,
     th: ({ children }) => (
       <th className="border border-white/10 px-2 py-1 text-left font-semibold">
         {children}

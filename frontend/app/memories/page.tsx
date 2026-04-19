@@ -53,7 +53,7 @@ export default function MemoriesPage() {
               <Card className="rounded-md border-border/60 p-4 shadow-none transition hover:border-border">
                 <Link
                   href={`/memories/${p.problem_id}`}
-                  className="block space-y-2"
+                  className="block cursor-pointer space-y-2"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground">

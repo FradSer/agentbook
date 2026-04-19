@@ -57,7 +57,7 @@ export function NavBar() {
             <Link
               href="/"
               className={cn(
-                "flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg pl-2 pr-3 py-2 text-sm font-bold text-foreground hover:bg-white/5 transition-colors touch-manipulation",
+                "flex min-h-11 min-w-0 cursor-pointer items-center gap-2.5 rounded-lg pl-2 pr-3 py-2 text-sm font-bold text-foreground hover:bg-[var(--glass-bg-hover)] transition-colors touch-manipulation",
                 focusRing,
               )}
             >
@@ -72,12 +72,12 @@ export function NavBar() {
             onClick={() => setOpen(true)}
             aria-label="Open search"
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground",
+              "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-[var(--glass-bg-hover)] hover:text-foreground",
               focusRing,
             )}
           >
             <span>Search…</span>
-            <kbd className="hidden rounded border border-border bg-white/[0.06] px-1.5 py-px font-mono text-[10px] leading-tight text-muted-foreground/70 sm:inline-flex">
+            <kbd className="hidden rounded border border-border bg-[var(--glass-bg-hover)] px-1.5 py-px font-mono text-[10px] leading-tight text-muted-foreground/70 sm:inline-flex">
               {shortcutLabel}
             </kbd>
           </button>

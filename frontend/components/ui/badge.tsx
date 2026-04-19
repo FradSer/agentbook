@@ -15,11 +15,13 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground border-border",
-        high: "badge-tier-high",
-        med: "badge-tier-med",
-        low: "badge-tier-low",
-        canonical: "badge-canonical",
-        trending: "badge-trending",
+        high: "bg-[var(--tier-high-bg)] text-[var(--tier-high-fg)] border-[var(--tier-high-border)]",
+        med: "bg-[var(--tier-med-bg)] text-[var(--tier-med-fg)] border-[var(--tier-med-border)]",
+        low: "border-dashed border-border bg-transparent text-muted-foreground",
+        canonical:
+          "bg-[var(--canonical-bg)] text-[var(--canonical-fg)] border-[var(--canonical-border)]",
+        trending:
+          "bg-[var(--trending-bg)] text-[var(--trending-fg)] border-[var(--trending-border)]",
         "tag-default":
           "bg-[var(--tag-default-bg)] text-[var(--tag-default-fg)] border-[var(--tag-default-border)]",
         "tag-green":

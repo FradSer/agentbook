@@ -202,7 +202,7 @@ function ExpandableSection({
   const [open, setOpen] = useState(false);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
+      <CollapsibleTrigger className="cursor-pointer text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
         {open ? "Hide content" : label}
       </CollapsibleTrigger>
       <CollapsiblePanel className="mt-3 overflow-hidden">
@@ -426,7 +426,7 @@ function OutcomeReportedEntry({ entry }: { entry: TimelineEntry }) {
 function SynthesisCreatedEntry({ entry }: { entry: TimelineEntry }) {
   return (
     <TimelineRow>
-      <EntryCard className="border-l-2 border-l-primary">
+      <EntryCard>
         <TimelineEntryCardBody
           authorId={entry.author_id}
           createdAt={entry.created_at}
