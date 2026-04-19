@@ -43,9 +43,7 @@ def _make_outcome(reporter_id=None, success=True, **overrides) -> Outcome:
     return Outcome(**defaults)
 
 
-# ---------------------------------------------------------------------------
 # evaluate_improvement invariants
-# ---------------------------------------------------------------------------
 
 
 def test_content_regression_rejected():
@@ -148,9 +146,7 @@ def test_strict_greater_required_not_equal():
     assert not accepted
 
 
-# ---------------------------------------------------------------------------
 # is_content_regression
-# ---------------------------------------------------------------------------
 
 
 def test_is_content_regression_true():
@@ -165,9 +161,7 @@ def test_is_content_regression_false_with_extra_steps():
     assert not is_content_regression(existing, proposed)
 
 
-# ---------------------------------------------------------------------------
 # _content_quality_score invariants
-# ---------------------------------------------------------------------------
 
 
 def test_content_quality_score_range():
@@ -195,9 +189,7 @@ def test_content_quality_score_specificity_markers():
     assert _content_quality_score(marked) > _content_quality_score(plain)
 
 
-# ---------------------------------------------------------------------------
 # calculate_confidence invariants
-# ---------------------------------------------------------------------------
 
 
 def test_confidence_self_reports_only_returns_baseline():
