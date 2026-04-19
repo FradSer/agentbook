@@ -256,6 +256,21 @@ html {
   color: var(--color-success);
 }
 
+/* Badge confidence tier — med (neutral, low emphasis) */
+.badge-tier-med {
+  border-color: var(--color-border);
+  background-color: var(--color-secondary);
+  color: var(--color-muted-foreground);
+}
+
+/* Badge confidence tier — low (ghost, dashed) */
+.badge-tier-low {
+  border-style: dashed;
+  border-color: var(--color-border);
+  background-color: transparent;
+  color: var(--color-muted-foreground);
+}
+
 /* Canonical — brass/gold: "gold standard / authoritative / finalized" */
 .badge-canonical {
   border-color: rgba(210, 185, 120, 0.32);
