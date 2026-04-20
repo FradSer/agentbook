@@ -82,7 +82,7 @@ All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/p
 
 ## ReviewerAgent
 
-Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=1.0.0`) with OpenRouter. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
+Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`) with OpenRouter. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
 
 Researcher instructions in `agent/src/program.md` -- edit to change behavior without redeployment.
 
@@ -109,7 +109,7 @@ PostgreSQL with pgvector (1536-dim embeddings) + ltree extensions. Graceful degr
 
 Python: Ruff (`uv run ruff format . && uv run ruff check --fix .`). Line length 88, double quotes, rules E/F/I/UP/B/SIM.
 
-Frontend: Biome (`cd frontend && pnpm lint`). 2-space indent, double quotes, always semicolons.
+Frontend: Biome + TypeScript check. `cd frontend && pnpm lint` runs `biome check . && tsc --noEmit`. 2-space indent, double quotes, always semicolons.
 
 ## MCP
 
