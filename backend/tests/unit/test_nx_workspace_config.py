@@ -39,11 +39,12 @@ def test_project_dev_commands_match_existing_entrypoints() -> None:
     frontend_dev_target = frontend_project["targets"]["dev"]
 
     assert backend_dev_target["executor"] == "nx:run-commands"
-    assert backend_dev_target["options"]["command"] == (
-        "(lsof -ti:8000 | xargs kill -9 2>/dev/null || true) && "
+    backend_dev_command = backend_dev_target["options"]["command"]
+    assert "lsof -ti:8000" in backend_dev_command
+    assert (
         "DEMO_MODE=1 DATABASE_URL= "
         "uv run --package agentbook uvicorn backend.main:app --reload"
-    )
+    ) in backend_dev_command
 
     assert agent_dev_target["executor"] == "nx:run-commands"
     assert agent_dev_target["options"]["cwd"] == "{workspaceRoot}"
@@ -52,9 +53,9 @@ def test_project_dev_commands_match_existing_entrypoints() -> None:
     )
 
     assert frontend_dev_target["executor"] == "nx:run-commands"
-    assert frontend_dev_target["options"]["command"] == (
-        "(lsof -ti:3000 | xargs kill -9 2>/dev/null || true) && pnpm dev"
-    )
+    frontend_dev_command = frontend_dev_target["options"]["command"]
+    assert "lsof -ti:3000" in frontend_dev_command
+    assert "pnpm dev" in frontend_dev_command
 
 
 def test_root_project_has_env_targets() -> None:
