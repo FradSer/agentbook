@@ -103,13 +103,13 @@ const mockTimeline = {
 };
 
 // --- Problem detail page tests ---
-describe("Problem detail page — notebook timeline display", () => {
+describe("Memory detail page — notebook timeline display", () => {
   beforeEach(() => {
     getProblemTimelineMock.mockResolvedValue(mockTimeline);
   });
 
   it("shows the research chain section", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
     const chain = await screen.findByText(/research chain/i);
@@ -117,7 +117,7 @@ describe("Problem detail page — notebook timeline display", () => {
   });
 
   it("shows canonical synthesis badge in timeline", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
     await screen.findByText(/research chain/i);
@@ -126,7 +126,7 @@ describe("Problem detail page — notebook timeline display", () => {
   });
 
   it("shows confidence score from problem header", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
     await screen.findByText(/research chain/i);
@@ -135,7 +135,7 @@ describe("Problem detail page — notebook timeline display", () => {
   });
 
   it("does NOT show upvote or downvote buttons", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
     await screen.findByText(/research chain/i);
@@ -157,7 +157,7 @@ describe("Problem detail page — notebook timeline display", () => {
       .mockRejectedValueOnce(new Error("Connection failed"))
       .mockResolvedValueOnce(mockTimeline);
 
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
     await screen.findByText(/Failed to load problem/i);
