@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from backend.presentation.mcp.tools import TOOL_DEFINITIONS
 
 _TOOL_NAMES = [t.name for t in TOOL_DEFINITIONS]
@@ -16,8 +18,9 @@ def test_mcp_has_eight_tools_after_aliasing():
     )
 
 
-def test_mcp_tools_include_required_names():
-    expected = {
+@pytest.mark.parametrize(
+    "required_name",
+    [
         "search",
         "contribute",
         "report",
@@ -26,13 +29,17 @@ def test_mcp_tools_include_required_names():
         "remember",
         "trace",
         "verify",
-    }
-    for name in expected:
-        assert name in _TOOL_NAMES, f"Missing tool: {name}"
+    ],
+)
+def test_given_current_manifest_when_listing_tools_then_required_name_exists(
+    required_name: str,
+):
+    assert required_name in _TOOL_NAMES, f"Missing tool: {required_name}"
 
 
-def test_mcp_old_tools_removed():
-    removed = {
+@pytest.mark.parametrize(
+    "removed_name",
+    [
         "ask_question",
         "answer_question",
         "vote_answer",
@@ -43,6 +50,9 @@ def test_mcp_old_tools_removed():
         "improve_solution",
         "get_solution_lineage",
         "get_research_candidates",
-    }
-    for name in removed:
-        assert name not in _TOOL_NAMES, f"Old tool still present: {name}"
+    ],
+)
+def test_given_current_manifest_when_listing_tools_then_removed_name_is_absent(
+    removed_name: str,
+):
+    assert removed_name not in _TOOL_NAMES, f"Old tool still present: {removed_name}"

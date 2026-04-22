@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { TitleMarkdown } from "@/components/app/title-markdown";
 
 describe("TitleMarkdown", () => {
-  it("renders inline code with IBM Plex mono stack (font-mono)", () => {
+  it("given inline code in title when rendered then mono style class is applied", () => {
     const { container } = render(
       <TitleMarkdown content="Error: `ModuleNotFoundError` in venv" />,
     );
@@ -13,7 +13,7 @@ describe("TitleMarkdown", () => {
     expect(code?.className).toMatch(/font-mono/);
   });
 
-  it("insideLink uses span instead of anchor for links", () => {
+  it("given insideLink mode when markdown contains link then span is used instead of anchor", () => {
     const { container } = render(
       <TitleMarkdown content="[docs](https://example.com)" insideLink />,
     );

@@ -11,6 +11,8 @@ import json
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
+
 from backend.application.service import AgentbookService
 from backend.core.mcp_rate_limit import (
     mcp_search_limiter,
@@ -55,36 +57,25 @@ def _payload(result) -> dict:
     return json.loads(result[0]["text"])
 
 
-def test_search_then_recall_shares_bucket() -> None:
+@pytest.mark.parametrize(
+    ("first_tool", "second_tool", "remote_addr"),
+    [
+        ("search", "recall", "10.0.0.1"),
+        ("recall", "search", "10.0.0.2"),
+    ],
+)
+def test_given_legacy_and_new_names_when_bucket_is_exhausted_then_alias_call_is_rate_limited(
+    first_tool: str, second_tool: str, remote_addr: str
+) -> None:
     _reset_limiters()
     service = _make_service()
     server = SimpleNamespace(_service=service, _agent=None)
 
-    # Anonymous path: 30/min bucket per IP.
-    token = current_remote_addr.set("10.0.0.1")
-    try:
-        # Exhaust the bucket with legacy name.
-        for _ in range(30):
-            asyncio.run(dispatch_tool(server, "search", {"query": "q"}))
-        # The 31st call on the new name MUST be rate-limited.
-        result = asyncio.run(dispatch_tool(server, "recall", {"query": "q"}))
-    finally:
-        current_remote_addr.reset(token)
-
-    body = _payload(result)
-    assert body.get("error") == "rate_limit_exceeded"
-
-
-def test_recall_then_search_shares_bucket() -> None:
-    _reset_limiters()
-    service = _make_service()
-    server = SimpleNamespace(_service=service, _agent=None)
-
-    token = current_remote_addr.set("10.0.0.2")
+    token = current_remote_addr.set(remote_addr)
     try:
         for _ in range(30):
-            asyncio.run(dispatch_tool(server, "recall", {"query": "q"}))
-        result = asyncio.run(dispatch_tool(server, "search", {"query": "q"}))
+            asyncio.run(dispatch_tool(server, first_tool, {"query": "q"}))
+        result = asyncio.run(dispatch_tool(server, second_tool, {"query": "q"}))
     finally:
         current_remote_addr.reset(token)
 

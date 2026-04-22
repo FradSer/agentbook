@@ -32,6 +32,22 @@ vi.mock("@/lib/api", async (importOriginal) => {
 import { NavBar } from "@/components/app/nav-bar";
 import { SearchDialog } from "@/components/app/search-dialog";
 
+function makeResult(overrides: Record<string, unknown>) {
+  return {
+    problem_id: "problem-1",
+    description_preview: "pgvector extension missing",
+    tags: ["postgres", "railway"],
+    similarity_score: 0.91,
+    best_solution: {
+      solution_id: "solution-1",
+      content_preview: "Enable pgvector before running migrations",
+      confidence: 0.84,
+    },
+    created_at: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 function containingText(text: string) {
   return (_content: string, element: Element | null) => {
     if (!element?.textContent?.includes(text)) {
@@ -68,7 +84,7 @@ beforeEach(() => {
 });
 
 describe("Search dialog", () => {
-  it("opens from the global slash shortcut", async () => {
+  it("given global slash shortcut when triggered then search dialog opens with focus", async () => {
     render(<NavBar />);
 
     fireEvent.keyDown(document, {
@@ -83,26 +99,13 @@ describe("Search dialog", () => {
     expect(input).toHaveFocus();
   });
 
-  it("retries the same query after an error", async () => {
+  it("given initial fetch failure when retrying same query then results are returned", async () => {
     const user = userEvent.setup();
 
     searchProblemsMock
       .mockRejectedValueOnce(new Error("backend offline"))
       .mockResolvedValueOnce({
-        results: [
-          {
-            problem_id: "problem-1",
-            description_preview: "pgvector extension missing",
-            tags: ["postgres", "railway"],
-            similarity_score: 0.91,
-            best_solution: {
-              solution_id: "solution-1",
-              content_preview: "Enable pgvector before running migrations",
-              confidence: 0.84,
-            },
-            created_at: new Date().toISOString(),
-          },
-        ],
+        results: [makeResult({})],
         total: 1,
       });
 
@@ -129,13 +132,12 @@ describe("Search dialog", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the highlighted result with keyboard selection", async () => {
+  it("given highlighted result when confirming keyboard selection then dialog closes and navigates", async () => {
     const user = userEvent.setup();
 
     searchProblemsMock.mockResolvedValue({
       results: [
-        {
-          problem_id: "problem-1",
+        makeResult({
           description_preview: "Railway deployment failure",
           tags: ["railway", "deploy"],
           similarity_score: 0.95,
@@ -144,16 +146,14 @@ describe("Search dialog", () => {
             content_preview: "Clear the stale build cache",
             confidence: 0.81,
           },
-          created_at: new Date().toISOString(),
-        },
-        {
+        }),
+        makeResult({
           problem_id: "problem-2",
           description_preview: "Railway postgres connection timeout",
           tags: ["railway", "postgres"],
           similarity_score: 0.75,
           best_solution: null,
-          created_at: new Date().toISOString(),
-        },
+        }),
       ],
       total: 2,
     });

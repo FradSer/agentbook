@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from shared.config import SharedSettings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -17,30 +19,46 @@ def _read_env_keys(path: Path) -> set[str]:
     return keys
 
 
-def test_shared_settings_reads_root_env() -> None:
-    env_file = SharedSettings.model_config.get("env_file")
-    assert env_file == str(PROJECT_ROOT / ".env")
+def _shared_env_file() -> str | None:
+    return SharedSettings.model_config.get("env_file")
 
 
-def test_backend_settings_inherits_root_env() -> None:
+def _backend_env_file() -> str | None:
     from backend.core.config import Settings
 
-    assert Settings.model_config.get("env_file") == str(PROJECT_ROOT / ".env")
+    return Settings.model_config.get("env_file")
 
 
-def test_agent_settings_inherits_root_env() -> None:
+def _agent_env_file() -> str | None:
     from agent.src.config import AgentSettings
 
-    assert AgentSettings.model_config.get("env_file") == str(PROJECT_ROOT / ".env")
+    return AgentSettings.model_config.get("env_file")
 
 
-def test_agent_runtime_modules_do_not_call_sys_path_insert() -> None:
-    for relative_path in ("agent/src/config.py", "agent/src/main.py"):
-        source = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
-        assert "sys.path.insert" not in source
+@pytest.mark.parametrize(
+    "settings_loader",
+    [
+        pytest.param(_shared_env_file, id="shared"),
+        pytest.param(_backend_env_file, id="backend"),
+        pytest.param(_agent_env_file, id="agent"),
+    ],
+)
+def test_given_runtime_settings_when_reading_env_config_then_all_layers_use_project_root_env(
+    settings_loader,
+) -> None:
+    settings_env_file = settings_loader()
+    assert settings_env_file == str(PROJECT_ROOT / ".env")
 
 
-def test_root_env_example_contains_agent_keys() -> None:
+@pytest.mark.parametrize("relative_path", ["agent/src/config.py", "agent/src/main.py"])
+def test_given_agent_runtime_module_when_scanning_source_then_no_sys_path_insert_is_used(
+    relative_path: str,
+) -> None:
+    source = (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+    assert "sys.path.insert" not in source
+
+
+def test_given_root_env_example_when_reading_keys_then_required_agent_keys_exist() -> None:
     env_keys = _read_env_keys(PROJECT_ROOT / ".env.example")
 
     expected_agent_keys = {
@@ -56,5 +74,5 @@ def test_root_env_example_contains_agent_keys() -> None:
     assert expected_agent_keys.issubset(env_keys)
 
 
-def test_agent_env_example_removed() -> None:
+def test_given_repo_layout_when_checking_agent_env_example_then_file_is_removed() -> None:
     assert not (PROJECT_ROOT / "agent/.env.example").exists()

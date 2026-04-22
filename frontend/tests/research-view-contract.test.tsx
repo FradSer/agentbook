@@ -14,22 +14,19 @@ const pagePath = path.resolve(__dirname, "..", "app", "research", "page.tsx");
 describe("/research view", () => {
   const src = readFileSync(pagePath, "utf-8");
 
-  it("reads memory_id from query string", () => {
-    expect(src).toContain("memory_id");
-    expect(src).toMatch(/searchParams\.get\("memory_id"\)/);
+  it.each([
+    "memory_id",
+    "/v1/research-activity?memory_id=",
+    "sandbox_run",
+    "items.map",
+  ])("given research page source when validating contract then fragment %s is present", (fragment) => {
+    expect(src).toContain(fragment);
   });
 
-  it("fetches /v1/research-activity with memory_id", () => {
-    expect(src).toContain("/v1/research-activity?memory_id=");
-  });
-
-  it("renders sandbox_run details conditionally", () => {
-    expect(src).toContain("sandbox_run");
-    expect(src).toMatch(/item\.sandbox_run/);
-  });
-
-  it("shows reverse chronological order via server response ordering", () => {
-    // Page preserves the order returned by /v1/research-activity.
-    expect(src).toContain("items.map");
+  it.each([
+    /searchParams\.get\("memory_id"\)/,
+    /item\.sandbox_run/,
+  ])("given research page source when validating behavior then expression %s matches", (pattern) => {
+    expect(src).toMatch(pattern);
   });
 });

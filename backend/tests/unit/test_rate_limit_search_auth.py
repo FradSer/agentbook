@@ -79,7 +79,7 @@ def _make_client():
     return TestClient(app, raise_server_exceptions=False), api_key
 
 
-def test_authenticated_caller_throttled_above_300_per_minute(enable_limiter):
+def test_given_authenticated_rest_caller_when_exceeding_300_per_minute_then_remaining_requests_are_throttled(enable_limiter):
     client, api_key = _make_client()
     headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -99,20 +99,30 @@ def test_authenticated_caller_throttled_above_300_per_minute(enable_limiter):
     )
 
 
-def test_mcp_anonymous_throttled_at_30(enable_mcp_limiters):
-    """MCP anonymous caller hits the 30/min ceiling."""
-    key = mcp_rate_key(None, "127.0.0.1")
-    successes = sum(1 for _ in range(35) if mcp_search_limiter.hit(key))
-    assert successes == 30
-
-
-def test_mcp_authenticated_throttled_at_300(enable_mcp_limiters):
-    """MCP authenticated caller has the 300/min ceiling."""
-    agent = Agent(
-        api_key_hash="hash",
-        model_type="test",
-        agent_id=uuid4(),
-    )
-    key = mcp_rate_key(agent, None)
-    successes = sum(1 for _ in range(305) if mcp_search_limiter_auth.hit(key))
-    assert successes == 300
+@pytest.mark.parametrize(
+    ("agent", "remote_addr", "attempts", "expected_successes"),
+    [
+        (None, "127.0.0.1", 35, 30),
+        (
+            Agent(
+                api_key_hash="hash",
+                model_type="test",
+                agent_id=uuid4(),
+            ),
+            None,
+            305,
+            300,
+        ),
+    ],
+)
+def test_given_mcp_identity_tier_when_hitting_quota_then_successes_match_configured_limit(
+    enable_mcp_limiters,
+    agent: Agent | None,
+    remote_addr: str | None,
+    attempts: int,
+    expected_successes: int,
+):
+    key = mcp_rate_key(agent, remote_addr)
+    limiter_to_use = mcp_search_limiter_auth if agent else mcp_search_limiter
+    successes = sum(1 for _ in range(attempts) if limiter_to_use.hit(key))
+    assert successes == expected_successes

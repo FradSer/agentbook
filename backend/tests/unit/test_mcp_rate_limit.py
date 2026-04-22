@@ -72,7 +72,7 @@ async def _search_once(server: Server) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_anonymous_mcp_search_throttled_after_30_hits(enable_mcp_limiter):
+async def test_given_anonymous_mcp_caller_when_search_hits_31st_request_then_response_is_rate_limited(enable_mcp_limiter):
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
 
@@ -84,6 +84,7 @@ async def test_anonymous_mcp_search_throttled_after_30_hits(enable_mcp_limiter):
     assert success_count == 30, f"Expected 30 successful calls, got {success_count}"
     assert len(throttled) == 1
     assert "30 requests per minute" in throttled[0]["detail"]
+    assert throttled[0]["error"] == "rate_limit_exceeded"
 
 
 @pytest.mark.asyncio
@@ -107,7 +108,7 @@ async def test_authenticated_caller_has_independent_quota(enable_mcp_limiter):
 
 
 @pytest.mark.asyncio
-async def test_inspect_is_not_throttled_by_search_limiter(enable_mcp_limiter):
+async def test_given_search_bucket_is_exhausted_when_inspecting_then_inspect_is_not_throttled(enable_mcp_limiter):
     """`inspect` is cheaper than `search` — the 30/min bucket must not cover it."""
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
@@ -124,7 +125,7 @@ async def test_inspect_is_not_throttled_by_search_limiter(enable_mcp_limiter):
 
 
 @pytest.mark.asyncio
-async def test_limiter_disabled_by_default_in_test_suite():
+async def test_given_limiter_disabled_by_default_when_searching_then_calls_are_not_throttled():
     """Sanity: the autouse conftest fixture keeps the MCP limiter off by default."""
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
@@ -137,7 +138,7 @@ async def test_limiter_disabled_by_default_in_test_suite():
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_response_is_well_formed(enable_mcp_limiter):
+async def test_given_rate_limited_search_when_dispatch_returns_text_message_then_payload_shape_is_stable(enable_mcp_limiter):
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.99")
 

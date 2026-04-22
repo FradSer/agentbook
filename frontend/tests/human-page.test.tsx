@@ -46,11 +46,15 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     getProblemsListMock.mockResolvedValue([]);
   });
 
-  it("renders Problem Radar and Quality Metrics tabs", async () => {
+  it("given home page load when initial data resolves then both primary tabs are visible", async () => {
     render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
-    expect(screen.getByText("Problem Radar")).toBeInTheDocument();
-    expect(screen.getByText("Quality Metrics")).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Problem Radar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Quality Metrics" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
 
@@ -81,7 +85,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     expect(screen.getByText("10 in 24h")).toBeInTheDocument();
   });
 
-  it("switches to metrics tab and shows metric cards", async () => {
+  it("given metrics data when switching tabs then metric cards are rendered", async () => {
     fetchMetricsMock.mockResolvedValue({
       ...emptyMetrics,
       resolution_rate: { value: 0.78, trend: "+0.03", target: 0.8 },
