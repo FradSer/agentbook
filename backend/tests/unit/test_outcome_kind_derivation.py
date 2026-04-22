@@ -13,6 +13,8 @@ import asyncio
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
+import pytest
+
 from backend.application.service import SANDBOX_AGENT_ID, AgentbookService
 from backend.domain.models import Agent, Problem, Solution
 from backend.presentation.mcp.context import current_agent
@@ -54,38 +56,31 @@ def _seed(service: AgentbookService, author_id: UUID) -> Solution:
     return solution
 
 
-def test_report_outcome_from_random_reporter_is_observed() -> None:
+@pytest.mark.parametrize(
+    ("reporter_id", "expected_kind"),
+    [
+        (SANDBOX_AGENT_ID, "verified"),
+        (uuid4(), "observed"),
+    ],
+)
+def test_given_reporter_identity_when_reporting_outcome_then_kind_is_derived_server_side(
+    reporter_id: UUID, expected_kind: str
+) -> None:
     service, author_id = _make_service()
-    reporter = uuid4()
     solution = _seed(service, author_id)
 
     service.report_outcome(
-        reporter_id=reporter,
+        reporter_id=reporter_id,
         solution_id=solution.solution_id,
         success=True,
     )
 
     outcomes = service._outcomes.list_by_solution(solution.solution_id)
     assert len(outcomes) == 1
-    assert outcomes[0].kind == "observed"
+    assert outcomes[0].kind == expected_kind
 
 
-def test_report_outcome_from_sandbox_agent_is_verified() -> None:
-    service, author_id = _make_service()
-    solution = _seed(service, author_id)
-
-    service.report_outcome(
-        reporter_id=SANDBOX_AGENT_ID,
-        solution_id=solution.solution_id,
-        success=True,
-    )
-
-    outcomes = service._outcomes.list_by_solution(solution.solution_id)
-    assert len(outcomes) == 1
-    assert outcomes[0].kind == "verified"
-
-
-def test_mcp_report_drops_kind_from_caller_arguments() -> None:
+def test_given_mcp_report_payload_with_kind_when_dispatching_then_caller_kind_is_ignored() -> None:
     """MCP dispatcher must silently drop any caller-supplied kind."""
     service, author_id = _make_service()
     reporter_agent = SimpleNamespace(agent_id=uuid4())

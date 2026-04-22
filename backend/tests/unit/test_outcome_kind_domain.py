@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
+import pytest
+
 from backend.domain.models import Outcome
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     _to_outcome_domain,
@@ -36,36 +38,44 @@ def _minimal_row(**overrides: object) -> SimpleNamespace:
     return SimpleNamespace(**defaults)
 
 
-def test_outcome_kind_defaults_to_observed() -> None:
-    o = Outcome(solution_id=uuid4(), reporter_id=uuid4(), success=True)
-    assert o.kind == "observed"
+@pytest.mark.parametrize(
+    ("given_kind", "expected_kind"),
+    [
+        (None, "observed"),
+        ("verified", "verified"),
+    ],
+)
+def test_given_outcome_kind_when_constructing_then_kind_matches_contract(
+    given_kind: str | None, expected_kind: str
+) -> None:
+    kwargs: dict[str, object] = {
+        "solution_id": uuid4(),
+        "reporter_id": uuid4(),
+        "success": True,
+    }
+    if given_kind is not None:
+        kwargs["kind"] = given_kind
+    outcome = Outcome(**kwargs)
+    assert outcome.kind == expected_kind
 
 
-def test_outcome_accepts_kind_verified() -> None:
-    o = Outcome(
-        solution_id=uuid4(),
-        reporter_id=uuid4(),
-        success=True,
-        kind="verified",
-    )
-    assert o.kind == "verified"
-
-
-def test_repository_hydrates_kind_from_row() -> None:
-    row = _minimal_row(kind="verified")
+@pytest.mark.parametrize(
+    ("row", "expected_kind"),
+    [
+        (_minimal_row(kind="verified"), "verified"),
+        (_minimal_row(kind=None), "observed"),
+    ],
+)
+def test_given_row_kind_when_hydrating_then_kind_is_normalized(
+    row: SimpleNamespace, expected_kind: str
+) -> None:
     outcome = _to_outcome_domain(row)
-    assert outcome.kind == "verified"
+    assert outcome.kind == expected_kind
 
 
-def test_repository_hydrates_missing_kind_as_observed() -> None:
+def test_given_legacy_row_without_kind_when_hydrating_then_defaults_to_observed() -> None:
     # Simulate a legacy row loaded before the additive column existed —
     # defensive ``getattr`` must yield "observed" in the migration window.
     row = _minimal_row()  # no `kind` attribute at all
-    outcome = _to_outcome_domain(row)
-    assert outcome.kind == "observed"
-
-
-def test_repository_hydrates_null_kind_as_observed() -> None:
-    row = _minimal_row(kind=None)
     outcome = _to_outcome_domain(row)
     assert outcome.kind == "observed"
