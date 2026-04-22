@@ -17,22 +17,24 @@ def _make_service_mock(problems=None, solutions=None):
     return svc
 
 
-def test_get_reviewer_tools_returns_two_tools():
+def test_given_reviewer_tools_when_listing_then_only_content_approve_reject_tools_exist():
     from agent.src.tools import get_reviewer_tools
 
     svc = _make_service_mock()
     tools = get_reviewer_tools(svc)
     names = [t.name if hasattr(t, "name") else t.__name__ for t in tools]
-    # Must have approve_content and reject_content
     assert "approve_content" in names, f"approve_content not found in {names}"
     assert "reject_content" in names, f"reject_content not found in {names}"
-    assert "approve_thread" not in names, "approve_thread still present"
-    assert "reject_thread" not in names, "reject_thread still present"
-    assert "approve_comment" not in names, "approve_comment still present"
-    assert "reject_comment" not in names, "reject_comment still present"
+    for removed_name in [
+        "approve_thread",
+        "reject_thread",
+        "approve_comment",
+        "reject_comment",
+    ]:
+        assert removed_name not in names, f"{removed_name} still present"
 
 
-def test_approve_content_calls_update_review():
+def test_given_approve_content_tool_when_executed_then_review_status_is_updated():
     from agent.src.tools import get_reviewer_tools
 
     svc = _make_service_mock()
@@ -43,7 +45,6 @@ def test_approve_content_calls_update_review():
         if (t.name if hasattr(t, "name") else t.__name__) == "approve_content"
     )
     content_id = str(uuid4())
-    # Call the tool's underlying function
     fn = approve_fn.entrypoint if hasattr(approve_fn, "entrypoint") else approve_fn
     fn(content_id, "Looks good")
     assert svc.update_review.called
@@ -51,7 +52,7 @@ def test_approve_content_calls_update_review():
     assert args[1].get("status") == "approved" or (args[0] and "approved" in str(args))
 
 
-def test_reject_content_calls_update_review_and_delete():
+def test_given_reject_content_tool_when_executed_then_review_is_updated_and_content_deleted():
     from agent.src.tools import get_reviewer_tools
 
     svc = _make_service_mock()
@@ -68,13 +69,13 @@ def test_reject_content_calls_update_review_and_delete():
     assert svc.delete_content.called
 
 
-def test_rules_module_no_longer_importable():
+def test_given_removed_rules_module_when_importing_then_import_error_is_raised():
     """agent/src/rules.py must be deleted."""
     with pytest.raises(ImportError):
         from agent.src.rules import ContentRules  # noqa: F401
 
 
-def test_reviewer_agent_instructions_mention_binary_detection():
+def test_given_reviewer_instructions_when_reading_text_then_binary_or_spam_guidance_is_present():
     from agent.src import reviewer_agent
 
     instructions = (
@@ -88,7 +89,7 @@ def test_reviewer_agent_instructions_mention_binary_detection():
     )
 
 
-def test_review_content_fetches_both_problems_and_solutions():
+def test_given_review_content_entrypoint_when_called_then_both_problem_and_solution_queues_are_fetched():
     """review_content should call get_unreviewed_problems AND get_unreviewed_solutions."""
     from agent.src.main import review_content
 
@@ -99,7 +100,7 @@ def test_review_content_fetches_both_problems_and_solutions():
     assert svc.get_unreviewed_solutions.called
 
 
-def test_stage1_gate_rejection_bypasses_ai():
+def test_given_stage1_gate_rejection_when_reviewing_then_ai_is_not_called():
     """A problem that fails Stage 1 gate is auto-rejected without calling AI."""
     from agent.src.main import review_content
     from backend.domain.models import Problem
@@ -111,9 +112,7 @@ def test_stage1_gate_rejection_bypasses_ai():
     agent_mock = MagicMock()
     svc = _make_service_mock(problems=[short_problem], solutions=[])
     review_content(agent_mock, svc)
-    # AI agent should NOT have been called (no run/prompt calls)
     assert not agent_mock.run.called, (
         "AI agent should not be called for gate-rejected content"
     )
-    # But update_review or delete_content should be called
     assert svc.update_review.called or svc.delete_content.called
