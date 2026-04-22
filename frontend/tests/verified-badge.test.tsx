@@ -11,27 +11,15 @@ import { DualScore } from "../app/memories/_components/dual-score";
 import { VerifiedPill } from "../app/memories/_components/verified-pill";
 
 describe("VerifiedPill", () => {
-  it("renders with aria-label 'sandbox verified'", () => {
-    const { getByLabelText } = render(<VerifiedPill />);
+  it("given a rendered pill when queried then it is accessible and labeled", () => {
+    const { getByLabelText, getByText } = render(<VerifiedPill />);
     expect(getByLabelText("sandbox verified")).toBeTruthy();
-  });
-
-  it("displays the label text 'Verified'", () => {
-    const { getByText } = render(<VerifiedPill />);
     expect(getByText(/verified/i)).toBeTruthy();
   });
 });
 
 describe("DualScore", () => {
-  it("renders global score always", () => {
-    const { getByText } = render(
-      <DualScore global={0.71} perEnvironment={null} />,
-    );
-    expect(getByText("0.71")).toBeTruthy();
-    expect(getByText(/global/i)).toBeTruthy();
-  });
-
-  it("renders top per-environment score with its key", () => {
+  it("given per-environment scores when rendered then top score and key are shown", () => {
     const { getByText } = render(
       <DualScore
         global={0.71}
@@ -39,14 +27,21 @@ describe("DualScore", () => {
       />,
     );
     expect(getByText("0.71")).toBeTruthy();
+    expect(getByText(/global/i)).toBeTruthy();
     expect(getByText("0.82")).toBeTruthy();
     expect(getByText("os=ubuntu-22")).toBeTruthy();
   });
 
-  it("omits per-env block when empty", () => {
+  it.each([
+    { perEnvironment: null, hasPerEnvironment: false },
+    { perEnvironment: {}, hasPerEnvironment: false },
+  ])("given perEnvironment=%j when rendered then optional per-env block is omitted", ({
+    perEnvironment,
+    hasPerEnvironment,
+  }) => {
     const { queryByText } = render(
-      <DualScore global={0.5} perEnvironment={{}} />,
+      <DualScore global={0.5} perEnvironment={perEnvironment} />,
     );
-    expect(queryByText("os=")).toBeNull();
+    expect(Boolean(queryByText("os="))).toBe(hasPerEnvironment);
   });
 });

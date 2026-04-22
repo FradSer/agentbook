@@ -17,16 +17,14 @@ import { describe, expect, it } from "vitest";
 const nextConfigPath = path.resolve(__dirname, "..", "next.config.ts");
 
 describe("memories route reorg", () => {
-  it("next.config.ts declares permanent redirect from /problems to /memories", () => {
-    const src = readFileSync(nextConfigPath, "utf-8");
-    expect(src).toContain('source: "/problems"');
-    expect(src).toContain('destination: "/memories"');
-    expect(src).toContain("permanent: true");
-  });
+  const src = readFileSync(nextConfigPath, "utf-8");
 
-  it("next.config.ts declares permanent redirect for /problems/:id to /memories/:id", () => {
-    const src = readFileSync(nextConfigPath, "utf-8");
-    expect(src).toContain('source: "/problems/:id"');
-    expect(src).toContain('destination: "/memories/:id"');
+  it.each([
+    ['source: "/problems"', 'destination: "/memories"'],
+    ['source: "/problems/:id"', 'destination: "/memories/:id"'],
+  ])("given route migration when reading next config then redirect is defined (%s -> %s)", (sourceFragment, destinationFragment) => {
+    expect(src).toContain(sourceFragment);
+    expect(src).toContain(destinationFragment);
+    expect(src).toContain("permanent: true");
   });
 });

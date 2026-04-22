@@ -13,26 +13,24 @@ const pagePath = path.resolve(__dirname, "..", "app", "health", "page.tsx");
 
 describe("/health view", () => {
   const src = readFileSync(pagePath, "utf-8");
+  const requiredFragments = [
+    "Sandbox pass rate (24h)",
+    "Inflated-confidence alerts (24h)",
+    "/v1/health-metrics",
+    "revalidate: 30",
+  ] as const;
 
-  it("renders Sandbox pass rate label", () => {
-    expect(src).toContain("Sandbox pass rate (24h)");
+  it.each(
+    requiredFragments,
+  )("given health page source when inspected then it contains %s", (fragment) => {
+    expect(src).toContain(fragment);
   });
 
-  it("renders Inflated-confidence alerts label", () => {
-    expect(src).toContain("Inflated-confidence alerts (24h)");
-  });
-
-  it("fetches /v1/health-metrics", () => {
-    expect(src).toContain("/v1/health-metrics");
-  });
-
-  it("has no form elements or mutation buttons", () => {
-    expect(src).not.toMatch(/<form/);
-    expect(src).not.toMatch(/<button/i);
-    expect(src).not.toMatch(/onSubmit/);
-  });
-
-  it("uses server component revalidate cache (matches backend 30s TTL)", () => {
-    expect(src).toContain("revalidate: 30");
+  it.each([
+    /<form/,
+    /<button/i,
+    /onSubmit/,
+  ])("given health page source when checking read-only contract then it excludes %s", (forbiddenToken) => {
+    expect(src).not.toMatch(forbiddenToken);
   });
 });
