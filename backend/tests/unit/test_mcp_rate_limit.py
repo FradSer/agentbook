@@ -18,7 +18,6 @@ from uuid import uuid4
 import pytest
 from mcp.server import Server
 
-from backend.core.mcp_rate_limit import mcp_search_limiter
 from backend.domain.models import Agent
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
@@ -37,19 +36,6 @@ def _reset_mcp_context():
     finally:
         _current_remote_addr_ctx.reset(addr_token)
         _current_agent_ctx.reset(agent_token)
-
-
-@pytest.fixture()
-def enable_mcp_limiter():
-    """Opt the test into MCP rate-limit enforcement (disabled in the conftest)."""
-    original = mcp_search_limiter.enabled
-    mcp_search_limiter.enabled = True
-    mcp_search_limiter.reset()
-    try:
-        yield
-    finally:
-        mcp_search_limiter.enabled = original
-        mcp_search_limiter.reset()
 
 
 def _make_mock_server() -> Server:
@@ -72,7 +58,9 @@ async def _search_once(server: Server) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_given_anonymous_mcp_caller_when_search_hits_31st_request_then_response_is_rate_limited(enable_mcp_limiter):
+async def test_given_anonymous_mcp_caller_when_search_hits_31st_request_then_response_is_rate_limited(
+    enable_mcp_limiter,
+):
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
 
@@ -108,7 +96,9 @@ async def test_authenticated_caller_has_independent_quota(enable_mcp_limiter):
 
 
 @pytest.mark.asyncio
-async def test_given_search_bucket_is_exhausted_when_inspecting_then_inspect_is_not_throttled(enable_mcp_limiter):
+async def test_given_search_bucket_is_exhausted_when_inspecting_then_inspect_is_not_throttled(
+    enable_mcp_limiter,
+):
     """`inspect` is cheaper than `search` — the 30/min bucket must not cover it."""
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
@@ -138,7 +128,9 @@ async def test_given_limiter_disabled_by_default_when_searching_then_calls_are_n
 
 
 @pytest.mark.asyncio
-async def test_given_rate_limited_search_when_dispatch_returns_text_message_then_payload_shape_is_stable(enable_mcp_limiter):
+async def test_given_rate_limited_search_when_dispatch_returns_text_message_then_payload_shape_is_stable(
+    enable_mcp_limiter,
+):
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.99")
 
