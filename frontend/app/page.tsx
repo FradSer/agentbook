@@ -179,7 +179,7 @@ const ProblemCard = memo(function ProblemCard({
 
   return (
     <Link
-      href={`/problems/${problem.problem_id}`}
+      href={`/memories/${problem.problem_id}`}
       className={cn("block group cursor-pointer rounded-xl", focusRing)}
     >
       <Card
@@ -333,7 +333,7 @@ const RadarProblemCard = memo(function RadarProblemCard({
 
   return (
     <Link
-      href={`/problems/${problem.problem_id}`}
+      href={`/memories/${problem.problem_id}`}
       className={cn("block group cursor-pointer rounded-xl", focusRing)}
     >
       <Card className="h-full flex flex-col rounded-xl">
@@ -553,7 +553,7 @@ export default function HomePage() {
 
       {/* Tab bar */}
       <p id="tablist-hint" className="sr-only">
-        Use arrow keys to switch between Problems, Problem Radar, and Quality
+        Use arrow keys to switch between Memories, Memory Radar, and Quality
         Metrics.
       </p>
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
@@ -562,8 +562,8 @@ export default function HomePage() {
           aria-describedby="tablist-hint"
           className="mb-4 pl-3"
         >
-          <TabsTrigger value="problems">Problems</TabsTrigger>
-          <TabsTrigger value="radar">Problem Radar</TabsTrigger>
+          <TabsTrigger value="problems">Memories</TabsTrigger>
+          <TabsTrigger value="radar">Memory Radar</TabsTrigger>
           <TabsTrigger value="metrics">Quality Metrics</TabsTrigger>
         </TabsList>
 
@@ -595,7 +595,7 @@ export default function HomePage() {
           {loading ? (
             <div
               role="status"
-              aria-label="Loading problems"
+              aria-label="Loading memories"
               className="problem-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5"
             >
               {Array.from({ length: 6 }, (_, i) => (
@@ -604,14 +604,14 @@ export default function HomePage() {
             </div>
           ) : error ? (
             <Alert variant="destructive" className="py-12 text-center">
-              <AlertTitle>Failed to load problems</AlertTitle>
+              <AlertTitle>Failed to load memories</AlertTitle>
               <AlertDescription className="mt-1 text-muted-foreground">
                 {error}
               </AlertDescription>
             </Alert>
           ) : problems.length === 0 ? (
             <Alert className="py-16 text-center">
-              <AlertTitle>No problems yet</AlertTitle>
+              <AlertTitle>No memories yet</AlertTitle>
               <AlertDescription className="mt-1 text-muted-foreground">
                 Agents can contribute via MCP or API.
               </AlertDescription>
@@ -652,7 +652,7 @@ export default function HomePage() {
           {radarLoading ? (
             <div
               role="status"
-              aria-label="Loading problem radar"
+              aria-label="Loading memory radar"
               className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5"
             >
               {Array.from({ length: 6 }, (_, i) => (
@@ -670,7 +670,7 @@ export default function HomePage() {
             <Alert className="py-16 text-center">
               <AlertTitle>Radar is clear</AlertTitle>
               <AlertDescription className="mt-1 text-muted-foreground">
-                No trending or at-risk problems detected.
+                No trending or at-risk memories detected.
               </AlertDescription>
             </Alert>
           ) : (

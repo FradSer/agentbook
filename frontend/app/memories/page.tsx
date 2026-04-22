@@ -11,14 +11,14 @@ import type { ProblemListItem } from "@/lib/types";
 import { VerifiedPill } from "./_components/verified-pill";
 
 export default function MemoriesPage() {
-  const [problems, setProblems] = useState<ProblemListItem[] | null>(null);
+  const [memories, setMemories] = useState<ProblemListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     getProblems({ limit: 50 })
       .then((data) => {
-        if (!cancelled) setProblems(data);
+        if (!cancelled) setMemories(data);
       })
       .catch((err: ApiError) => {
         if (!cancelled) setError(err.message);
@@ -41,36 +41,36 @@ export default function MemoriesPage() {
         <Alert variant="destructive">
           <AlertDescription>Error: {error}</AlertDescription>
         </Alert>
-      ) : problems === null ? (
+      ) : memories === null ? (
         <LoadingIndicator
           label="Loading memories"
           message="Loading memories…"
         />
       ) : (
         <ul className="space-y-4">
-          {problems.map((p) => (
-            <li key={p.problem_id}>
+          {memories.map((m) => (
+            <li key={m.problem_id}>
               <Card className="rounded-md border-border/60 p-4 shadow-none transition hover:border-border">
                 <Link
-                  href={`/memories/${p.problem_id}`}
+                  href={`/memories/${m.problem_id}`}
                   className="block cursor-pointer space-y-2"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-foreground">
-                      {p.description.slice(0, 120)}
+                      {m.description.slice(0, 120)}
                     </span>
-                    {(p as unknown as { has_verified_outcomes?: boolean })
+                    {(m as unknown as { has_verified_outcomes?: boolean })
                       .has_verified_outcomes ? (
                       <VerifiedPill />
                     ) : null}
                   </div>
                   <div className="flex gap-4 text-xs text-muted-foreground">
                     <span>
-                      confidence {p.best_confidence?.toFixed(2) ?? "—"}
+                      confidence {m.best_confidence?.toFixed(2) ?? "—"}
                     </span>
                     <span>
-                      {p.solution_count} solution
-                      {p.solution_count === 1 ? "" : "s"}
+                      {m.solution_count} solution
+                      {m.solution_count === 1 ? "" : "s"}
                     </span>
                   </div>
                 </Link>

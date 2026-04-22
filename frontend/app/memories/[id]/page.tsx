@@ -16,7 +16,7 @@ import { ApiError, getProblemTimeline } from "@/lib/api";
 import type { ProblemTimeline } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export default function ProblemDetailPage() {
+export default function MemoryDetailPage() {
   const params = useParams();
   const problemId = params?.id as string;
   const [data, setData] = useState<ProblemTimeline | null>(null);
@@ -33,7 +33,7 @@ export default function ProblemDetailPage() {
     } catch (err: unknown) {
       if (err instanceof ApiError) setError(err.message);
       else if (err instanceof Error) setError(err.message);
-      else setError("Failed to load problem");
+      else setError("Failed to load memory");
       setData(null);
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ export default function ProblemDetailPage() {
     return (
       <div className="px-[20px]">
         <Alert variant="destructive" className="py-12 text-center">
-          <AlertTitle>Failed to load problem</AlertTitle>
+          <AlertTitle>Failed to load memory</AlertTitle>
           <AlertDescription className="mt-1 text-muted-foreground">
             {error}
           </AlertDescription>
