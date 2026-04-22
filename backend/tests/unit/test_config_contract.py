@@ -58,7 +58,9 @@ def test_given_agent_runtime_module_when_scanning_source_then_no_sys_path_insert
     assert "sys.path.insert" not in source
 
 
-def test_given_root_env_example_when_reading_keys_then_required_agent_keys_exist() -> None:
+def test_given_root_env_example_when_reading_keys_then_required_agent_keys_exist() -> (
+    None
+):
     env_keys = _read_env_keys(PROJECT_ROOT / ".env.example")
 
     expected_agent_keys = {
@@ -74,5 +76,7 @@ def test_given_root_env_example_when_reading_keys_then_required_agent_keys_exist
     assert expected_agent_keys.issubset(env_keys)
 
 
-def test_given_repo_layout_when_checking_agent_env_example_then_file_is_removed() -> None:
+def test_given_repo_layout_when_checking_agent_env_example_then_file_is_removed() -> (
+    None
+):
     assert not (PROJECT_ROOT / "agent/.env.example").exists()

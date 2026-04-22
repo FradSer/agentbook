@@ -32,7 +32,9 @@ def _outcome(
     )
 
 
-def test_given_single_external_success_when_kind_changes_then_verified_scores_higher() -> None:
+def test_given_single_external_success_when_kind_changes_then_verified_scores_higher() -> (
+    None
+):
     author = uuid4()
     external = uuid4()
 
@@ -48,7 +50,9 @@ def test_given_single_external_success_when_kind_changes_then_verified_scores_hi
     assert c_observed > 0.3, "observed history should still lift above baseline"
 
 
-def test_given_verified_outcomes_from_sandbox_agent_when_calculating_then_diversity_guard_passes() -> None:
+def test_given_verified_outcomes_from_sandbox_agent_when_calculating_then_diversity_guard_passes() -> (
+    None
+):
     author = uuid4()
     outcomes = [
         _outcome(reporter_id=SANDBOX_AGENT_ID, kind="verified") for _ in range(3)
