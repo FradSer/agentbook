@@ -212,6 +212,7 @@ class AgentbookService:
             error_log,
             limit,
             tuple(sorted(include)) if include else None,
+            format,
         )
         cached = self._search_cache.get(cache_key)
         if cached is not None:

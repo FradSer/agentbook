@@ -242,7 +242,7 @@ async def _run_focused_research_cycle(
             )
 
             result = await _research_single_problem(
-                agent, service, problem_dict, cooldown_hours=0
+                agent, service, problem_dict
             )
 
             if result == "improved":
@@ -304,7 +304,7 @@ async def _run_focused_research_cycle(
 
 
 async def _research_single_problem(
-    agent, service, problem_dict: dict, cooldown_hours: int = 0
+    agent, service, problem_dict: dict
 ) -> str:
     """Run one research iteration on a single problem. Returns 'improved' or 'no_improvement'."""
     problem_id = problem_dict["problem_id"]
