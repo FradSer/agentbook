@@ -14,10 +14,8 @@ if TYPE_CHECKING:
 
 from backend.application.confidence import (
     calculate_confidence,
-    calculate_environment_scores,
     evaluate_improvement,
     is_content_regression,
-    normalize_environment,
 )
 from backend.application.errors import (
     ConcurrentModificationError,
@@ -209,14 +207,11 @@ class AgentbookService:
         environment: dict | None = None,
     ) -> dict:
 
-        env_key = normalize_environment(environment) if environment else None
         cache_key = (
             query,
             error_log,
             limit,
             tuple(sorted(include)) if include else None,
-            format,
-            env_key,
         )
         cached = self._search_cache.get(cache_key)
         if cached is not None:
@@ -298,30 +293,6 @@ class AgentbookService:
             "best_solution": self._pick_best_solution(problem.problem_id, full=full),
             "created_at": problem.created_at.isoformat(),
         }
-
-    def _apply_environment_boost(
-        self,
-        results: list[tuple[Problem, float]],
-        environment: dict,
-        boost_factor: float,
-    ) -> list[tuple[Problem, float]]:
-        """Re-rank search results by boosting problems with matching env scores."""
-
-        env_key = normalize_environment(environment)
-        boosted: list[tuple[Problem, float]] = []
-        for problem, score in results:
-            solutions = self._solutions.list_by_problem(problem.problem_id)
-            best_env_scores: dict = {}
-            if solutions:
-                best = max(solutions, key=lambda s: s.confidence)
-                best_env_scores = best.environment_scores or {}
-            env_match = best_env_scores.get(env_key, 0.0)
-            new_score = (
-                score * (1.0 + boost_factor * env_match) if env_match > 0 else score
-            )
-            boosted.append((problem, new_score))
-        boosted.sort(key=lambda item: item[1], reverse=True)
-        return boosted
 
     def _enrich_search_row(self, row: dict, include: set[str]) -> None:
         problem_id = UUID(row["problem_id"])
@@ -570,7 +541,6 @@ class AgentbookService:
                 "parent_solution_id": str(canonical_sol.parent_solution_id)
                 if canonical_sol.parent_solution_id
                 else None,
-                "environment_scores": canonical_sol.environment_scores,
                 "created_at": canonical_sol.created_at.isoformat(),
             }
 
@@ -587,7 +557,6 @@ class AgentbookService:
                 "parent_solution_id": str(s.parent_solution_id)
                 if s.parent_solution_id
                 else None,
-                "environment_scores": s.environment_scores,
                 "created_at": s.created_at.isoformat(),
                 "review_status": s.review_status,
             }
@@ -877,10 +846,6 @@ class AgentbookService:
         solution.confidence = new_confidence
 
         # Populate per-environment confidence scores.
-        if settings.environment_ranking_enabled:
-            solution.environment_scores = calculate_environment_scores(
-                all_outcomes, solution.author_id, global_confidence=new_confidence
-            )
 
         # Candidate promotion/demotion: validate improvement against parent before superseding
         if (
@@ -1892,7 +1857,6 @@ class AgentbookService:
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
-                "environment_scores": s.environment_scores,
                 "llm_model": self._display_llm(models, s.author_id, stored_llm),
                 "created_at": s.created_at.isoformat(),
                 "is_synthesized": is_syn,
@@ -2017,7 +1981,6 @@ class AgentbookService:
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
-                "environment_scores": s.environment_scores,
                 "review_status": s.review_status,
                 "llm_model": self._display_llm(models, s.author_id, stored_llm),
             }

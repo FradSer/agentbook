@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from uuid import UUID
 
 from backend.application._frozen_policy import frozen_policy
@@ -225,56 +224,3 @@ def evaluate_improvement(
 # Environment-aware scoring
 
 
-def normalize_environment(env: dict | None) -> str:
-    """Produce a stable, hashable key from a free-form environment dict.
-
-    Keys are sorted alphabetically; values are lowercased and joined with
-    underscores.  Returns ``"_unknown"`` for *None* or empty dicts so callers
-    always get a non-empty string suitable as a dict key or cache component.
-    """
-    if not env:
-        return "_unknown"
-    parts: list[str] = []
-    for key in sorted(env):
-        val = str(env[key]).strip().lower()
-        if val:
-            parts.append(val)
-    return "_".join(parts) if parts else "_unknown"
-
-
-def calculate_environment_scores(
-    outcomes: list[Outcome],
-    author_id: UUID,
-    global_confidence: float | None = None,
-) -> dict[str, float]:
-    """Compute per-environment confidence scores.
-
-    Groups outcomes by their normalized environment key, then runs
-    :func:`calculate_confidence` independently for each group.  The
-    ``_global`` key always holds the ungrouped (all-outcomes) score so
-    existing consumers see no change.
-
-    Pass *global_confidence* to avoid recomputing the ungrouped score
-    when the caller already has it.
-    """
-
-    scores: dict[str, float] = {}
-
-    scores["_global"] = (
-        global_confidence
-        if global_confidence is not None
-        else calculate_confidence(outcomes, author_id)
-    )
-
-    # Group outcomes by normalized environment.
-    env_groups: dict[str, list[Outcome]] = defaultdict(list)
-    for outcome in outcomes:
-        key = normalize_environment(outcome.environment)
-        env_groups[key].append(outcome)
-
-    for env_key, group in env_groups.items():
-        if env_key == "_unknown":
-            continue
-        scores[env_key] = calculate_confidence(group, author_id)
-
-    return scores
