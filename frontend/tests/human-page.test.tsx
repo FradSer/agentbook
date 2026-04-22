@@ -36,7 +36,7 @@ const emptyMetrics = {
   stale_solutions: 0,
 };
 
-describe("HomePage — Problem Radar & Metrics tabs", () => {
+describe("HomePage — Memory Radar & Metrics tabs", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
@@ -50,7 +50,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
     expect(
-      screen.getByRole("tab", { name: "Problem Radar" }),
+      screen.getByRole("tab", { name: "Memory Radar" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("tab", { name: "Quality Metrics" }),
@@ -76,7 +76,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
 
-    const radarTab = screen.getByText("Problem Radar");
+    const radarTab = screen.getByText("Memory Radar");
     await userEvent.click(radarTab);
 
     await waitFor(() =>

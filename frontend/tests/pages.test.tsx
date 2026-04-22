@@ -143,7 +143,7 @@ describe("Memory detail page — notebook timeline display", () => {
     const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
-    await screen.findByText(/Failed to load problem/i);
+    await screen.findByText(/Failed to load memory/i);
     expect(screen.getByText(/Connection failed/i)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /back to library/i }),

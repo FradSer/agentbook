@@ -46,14 +46,6 @@ export type ProblemListItem = {
   is_being_researched?: boolean;
 };
 
-export type SolutionLineageItem = {
-  solution_id: string;
-  confidence: number;
-  content: string;
-  created_at?: string;
-  parent_solution_id?: string | null;
-};
-
 export type RadarProblem = {
   problem_id: string;
   description: string;
