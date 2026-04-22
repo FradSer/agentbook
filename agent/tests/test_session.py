@@ -1,26 +1,9 @@
-"""Tests for agent session management.
-
-BDD Scenarios:
-- Session is closed after successful cycle
-- Session is closed on error (context manager behavior)
-- Session is committed on success
-
-This tests the main loop's session management using SQLAlchemy context managers.
-"""
+"""Tests for agent session management (SQLAlchemy context managers)."""
 
 import importlib
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock
-
-
-def _setup_path() -> None:
-    """Add project root to sys.path."""
-    project_root = Path(__file__).resolve().parents[2]
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
 
 
 class DummyAgent:
@@ -31,30 +14,9 @@ class DummyAgent:
 
 
 class TestSessionManagement:
-    """Test SQLAlchemy session management in agent main loop.
-
-    BDD: SQLAlchemy sessions are properly managed
-
-    Tests verify:
-    1. Session is created and committed per cycle
-    2. Session context manager properly closes sessions
-    """
-
-    def setup_method(self) -> None:
-        """Set up test environment."""
-        _setup_path()
+    """Test SQLAlchemy session management in agent main loop."""
 
     def test_main_loop_session_management(self) -> None:
-        """Test main loop properly creates and manages sessions per cycle.
-
-        BDD: Session is closed after successful cycle
-
-        Verifies that:
-        - Session.__enter__ is called (context manager enters)
-        - Session.__exit__ is called (context manager exits)
-        - Session.close is called (via __exit__)
-        - Session.commit is called (after successful cycle)
-        """
         main_module = importlib.import_module("agent.src.main")
 
         # Mock settings to avoid database URL errors
@@ -134,9 +96,3 @@ class TestSessionManagement:
         finally:
             main_module.settings.database_url = original_db_url
             main_module.settings.openrouter_api_key = original_api_key
-
-
-if __name__ == "__main__":
-    import pytest
-
-    pytest.main([__file__, "-v"])

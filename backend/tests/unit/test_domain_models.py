@@ -39,7 +39,9 @@ def _make_outcome(**overrides: object) -> Outcome:
     )
 
 
-def test_given_problem_inputs_when_constructing_then_required_fields_are_preserved() -> None:
+def test_given_problem_inputs_when_constructing_then_required_fields_are_preserved() -> (
+    None
+):
     problem = _make_problem()
     assert problem.author_id == AUTHOR_ID
     assert problem.description == "Something broke"
@@ -69,14 +71,18 @@ def test_given_problem_defaults_when_constructing_then_fields_match_contract(
     assert problem.last_activity_at is not None
 
 
-def test_given_new_problems_when_constructing_then_problem_ids_are_unique_uuids() -> None:
+def test_given_new_problems_when_constructing_then_problem_ids_are_unique_uuids() -> (
+    None
+):
     first = _make_problem()
     second = _make_problem()
     assert isinstance(first.problem_id, UUID)
     assert first.problem_id != second.problem_id
 
 
-def test_given_new_problem_when_constructing_then_problem_timestamps_are_utc_now() -> None:
+def test_given_new_problem_when_constructing_then_problem_timestamps_are_utc_now() -> (
+    None
+):
     before = datetime.now(tz=UTC)
     problem = _make_problem()
     after = datetime.now(tz=UTC)
@@ -84,7 +90,9 @@ def test_given_new_problem_when_constructing_then_problem_timestamps_are_utc_now
     assert before <= problem.last_activity_at <= after
 
 
-def test_given_solution_inputs_when_constructing_then_required_fields_are_preserved() -> None:
+def test_given_solution_inputs_when_constructing_then_required_fields_are_preserved() -> (
+    None
+):
     solution = _make_solution()
     assert solution.problem_id == PROBLEM_ID
     assert solution.author_id == AUTHOR_ID
@@ -114,14 +122,18 @@ def test_given_solution_defaults_when_constructing_then_fields_match_contract(
     assert getattr(solution, field_name) == expected
 
 
-def test_given_new_solutions_when_constructing_then_solution_ids_are_unique_uuids() -> None:
+def test_given_new_solutions_when_constructing_then_solution_ids_are_unique_uuids() -> (
+    None
+):
     first = _make_solution()
     second = _make_solution()
     assert isinstance(first.solution_id, UUID)
     assert first.solution_id != second.solution_id
 
 
-def test_given_new_solution_when_constructing_then_solution_timestamps_are_utc_now() -> None:
+def test_given_new_solution_when_constructing_then_solution_timestamps_are_utc_now() -> (
+    None
+):
     before = datetime.now(tz=UTC)
     solution = _make_solution()
     after = datetime.now(tz=UTC)
@@ -129,7 +141,9 @@ def test_given_new_solution_when_constructing_then_solution_timestamps_are_utc_n
     assert before <= solution.updated_at <= after
 
 
-def test_given_outcome_inputs_when_constructing_then_required_fields_are_preserved() -> None:
+def test_given_outcome_inputs_when_constructing_then_required_fields_are_preserved() -> (
+    None
+):
     outcome = _make_outcome()
     assert outcome.solution_id == SOLUTION_ID
     assert outcome.reporter_id == REPORTER_ID
@@ -153,7 +167,9 @@ def test_given_outcome_defaults_when_constructing_then_fields_match_contract(
     assert getattr(outcome, field_name) == expected
 
 
-def test_given_new_outcomes_when_constructing_then_outcome_ids_are_unique_uuids() -> None:
+def test_given_new_outcomes_when_constructing_then_outcome_ids_are_unique_uuids() -> (
+    None
+):
     first = _make_outcome()
     second = _make_outcome()
     assert isinstance(first.outcome_id, UUID)
@@ -175,7 +191,9 @@ def test_given_removed_domain_symbol_when_importing_then_import_error_is_raised(
         exec(f"from backend.domain.models import {deprecated_symbol}")  # noqa: S102
 
 
-def test_given_removed_scoring_module_when_importing_then_module_not_found_is_raised() -> None:
+def test_given_removed_scoring_module_when_importing_then_module_not_found_is_raised() -> (
+    None
+):
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("backend.domain.scoring")
 

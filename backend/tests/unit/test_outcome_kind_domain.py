@@ -1,10 +1,4 @@
-"""Unit tests for Outcome.kind domain field and repository hydration.
-
-Red tests authored before task 002b lands `kind` in the Outcome dataclass
-and the repository hydration helper. When these fail before 002b, the
-failure mode is either ``AttributeError`` on ``Outcome.kind`` or a
-``TypeError`` because the constructor rejects an unknown keyword.
-"""
+"""Unit tests for Outcome.kind domain field and repository hydration."""
 
 from __future__ import annotations
 
@@ -73,7 +67,9 @@ def test_given_row_kind_when_hydrating_then_kind_is_normalized(
     assert outcome.kind == expected_kind
 
 
-def test_given_legacy_row_without_kind_when_hydrating_then_defaults_to_observed() -> None:
+def test_given_legacy_row_without_kind_when_hydrating_then_defaults_to_observed() -> (
+    None
+):
     # Simulate a legacy row loaded before the additive column existed —
     # defensive ``getattr`` must yield "observed" in the migration window.
     row = _minimal_row()  # no `kind` attribute at all

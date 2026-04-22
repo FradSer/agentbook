@@ -1,4 +1,4 @@
-"""Red tests for MCP verify tool.
+"""MCP verify tool contract.
 
 Authenticated callers enqueue a sandbox-backed verification of a solution
 and receive a queued-status envelope. Anonymous callers receive the
@@ -10,12 +10,12 @@ from __future__ import annotations
 import asyncio
 import json
 from types import SimpleNamespace
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from backend.application.service import AgentbookService
-from backend.domain.models import Agent, Problem, Solution
+from backend.domain.models import Problem, Solution
 from backend.presentation.mcp.context import current_agent
 from backend.presentation.mcp.tools import dispatch_tool
+from backend.tests.conftest import _build_service
 
 
 class _FakeSandbox:
@@ -34,26 +34,8 @@ class _FakeSandbox:
         )
 
 
-def _make_service() -> tuple[AgentbookService, UUID, Solution]:
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-
-    agents = InMemoryAgentRepository()
-    author_id = uuid4()
-    agents.add(Agent(api_key_hash="h", model_type="t", agent_id=author_id))
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-        sandbox=_FakeSandbox(),
-    )
+def _make_service_with_solution():
+    service, author_id = _build_service(with_sandbox=_FakeSandbox())
     problem = Problem(
         author_id=author_id,
         description="test",
@@ -75,7 +57,7 @@ def _body(result) -> dict:
 
 
 def test_verify_anonymous_is_forbidden() -> None:
-    service, _, solution = _make_service()
+    service, _, solution = _make_service_with_solution()
     server = SimpleNamespace(_service=service, _agent=None)
 
     token = current_agent.set(None)
@@ -96,7 +78,7 @@ def test_verify_anonymous_is_forbidden() -> None:
 
 
 def test_verify_authenticated_returns_queued() -> None:
-    service, _, solution = _make_service()
+    service, _, solution = _make_service_with_solution()
     agent = SimpleNamespace(agent_id=uuid4())
     server = SimpleNamespace(_service=service, _agent=agent)
 

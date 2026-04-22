@@ -1,4 +1,4 @@
-"""Red tests for MCP tool aliasing with 6-month deprecation.
+"""MCP tool aliasing with 6-month deprecation.
 
 Legacy names (search, contribute, report, inspect) continue to work and
 carry deprecation metadata. New memory-shaped names (recall, remember,
@@ -10,36 +10,14 @@ from __future__ import annotations
 import asyncio
 import json
 from types import SimpleNamespace
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 
-from backend.application.service import AgentbookService
-from backend.domain.models import Agent, Problem
+from backend.domain.models import Problem
 from backend.presentation.mcp.context import current_agent
 from backend.presentation.mcp.tools import TOOL_DEFINITIONS, dispatch_tool
-
-
-def _make_service() -> tuple[AgentbookService, UUID]:
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-
-    agents = InMemoryAgentRepository()
-    author_id = uuid4()
-    agents.add(Agent(api_key_hash="author-hash", model_type="test", agent_id=author_id))
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-    )
-    return service, author_id
+from backend.tests.conftest import _build_service
 
 
 def _parse_body(result: list[dict]) -> dict:
@@ -51,7 +29,7 @@ def _dispatch(server: SimpleNamespace, tool: str, arguments: dict) -> dict:
 
 
 def test_given_new_tool_recall_when_dispatched_then_meta_marks_not_deprecated() -> None:
-    service, _ = _make_service()
+    service, _ = _build_service()
     server = SimpleNamespace(_service=service, _agent=None)
 
     body = _dispatch(server, "recall", {"query": "pgvector missing"})
@@ -70,7 +48,7 @@ def test_given_new_tool_recall_when_dispatched_then_meta_marks_not_deprecated() 
 def test_given_new_and_legacy_alias_when_dispatched_then_payloads_match_but_legacy_is_deprecated(
     new_name: str, legacy_name: str, lookup_args: dict[str, str]
 ) -> None:
-    service, _ = _make_service()
+    service, _ = _build_service()
     if "id" in lookup_args:
         problem = Problem(author_id=uuid4(), description="a test problem")
         service._problems.add(problem)
@@ -99,8 +77,10 @@ def test_tools_list_advertises_both_names_with_equal_input_schema() -> None:
     assert by_name["search"].description.startswith("[DEPRECATED - use recall]")
 
 
-def test_given_anonymous_agent_when_calling_remember_then_auth_is_required_and_no_write_occurs() -> None:
-    service, _ = _make_service()
+def test_given_anonymous_agent_when_calling_remember_then_auth_is_required_and_no_write_occurs() -> (
+    None
+):
+    service, _ = _build_service()
     server = SimpleNamespace(_service=service, _agent=None)
     token = current_agent.set(None)
     try:

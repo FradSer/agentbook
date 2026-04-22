@@ -7,9 +7,10 @@ from uuid import uuid4
 
 import pytest
 
-from backend.domain.models import Problem, Solution
+from backend.domain.models import Outcome, Problem, Solution
 from backend.infrastructure.persistence import in_memory as in_memory_module
 from backend.infrastructure.persistence.in_memory import (
+    InMemoryOutcomeRepository,
     InMemoryProblemRepository,
     InMemorySolutionRepository,
 )
@@ -217,3 +218,116 @@ def test_given_problem_with_canonical_and_superseded_solutions_when_listing_supe
 
 def test_given_removed_inmemory_token_transaction_repo_when_inspecting_module_then_symbol_is_absent():
     assert not hasattr(in_memory_module, "InMemoryTokenTransactionRepository")
+
+
+# ---------------------------------------------------------------------------
+# Tests consolidated from test_repositories.py
+# ---------------------------------------------------------------------------
+
+
+def test_given_problem_repo_when_listing_all_then_all_added_problems_are_returned():
+    repo = InMemoryProblemRepository()
+    p1 = _make_problem(description="first")
+    p2 = _make_problem(description="second")
+
+    repo.add(p1)
+    repo.add(p2)
+    results = repo.list_all()
+
+    assert len(results) == 2
+    ids = {r.problem_id for r in results}
+    assert p1.problem_id in ids
+    assert p2.problem_id in ids
+
+
+def test_given_problem_with_error_signature_when_finding_then_matching_problem_is_returned():
+    repo = InMemoryProblemRepository()
+    problem = _make_problem(error_signature="TypeError: foo is not a function")
+    repo.add(problem)
+
+    assert repo.find_by_error_signature("TypeError: foo is not a function") is problem
+
+
+def test_given_problem_repo_when_finding_by_nonexistent_error_signature_then_none_is_returned():
+    repo = InMemoryProblemRepository()
+    repo.add(_make_problem(error_signature="SomeError"))
+
+    assert repo.find_by_error_signature("nonexistent") is None
+
+
+def test_given_orthogonal_embeddings_when_finding_similar_then_problem_is_excluded():
+    repo = InMemoryProblemRepository()
+    p = _make_problem()
+    p.embedding = [1.0, 0.0, 0.0]
+    repo.add(p)
+
+    results = repo.find_similar(embedding=[0.0, 1.0, 0.0], threshold=0.9)
+    assert p.problem_id not in [r.problem_id for r in results]
+
+
+def test_given_problem_repo_when_updating_then_changes_are_persisted():
+    repo = InMemoryProblemRepository()
+    problem = _make_problem()
+    repo.add(problem)
+
+    object.__setattr__(problem, "description", "updated description")
+    repo.update(problem)
+
+    assert repo.get(problem.problem_id).description == "updated description"
+
+
+def test_given_solution_repo_when_updating_then_changes_are_persisted():
+    repo = InMemorySolutionRepository()
+    solution = _make_solution()
+    repo.add(solution)
+
+    object.__setattr__(solution, "confidence", 0.95)
+    repo.update(solution)
+
+    assert repo.get(solution.solution_id).confidence == 0.95
+
+
+# InMemoryOutcomeRepository tests
+
+
+def _make_outcome(solution_id, reporter_id=None, **kwargs):
+    return Outcome(
+        solution_id=solution_id,
+        reporter_id=reporter_id or uuid4(),
+        success=True,
+        **kwargs,
+    )
+
+
+def test_given_outcome_repo_when_adding_then_list_by_solution_returns_it():
+    repo = InMemoryOutcomeRepository()
+    solution_id = uuid4()
+    outcome = _make_outcome(solution_id)
+    repo.add(outcome)
+
+    assert outcome in repo.list_by_solution(solution_id)
+
+
+def test_given_outcome_repo_when_listing_unknown_solution_then_empty_list_is_returned():
+    repo = InMemoryOutcomeRepository()
+    repo.add(_make_outcome(uuid4()))
+
+    assert repo.list_by_solution(uuid4()) == []
+
+
+def test_given_outcome_repo_when_counting_by_reporter_then_recent_outcomes_are_counted():
+    repo = InMemoryOutcomeRepository()
+    reporter_id = uuid4()
+    since = datetime.now(tz=UTC) - timedelta(hours=1)
+    repo.add(_make_outcome(uuid4(), reporter_id=reporter_id))
+
+    assert repo.count_by_reporter(reporter_id, since=since) == 1
+
+
+def test_given_outcome_repo_when_counting_with_future_since_then_zero_is_returned():
+    repo = InMemoryOutcomeRepository()
+    reporter_id = uuid4()
+    repo.add(_make_outcome(uuid4(), reporter_id=reporter_id))
+
+    future = datetime.now(tz=UTC) + timedelta(hours=1)
+    assert repo.count_by_reporter(reporter_id, since=future) == 0

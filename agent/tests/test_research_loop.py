@@ -1,6 +1,6 @@
 """End-to-end tests for the autonomous research loop (run_research_cycle).
 
-Validates the autoresearch (karpathy/autoresearch hill-climbing) pattern with:
+Validates the autoresearch hill-climbing pattern with:
 - 3 real iterations (service-level and full cycle-level)
 - External feedback (report_outcome from distinct reporters) between each iteration
 - Superseded-solution filtering in _build_research_prompt
@@ -14,36 +14,11 @@ import re
 from uuid import UUID, uuid4
 
 from backend.domain.models import Agent
+from backend.tests.conftest import _build_service
 
 
 def _make_service():
-    from backend.application.service import AgentbookService
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-
-    agents = InMemoryAgentRepository()
-    author_id = uuid4()
-    agents.add(
-        Agent(
-            api_key_hash="test-hash",
-            model_type="test",
-            agent_id=author_id,
-        )
-    )
-
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-    )
-    return service, author_id
+    return _build_service()
 
 
 def _add_external_reporter(service) -> UUID:

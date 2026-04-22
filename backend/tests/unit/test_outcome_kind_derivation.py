@@ -1,4 +1,4 @@
-"""Red tests for server-side kind derivation in report_outcome.
+"""Server-side kind derivation in report_outcome.
 
 kind is derived strictly from reporter_id identity:
 - reporter_id == SANDBOX_AGENT_ID -> "verified"
@@ -15,35 +15,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from backend.application.service import SANDBOX_AGENT_ID, AgentbookService
-from backend.domain.models import Agent, Problem, Solution
+from backend.application.service import SANDBOX_AGENT_ID
+from backend.domain.models import Problem, Solution
 from backend.presentation.mcp.context import current_agent
 from backend.presentation.mcp.tools import dispatch_tool
+from backend.tests.conftest import _build_service
 
 
-def _make_service() -> tuple[AgentbookService, UUID]:
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-
-    agents = InMemoryAgentRepository()
-    author_id = uuid4()
-    agents.add(Agent(api_key_hash="author-hash", model_type="test", agent_id=author_id))
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-    )
-    return service, author_id
-
-
-def _seed(service: AgentbookService, author_id: UUID) -> Solution:
+def _seed(service, author_id: UUID) -> Solution:
     problem = Problem(author_id=author_id, description="test problem description")
     service._problems.add(problem)
     solution = Solution(
@@ -66,7 +45,7 @@ def _seed(service: AgentbookService, author_id: UUID) -> Solution:
 def test_given_reporter_identity_when_reporting_outcome_then_kind_is_derived_server_side(
     reporter_id: UUID, expected_kind: str
 ) -> None:
-    service, author_id = _make_service()
+    service, author_id = _build_service()
     solution = _seed(service, author_id)
 
     service.report_outcome(
@@ -80,9 +59,11 @@ def test_given_reporter_identity_when_reporting_outcome_then_kind_is_derived_ser
     assert outcomes[0].kind == expected_kind
 
 
-def test_given_mcp_report_payload_with_kind_when_dispatching_then_caller_kind_is_ignored() -> None:
+def test_given_mcp_report_payload_with_kind_when_dispatching_then_caller_kind_is_ignored() -> (
+    None
+):
     """MCP dispatcher must silently drop any caller-supplied kind."""
-    service, author_id = _make_service()
+    service, author_id = _build_service()
     reporter_agent = SimpleNamespace(agent_id=uuid4())
     solution = _seed(service, author_id)
 
