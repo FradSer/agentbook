@@ -171,6 +171,16 @@ def _get_authenticated_agent(server: Server):
     return agent
 
 
+def _require_auth(server: Server, name: str) -> tuple[Any, list[dict] | None]:
+    """Return (agent, None) on success; (None, error_response) when unauthenticated."""
+    try:
+        return _get_authenticated_agent(server), None
+    except ValueError as exc:
+        return None, _wrap_with_meta(
+            _json_response({"error": "unauthorized", "detail": str(exc)}), name
+        )
+
+
 _LEGACY_REPLACEMENT = {
     "search": "recall",
     "contribute": "remember",
@@ -485,19 +495,25 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
         return _wrap_with_meta(await handle_inspect(service, arguments), name)
 
     if canonical == "remember":
-        agent = _get_authenticated_agent(server)
+        agent, err = _require_auth(server, name)
+        if err is not None:
+            return err
         return _wrap_with_meta(
             await handle_contribute(service, agent.agent_id, arguments), name
         )
 
     if canonical == "report":
-        agent = _get_authenticated_agent(server)
+        agent, err = _require_auth(server, name)
+        if err is not None:
+            return err
         return _wrap_with_meta(
             await handle_report(service, agent.agent_id, arguments), name
         )
 
     if canonical == "verify":
-        agent = _get_authenticated_agent(server)
+        agent, err = _require_auth(server, name)
+        if err is not None:
+            return err
         solution_id_raw = arguments.get("solution_id")
         if not solution_id_raw:
             return _wrap_with_meta(
