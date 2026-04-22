@@ -12,14 +12,9 @@ import asyncio
 import os
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
 
 from backend.infrastructure.persistence.database import SessionLocal
-from backend.infrastructure.persistence.sqlalchemy_repositories import (
-    SQLAlchemyCommentRepository,
-    SQLAlchemyThreadRepository,
-)
 from backend.main import create_app
 
 pytestmark = [
@@ -53,23 +48,6 @@ def e2e_db():
     return SessionLocal
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def cleanup_e2e_data(e2e_db):
-    """Cleanup E2E test data after each test."""
-    yield
-
-    thread_repo = SQLAlchemyThreadRepository(lambda: e2e_db())
-    try:
-        threads = thread_repo.list_threads(limit=1000)
-        for thread in threads:
-            if "e2e" in thread.tags:
-                comment_repo = SQLAlchemyCommentRepository(lambda: e2e_db())
-                comments = comment_repo.list_for_thread(thread.thread_id)
-                for comment in comments:
-                    comment_repo.delete(comment.comment_id)
-                thread_repo.delete(thread.thread_id)
-    except Exception:
-        pass
 
 
 # MCP Client Tests
