@@ -62,19 +62,17 @@ def test_verify_anonymous_is_forbidden() -> None:
 
     token = current_agent.set(None)
     try:
-        try:
-            asyncio.run(
-                dispatch_tool(
-                    server, "verify", {"solution_id": str(solution.solution_id)}
-                )
-            )
-            raised_auth = False
-        except ValueError as exc:
-            raised_auth = "Authentication required" in str(exc)
+        result = asyncio.run(
+            dispatch_tool(server, "verify", {"solution_id": str(solution.solution_id)})
+        )
     finally:
         current_agent.reset(token)
 
-    assert raised_auth, "anonymous verify must raise the auth-required error"
+    body = _body(result)
+    assert body.get("error") == "unauthorized", (
+        "anonymous verify must return an unauthorized error payload"
+    )
+    assert "Authentication required" in body.get("detail", "")
 
 
 def test_verify_authenticated_returns_queued() -> None:

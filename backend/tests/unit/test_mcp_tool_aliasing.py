@@ -77,26 +77,28 @@ def test_tools_list_advertises_both_names_with_equal_input_schema() -> None:
     assert by_name["search"].description.startswith("[DEPRECATED - use recall]")
 
 
-def test_given_anonymous_agent_when_calling_remember_then_auth_is_required_and_no_write_occurs() -> (
+def test_given_anonymous_agent_when_calling_remember_then_unauthorized_payload_and_no_write_occurs() -> (
     None
 ):
     service, _ = _build_service()
     server = SimpleNamespace(_service=service, _agent=None)
     token = current_agent.set(None)
     try:
-        try:
-            asyncio.run(
-                dispatch_tool(
-                    server,
-                    "remember",
-                    {"description": "I solved a thing and want to share it"},
-                )
+        result = asyncio.run(
+            dispatch_tool(
+                server,
+                "remember",
+                {"description": "I solved a thing and want to share it"},
             )
-            raised_auth_error = False
-        except ValueError as exc:
-            raised_auth_error = "Authentication required" in str(exc)
+        )
     finally:
         current_agent.reset(token)
 
-    assert raised_auth_error, "anonymous remember must raise the auth-required error"
-    assert service._problems.list_all() == []
+    body = _parse_body(result)
+    assert body.get("error") == "unauthorized", (
+        "anonymous remember must return an unauthorized error payload"
+    )
+    assert "Authentication required" in body.get("detail", "")
+    assert service._problems.list_all() == [], (
+        "no write must occur for anonymous callers"
+    )

@@ -2,7 +2,9 @@
 
 After the public-memory pivot, the MCP dispatcher must:
 - route `search` and `inspect` to their handlers without any agent context
-- raise on `contribute` and `report` when no agent is present in context
+- return an in-band {"error": "unauthorized"} payload for `contribute` and
+  `report` when no agent is present in context (no exception raised, no
+  service method called)
 
 These tests exercise `dispatch_tool` directly so the routing contract is
 asserted behaviourally — re-introducing an auth check around the public
@@ -88,30 +90,34 @@ async def test_dispatch_inspect_succeeds_without_auth():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_contribute_without_auth_raises():
+async def test_dispatch_contribute_without_auth_returns_unauthorized():
     server = _make_anonymous_server()
 
-    with pytest.raises(ValueError, match="Authentication required"):
-        await dispatch_tool(
-            server,
-            "contribute",
-            {"description": "Segfault when importing numpy on Alpine"},
-        )
+    result = await dispatch_tool(
+        server,
+        "contribute",
+        {"description": "Segfault when importing numpy on Alpine"},
+    )
 
+    payload = json.loads(result[0]["text"])
+    assert payload["error"] == "unauthorized"
+    assert "Authentication required" in payload.get("detail", "")
     server._service.contribute.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_dispatch_report_without_auth_raises():
+async def test_dispatch_report_without_auth_returns_unauthorized():
     server = _make_anonymous_server()
 
-    with pytest.raises(ValueError, match="Authentication required"):
-        await dispatch_tool(
-            server,
-            "report",
-            {"solution_id": str(uuid4()), "success": True},
-        )
+    result = await dispatch_tool(
+        server,
+        "report",
+        {"solution_id": str(uuid4()), "success": True},
+    )
 
+    payload = json.loads(result[0]["text"])
+    assert payload["error"] == "unauthorized"
+    assert "Authentication required" in payload.get("detail", "")
     server._service.report_outcome.assert_not_called()
 
 
