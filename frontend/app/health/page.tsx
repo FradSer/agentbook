@@ -55,7 +55,7 @@ export default async function HealthPage() {
           value={metrics.verified_outcome_count_24h}
         />
         <MetricCard
-          label={`Inflated-confidence alerts (24h): ${metrics.single_identity_cluster_count_24h}`}
+          label="Inflated-confidence alerts (24h)"
           value={metrics.single_identity_cluster_count_24h}
         />
       </section>
