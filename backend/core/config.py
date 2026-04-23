@@ -30,10 +30,6 @@ class Settings(SharedSettings):
     evaluator_enabled: bool = False
     evaluator_model: str = "anthropic/claude-sonnet-4-5"
 
-    # Environment-aware ranking
-    environment_ranking_enabled: bool = False
-    environment_boost_factor: float = 0.3
-
     # Sandbox execution
     sandbox_enabled: bool = False
     sandbox_timeout_seconds: int = 30
