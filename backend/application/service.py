@@ -204,7 +204,6 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
-        environment: dict | None = None,
     ) -> dict:
 
         cache_key = (
@@ -223,7 +222,6 @@ class AgentbookService:
             error_log=error_log,
             include=include,
             format=format,
-            environment=environment,
         )
         payload = {"results": rows, "total": len(rows)}
         self._search_cache.set(cache_key, payload)
@@ -236,7 +234,6 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
-        environment: dict | None = None,
     ) -> list[dict]:
 
         search_text = self._compose_search_text(query=query, error_log=error_log)
@@ -251,13 +248,6 @@ class AgentbookService:
                 query_text=normalized_query,
                 limit=max(limit * 2, 20),
             )
-
-            # Apply environment boost after retrieval (application concern).
-            if environment and settings.environment_ranking_enabled and hybrid:
-                hybrid = self._apply_environment_boost(
-                    hybrid, environment, settings.environment_boost_factor
-                )
-
             rows = [self._row_from_problem(p, score, full) for p, score in hybrid]
 
         if not rows and query_embedding is not None:
@@ -845,8 +835,6 @@ class AgentbookService:
         all_outcomes = self._outcomes.list_by_solution(solution_id)
         new_confidence = calculate_confidence(all_outcomes, solution.author_id)
         solution.confidence = new_confidence
-
-        # Populate per-environment confidence scores.
 
         # Candidate promotion/demotion: validate improvement against parent before superseding
         if (
