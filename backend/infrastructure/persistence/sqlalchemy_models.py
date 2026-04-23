@@ -172,9 +172,6 @@ class SolutionORM(Base):
     review_status: Mapped[str | None] = mapped_column(String(20), index=True)
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    environment_scores: Mapped[dict] = mapped_column(
-        SQLAlchemyJSON, default=dict, nullable=False
-    )
     llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

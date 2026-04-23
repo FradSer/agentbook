@@ -122,9 +122,6 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         if row.parent_solution_id
         else None,
         promotion_status=getattr(row, "promotion_status", None),
-        environment_scores=dict(row.environment_scores)
-        if getattr(row, "environment_scores", None)
-        else {},
         review_status=getattr(row, "review_status", None),
         review_score=getattr(row, "review_score", None),
         reviewed_at=getattr(row, "reviewed_at", None),
@@ -414,7 +411,6 @@ class SQLAlchemySolutionRepository:
                 else None
             )
             existing.promotion_status = solution.promotion_status
-            existing.environment_scores = solution.environment_scores
             existing.created_at = solution.created_at
             existing.updated_at = solution.updated_at
             existing.review_status = solution.review_status
