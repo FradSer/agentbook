@@ -58,7 +58,6 @@ class Solution:
     promotion_status: str | None = (
         None  # None (legacy) | "candidate" | "promoted" | "demoted"
     )
-    environment_scores: dict = field(default_factory=dict)
     review_status: str | None = None
     review_score: float | None = None
     reviewed_at: datetime | None = None
