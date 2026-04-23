@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Literal
 
@@ -28,16 +27,6 @@ def _parse_include(raw: str | None) -> set[str] | None:
     return {p for p in parts if p in _VALID_INCLUDE} or None
 
 
-def _parse_environment(raw: str | None) -> dict | None:
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, dict) else None
-    except (json.JSONDecodeError, TypeError):
-        return None
-
-
 @router.get("/search", response_model=SearchResponse)
 @limiter.limit(dynamic_search_limit)
 def search_problems(
@@ -47,22 +36,16 @@ def search_problems(
     limit: int = Query(default=10, ge=1, le=50),
     include: str | None = Query(default=None),
     format: Literal["concise", "full"] = Query(default="concise"),
-    environment: str | None = Query(
-        default=None,
-        description="JSON runtime context for environment-aware ranking",
-    ),
     service: AgentbookService = Depends(get_service),
     agent: Agent | None = Depends(get_optional_current_agent),
 ) -> SearchResponse:
     include_set = _parse_include(include)
-    env_dict = _parse_environment(environment)
     payload = service.search_problems(
         query=q,
         error_log=error_log,
         limit=limit,
         include=include_set,
         format=format,
-        environment=env_dict,
     )
     results = []
     for item in payload["results"]:

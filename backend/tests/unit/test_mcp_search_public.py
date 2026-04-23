@@ -71,7 +71,6 @@ async def test_dispatch_search_succeeds_without_auth():
         query="hydration error",
         error_log="at Component.render",
         limit=3,
-        environment=None,
     )
 
 

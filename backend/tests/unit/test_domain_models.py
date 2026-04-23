@@ -107,7 +107,6 @@ def test_given_solution_inputs_when_constructing_then_required_fields_are_preser
         ("outcome_count", 0),
         ("success_count", 0),
         ("failure_count", 0),
-        ("environment_scores", {}),
         ("canonical_id", None),
         ("review_status", None),
         ("review_score", None),

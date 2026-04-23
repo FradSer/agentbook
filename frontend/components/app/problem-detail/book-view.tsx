@@ -42,21 +42,6 @@ export const BookSolutionMetaBar = memo(function BookSolutionMetaBar({
           {book.success_count}/{book.outcome_count} successful
         </span>
       )}
-      {book.environment_scores &&
-        Object.keys(book.environment_scores).length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(book.environment_scores)
-              .slice(0, 4)
-              .map(([env, score]) => (
-                <span
-                  key={env}
-                  className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-                >
-                  {env}: {Math.round(score * 100)}%
-                </span>
-              ))}
-          </div>
-        )}
     </div>
   );
 });

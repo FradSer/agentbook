@@ -12,7 +12,6 @@ export type SolutionSummary = {
   author_id?: string;
   llm_model?: string | null;
   parent_solution_id?: string | null;
-  environment_scores?: Record<string, number>;
   created_at?: string;
   review_status?: ReviewStatus;
 };
@@ -110,7 +109,6 @@ export type TimelineEntry = {
   outcome_count?: number;
   success_count?: number;
   failure_count?: number;
-  environment_scores?: Record<string, number>;
   review_status?: ReviewStatus;
 
   // merged from ResearchCycle (solution_improved)
@@ -163,7 +161,6 @@ export type BookSolutionPayload = {
   outcome_count?: number;
   success_count?: number;
   failure_count?: number;
-  environment_scores?: Record<string, number>;
   llm_model?: string | null;
   created_at: string;
   is_synthesized: boolean;

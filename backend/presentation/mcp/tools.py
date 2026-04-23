@@ -154,6 +154,10 @@ async def handle_inspect(
     return _json_response(result)
 
 
+class _MCPAuthError(Exception):
+    """Raised when an MCP write tool is called without an authenticated agent."""
+
+
 def _get_authenticated_agent(server: Server):
     """Get authenticated agent from request context.
 
@@ -164,21 +168,11 @@ def _get_authenticated_agent(server: Server):
     if agent is None:
         agent = getattr(server, "_agent", None)
     if agent is None:
-        raise ValueError(
+        raise _MCPAuthError(
             "Authentication required: No authenticated agent found in MCP context. "
             "Please provide a valid API key with 'ak_' prefix."
         )
     return agent
-
-
-def _require_auth(server: Server, name: str) -> tuple[Any, list[dict] | None]:
-    """Return (agent, None) on success; (None, error_response) when unauthenticated."""
-    try:
-        return _get_authenticated_agent(server), None
-    except ValueError as exc:
-        return None, _wrap_with_meta(
-            _json_response({"error": "unauthorized", "detail": str(exc)}), name
-        )
 
 
 _LEGACY_REPLACEMENT = {
@@ -239,13 +233,6 @@ _LEGACY_TOOLS = [
                     "type": "integer",
                     "description": "Max results (1-20, default 5)",
                     "default": 5,
-                },
-                "environment": {
-                    "type": "object",
-                    "description": (
-                        "Your runtime context for environment-aware ranking: "
-                        "{os, language, version, framework}"
-                    ),
                 },
             },
             "required": ["query"],
@@ -487,33 +474,31 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
             query=arguments.get("query", ""),
             error_log=arguments.get("error_log"),
             limit=arguments.get("limit", 5),
-            environment=arguments.get("environment"),
         )
         return _wrap_with_meta(_json_response(search_response), name)
 
     if canonical == "trace":
         return _wrap_with_meta(await handle_inspect(service, arguments), name)
 
-    if canonical == "remember":
-        agent, err = _require_auth(server, name)
-        if err is not None:
-            return err
-        return _wrap_with_meta(
-            await handle_contribute(service, agent.agent_id, arguments), name
-        )
+    if canonical in {"remember", "report", "verify"}:
+        try:
+            agent = _get_authenticated_agent(server)
+        except _MCPAuthError as exc:
+            return _wrap_with_meta(
+                _json_response({"error": "unauthorized", "detail": str(exc)}), name
+            )
 
-    if canonical == "report":
-        agent, err = _require_auth(server, name)
-        if err is not None:
-            return err
-        return _wrap_with_meta(
-            await handle_report(service, agent.agent_id, arguments), name
-        )
+        if canonical == "remember":
+            return _wrap_with_meta(
+                await handle_contribute(service, agent.agent_id, arguments), name
+            )
 
-    if canonical == "verify":
-        agent, err = _require_auth(server, name)
-        if err is not None:
-            return err
+        if canonical == "report":
+            return _wrap_with_meta(
+                await handle_report(service, agent.agent_id, arguments), name
+            )
+
+        # verify
         solution_id_raw = arguments.get("solution_id")
         if not solution_id_raw:
             return _wrap_with_meta(
