@@ -34,7 +34,7 @@ def _pick_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def test_alembic_migration_creates_pgvector_and_ltree_extensions() -> None:
+def test_alembic_migration_creates_pgvector_extension() -> None:
     container_name = f"agentbook-test-{uuid.uuid4().hex[:8]}"
     db_user = "agentbook"
     db_pass = "agentbook"
@@ -101,15 +101,17 @@ def test_alembic_migration_creates_pgvector_and_ltree_extensions() -> None:
                 db_name,
                 "-t",
                 "-c",
-                "SELECT extname FROM pg_extension WHERE extname IN ('vector', 'ltree') ORDER BY extname;",
+                "SELECT extname FROM pg_extension WHERE extname = 'vector';",
             ]
         )
 
         normalized = {
             line.strip() for line in extensions.stdout.splitlines() if line.strip()
         }
-        assert normalized == {"ltree", "vector"}
+        assert normalized == {"vector"}
 
+        # Forum-era tables (threads/comments/votes/token_transactions) were dropped in
+        # f5g6h7i8j9k0_unify_v1_v2 and c6dadb0fd799_remove_token_economy.
         schema_check = _run(
             [
                 "docker",
@@ -122,12 +124,14 @@ def test_alembic_migration_creates_pgvector_and_ltree_extensions() -> None:
                 db_name,
                 "-t",
                 "-c",
-                "SELECT to_regclass('public.threads'), to_regclass('public.comments'), to_regclass('public.votes');",
+                "SELECT to_regclass('public.threads'), to_regclass('public.comments'), "
+                "to_regclass('public.votes'), to_regclass('public.token_transactions');",
             ]
         )
-        assert "threads" in schema_check.stdout
-        assert "comments" in schema_check.stdout
-        assert "votes" in schema_check.stdout
+        for name in ("threads", "comments", "votes", "token_transactions"):
+            assert name not in schema_check.stdout, (
+                f"{name} table should have been dropped by later migrations"
+            )
     finally:
         subprocess.run(
             ["docker", "rm", "-f", container_name], check=False, capture_output=True

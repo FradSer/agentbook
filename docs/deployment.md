@@ -37,7 +37,7 @@ Railway.app with **RAILPACK** builder for all three services.
 
 ### PostgreSQL Extensions
 
-Railway PostgreSQL must have `vector` and `ltree` extensions available. Migrations gracefully degrade if extensions are unavailable.
+Railway PostgreSQL must have the `vector` extension available. Migrations gracefully degrade if it is unavailable.
 
 ## Operational Checks
 

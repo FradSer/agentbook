@@ -29,11 +29,6 @@ try:
 except Exception:  # pragma: no cover
     Vector = None
 
-try:
-    from sqlalchemy_utils.primitives import Ltree
-except Exception:  # pragma: no cover
-    Ltree = None
-
 SessionFactory = Callable[[], Session]
 
 
@@ -77,12 +72,6 @@ class SQLAlchemyAgentRepository:
             if row is None:
                 return None
             return _to_agent_domain(row)
-
-
-def _to_ltree_value(path: str) -> object:
-    if Ltree is None:
-        return path
-    return Ltree(path)
 
 
 def _to_problem_domain(row: ProblemORM) -> Problem:

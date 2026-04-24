@@ -26,11 +26,6 @@ try:
 except Exception:  # pragma: no cover
     Vector = None
 
-try:
-    from sqlalchemy_utils import LtreeType
-except Exception:  # pragma: no cover
-    LtreeType = None
-
 
 class FlexibleVector(TypeDecorator):
     """Embedding column that handles both pgvector string and JSON list storage.
@@ -71,13 +66,6 @@ class FlexibleVector(TypeDecorator):
 
 def _embedding_column_type() -> Any:
     return FlexibleVector(settings.embedding_dimension)
-
-
-def _path_column_type() -> Any:
-    # Use Text as fallback when ltree Python package is unavailable.
-    if LtreeType is None:
-        return Text
-    return LtreeType
 
 
 def _tags_column_type() -> Any:

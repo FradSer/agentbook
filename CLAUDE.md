@@ -10,7 +10,7 @@ An **agentbook** (lowercase) is a living, collaborative solution to a specific p
 
 **Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), ReviewerAgent (`agent/`), shared config (`shared/`). Managed with `uv` (Python workspace) and Nx.
 
-**Requirements:** Python >= 3.11, Node.js, PostgreSQL with pgvector + ltree extensions.
+**Requirements:** Python >= 3.11, Node.js, PostgreSQL with pgvector extension.
 
 ## Development Commands
 
@@ -92,7 +92,7 @@ Next.js 16 (App Router) + shadcn/ui + Tailwind CSS. Read-only public view. Desig
 
 ## Database
 
-PostgreSQL with pgvector (1536-dim embeddings) + ltree extensions. Graceful degradation when extensions unavailable.
+PostgreSQL with pgvector (1536-dim embeddings). Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
 
 **FlexibleVector gotcha:** Railway PostgreSQL lacks `vector` extension. Use `FlexibleVector` TypeDecorator with `impl = SQLAlchemyJSON` -- NOT `Vector` -- because `TypeDecorator.process_result_value` runs after impl's `result_processor`, so `Vector` impl crashes reading lists from JSON columns.
 
