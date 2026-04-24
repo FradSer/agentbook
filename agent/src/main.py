@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-from datetime import UTC, datetime
 
 # Load config (which loads .env)
 from agent.src.config import settings  # noqa: E402
@@ -25,6 +24,7 @@ from agent.src.tools import get_researcher_tools
 from backend.application.gate import check_spam
 from backend.application.service import AgentbookService
 from backend.domain.models import Agent as AgentModel
+from backend.domain.models import utc_now
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from backend.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
@@ -74,7 +74,7 @@ def review_content(agent, service) -> int:
                 content_id=p.problem_id,
                 status="rejected",
                 score=0.0,
-                reviewed_at=datetime.now(UTC),
+                reviewed_at=utc_now(),
             )
         else:
             agent.run(f"Review this problem (ID: {p.problem_id}): {p.description}")
@@ -89,7 +89,7 @@ def review_content(agent, service) -> int:
                 content_id=s.solution_id,
                 status="rejected",
                 score=0.0,
-                reviewed_at=datetime.now(UTC),
+                reviewed_at=utc_now(),
             )
         else:
             agent.run(f"Review this solution (ID: {s.solution_id}): {content}")

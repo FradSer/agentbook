@@ -25,6 +25,27 @@ async def _run_agent(agent, prompt: str) -> str:
     return str(response)
 
 
+async def _fetch_outcomes_by_solution(
+    service, solutions: list[dict]
+) -> dict[str, list[dict]]:
+    """Fetch outcomes for each solution concurrently."""
+
+    def _get(sol_id: str) -> list[dict]:
+        try:
+            ctx = service.inspect_resource(
+                resource_id=UUID(sol_id), include=["outcomes"]
+            )
+            return ctx.get("outcomes", [])
+        except Exception:
+            return []
+
+    sol_ids = [str(sol["solution_id"]) for sol in solutions]
+    results = await asyncio.gather(
+        *(asyncio.to_thread(_get, sol_id) for sol_id in sol_ids)
+    )
+    return dict(zip(sol_ids, results, strict=True))
+
+
 async def run_research_cycle(agent, service, cooldown_hours: int | None = None) -> dict:
     """One iteration of the autonomous research loop.
 
@@ -97,32 +118,11 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                 active_solutions, key=lambda s: s.get("confidence", 0), reverse=True
             )
 
-            # Fetch outcomes for each solution to give the agent real signal
-            outcomes_by_solution: dict[str, list[dict]] = {}
-            for sol in solutions:
-                sol_id = str(sol["solution_id"])
-                try:
-                    sol_context = service.get_context(
-                        id=UUID(sol_id), include=["outcomes"]
-                    )
-                    outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
-                except Exception:
-                    outcomes_by_solution[sol_id] = []
+            outcomes_by_solution = await _fetch_outcomes_by_solution(service, solutions)
 
-            # Fetch recent research cycles: surface failed approaches + detect radical mode
-            failed_approaches: list[str] = []
-            radical_mode = False
-            if service._research_cycles is not None:
-                pid = UUID(str(problem_id))
-                recent_cycles = service._research_cycles.list_by_problem(pid)[:5]
-                failed_approaches = [
-                    c.reasoning
-                    for c in recent_cycles
-                    if c.status != "improved" and c.reasoning
-                ]
-                stalled = service._research_cycles.count_consecutive_no_improvement(pid)
-                if stalled >= settings.agent_research_stall_threshold:
-                    radical_mode = True
+            failed_approaches, radical_mode = service.get_failed_approaches(
+                UUID(str(problem_id)), settings.agent_research_stall_threshold
+            )
 
             prompt = _build_research_prompt(
                 problem_dict,
@@ -241,9 +241,7 @@ async def _run_focused_research_cycle(
                 f"for problem {problem_id}"
             )
 
-            result = await _research_single_problem(
-                agent, service, problem_dict
-            )
+            result = await _research_single_problem(agent, service, problem_dict)
 
             if result == "improved":
                 improved += 1
@@ -303,9 +301,7 @@ async def _run_focused_research_cycle(
     }
 
 
-async def _research_single_problem(
-    agent, service, problem_dict: dict
-) -> str:
+async def _research_single_problem(agent, service, problem_dict: dict) -> str:
     """Run one research iteration on a single problem. Returns 'improved' or 'no_improvement'."""
     problem_id = problem_dict["problem_id"]
 
@@ -329,28 +325,11 @@ async def _research_single_problem(
         active_solutions, key=lambda s: s.get("confidence", 0), reverse=True
     )
 
-    outcomes_by_solution: dict[str, list[dict]] = {}
-    for sol in solutions:
-        sol_id = str(sol["solution_id"])
-        try:
-            sol_context = service.inspect_resource(
-                resource_id=UUID(sol_id), include=["outcomes"]
-            )
-            outcomes_by_solution[sol_id] = sol_context.get("outcomes", [])
-        except Exception:
-            outcomes_by_solution[sol_id] = []
+    outcomes_by_solution = await _fetch_outcomes_by_solution(service, solutions)
 
-    failed_approaches: list[str] = []
-    radical_mode = False
-    if service._research_cycles is not None:
-        pid = UUID(str(problem_id))
-        recent_cycles = service._research_cycles.list_by_problem(pid)[:5]
-        failed_approaches = [
-            c.reasoning for c in recent_cycles if c.status != "improved" and c.reasoning
-        ]
-        stalled = service._research_cycles.count_consecutive_no_improvement(pid)
-        if stalled >= settings.agent_research_stall_threshold:
-            radical_mode = True
+    failed_approaches, radical_mode = service.get_failed_approaches(
+        UUID(str(problem_id)), settings.agent_research_stall_threshold
+    )
 
     prompt = _build_research_prompt(
         problem_dict,
@@ -416,12 +395,8 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
     if len(active_solutions) < 3:
         return
     try:
-        from uuid import UUID as _UUID
-
-        if service._research_cycles is None:
-            return
-        pid = _UUID(str(problem_id))
-        stalled = service._research_cycles.count_consecutive_no_improvement(pid)
+        pid = UUID(str(problem_id))
+        stalled = service.count_consecutive_no_improvement(pid)
         if stalled < settings.agent_research_stall_threshold + 1:
             return
         logger.info(
@@ -434,22 +409,21 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
             llm_model=settings.agent_model_name,
         )
 
-        # Record a synthesis_completed cycle to reset the stall counter,
-        # allowing continued hill-climbing on the synthesized solution.
         if result and settings.agent_research_post_synthesis_continue:
             from backend.domain.models import ResearchCycle
 
-            cycle = ResearchCycle(
-                problem_id=pid,
-                researcher_id=SYSTEM_AGENT_ID,
-                proposed_solution_id=result.get("canonical_solution_id"),
-                previous_best_confidence=0.0,
-                new_confidence=result.get("confidence", 0.0),
-                status="synthesis_completed",
-                reasoning=f"Synthesized from {result.get('synthesized_from', 0)} solutions",
-                llm_model=settings.agent_model_name,
+            service.record_research_cycle(
+                ResearchCycle(
+                    problem_id=pid,
+                    researcher_id=SYSTEM_AGENT_ID,
+                    proposed_solution_id=result.get("canonical_solution_id"),
+                    previous_best_confidence=0.0,
+                    new_confidence=result.get("confidence", 0.0),
+                    status="synthesis_completed",
+                    reasoning=f"Synthesized from {result.get('synthesized_from', 0)} solutions",
+                    llm_model=settings.agent_model_name,
+                )
             )
-            service._research_cycles.add(cycle)
             logger.info(
                 f"Problem {problem_id}: synthesis completed, stall counter reset "
                 f"(post_synthesis_continue=True)"

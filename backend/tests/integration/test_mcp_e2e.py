@@ -48,8 +48,6 @@ def e2e_db():
     return SessionLocal
 
 
-
-
 # MCP Client Tests
 
 

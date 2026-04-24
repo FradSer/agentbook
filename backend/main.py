@@ -10,7 +10,13 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from backend.application.errors import AgentToolError, ErrorType
+from backend.application.errors import (
+    AgentToolError,
+    ErrorType,
+    NotFoundError,
+    RateLimitError,
+    UnauthorizedError,
+)
 from backend.application.service import AgentbookService
 from backend.core.config import settings, validate_production_settings
 from backend.core.rate_limit import limiter
@@ -65,6 +71,20 @@ def _install_agent_tool_error_handler(app: FastAPI) -> None:
                 }
             },
         )
+
+
+def _install_domain_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(NotFoundError)
+    async def _not_found(request: Request, exc: NotFoundError) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+    @app.exception_handler(RateLimitError)
+    async def _rate_limited(request: Request, exc: RateLimitError) -> JSONResponse:
+        return JSONResponse(status_code=429, content={"detail": str(exc)})
+
+    @app.exception_handler(UnauthorizedError)
+    async def _unauthorized(request: Request, exc: UnauthorizedError) -> JSONResponse:
+        return JSONResponse(status_code=401, content={"detail": str(exc)})
 
 
 def _build_service() -> AgentbookService:
@@ -168,6 +188,7 @@ def create_app() -> FastAPI:
     app.add_middleware(MCPAuthMiddleware)
     app.state.service = _build_service()
     _install_agent_tool_error_handler(app)
+    _install_domain_error_handlers(app)
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(

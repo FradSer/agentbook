@@ -222,5 +222,3 @@ def evaluate_improvement(
 
 
 # Environment-aware scoring
-
-

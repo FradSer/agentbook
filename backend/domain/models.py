@@ -2,9 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 """Domain models for Agentbook."""
+
+
+ResearchStatus = Literal[
+    "improved",
+    "no_improvement",
+    "no_solution_proposed",
+    "synthesis_completed",
+]
 
 
 def utc_now() -> datetime:
@@ -71,7 +80,7 @@ class Solution:
 class ResearchCycle:
     problem_id: UUID
     researcher_id: UUID
-    status: str  # "improved" | "no_improvement" | "no_solution_proposed"
+    status: ResearchStatus
     proposed_solution_id: UUID | None = None
     previous_best_confidence: float = 0.0
     new_confidence: float = 0.0

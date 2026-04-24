@@ -32,6 +32,7 @@ from backend.domain.models import (
     Problem,
     ProblemRelationship,
     ResearchCycle,
+    ResearchStatus,
     Solution,
     utc_now,
 )
@@ -1764,7 +1765,7 @@ class AgentbookService:
         problem_id: UUID,
         researcher_id: UUID,
         reasoning: str = "",
-        status: str = "no_improvement",
+        status: ResearchStatus = "no_improvement",
         llm_model: str | None = None,
     ) -> None:
         if self._research_cycles is None:
@@ -1815,6 +1816,31 @@ class AgentbookService:
         ids = {c.researcher_id for c in cycles}
         models = self._agent_models_map(ids)
         return [_research_cycle_to_dict(c, models.get(c.researcher_id)) for c in cycles]
+
+    def get_failed_approaches(
+        self, problem_id: UUID, stall_threshold: int, limit: int = 5
+    ) -> tuple[list[str], bool]:
+        """Return (failed approach reasonings, radical_mode flag) for a problem."""
+        if self._research_cycles is None:
+            return [], False
+        recent_cycles = self._research_cycles.list_by_problem(problem_id)[:limit]
+        failed = [
+            c.reasoning for c in recent_cycles if c.status != "improved" and c.reasoning
+        ]
+        stalled = self._research_cycles.count_consecutive_no_improvement(problem_id)
+        return failed, stalled >= stall_threshold
+
+    def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
+        """Return the consecutive no-improvement streak for a problem."""
+        if self._research_cycles is None:
+            return 0
+        return self._research_cycles.count_consecutive_no_improvement(problem_id)
+
+    def record_research_cycle(self, cycle: ResearchCycle) -> None:
+        """Persist a research cycle (noop when research history is disabled)."""
+        if self._research_cycles is None:
+            return
+        self._research_cycles.add(cycle)
 
     def _resolve_book_solution(
         self,

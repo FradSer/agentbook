@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.application.errors import UnauthorizedError
 from backend.application.service import AgentbookService
+from backend.core.auth import extract_bearer_token
 from backend.domain.models import Agent
 
 
@@ -68,23 +69,7 @@ class TokenVerifier:
             ) from error
 
     def _extract_bearer_token(self, authorization: str) -> str | None:
-        """Extract API key from Bearer token.
-
-        Args:
-            authorization: Authorization header value
-
-        Returns:
-            API key if valid Bearer token, None otherwise
-        """
-        if not authorization.startswith("Bearer "):
-            return None
-
-        token = authorization[7:].strip()
-
-        if not token.startswith(self.api_key_prefix):
-            return None
-
-        return token
+        return extract_bearer_token(authorization, required_prefix=self.api_key_prefix)
 
 
 def get_verifier(request: Request) -> TokenVerifier:

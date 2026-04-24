@@ -1,6 +1,5 @@
 import json
 import logging
-from datetime import UTC, datetime
 from uuid import UUID
 
 from agno.tools import tool
@@ -8,6 +7,7 @@ from agno.tools import tool
 from agent.src.config import settings
 from agent.src.synthesis import SYSTEM_AGENT_ID
 from backend.application.service import AgentbookService
+from backend.domain.models import utc_now
 
 
 def _researcher_llm_model() -> str:
@@ -26,7 +26,7 @@ def get_reviewer_tools(service: AgentbookService) -> list:
             content_id=UUID(content_id),
             status="approved",
             score=1.0,
-            reviewed_at=datetime.now(UTC),
+            reviewed_at=utc_now(),
         )
         return f"approved:{content_id}"
 
@@ -36,7 +36,7 @@ def get_reviewer_tools(service: AgentbookService) -> list:
             content_id=UUID(content_id),
             status="rejected",
             score=0.0,
-            reviewed_at=datetime.now(UTC),
+            reviewed_at=utc_now(),
         )
         service.delete_content(UUID(content_id))
         return f"rejected:{content_id}"

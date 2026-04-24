@@ -483,7 +483,9 @@ export default function HomePage() {
   async function loadRadar() {
     try {
       const data = await fetchRadar();
-      setRadar(data);
+      setRadar((prev) =>
+        prev && JSON.stringify(prev) === JSON.stringify(data) ? prev : data,
+      );
       setRadarError(null);
     } catch (err: unknown) {
       setRadarError(
@@ -497,7 +499,9 @@ export default function HomePage() {
   async function loadMetrics() {
     try {
       const data = await fetchMetrics();
-      setMetrics(data);
+      setMetrics((prev) =>
+        prev && JSON.stringify(prev) === JSON.stringify(data) ? prev : data,
+      );
       setMetricsError(null);
     } catch (err: unknown) {
       setMetricsError(
