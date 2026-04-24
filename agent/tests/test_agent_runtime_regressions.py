@@ -1,32 +1,16 @@
 """Agent runtime regression tests."""
 
 import importlib
-from types import SimpleNamespace
 from unittest import mock
 from uuid import uuid4
 
 
 class DummyService:
     def __init__(self) -> None:
-        self.thread_updates = []
-
-    def get_unreviewed_threads(self, limit: int, retry_error_before=None):
-        return [
-            SimpleNamespace(
-                thread_id=uuid4(),
-                title="valid title",
-                body="valid thread body",
-            )
-        ]
-
-    def update_thread_review(self, **kwargs):
-        self.thread_updates.append(kwargs)
+        self.updates: list[dict] = []
 
     def update_review(self, **kwargs):
-        self.thread_updates.append(kwargs)
-
-    def delete_thread(self, _thread_id):
-        return None
+        self.updates.append(kwargs)
 
     def delete_content(self, _content_id):
         return None
