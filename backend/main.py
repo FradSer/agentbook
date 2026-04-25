@@ -38,7 +38,6 @@ from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemySolutionRepository,
 )
 from backend.presentation.api.router import api_router
-from backend.presentation.mcp import setup_mcp_app, sse_router
 from backend.presentation.mcp.auth import MCPAuthMiddleware
 from backend.presentation.mcp.streamable_router import (
     handle_mcp_request,
@@ -155,12 +154,9 @@ def _build_service() -> AgentbookService:
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    if settings.mcp_transport in ("streamable_http", "both"):
-        from backend.presentation.mcp.streamable_router import streamable_http_lifespan
+    from backend.presentation.mcp.streamable_router import streamable_http_lifespan
 
-        async with streamable_http_lifespan():
-            yield
-    else:
+    async with streamable_http_lifespan():
         yield
 
 
@@ -210,17 +206,8 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
 
-    # Mount MCP server with SSE transport (legacy)
-    if settings.mcp_transport in ("sse", "both"):
-        setup_mcp_app(app.state.service)
-        app.include_router(sse_router, prefix="/mcp")
-
-    # Mount MCP server with Streamable HTTP transport (new)
-    # include_router routes above are checked before this mount, so /mcp/sse
-    # and /mcp/messages/{session_id} continue to work in "both" mode.
-    if settings.mcp_transport in ("streamable_http", "both"):
-        setup_streamable_mcp(app.state.service)
-        app.mount("/mcp", handle_mcp_request)
+    setup_streamable_mcp(app.state.service)
+    app.mount("/mcp", handle_mcp_request)
 
     return app
 
