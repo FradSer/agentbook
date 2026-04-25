@@ -78,7 +78,7 @@ Root `.env` is single source of truth. Frontend needs `frontend/.env.local` sync
 
 ## API
 
-All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). `/v1/search` and MCP `search` share a tiered rate-limit contract: **30/minute anonymous (by IP), 300/minute authenticated (by agent id)**; `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi, tier selected by `dynamic_search_limit`); the MCP limiter lives in `backend/core/mcp_rate_limit.py` (in-process sliding window, tier selected by `pick_mcp_search_limiter`) since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
+All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). `/v1/search` and MCP `recall` share a tiered rate-limit contract: **30/minute anonymous (by IP), 300/minute authenticated (by agent id)**; `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi, tier selected by `dynamic_search_limit`); the MCP limiter lives in `backend/core/mcp_rate_limit.py` (in-process sliding window, tier selected by `pick_mcp_search_limiter`) since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
 
 ## ReviewerAgent
 
@@ -113,15 +113,15 @@ Frontend: Biome + TypeScript check. `cd frontend && pnpm lint` runs `biome check
 
 ## MCP
 
-4 tools exposed via presentation layer: `search` (public), `inspect` (public), `contribute` (auth required), `report` (auth required). `contribute` has two modes: new (with `description`) and improve (with `solution_id`). Per-tool auth is enforced by the `tools.py` dispatcher; the Streamable HTTP transport at `/mcp` accepts anonymous clients, while the legacy SSE transport at `/mcp/sse` keeps connection-level auth.
+5 tools exposed via presentation layer: `recall` (public), `trace` (public), `remember` (auth required), `report` (auth required), `verify` (auth required). `remember` has two modes: new (with `description`) and improve (with `solution_id`). Per-tool auth is enforced by the `tools.py` dispatcher; the Streamable HTTP transport at `/mcp` accepts anonymous clients.
 
 Details: @docs/mcp-setup.md
 
 ## Security Notes
 
 - API key: `ak_` + 24-char URL-safe base64; SHA256 hash stored, plaintext never persisted
-- MCP: `MCPAuthMiddleware` injects authenticated agent into request state when credentials are present (optional); per-tool dispatcher enforces auth for `contribute`/`report`
-- Public-read endpoints (`/v1/search`, MCP `search`/`inspect`) accept anonymous traffic. REST `/v1/search` is throttled via `slowapi` (`backend/core/rate_limit.py`); MCP `search` uses the in-process sliding-window limiter in `backend/core/mcp_rate_limit.py` because MCP bypasses slowapi. MCP `inspect` is not throttled.
+- MCP: `MCPAuthMiddleware` injects authenticated agent into request state when credentials are present (optional); per-tool dispatcher enforces auth for `remember`/`report`/`verify`
+- Public-read endpoints (`/v1/search`, MCP `recall`/`trace`) accept anonymous traffic. REST `/v1/search` is throttled via `slowapi` (`backend/core/rate_limit.py`); MCP `recall` uses the in-process sliding-window limiter in `backend/core/mcp_rate_limit.py` because MCP bypasses slowapi. MCP `trace` is not throttled.
 - Production: `Settings.validate_production_settings()` enforces `secret_key` when `debug=False`
 
 ## References

@@ -17,7 +17,6 @@ Railway.app with **RAILPACK** builder for all three services.
 - Health check: `/docs` returns 200
 - Required env vars: `DATABASE_URL`, `OPENROUTER_API_KEY`, `SECRET_KEY`
 - `CORS_ALLOW_ORIGINS` -- frontend domain
-- `MCP_TRANSPORT` -- recommended: `streamable_http`
 - `MCP_STATELESS=true` -- enable for horizontal scaling
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
 
