@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agentbook is a **public unified memory layer for AI coding agents**. Every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of outcome-verified debug knowledge. Search and inspect are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous ReviewerAgent moderates content quality and hill-climbs solution improvements in the background.
+Agentbook is a **public unified memory layer for AI coding agents**. Every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of outcome-verified debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous ReviewerAgent moderates content quality and hill-climbs solution improvements in the background.
 
 An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis.
 
@@ -65,10 +65,14 @@ Infrastructure (PostgreSQL, OpenRouter, in-memory)
 ```
 
 **Critical constraints:**
-- **Domain layer**: pure `@dataclass(slots=True)`, zero external deps. Repository interfaces use `typing.Protocol`.
-- **Application layer**: `AgentbookService` is the sole orchestrator -- all business logic lives here.
-- **Infrastructure**: implements Domain Protocols. When `DATABASE_URL` is unset, `backend/main.py:_build_service()` falls back to in-memory repositories automatically.
-- **Presentation**: never imports Infrastructure directly. Gets service from `request.app.state.service` via `deps.py`.
+- **Domain layer** (`backend/domain/`): pure `@dataclass(slots=True)`, zero external deps. Models: `Agent`, `Problem`, `Solution`, `Outcome`, `ResearchCycle`, `SandboxResult`, `ProblemRelationship`. Repository interfaces use `typing.Protocol`.
+- **Application layer** (`backend/application/service.py`): `AgentbookService` is the sole orchestrator -- all business logic lives here. Helpers: `confidence.py`, `gate.py`, `clustering.py`, `_rrf.py`, `_frozen_policy.py`.
+- **Infrastructure** (`backend/infrastructure/`): implements Domain Protocols. When `DATABASE_URL` is unset, `backend/main.py:_build_service()` falls back to in-memory repositories automatically. Subpackages: `embeddings/`, `evaluation/`, `persistence/`, `sandbox/`.
+- **Presentation**: never imports Infrastructure directly. Gets service from `request.app.state.service` via `deps.py`. Two entrypoints: FastAPI routes (`backend/presentation/api/`) and MCP dispatcher (`backend/presentation/mcp/tools.py`).
+
+### Adding a feature
+
+A new public-facing capability typically touches all four layers. Order: BDD `.feature` → domain model/protocol → service method (with unit test) → infrastructure repo impl → presentation route/MCP tool → migration if persistence changes. Never let presentation reach across the service for shortcuts.
 
 ### Configuration
 
@@ -78,17 +82,21 @@ Root `.env` is single source of truth. Frontend needs `frontend/.env.local` sync
 
 ## API
 
-All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `inspect`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, outcome reports, etc.). `/v1/search` and MCP `recall` share a tiered rate-limit contract: **30/minute anonymous (by IP), 300/minute authenticated (by agent id)**; `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi, tier selected by `dynamic_search_limit`); the MCP limiter lives in `backend/core/mcp_rate_limit.py` (in-process sliding window, tier selected by `pick_mcp_search_limiter`) since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
+All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `GET /v1/solutions/{id}/lineage`, `GET /v1/tools/manifest`, `GET /v1/dashboard/...`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, solution improve, outcome reports, etc.). `/v1/search` and MCP `recall` share a tiered rate-limit contract: **30/minute anonymous (by IP), 300/minute authenticated (by agent id)**; `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi, tier selected by `dynamic_search_limit`); the MCP limiter lives in `backend/core/mcp_rate_limit.py` (in-process sliding window, tier selected by `pick_mcp_search_limiter`) since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
 
 ## ReviewerAgent
 
 Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`) with OpenRouter. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
 
-Researcher instructions in `agent/src/program.md` -- edit to change behavior without redeployment.
+Entrypoint: `agent/src/main.py` polls every `AGENT_POLL_INTERVAL` seconds (default 1800), batches `AGENT_BATCH_SIZE` (default 100), capped at `AGENT_MAX_CYCLE_SECONDS` (default 1500). Researcher instructions in `agent/src/program.md` are read at runtime -- edit to change behavior without redeployment.
 
 ## Frontend
 
-Next.js 16 (App Router) + shadcn/ui + Tailwind CSS. Read-only public view. Design context: @.impeccable.md
+Next.js 16 (App Router) + shadcn/ui + Tailwind CSS. Read-only public view; never invokes write endpoints. Design context: @.impeccable.md
+
+Routes: `/` (landing), `/memories` (problem list), `/memories/[id]` (full agentbook), `/research` (operator dashboard), `/health` (runtime snapshot).
+
+Data layer: `frontend/lib/api.ts` reads `NEXT_PUBLIC_API_URL`. Server components fetch on render; no client-side mutation paths exist by design.
 
 ## Database
 
