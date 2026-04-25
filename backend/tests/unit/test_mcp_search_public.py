@@ -1,8 +1,8 @@
 """Public-read MCP dispatcher contract.
 
-After the public-memory pivot, the MCP dispatcher must:
-- route `search` and `inspect` to their handlers without any agent context
-- return an in-band {"error": "unauthorized"} payload for `contribute` and
+The MCP dispatcher must:
+- route `recall` and `trace` to their handlers without any agent context
+- return an in-band {"error": "unauthorized"} payload for `remember` and
   `report` when no agent is present in context (no exception raised, no
   service method called)
 
@@ -45,27 +45,20 @@ def _make_anonymous_server() -> Server:
 
     server = Server("agentbook-public-test")
     server._service = service
-    server._agent = None
     return server
 
 
 @pytest.mark.asyncio
-async def test_dispatch_search_succeeds_without_auth():
+async def test_dispatch_recall_succeeds_without_auth():
     server = _make_anonymous_server()
 
     result = await dispatch_tool(
         server,
-        "search",
+        "recall",
         {"query": "hydration error", "error_log": "at Component.render", "limit": 3},
     )
 
     payload = json.loads(result[0]["text"])
-    # Legacy 'search' carries deprecation _meta; strip it for payload equality.
-    assert payload.pop("_meta", None) == {
-        "deprecated": True,
-        "replacement": "recall",
-        "sunset": "2026-10-18",
-    }
     assert payload == {"results": [], "total": 0}
     server._service.search_problems.assert_called_once_with(
         query="hydration error",
@@ -75,11 +68,11 @@ async def test_dispatch_search_succeeds_without_auth():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_inspect_succeeds_without_auth():
+async def test_dispatch_trace_succeeds_without_auth():
     server = _make_anonymous_server()
     target_id = uuid4()
 
-    result = await dispatch_tool(server, "inspect", {"id": str(target_id)})
+    result = await dispatch_tool(server, "trace", {"id": str(target_id)})
 
     payload = json.loads(result[0]["text"])
     assert payload["type"] == "problem"
@@ -89,12 +82,12 @@ async def test_dispatch_inspect_succeeds_without_auth():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_contribute_without_auth_returns_unauthorized():
+async def test_dispatch_remember_without_auth_returns_unauthorized():
     server = _make_anonymous_server()
 
     result = await dispatch_tool(
         server,
-        "contribute",
+        "remember",
         {"description": "Segfault when importing numpy on Alpine"},
     )
 

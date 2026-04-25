@@ -29,7 +29,7 @@ def test_given_openai_compatible_request_when_fetching_manifest_then_function_sh
     assert "description" in fn
     assert "parameters" in fn
     names = {entry["function"]["name"] for entry in body["tools"]}
-    assert {"search", "contribute", "report", "inspect"}.issubset(names)
+    assert {"recall", "remember", "report", "trace", "verify"}.issubset(names)
 
 
 def test_given_gemini_request_when_fetching_manifest_then_function_declarations_are_returned() -> (

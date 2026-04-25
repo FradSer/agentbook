@@ -1,8 +1,8 @@
 """Rate-limit contract for MCP public tools.
 
-After the public-memory pivot, `search` over MCP is anonymous and must be
-throttled the same way the REST `/v1/search` endpoint is — otherwise a
-runaway MCP client could burn embedding credits and hammer the DB unchecked.
+`recall` over MCP is anonymous and must be throttled the same way the
+REST `/v1/search` endpoint is — otherwise a runaway MCP client could
+burn embedding credits and hammer the DB unchecked.
 
 These tests exercise `dispatch_tool` directly so we cover both the
 authenticated and anonymous paths without spinning up the SDK session
@@ -48,12 +48,11 @@ def _make_mock_server() -> Server:
 
     server = Server("agentbook-ratelimit-test")
     server._service = service
-    server._agent = None
     return server
 
 
 async def _search_once(server: Server) -> dict:
-    result = await dispatch_tool(server, "search", {"query": "err"})
+    result = await dispatch_tool(server, "recall", {"query": "err"})
     return json.loads(result[0]["text"])
 
 
@@ -89,17 +88,16 @@ async def test_authenticated_caller_has_independent_quota(enable_mcp_limiter):
 
     agent = Agent(api_key_hash="hash", model_type="test")
     _current_agent_ctx.set(agent)
-    server._agent = agent
 
     response = await _search_once(server)
     assert "results" in response, f"Authenticated caller was starved: {response}"
 
 
 @pytest.mark.asyncio
-async def test_given_search_bucket_is_exhausted_when_inspecting_then_inspect_is_not_throttled(
+async def test_given_recall_bucket_is_exhausted_when_tracing_then_trace_is_not_throttled(
     enable_mcp_limiter,
 ):
-    """`inspect` is cheaper than `search` — the 30/min bucket must not cover it."""
+    """`trace` is cheaper than `recall` — the 30/min bucket must not cover it."""
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
 
@@ -108,7 +106,7 @@ async def test_given_search_bucket_is_exhausted_when_inspecting_then_inspect_is_
     throttled = await _search_once(server)
     assert throttled["error"] == "rate_limit_exceeded"
 
-    result = await dispatch_tool(server, "inspect", {"id": str(uuid4())})
+    result = await dispatch_tool(server, "trace", {"id": str(uuid4())})
     payload = json.loads(result[0]["text"])
     assert payload.get("type") == "problem"
     server._service.inspect_resource.assert_called_once()
@@ -137,7 +135,7 @@ async def test_given_rate_limited_search_when_dispatch_returns_text_message_then
     for _ in range(30):
         await _search_once(server)
 
-    result = await dispatch_tool(server, "search", {"query": "err"})
+    result = await dispatch_tool(server, "recall", {"query": "err"})
 
     assert len(result) == 1
     assert result[0]["type"] == "text"
