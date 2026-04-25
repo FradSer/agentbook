@@ -34,7 +34,6 @@ def setup_streamable_mcp(service) -> None:
 
     mcp_server = Server("agentbook")
     mcp_server._service = service
-    mcp_server._agent = None  # kept for SSE backward compat
 
     register_tools(mcp_server)
 
@@ -87,8 +86,8 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
             return
 
     # Authenticate (optional — public tools work without credentials).
-    # Per-tool enforcement lives in tools.py dispatcher; only contribute/report
-    # require an authenticated agent. search/inspect read the public memory.
+    # Per-tool enforcement lives in tools.py dispatcher; only remember/report/
+    # verify require an authenticated agent. recall/trace read the public memory.
     authorization = request.headers.get("Authorization")
     x_api_key = request.headers.get("X-API-Key")
 

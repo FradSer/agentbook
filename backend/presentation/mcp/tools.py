@@ -39,7 +39,6 @@ async def handle_contribute(
     solution_id = arguments.get("solution_id")
 
     if solution_id is not None:
-        # Improvement mode
         improved_content = arguments.get("improved_content")
         if not improved_content:
             return _json_response(
@@ -62,7 +61,6 @@ async def handle_contribute(
         except ValueError as exc:
             return _json_response({"error": "invalid_input", "detail": str(exc)})
 
-    # New-contribution mode
     description = arguments.get("description")
     if not description:
         return _json_response(
@@ -119,10 +117,7 @@ async def handle_inspect(
     service,
     arguments: dict,
 ) -> list[Any]:
-    """Retrieve problem/solution details, optionally including lineage.
-
-    `inspect` is a public read — the dispatcher calls it without an agent.
-    """
+    """Retrieve problem/solution details, optionally including lineage."""
     raw_id = arguments.get("id")
     if not raw_id:
         return _json_response({"error": "invalid_input", "detail": "id is required"})
@@ -159,14 +154,7 @@ class _MCPAuthError(Exception):
 
 
 def _get_authenticated_agent(server: Server):
-    """Get authenticated agent from request context.
-
-    Checks the per-request ContextVar first (Streamable HTTP stateless mode),
-    then falls back to the server attribute (SSE per-connection mode).
-    """
     agent = _current_agent_ctx.get(None)
-    if agent is None:
-        agent = getattr(server, "_agent", None)
     if agent is None:
         raise _MCPAuthError(
             "Authentication required: No authenticated agent found in MCP context. "
@@ -175,48 +163,16 @@ def _get_authenticated_agent(server: Server):
     return agent
 
 
-_LEGACY_REPLACEMENT = {
-    "search": "recall",
-    "contribute": "remember",
-    "inspect": "trace",
-}
-LEGACY_NAMES = frozenset(_LEGACY_REPLACEMENT.keys())
-_SUNSET = "2026-10-18"
-
-
-def _canonical_name(name: str) -> str:
-    return _LEGACY_REPLACEMENT.get(name, name)
-
-
-def _wrap_with_meta(response: list[dict], requested_name: str) -> list[dict]:
-    """Stamp ``_meta`` with deprecation status for legacy tool calls."""
-    if not response or response[0].get("type") != "text":
-        return response
-    body = json.loads(response[0]["text"])
-    if not isinstance(body, dict):
-        return response
-    meta = body.setdefault("_meta", {})
-    if requested_name in LEGACY_NAMES:
-        meta["deprecated"] = True
-        meta["replacement"] = _LEGACY_REPLACEMENT[requested_name]
-        meta["sunset"] = _SUNSET
-    else:
-        meta["deprecated"] = False
-    response[0]["text"] = json.dumps(body, default=str)
-    return response
-
-
-_LEGACY_TOOLS = [
+TOOL_DEFINITIONS = [
     types.Tool(
-        name="search",
+        name="recall",
         description=(
-            "[DEPRECATED - use recall] "
-            "Search agentbook for known solutions to a programming problem. "
-            "Use when you encounter an error, exception, or technical issue "
-            "during development. Returns ranked results with confidence scores. "
-            "If no results, use 'contribute' to register the problem and share "
-            "your solution. Do NOT use for general knowledge questions -- only "
-            "specific technical problems."
+            "Recall known solutions from the shared agent memory layer. "
+            "Queries the public body of outcome-verified debug knowledge. "
+            "Use when you hit an error, exception, or technical issue during "
+            "development. Returns ranked memories with confidence scores. "
+            "If nothing matches, use 'remember' to register the problem and "
+            "share your solution."
         ),
         inputSchema={
             "type": "object",
@@ -239,16 +195,14 @@ _LEGACY_TOOLS = [
         },
     ),
     types.Tool(
-        name="contribute",
+        name="remember",
         description=(
-            "[DEPRECATED - use remember] "
-            "Share knowledge with agentbook. Two modes: "
-            "(1) New -- provide 'description' to create a problem with optional "
-            "solution. (2) Improve -- provide 'solution_id' and 'improved_content' "
-            "to propose a better version via hill-climbing. Improvements are "
-            "evaluated automatically: only accepted if confidence strictly "
-            "increases. Use after solving a problem not yet in agentbook, or when "
-            "you find a better approach to an existing solution."
+            "Store knowledge into the shared agent memory layer. Two modes: "
+            "(1) New -- provide 'description' to create a memory with an "
+            "optional solution. (2) Improve -- provide 'solution_id' and "
+            "'improved_content' to propose a better version via hill-climbing. "
+            "Improvements are evaluated automatically by the immutable "
+            "scoring infrastructure."
         ),
         inputSchema={
             "type": "object",
@@ -337,14 +291,12 @@ _LEGACY_TOOLS = [
         },
     ),
     types.Tool(
-        name="inspect",
+        name="trace",
         description=(
-            "[DEPRECATED - use trace] "
-            "Retrieve detailed information about a specific problem or solution. "
-            "Use when 'search' returned a result and you need the full solution "
-            "text, all candidate solutions, outcome history, or evolution lineage "
-            "before trying it. Not needed when the search response already has "
-            "enough detail."
+            "Trace a memory's full lineage: problem detail, candidate "
+            "solutions, outcome history, and evolution chain. Use after "
+            "'recall' returned a candidate and you need the full context "
+            "before applying it."
         ),
         inputSchema={
             "type": "object",
@@ -374,47 +326,6 @@ _LEGACY_TOOLS = [
             "required": ["id"],
         },
     ),
-]
-
-
-# Memory-shaped replacements. Each new tool shares the inputSchema of its
-# legacy twin. `verify` is a genuinely new semantic (sandbox enqueue)
-# registered here; its handler is implemented in task 013b.
-_NEW_TOOLS = [
-    types.Tool(
-        name="recall",
-        description=(
-            "Recall known solutions from the shared agent memory layer. "
-            "Queries the public body of outcome-verified debug knowledge. "
-            "Use when you hit an error, exception, or technical issue during "
-            "development. Returns ranked memories with confidence scores. "
-            "If nothing matches, use 'remember' to register the problem and "
-            "share your solution."
-        ),
-        inputSchema=_LEGACY_TOOLS[0].inputSchema,
-    ),
-    types.Tool(
-        name="remember",
-        description=(
-            "Store knowledge into the shared agent memory layer. Two modes: "
-            "(1) New -- provide 'description' to create a memory with an "
-            "optional solution. (2) Improve -- provide 'solution_id' and "
-            "'improved_content' to propose a better version via hill-climbing. "
-            "Improvements are evaluated automatically by the immutable "
-            "scoring infrastructure."
-        ),
-        inputSchema=_LEGACY_TOOLS[1].inputSchema,
-    ),
-    types.Tool(
-        name="trace",
-        description=(
-            "Trace a memory's full lineage: problem detail, candidate "
-            "solutions, outcome history, and evolution chain. Use after "
-            "'recall' returned a candidate and you need the full context "
-            "before applying it."
-        ),
-        inputSchema=_LEGACY_TOOLS[3].inputSchema,
-    ),
     types.Tool(
         name="verify",
         description=(
@@ -437,108 +348,79 @@ _NEW_TOOLS = [
 ]
 
 
-TOOL_DEFINITIONS = _LEGACY_TOOLS + _NEW_TOOLS
-
-
 async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]:
     """Route an MCP tool call to the matching handler.
 
-    `search`/`recall` and `inspect`/`trace` are served without auth; the
-    search family is rate-limited to mirror the REST `/v1/search` contract
-    (30/minute per agent or remote IP) since MCP bypasses slowapi. The
-    shared bucket is keyed on the canonical name so legacy and new names
-    cannot each consume a separate budget. `contribute`/`remember`,
-    `report`, and `verify` require an authenticated agent.
+    `recall` and `trace` are served without auth; `recall` is rate-limited
+    to mirror the REST `/v1/search` contract (30/minute per agent or remote
+    IP) since MCP bypasses slowapi. `remember`, `report`, and `verify`
+    require an authenticated agent.
     """
     service = server._service
-    canonical = _canonical_name(name)
 
-    if canonical == "recall":
-        agent = _current_agent_ctx.get(None) or getattr(server, "_agent", None)
+    if name == "recall":
+        agent = _current_agent_ctx.get(None)
         remote_addr = _current_remote_addr_ctx.get(None)
         search_limiter = pick_mcp_search_limiter(agent)
         if not search_limiter.hit(mcp_rate_key(agent, remote_addr)):
-            return _wrap_with_meta(
-                _json_response(
-                    {
-                        "error": "rate_limit_exceeded",
-                        "detail": (
-                            f"MCP search is limited to {search_limiter.max_calls} "
-                            "requests per minute."
-                        ),
-                    }
-                ),
-                name,
+            return _json_response(
+                {
+                    "error": "rate_limit_exceeded",
+                    "detail": (
+                        f"MCP search is limited to {search_limiter.max_calls} "
+                        "requests per minute."
+                    ),
+                }
             )
         search_response = service.search_problems(
             query=arguments.get("query", ""),
             error_log=arguments.get("error_log"),
             limit=arguments.get("limit", 5),
         )
-        return _wrap_with_meta(_json_response(search_response), name)
+        return _json_response(search_response)
 
-    if canonical == "trace":
-        return _wrap_with_meta(await handle_inspect(service, arguments), name)
+    if name == "trace":
+        return await handle_inspect(service, arguments)
 
-    if canonical in {"remember", "report", "verify"}:
+    if name in {"remember", "report", "verify"}:
         try:
             agent = _get_authenticated_agent(server)
         except _MCPAuthError as exc:
-            return _wrap_with_meta(
-                _json_response({"error": "unauthorized", "detail": str(exc)}), name
-            )
+            return _json_response({"error": "unauthorized", "detail": str(exc)})
 
-        if canonical == "remember":
-            return _wrap_with_meta(
-                await handle_contribute(service, agent.agent_id, arguments), name
-            )
+        if name == "remember":
+            return await handle_contribute(service, agent.agent_id, arguments)
 
-        if canonical == "report":
-            return _wrap_with_meta(
-                await handle_report(service, agent.agent_id, arguments), name
-            )
+        if name == "report":
+            return await handle_report(service, agent.agent_id, arguments)
 
-        # verify
         solution_id_raw = arguments.get("solution_id")
         if not solution_id_raw:
-            return _wrap_with_meta(
-                _json_response(
-                    {"error": "invalid_input", "detail": "solution_id is required"}
-                ),
-                name,
+            return _json_response(
+                {"error": "invalid_input", "detail": "solution_id is required"}
             )
         try:
             solution_id = UUID(solution_id_raw)
         except ValueError:
-            return _wrap_with_meta(
-                _json_response(
-                    {
-                        "error": "invalid_input",
-                        "detail": "solution_id is not a valid UUID",
-                    }
-                ),
-                name,
+            return _json_response(
+                {
+                    "error": "invalid_input",
+                    "detail": "solution_id is not a valid UUID",
+                }
             )
         try:
             result = service.verify_solution(solution_id, agent.agent_id)
         except NotFoundError:
-            return _wrap_with_meta(_json_response({"error": "not_found"}), name)
-        return _wrap_with_meta(_json_response(result), name)
+            return _json_response({"error": "not_found"})
+        return _json_response(result)
 
-    return _wrap_with_meta(
-        _json_response({"error": "unknown_tool", "detail": f"Tool '{name}' not found"}),
-        name,
+    return _json_response(
+        {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
     )
 
 
 def register_tools(server: Server) -> None:
-    """Register all MCP tools with the low-level Server.
-
-    Uses a single @server.call_tool() handler that delegates to
-    `dispatch_tool`, plus a @server.list_tools() handler returning the
-    static tool definitions. The inner closures are kept thin so unit tests
-    can exercise routing via `dispatch_tool` directly.
-    """
+    """Register all MCP tools with the low-level Server."""
 
     @server.list_tools()
     async def list_tools() -> list[types.Tool]:
