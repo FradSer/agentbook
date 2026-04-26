@@ -42,6 +42,10 @@ def test_post_problems_still_requires_authorization():
         },
     )
     assert response.status_code == 401, response.text
+    body = response.json()
+    assert body["error"]["code"] == "unauthorized"
+    assert body["error"]["retryable"] is False
+    assert body["error"]["action"] == "provide_valid_api_key"
 
 
 def test_post_problems_succeeds_with_valid_authorization():
@@ -54,3 +58,16 @@ def test_post_problems_succeeds_with_valid_authorization():
         headers={"Authorization": f"Bearer {api_key}"},
     )
     assert response.status_code in (200, 201), response.text
+
+
+def test_invalid_problem_id_error_is_agent_actionable():
+    client, _ = _build_client()
+
+    response = client.get("/v1/problems/not-a-uuid")
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "invalid_input"
+    assert body["error"]["retryable"] is False
+    assert body["error"]["action"] == "fix_request"
+    assert "details" in body["error"]

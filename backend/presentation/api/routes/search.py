@@ -56,6 +56,8 @@ def search_problems(
                 description_preview=item["description"][:200],
                 tags=item.get("tags") or [],
                 similarity_score=item["similarity_score"],
+                match_quality=item.get("match_quality", "partial"),
+                match_reasons=item.get("match_reasons", []),
                 best_solution=None
                 if best_sol is None
                 else BestSolutionResponse(
@@ -69,4 +71,8 @@ def search_problems(
                 lineage=item.get("lineage"),
             )
         )
-    return SearchResponse(results=results, total=payload["total"])
+    return SearchResponse(
+        results=results,
+        total=payload["total"],
+        no_good_match=payload.get("no_good_match", False),
+    )

@@ -123,6 +123,49 @@ def test_post_establishes_session(
     assert "serverInfo" in result, "Response should contain server info"
 
 
+def test_bare_mcp_path_does_not_redirect(
+    client: TestClient,
+    valid_headers: dict[str, str],
+    mcp_initialize_request: dict,
+) -> None:
+    response = client.post(
+        "/mcp",
+        headers=valid_headers,
+        json=mcp_initialize_request,
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200, response.text
+
+
+def test_tool_error_returns_structured_mcp_result(
+    client: TestClient,
+) -> None:
+    headers = {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+    }
+    response = client.post(
+        "/mcp",
+        headers=headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "remember",
+                "arguments": {"description": "Unauthorized memory write attempt"},
+            },
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    result = response.json()["result"]
+    assert result["isError"] is True
+    assert result["structuredContent"]["error"] == "unauthorized"
+    assert "Authentication required" in result["structuredContent"]["detail"]
+
+
 def test_stateless_mode_no_session_header(
     client: TestClient,
     test_agent,

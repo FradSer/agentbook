@@ -99,7 +99,16 @@ class InMemoryProblemRepository:
             terms = {t for t in query_text.lower().split() if t}
             with_overlap = []
             for p in approved:
-                tokens = set(p.description.lower().split())
+                searchable = " ".join(
+                    part
+                    for part in (
+                        p.description,
+                        p.error_signature or "",
+                        " ".join(p.tags or []),
+                    )
+                    if part
+                )
+                tokens = set(searchable.lower().split())
                 overlap = len(terms & tokens)
                 if overlap > 0:
                     with_overlap.append((p, overlap))

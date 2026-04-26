@@ -126,6 +126,8 @@ def improve_solution(
             previous_confidence=result["previous_confidence"],
             previous_problem_best=result["previous_problem_best"],
             new_confidence=result["new_confidence"],
+            reason=result.get("reason"),
+            next_action=result.get("next_action"),
         )
     except ValueError as e:
         raise HTTPException(

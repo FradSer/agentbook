@@ -25,6 +25,46 @@ def _json_response(data: dict) -> list[dict]:
     return [{"type": "text", "text": json.dumps(data, default=str)}]
 
 
+def _call_tool_result(data: dict, *, is_error: bool = False) -> types.CallToolResult:
+    text = json.dumps(data, default=str)
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=text)],
+        structuredContent=json.loads(text),
+        isError=is_error,
+    )
+
+
+def _as_structured_tool_result(result: list[Any]) -> types.CallToolResult:
+    if (
+        len(result) == 1
+        and isinstance(result[0], dict)
+        and result[0].get("type") == "text"
+    ):
+        try:
+            payload = json.loads(result[0]["text"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            return types.CallToolResult(
+                content=[
+                    types.TextContent(
+                        type="text",
+                        text="Tool produced invalid JSON output",
+                    )
+                ],
+                isError=True,
+            )
+        return _call_tool_result(payload, is_error="error" in payload)
+
+    return types.CallToolResult(
+        content=[
+            types.TextContent(
+                type="text",
+                text=json.dumps(result, default=str),
+            )
+        ],
+        isError=False,
+    )
+
+
 async def handle_contribute(
     service,
     agent_id: UUID,
@@ -252,6 +292,10 @@ TOOL_DEFINITIONS = [
                 },
             },
             "required": [],
+            "oneOf": [
+                {"required": ["description"]},
+                {"required": ["solution_id", "improved_content"]},
+            ],
         },
     ),
     types.Tool(
@@ -427,5 +471,6 @@ def register_tools(server: Server) -> None:
         return TOOL_DEFINITIONS
 
     @server.call_tool()
-    async def _dispatch(name: str, arguments: dict) -> list[Any]:
-        return await dispatch_tool(server, name, arguments)
+    async def _dispatch(name: str, arguments: dict) -> types.CallToolResult:
+        result = await dispatch_tool(server, name, arguments)
+        return _as_structured_tool_result(result)

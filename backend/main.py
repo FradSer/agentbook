@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -72,18 +72,120 @@ def _install_agent_tool_error_handler(app: FastAPI) -> None:
         )
 
 
+def _api_error(
+    *,
+    code: str,
+    message: str,
+    retryable: bool,
+    action: str,
+    details: object | None = None,
+) -> dict:
+    payload = {
+        "error": {
+            "code": code,
+            "message": message,
+            "retryable": retryable,
+            "action": action,
+        }
+    }
+    if details is not None:
+        payload["error"]["details"] = details
+    return payload
+
+
+def _http_error_code(status_code: int) -> tuple[str, bool, str]:
+    if status_code == 401:
+        return "unauthorized", False, "provide_valid_api_key"
+    if status_code == 404:
+        return "not_found", False, "check_resource_id"
+    if status_code == 429:
+        return "rate_limited", True, "retry_after_delay"
+    if status_code == 422:
+        return "invalid_input", False, "fix_request"
+    if 400 <= status_code < 500:
+        return "invalid_request", False, "fix_request"
+    return "internal_error", True, "retry_or_contact_operator"
+
+
 def _install_domain_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFoundError)
     async def _not_found(request: Request, exc: NotFoundError) -> JSONResponse:
-        return JSONResponse(status_code=404, content={"detail": str(exc)})
+        return JSONResponse(
+            status_code=404,
+            content=_api_error(
+                code="not_found",
+                message=str(exc),
+                retryable=False,
+                action="check_resource_id",
+            ),
+        )
 
     @app.exception_handler(RateLimitError)
     async def _rate_limited(request: Request, exc: RateLimitError) -> JSONResponse:
-        return JSONResponse(status_code=429, content={"detail": str(exc)})
+        return JSONResponse(
+            status_code=429,
+            content=_api_error(
+                code="rate_limited",
+                message=str(exc),
+                retryable=True,
+                action="retry_after_delay",
+            ),
+        )
 
     @app.exception_handler(UnauthorizedError)
     async def _unauthorized(request: Request, exc: UnauthorizedError) -> JSONResponse:
-        return JSONResponse(status_code=401, content={"detail": str(exc)})
+        return JSONResponse(
+            status_code=401,
+            content=_api_error(
+                code="unauthorized",
+                message=str(exc),
+                retryable=False,
+                action="provide_valid_api_key",
+            ),
+        )
+
+    @app.exception_handler(HTTPException)
+    async def _http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+        code, retryable, action = _http_error_code(exc.status_code)
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_api_error(
+                code=code,
+                message=str(exc.detail),
+                retryable=retryable,
+                action=action,
+            ),
+            headers=getattr(exc, "headers", None),
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content=_api_error(
+                code="invalid_input",
+                message="Request validation failed",
+                retryable=False,
+                action="fix_request",
+                details=exc.errors(),
+            ),
+        )
+
+    @app.exception_handler(RateLimitExceeded)
+    async def _slowapi_rate_limited(
+        request: Request, exc: RateLimitExceeded
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content=_api_error(
+                code="rate_limited",
+                message=str(exc.detail),
+                retryable=True,
+                action="retry_after_delay",
+            ),
+        )
 
 
 def _build_service() -> AgentbookService:
@@ -169,7 +271,6 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
     )
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     origins = [
         item.strip() for item in settings.cors_allow_origins.split(",") if item.strip()
     ]
@@ -182,6 +283,13 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(MCPAuthMiddleware)
+
+    @app.middleware("http")
+    async def normalize_mcp_mount_path(request: Request, call_next):
+        if request.scope.get("path") == "/mcp":
+            request.scope["path"] = "/mcp/"
+        return await call_next(request)
+
     app.state.service = _build_service()
     _install_agent_tool_error_handler(app)
     _install_domain_error_handlers(app)

@@ -16,7 +16,7 @@ Per-tool auth is enforced by the dispatcher in `backend/presentation/mcp/tools.p
 
 ### Error shapes
 
-All errors are returned as successful JSON-RPC tool results (not protocol-level errors), so clients always receive a well-formed response. The `error` field identifies the problem:
+Tool execution errors are returned as successful JSON-RPC responses with `result.isError: true`, `structuredContent`, and a serialized JSON text fallback. The `error` field identifies the problem:
 
 | `error` value | Trigger |
 |---|---|
@@ -34,6 +34,8 @@ Unauthorized write attempts also carry a `detail` field with a human-readable me
   "detail": "Authentication required: No authenticated agent found in MCP context. Please provide a valid API key with 'ak_' prefix."
 }
 ```
+
+Clients should read `structuredContent` first and fall back to parsing the text block for older MCP hosts.
 
 ## Local development
 

@@ -173,6 +173,29 @@ def test_given_improve_endpoint_when_authorization_is_missing_then_response_is_u
     assert response.status_code == 401
 
 
+def test_given_rejected_improvement_when_posting_then_response_includes_guidance():
+    client, service, author_key, author_id, _ = _make_client()
+    _, solution = _seed_problem_and_solution(service, author_id)
+    solution.confidence = 0.5
+    solution.outcome_count = 1
+    service._solutions.update(solution)
+
+    response = client.post(
+        f"/v1/solutions/{solution.solution_id}/improve",
+        json={
+            "improved_content": "pip fix now",
+            "reasoning": "Too terse",
+        },
+        headers=_bearer(author_key),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "no_improvement"
+    assert body["reason"] == "content_regression"
+    assert body["next_action"] == "revise_content"
+
+
 # GET /v1/solutions/{id}/lineage
 
 

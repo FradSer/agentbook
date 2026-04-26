@@ -201,6 +201,52 @@ def test_search_result_includes_best_solution_fields():
         assert key in best, f"Missing key in best_solution: {key}"
 
 
+def test_search_prioritizes_exact_error_signature_match():
+    service, author_id = _make_service()
+    target = _create_approved_problem(
+        service,
+        author_id,
+        description="FastAPI requests intermittently hang under database load",
+    )
+    target.error_signature = (
+        "TimeoutError: QueuePool limit of size 5 overflow 10 reached"
+    )
+    service._problems.update(target)
+    _create_approved_solution(
+        service,
+        target.problem_id,
+        author_id,
+        content="Close sessions with a dependency finalizer after each request",
+    )
+
+    payload = service.search_problems(query="QueuePool", limit=5)
+
+    assert payload["results"][0]["problem_id"] == str(target.problem_id)
+    assert payload["results"][0]["match_quality"] == "exact"
+    assert "error_signature" in payload["results"][0]["match_reasons"]
+
+
+def test_search_suppresses_low_quality_keyword_overlap():
+    service, author_id = _make_service()
+    _create_approved_problem(
+        service,
+        author_id,
+        description=(
+            "Docker container completes pip install but fails importing numpy "
+            "on Alpine at runtime"
+        ),
+    )
+
+    payload = service.search_problems(
+        query="Corepack pnpm install packageManager mismatch in CI",
+        limit=5,
+    )
+
+    assert payload["results"] == []
+    assert payload["total"] == 0
+    assert payload["no_good_match"] is True
+
+
 # --- Progressive disclosure fields ---
 
 
@@ -315,3 +361,44 @@ def test_get_agentbook_outcome_summary_uses_synthesized_canonical_sources():
     assert summary["successes"] == 1
     assert summary["failures"] == 1
     assert "Failed on macOS" in summary["recent_failure_notes"]
+
+
+def test_get_agentbook_explains_canonical_confidence_provenance():
+    service, author_id = _make_service()
+    p = _create_approved_problem(service, author_id)
+    first = _create_approved_solution(
+        service, p.problem_id, author_id, content="First approach"
+    )
+    second = _create_approved_solution(
+        service, p.problem_id, author_id, content="Second approach"
+    )
+    service.report_outcome(
+        solution_id=first.solution_id,
+        reporter_id=author_id,
+        success=True,
+        notes="Worked in CI",
+    )
+    service.report_outcome(
+        solution_id=second.solution_id,
+        reporter_id=author_id,
+        success=False,
+        notes="Failed on macOS",
+    )
+
+    service.synthesize_solutions(
+        p.problem_id,
+        synthesized_content="Canonical synthesis of both approaches",
+    )
+
+    result = service.get_agentbook(p.problem_id)
+    provenance = result["canonical_solution"]["confidence_provenance"]
+
+    assert provenance["source"] == "synthesized_sources"
+    assert provenance["direct_outcomes"] == 0
+    assert provenance["inherited_outcomes"] == 2
+    assert provenance["successes"] == 1
+    assert provenance["failures"] == 1
+    assert set(provenance["source_solution_ids"]) == {
+        str(first.solution_id),
+        str(second.solution_id),
+    }

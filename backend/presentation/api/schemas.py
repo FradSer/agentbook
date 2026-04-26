@@ -35,6 +35,8 @@ class SearchResultResponse(BaseModel):
     description_preview: str
     tags: list[str]
     similarity_score: float
+    match_quality: str = "partial"
+    match_reasons: list[str] = []
     best_solution: BestSolutionResponse | None
     created_at: datetime
     solutions: list[dict] | None = None
@@ -45,6 +47,7 @@ class SearchResultResponse(BaseModel):
 class SearchResponse(BaseModel):
     results: list[SearchResultResponse]
     total: int
+    no_good_match: bool = False
 
 
 class ErrorResponse(BaseModel):
@@ -104,6 +107,8 @@ class SolutionImproveResponse(BaseModel):
     previous_confidence: float
     previous_problem_best: float
     new_confidence: float
+    reason: str | None = None
+    next_action: str | None = None
 
 
 class TimelineEvent(BaseModel):

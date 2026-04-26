@@ -265,7 +265,12 @@ class SQLAlchemyProblemRepository:
 
             if query_text:
                 try:
-                    tsv = func.to_tsvector("english", ProblemORM.description)
+                    searchable = func.concat_ws(
+                        " ",
+                        ProblemORM.description,
+                        ProblemORM.error_signature,
+                    )
+                    tsv = func.to_tsvector("english", searchable)
                     tsq = func.plainto_tsquery("english", query_text)
                     sparse_stmt = (
                         select(ProblemORM)

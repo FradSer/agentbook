@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 
 _SEARCH_CACHE_MAXSIZE = 256
 _SEARCH_CACHE_TTL_SECONDS = 300.0
+_MIN_SEARCH_RELEVANCE = 0.25
 
 # Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
@@ -77,6 +78,28 @@ def _increment_outcome_counters(solution: Solution, success: bool) -> None:
         solution.success_count += 1
     else:
         solution.failure_count += 1
+
+
+def _normalize_search_text(text: str) -> str:
+    return " ".join(_tokenize_search_text(text))
+
+
+def _tokenize_search_text(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9_.'-]+", text.lower())
+
+
+def _improvement_next_action(reason: str, accepted: bool) -> str:
+    if accepted:
+        return "report_outcome_or_verify"
+    if reason in {
+        "content_regression",
+        "content_bloat",
+        "solution_quality_check_failed",
+    }:
+        return "revise_content"
+    if reason == "sandbox_verified_fail":
+        return "reproduce_and_fix"
+    return "collect_outcome_or_verify"
 
 
 class AgentbookService:
@@ -224,7 +247,11 @@ class AgentbookService:
             include=include,
             format=format,
         )
-        payload = {"results": rows, "total": len(rows)}
+        payload = {
+            "results": rows,
+            "total": len(rows),
+            "no_good_match": len(rows) == 0,
+        }
         self._search_cache.set(cache_key, payload)
         return payload
 
@@ -241,7 +268,26 @@ class AgentbookService:
         normalized_query = search_text.lower()
         query_embedding = self._safe_embed(search_text)
         full = format == "full"
-        rows: list[dict] = []
+        rows_by_id: dict[str, dict] = {}
+
+        def add_candidate(problem: Problem, raw_score: float) -> None:
+            row = self._row_from_problem(
+                problem,
+                raw_score,
+                full,
+                search_text=search_text,
+            )
+            if row["similarity_score"] < _MIN_SEARCH_RELEVANCE:
+                return
+            existing = rows_by_id.get(row["problem_id"])
+            if (
+                existing is None
+                or row["similarity_score"] > existing["similarity_score"]
+            ):
+                rows_by_id[row["problem_id"]] = row
+
+        for problem in self._exact_error_signature_candidates(search_text):
+            add_candidate(problem, 1.0)
 
         if query_embedding is not None or normalized_query:
             hybrid = self._problems.find_hybrid(
@@ -249,13 +295,15 @@ class AgentbookService:
                 query_text=normalized_query,
                 limit=max(limit * 2, 20),
             )
-            rows = [self._row_from_problem(p, score, full) for p, score in hybrid]
+            for problem, score in hybrid:
+                add_candidate(problem, score)
 
-        if not rows and query_embedding is not None:
+        if not rows_by_id and query_embedding is not None:
             semantic = self._problems.find_similar_scored(query_embedding)
-            rows = [self._row_from_problem(p, score, full) for p, score in semantic]
+            for problem, score in semantic:
+                add_candidate(problem, score)
 
-        if not rows:
+        if not rows_by_id:
             query_terms = self._extract_terms(normalized_query)
             for problem in self._problems.list_all():
                 if problem.review_status != "approved":
@@ -264,8 +312,9 @@ class AgentbookService:
                     desc_lower = problem.description.lower()
                     if not any(term in desc_lower for term in query_terms):
                         continue
-                rows.append(self._row_from_problem(problem, 1.0, full))
+                add_candidate(problem, 0.2)
 
+        rows = list(rows_by_id.values())
         rows.sort(key=lambda item: item["similarity_score"], reverse=True)
         rows = rows[: max(limit, 0)]
 
@@ -275,16 +324,93 @@ class AgentbookService:
 
         return rows
 
-    def _row_from_problem(self, problem: Problem, score: float, full: bool) -> dict:
+    def _row_from_problem(
+        self,
+        problem: Problem,
+        score: float,
+        full: bool,
+        search_text: str | None = None,
+    ) -> dict:
+        relevance_score, quality, reasons = self._score_problem_relevance(
+            problem, search_text or "", score
+        )
         return {
             "problem_id": str(problem.problem_id),
             "description": problem.description,
+            "tags": problem.tags,
             "best_confidence": problem.best_confidence,
             "solution_count": problem.solution_count,
-            "similarity_score": score,
+            "similarity_score": relevance_score,
+            "match_quality": quality,
+            "match_reasons": reasons,
             "best_solution": self._pick_best_solution(problem.problem_id, full=full),
             "created_at": problem.created_at.isoformat(),
         }
+
+    def _exact_error_signature_candidates(self, search_text: str) -> list[Problem]:
+        normalized_query = _normalize_search_text(search_text)
+        if not normalized_query:
+            return []
+        query_tokens = set(_tokenize_search_text(search_text))
+        distinctive_tokens = {token for token in query_tokens if len(token) >= 6}
+
+        matches = []
+        for problem in self._problems.list_all():
+            if problem.review_status != "approved" or not problem.error_signature:
+                continue
+            signature = _normalize_search_text(problem.error_signature)
+            signature_tokens = set(_tokenize_search_text(problem.error_signature))
+            if normalized_query in signature or distinctive_tokens & signature_tokens:
+                matches.append(problem)
+        return matches
+
+    def _score_problem_relevance(
+        self, problem: Problem, search_text: str, raw_score: float
+    ) -> tuple[float, str, list[str]]:
+        normalized_query = _normalize_search_text(search_text)
+        query_tokens = set(_tokenize_search_text(search_text))
+        candidate_text = " ".join(
+            part
+            for part in (
+                problem.description,
+                problem.error_signature or "",
+                " ".join(problem.tags or []),
+            )
+            if part
+        )
+        candidate_tokens = set(_tokenize_search_text(candidate_text))
+        reasons: list[str] = []
+
+        if problem.error_signature:
+            signature = _normalize_search_text(problem.error_signature)
+            signature_tokens = set(_tokenize_search_text(problem.error_signature))
+            distinctive_tokens = {token for token in query_tokens if len(token) >= 6}
+            if normalized_query and (
+                normalized_query in signature
+                or bool(distinctive_tokens & signature_tokens)
+            ):
+                return 1.0, "exact", ["error_signature"]
+
+        overlap = len(query_tokens & candidate_tokens)
+        overlap_ratio = overlap / max(len(query_tokens), 1)
+        if overlap:
+            reasons.append("lexical_overlap")
+
+        if raw_score >= 0.6:
+            reasons.append("semantic")
+            return min(max(raw_score, overlap_ratio), 0.99), "strong", reasons
+
+        if overlap_ratio >= 0.5:
+            return overlap_ratio, "strong", reasons
+
+        if overlap_ratio >= _MIN_SEARCH_RELEVANCE:
+            return overlap_ratio, "partial", reasons
+
+        if raw_score >= _MIN_SEARCH_RELEVANCE:
+            reasons.append("semantic")
+            return raw_score, "partial", reasons
+
+        return max(raw_score, overlap_ratio), "poor", reasons
 
     def _enrich_search_row(self, row: dict, include: set[str]) -> None:
         problem_id = UUID(row["problem_id"])
@@ -526,6 +652,10 @@ class AgentbookService:
                 "confidence": canonical_sol.confidence,
                 "outcome_count": canonical_sol.outcome_count,
                 "success_count": canonical_sol.success_count,
+                "failure_count": canonical_sol.failure_count,
+                "confidence_provenance": self._confidence_provenance(
+                    canonical_sol, all_solutions
+                ),
                 "author_id": str(canonical_sol.author_id),
                 "llm_model": self._display_llm(
                     models, canonical_sol.author_id, canonical_sol.llm_model
@@ -544,6 +674,8 @@ class AgentbookService:
                 "confidence": s.confidence,
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
+                "failure_count": s.failure_count,
+                "confidence_provenance": self._confidence_provenance(s, all_solutions),
                 "author_id": str(s.author_id),
                 "llm_model": self._display_llm(models, s.author_id, s.llm_model),
                 "parent_solution_id": str(s.parent_solution_id)
@@ -636,6 +768,34 @@ class AgentbookService:
             "outcome_summary": outcome_summary,
             "research_summary": research_summary,
             "is_being_researched": _is_being_researched(problem),
+        }
+
+    def _confidence_provenance(
+        self, solution: Solution, all_solutions: list[Solution]
+    ) -> dict:
+        direct_outcomes = self._outcomes.list_by_solution(solution.solution_id)
+        source_solutions = [
+            s for s in all_solutions if s.canonical_id == solution.solution_id
+        ]
+
+        if source_solutions:
+            inherited_outcomes = sum(s.outcome_count for s in source_solutions)
+            successes = sum(s.success_count for s in source_solutions)
+            failures = sum(s.failure_count for s in source_solutions)
+            source = "synthesized_sources"
+        else:
+            inherited_outcomes = 0
+            successes = solution.success_count
+            failures = solution.failure_count
+            source = "direct_outcomes" if direct_outcomes else "prior"
+
+        return {
+            "source": source,
+            "direct_outcomes": len(direct_outcomes),
+            "inherited_outcomes": inherited_outcomes,
+            "successes": successes,
+            "failures": failures,
+            "source_solution_ids": [str(s.solution_id) for s in source_solutions],
         }
 
     def _pick_best_solution(self, problem_id: UUID, full: bool = False) -> dict | None:
@@ -1246,7 +1406,7 @@ class AgentbookService:
                 problem, existing, new_solution
             )
 
-        accepted, _reason = evaluate_improvement(
+        accepted, reason = evaluate_improvement(
             existing,
             new_solution,
             evaluator_score=evaluator_score,
@@ -1304,6 +1464,8 @@ class AgentbookService:
             "previous_confidence": existing.confidence,
             "previous_problem_best": previous_best,
             "new_confidence": new_confidence,
+            "reason": reason,
+            "next_action": _improvement_next_action(reason, accepted),
         }
 
     def _ensure_synthetic_agent(self, agent_id: UUID, label: str) -> None:
