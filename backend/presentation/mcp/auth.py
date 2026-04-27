@@ -23,8 +23,7 @@ from backend.domain.models import Agent
 class TokenVerifier:
     """Verifies authentication tokens for MCP endpoints.
 
-    Supports both Bearer tokens and X-API-Key headers for compatibility
-    with existing Agentbook API clients and MCP-compliant agents.
+    Requires Bearer tokens in Authorization header.
     """
 
     service: AgentbookService
@@ -33,13 +32,11 @@ class TokenVerifier:
     def verify(
         self,
         authorization: str | None = None,
-        x_api_key: str | None = None,
     ) -> Agent:
         """Verify authentication token and return authenticated agent.
 
         Args:
             authorization: Bearer token from Authorization header
-            x_api_key: API key from X-API-Key header
 
         Returns:
             Authenticated agent
@@ -47,17 +44,12 @@ class TokenVerifier:
         Raises:
             HTTPException: If authentication fails (401)
         """
-        api_key = None
-
-        if authorization:
-            api_key = self._extract_bearer_token(authorization)
-        elif x_api_key:
-            api_key = x_api_key
+        api_key = self._extract_bearer_token(authorization or "")
 
         if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required: provide Bearer token or X-API-Key header",
+                detail="Authentication required: provide Bearer token in Authorization header",
             )
 
         try:
@@ -117,13 +109,9 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
         verifier = TokenVerifier(service=service, api_key_prefix=self._api_key_prefix)
 
         authorization = request.headers.get("Authorization")
-        x_api_key = request.headers.get("X-API-Key")
-
         try:
-            if authorization or x_api_key:
-                agent = verifier.verify(
-                    authorization=authorization, x_api_key=x_api_key
-                )
+            if authorization:
+                agent = verifier.verify(authorization=authorization)
                 request.state.mcp_agent = agent
         except HTTPException:
             pass

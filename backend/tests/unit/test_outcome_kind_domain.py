@@ -57,7 +57,6 @@ def test_given_outcome_kind_when_constructing_then_kind_matches_contract(
     ("row", "expected_kind"),
     [
         (_minimal_row(kind="verified"), "verified"),
-        (_minimal_row(kind=None), "observed"),
     ],
 )
 def test_given_row_kind_when_hydrating_then_kind_is_normalized(
@@ -67,11 +66,13 @@ def test_given_row_kind_when_hydrating_then_kind_is_normalized(
     assert outcome.kind == expected_kind
 
 
-def test_given_legacy_row_without_kind_when_hydrating_then_defaults_to_observed() -> (
-    None
-):
-    # Simulate a legacy row loaded before the additive column existed —
-    # defensive ``getattr`` must yield "observed" in the migration window.
+def test_given_null_kind_row_when_hydrating_then_it_fails_fast() -> None:
+    row = _minimal_row(kind=None)
+    with pytest.raises(ValueError, match="Outcome kind cannot be null"):
+        _to_outcome_domain(row)
+
+
+def test_given_legacy_row_without_kind_when_hydrating_then_it_fails_fast() -> None:
     row = _minimal_row()  # no `kind` attribute at all
-    outcome = _to_outcome_domain(row)
-    assert outcome.kind == "observed"
+    with pytest.raises(AttributeError):
+        _to_outcome_domain(row)

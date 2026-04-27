@@ -122,12 +122,14 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
 
 
 def _to_outcome_domain(row: OutcomeORM) -> Outcome:
+    if not row.kind:
+        raise ValueError("Outcome kind cannot be null")
     return Outcome(
         outcome_id=parse_uuid(row.outcome_id),
         solution_id=parse_uuid(row.solution_id),
         reporter_id=parse_uuid(row.reporter_id),
         success=row.success,
-        kind=getattr(row, "kind", None) or "observed",
+        kind=row.kind,
         environment=row.environment,
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
@@ -541,6 +543,16 @@ class SQLAlchemyOutcomeRepository:
                 .where(OutcomeORM.created_at >= since)
             )
             return session.execute(stmt).scalar_one()
+
+    def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]:
+        with self._session_factory() as session:
+            stmt = (
+                select(OutcomeORM)
+                .where(OutcomeORM.reporter_id == str(reporter_id))
+                .order_by(OutcomeORM.created_at.desc())
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_outcome_domain(r) for r in rows]
 
 
 def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:

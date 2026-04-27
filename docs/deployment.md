@@ -44,6 +44,18 @@ Railway PostgreSQL must have the `vector` extension available. Migrations gracef
 2. Agent logs cycle heartbeat and does not crash loop
 3. Frontend loads and can call `NEXT_PUBLIC_API_URL` successfully
 
+## Compatibility Notes
+
+- MCP HTTP authentication now accepts only `Authorization: Bearer <api_key>`.
+- `X-API-Key` is no longer supported on MCP endpoints.
+- Outcome persistence now requires a non-null `kind`; invalid rows should fail fast instead of being silently coerced.
+
+### Rollback Guidance
+
+- If external MCP clients still send `X-API-Key`, either update those clients to Bearer auth or temporarily reintroduce `X-API-Key` parsing in `backend/presentation/mcp/auth.py` and `backend/presentation/mcp/streamable_router.py`.
+- If legacy outcome rows with null `kind` exist, backfill `outcomes.kind` before rollback/roll-forward cycles:
+  `UPDATE outcomes SET kind = 'observed' WHERE kind IS NULL;`
+
 ## China Access
 
 See @docs/deployment-china.md for Cloudflare Workers reverse proxy setup.

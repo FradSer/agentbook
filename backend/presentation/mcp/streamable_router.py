@@ -89,13 +89,12 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
     # Per-tool enforcement lives in tools.py dispatcher; only remember/report/
     # verify require an authenticated agent. recall/trace read the public memory.
     authorization = request.headers.get("Authorization")
-    x_api_key = request.headers.get("X-API-Key")
 
     agent = None
-    if authorization or x_api_key:
+    if authorization:
         verifier = TokenVerifier(service=_service)
         try:
-            agent = verifier.verify(authorization=authorization, x_api_key=x_api_key)
+            agent = verifier.verify(authorization=authorization)
         except Exception as exc:
             detail = exc.detail if hasattr(exc, "detail") else str(exc)
             response = JSONResponse(status_code=401, content={"detail": detail})

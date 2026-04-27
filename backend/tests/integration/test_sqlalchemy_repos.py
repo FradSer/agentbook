@@ -255,3 +255,21 @@ def test_outcome_count_by_reporter(session_factory, session) -> None:
     since = datetime.now(tz=UTC) - timedelta(hours=1)
     count = out_repo.count_by_reporter(reporter, since=since)
     assert count == 2
+
+
+def test_outcome_list_by_reporter(session_factory, session) -> None:
+    """list_by_reporter returns only outcomes from the given reporter."""
+    prob_repo = SQLAlchemyProblemRepository(session_factory)
+    sol_repo = SQLAlchemySolutionRepository(session_factory)
+    out_repo = SQLAlchemyOutcomeRepository(session_factory)
+    p = _make_problem()
+    prob_repo.add(p)
+    s = _make_solution(p.problem_id)
+    sol_repo.add(s)
+    reporter = uuid4()
+    matching = _make_outcome(session, s.solution_id, reporter_id=reporter)
+    out_repo.add(matching)
+    out_repo.add(_make_outcome(session, s.solution_id, reporter_id=uuid4()))
+
+    listed = out_repo.list_by_reporter(reporter)
+    assert [o.outcome_id for o in listed] == [matching.outcome_id]

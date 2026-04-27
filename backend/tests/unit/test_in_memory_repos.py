@@ -331,3 +331,14 @@ def test_given_outcome_repo_when_counting_with_future_since_then_zero_is_returne
 
     future = datetime.now(tz=UTC) + timedelta(hours=1)
     assert repo.count_by_reporter(reporter_id, since=future) == 0
+
+
+def test_given_outcome_repo_when_listing_by_reporter_then_only_matching_outcomes_are_returned():
+    repo = InMemoryOutcomeRepository()
+    reporter_id = uuid4()
+    other_reporter = uuid4()
+    matching = _make_outcome(uuid4(), reporter_id=reporter_id)
+    repo.add(matching)
+    repo.add(_make_outcome(uuid4(), reporter_id=other_reporter))
+
+    assert repo.list_by_reporter(reporter_id) == [matching]

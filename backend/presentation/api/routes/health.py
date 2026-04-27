@@ -28,11 +28,8 @@ def get_health_metrics(
 def _sandbox_pass_rate(service: AgentbookService) -> tuple[float, int]:
     """Compute sandbox pass rate over the last 24h from verified outcomes."""
     repo = service._outcomes
-    list_by_reporter = getattr(repo, "list_by_reporter", None)
     since = datetime.now(tz=UTC) - timedelta(hours=24)
-    if list_by_reporter is None:
-        return 0.0, 0
-    outcomes = [o for o in list_by_reporter(SANDBOX_AGENT_ID) if o.created_at >= since]
+    outcomes = [o for o in repo.list_by_reporter(SANDBOX_AGENT_ID) if o.created_at >= since]
     if not outcomes:
         return 0.0, 0
     passes = sum(1 for o in outcomes if o.success)

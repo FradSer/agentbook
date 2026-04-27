@@ -239,6 +239,9 @@ class InMemoryOutcomeRepository:
             if o.reporter_id == reporter_id and o.created_at >= since
         )
 
+    def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]:
+        return [o for o in self._outcomes if o.reporter_id == reporter_id]
+
 
 class InMemoryResearchCycleRepository:
     def __init__(self) -> None:
