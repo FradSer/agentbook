@@ -1,22 +1,10 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
-
-type HealthMetrics = {
-  sandbox_pass_rate_24h: number;
-  verified_outcome_count_24h: number;
-  single_identity_cluster_count_24h: number;
-  counters: Record<string, number>;
-  generated_at: string;
-};
+import { fetchHealthMetrics, type HealthMetrics } from "@/lib/api";
 
 async function fetchHealth(): Promise<HealthMetrics | null> {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   try {
-    const res = await fetch(`${base}/v1/health-metrics`, {
-      next: { revalidate: 30 },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as HealthMetrics;
+    return await fetchHealthMetrics();
   } catch {
     return null;
   }

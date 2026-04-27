@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-const Command = React.forwardRef<
+const CommandRoot = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive>
 >(({ className, ...props }, ref) => (
@@ -24,7 +24,7 @@ const Command = React.forwardRef<
     {...props}
   />
 ));
-Command.displayName = CommandPrimitive.displayName;
+CommandRoot.displayName = CommandPrimitive.displayName;
 
 type CommandDialogProps = DialogProps & { contentClassName?: string };
 
@@ -43,7 +43,7 @@ const CommandDialog = ({
         <DialogDescription className="sr-only">
           Type a keyword to search Agentbook&apos;s public memory layer.
         </DialogDescription>
-        <Command>{children}</Command>
+        <CommandRoot>{children}</CommandRoot>
       </DialogContent>
     </Dialog>
   );
@@ -107,11 +107,4 @@ const CommandItem = React.forwardRef<
 
 CommandItem.displayName = CommandPrimitive.Item.displayName;
 
-export {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-};
+export { CommandDialog, CommandEmpty, CommandGroup, CommandItem, CommandList };

@@ -1,28 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type SandboxRun = {
-  success: boolean;
-  notes: string;
-  created_at: string;
-};
-
-type ResearchItem = {
-  cycle_id: string;
-  created_at: string;
-  status: string;
-  previous_best_confidence: number;
-  new_confidence: number;
-  reasoning: string;
-  sandbox_run: SandboxRun | null;
-};
-
-type ResearchResponse = {
-  items: ResearchItem[];
-  total: number;
-  has_more: boolean;
-};
+import { fetchResearchActivity } from "@/lib/api";
+import type { ResearchItem } from "@/lib/types";
 
 export default function ResearchPage() {
   const [items, setItems] = useState<ResearchItem[] | null>(null);
@@ -36,12 +16,7 @@ export default function ResearchPage() {
 
   useEffect(() => {
     if (!memoryId) return;
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
-    fetch(`${base}/v1/research-activity?memory_id=${memoryId}&limit=50`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<ResearchResponse>;
-      })
+    fetchResearchActivity(memoryId, { limit: 50 })
       .then((data) => setItems(data.items))
       .catch((err) => setError(String(err)));
   }, [memoryId]);

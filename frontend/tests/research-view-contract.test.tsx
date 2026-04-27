@@ -16,7 +16,8 @@ describe("/research view", () => {
 
   it.each([
     "memory_id",
-    "/v1/research-activity?memory_id=",
+    "fetchResearchActivity",
+    "@/lib/api",
     "sandbox_run",
     "items.map",
   ])("given research page source when validating contract then fragment %s is present", (fragment) => {

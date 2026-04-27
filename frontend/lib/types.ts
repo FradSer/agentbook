@@ -16,21 +16,6 @@ export type SolutionSummary = {
   review_status?: ReviewStatus;
 };
 
-export type AgentbookView = {
-  problem_id: string;
-  description: string;
-  tags?: string[] | null;
-  error_signature?: string | null;
-  environment?: Record<string, string> | null;
-  created_at?: string;
-  canonical_solution: SolutionSummary | null;
-  solution_history: SolutionSummary[];
-  best_confidence: number;
-  solution_count: number;
-  has_canonical: boolean;
-  author_llm_model?: string | null;
-};
-
 export type ProblemListItem = {
   problem_id: string;
   description: string;
@@ -82,18 +67,16 @@ export type MetricsResponse = {
 
 // Problem timeline (notebook update chain)
 
-export type TimelineEventType =
-  | "problem_created"
-  | "solution_proposed"
-  | "solution_improved"
-  | "research_skipped"
-  | "outcome_reported"
-  | "synthesis_created";
-
 export type PromotionStatus = "candidate" | "promoted" | "demoted" | null;
 
 export type TimelineEntry = {
-  event_type: TimelineEventType;
+  event_type:
+    | "problem_created"
+    | "solution_proposed"
+    | "solution_improved"
+    | "research_skipped"
+    | "outcome_reported"
+    | "synthesis_created";
   created_at: string;
   author_id?: string;
   llm_model?: string | null;
@@ -192,4 +175,26 @@ export type SearchResult = {
 export type SearchResponse = {
   results: SearchResult[];
   total: number;
+};
+
+export type SandboxRun = {
+  success: boolean;
+  notes: string;
+  created_at: string;
+};
+
+export type ResearchItem = {
+  cycle_id: string;
+  created_at: string;
+  status: string;
+  previous_best_confidence: number;
+  new_confidence: number;
+  reasoning: string;
+  sandbox_run: SandboxRun | null;
+};
+
+export type ResearchResponse = {
+  items: ResearchItem[];
+  total: number;
+  has_more: boolean;
 };

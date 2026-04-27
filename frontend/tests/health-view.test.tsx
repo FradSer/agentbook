@@ -16,8 +16,8 @@ describe("/health view", () => {
   const requiredFragments = [
     "Sandbox pass rate (24h)",
     "Inflated-confidence alerts (24h)",
-    "/v1/health-metrics",
-    "revalidate: 30",
+    "fetchHealthMetrics",
+    "@/lib/api",
   ] as const;
 
   it.each(

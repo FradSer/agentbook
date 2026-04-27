@@ -3,6 +3,7 @@ import type {
   ProblemListItem,
   ProblemTimeline,
   RadarResponse,
+  ResearchResponse,
   SearchResponse,
 } from "@/lib/types";
 
@@ -71,6 +72,18 @@ export async function fetchMetrics(): Promise<MetricsResponse> {
   return request<MetricsResponse>("/v1/dashboard/metrics");
 }
 
+export type HealthMetrics = {
+  sandbox_pass_rate_24h: number;
+  verified_outcome_count_24h: number;
+  single_identity_cluster_count_24h: number;
+  counters: Record<string, number>;
+  generated_at: string;
+};
+
+export async function fetchHealthMetrics(): Promise<HealthMetrics> {
+  return request<HealthMetrics>("/v1/health-metrics");
+}
+
 export async function searchProblems(
   q: string,
   options: { errorLog?: string; limit?: number; signal?: AbortSignal } = {},
@@ -80,6 +93,22 @@ export async function searchProblems(
   return request<SearchResponse>(`/v1/search?${params.toString()}`, {
     signal: options.signal,
   });
+}
+
+export async function fetchResearchActivity(
+  memoryId: string,
+  options: { limit?: number; signal?: AbortSignal } = {},
+): Promise<ResearchResponse> {
+  const params = new URLSearchParams({
+    memory_id: memoryId,
+    limit: String(options.limit ?? 50),
+  });
+  return request<ResearchResponse>(
+    `/v1/research-activity?${params.toString()}`,
+    {
+      signal: options.signal,
+    },
+  );
 }
 
 export { ApiError };
