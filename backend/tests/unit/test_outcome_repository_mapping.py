@@ -5,7 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-from backend.infrastructure.persistence.sqlalchemy_repositories import _to_outcome_domain
+from backend.infrastructure.persistence.sqlalchemy_repositories import (
+    _to_outcome_domain,
+)
 
 
 def test_to_outcome_domain_raises_when_kind_missing() -> None:

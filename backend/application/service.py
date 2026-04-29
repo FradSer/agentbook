@@ -24,7 +24,14 @@ from backend.application.errors import (
     UnauthorizedError,
 )
 from backend.application.gate import check_spam
+from backend.application.security import generate_api_key, hash_api_key
 from backend.core.config import settings
+from backend.core.sandbox_gates import (
+    SandboxBudgetLimiter,
+    SandboxCircuitBreaker,
+    SandboxConcurrencyLimiter,
+    SandboxDedupCache,
+)
 from backend.core.search_cache import TTLCache
 from backend.domain.models import (
     Agent,
@@ -48,7 +55,6 @@ from backend.domain.services import (
     EvaluatorProvider,
     SandboxProvider,
 )
-from backend.infrastructure.security import generate_api_key, hash_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -126,11 +132,19 @@ class AgentbookService:
         self._problem_relationships = problem_relationships
         self._synthetic_agents_ensured: set[UUID] = set()
         # Observability counters surfaced by GET /v1/health-metrics. Keys:
-        # sandbox_timeout, sandbox_concurrency_rejection, sandbox_circuit_open.
+        # sandbox_timeout, sandbox_concurrency_rejection, sandbox_circuit_open,
+        # sandbox_budget_exhausted, sandbox_dedup_hit.
         self._health_counters: dict[str, int] = {}
         self._search_cache = TTLCache(
             maxsize=_SEARCH_CACHE_MAXSIZE, ttl=_SEARCH_CACHE_TTL_SECONDS
         )
+        # DoS gates around the sandbox provider. Permissive defaults match
+        # core/sandbox_gates.py; tune via wiring once load characteristics are
+        # known. Gates are fresh per-service so tests don't share dedup state.
+        self._sandbox_concurrency = SandboxConcurrencyLimiter()
+        self._sandbox_budget = SandboxBudgetLimiter()
+        self._sandbox_dedup = SandboxDedupCache()
+        self._sandbox_breaker = SandboxCircuitBreaker()
 
     def register_agent(self, model_type: str | None) -> tuple[Agent, str]:
         api_key = generate_api_key()
@@ -207,19 +221,6 @@ class AgentbookService:
         problem.last_activity_at = utc_now()
         self._problems.update(problem)
         return solution
-
-    async def generate_problem_embedding(self, problem_id: UUID) -> None:
-        if self._embedding_provider is None:
-            return
-        problem = self._problems.get(problem_id)
-        if problem is None:
-            return
-        embedding = await self._embedding_provider.embed(problem.description)
-        problem.embedding = embedding
-        self._problems.update(problem)
-
-        if settings.knowledge_graph_enabled and self._problem_relationships is not None:
-            self._compute_relationships(problem)
 
     def search_problems(
         self,
@@ -1325,13 +1326,7 @@ class AgentbookService:
                 "reason": "no sandbox provider configured",
             }
         run_id = uuid4()
-        try:
-            self._run_sandbox_evaluation(problem, solution)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"verify_solution sandbox error: {exc}")
-            self._health_counters["sandbox_timeout"] = (
-                self._health_counters.get("sandbox_timeout", 0) + 1
-            )
+        self._run_sandbox_evaluation(problem, solution, agent_id=agent_id)
         return {"status": "queued", "run_id": str(run_id)}
 
     def _improve_solution_impl(
@@ -1394,7 +1389,9 @@ class AgentbookService:
         problem_has_error_signature = bool(problem.error_signature)
 
         if problem_has_error_signature and sandbox_available:
-            sandbox_score = self._get_sandbox_score(problem, existing, new_solution)
+            sandbox_score = self._get_sandbox_score(
+                problem, existing, new_solution, agent_id=author_id
+            )
 
         # Cold-start evaluator only runs when sandbox is NOT decisive.
         is_cold_start = (
@@ -1436,7 +1433,7 @@ class AgentbookService:
 
             # Post-acceptance: run sandbox to generate real outcome data.
             if self._sandbox is not None:
-                self._run_sandbox_evaluation(problem, new_solution)
+                self._run_sandbox_evaluation(problem, new_solution, agent_id=author_id)
         else:
             new_solution.canonical_id = solution_id
             new_solution.promotion_status = "demoted"
@@ -1564,15 +1561,102 @@ class AgentbookService:
             return "\n\n".join(block.strip() for block in blocks)
         return None
 
+    def _bump_health_counter(self, key: str) -> None:
+        self._health_counters[key] = self._health_counters.get(key, 0) + 1
+
+    def _sandbox_run_guarded(
+        self,
+        code: str,
+        *,
+        agent_id: UUID,
+        error_signature: str | None,
+        environment: dict | None,
+    ):
+        """Execute code via the sandbox with DoS gates around the call.
+
+        Returns ``SandboxResult`` on success, ``None`` when any gate blocks
+        the call. Records circuit-breaker outcomes so repeated container
+        errors trip the breaker. Increments observability counters for each
+        gate that fires.
+        """
+        if not self._sandbox_breaker.should_allow():
+            self._bump_health_counter("sandbox_circuit_open")
+            return None
+        if not self._sandbox_budget.try_consume(agent_id):
+            self._bump_health_counter("sandbox_budget_exhausted")
+            return None
+        with self._sandbox_concurrency.guard() as acquired:
+            if not acquired:
+                self._bump_health_counter("sandbox_concurrency_rejection")
+                return None
+            try:
+                result = self._sandbox.execute(
+                    code,
+                    error_signature=error_signature,
+                    timeout_seconds=settings.sandbox_timeout_seconds,
+                    environment=environment,
+                )
+            except Exception:
+                self._sandbox_breaker.record("container_error")
+                self._bump_health_counter("sandbox_timeout")
+                logger.warning("Sandbox call raised", exc_info=True)
+                return None
+
+        # exit_code -1 is the convention for container-side failure
+        # (timeout, missing interpreter, container error) versus a real
+        # sandbox_fail verdict from a non-zero return.
+        is_container_error = result.exit_code == -1
+        if is_container_error:
+            self._sandbox_breaker.record("container_error")
+            self._bump_health_counter("sandbox_timeout")
+            return None
+        self._sandbox_breaker.record("success" if result.success else "sandbox_fail")
+        return result
+
+    def _sandbox_score_with_dedup(
+        self,
+        code: str,
+        *,
+        agent_id: UUID,
+        error_signature: str | None,
+        environment: dict | None,
+        success_score: float,
+        failure_score: float,
+    ) -> float | None:
+        """Wrap _sandbox_run_guarded with dedup-cache keyed on (code, sig)."""
+        cached = self._sandbox_dedup.get(code, error_signature)
+        if cached is not None:
+            self._bump_health_counter("sandbox_dedup_hit")
+            return cached.sandbox_score
+        result = self._sandbox_run_guarded(
+            code,
+            agent_id=agent_id,
+            error_signature=error_signature,
+            environment=environment,
+        )
+        if result is None:
+            return None
+        score = success_score if result.success else failure_score
+        self._sandbox_dedup.put(
+            code,
+            error_signature,
+            sandbox_score=score,
+            success=result.success,
+        )
+        return score
+
     def _get_sandbox_score(
         self,
         problem: Problem,
         existing: Solution,
         proposed: Solution,
+        *,
+        agent_id: UUID,
     ) -> float | None:
         """Run both solutions in sandbox, return >0.5 if proposed is better.
 
-        Returns None if neither solution contains executable code.
+        Returns None if neither solution contains executable code, or if
+        every relevant sandbox call was blocked by a DoS gate.
         """
         existing_code = self._extract_executable_code(existing)
         proposed_code = self._extract_executable_code(proposed)
@@ -1585,31 +1669,34 @@ class AgentbookService:
 
         # Proposed has code but existing doesn't: proposed wins if it runs.
         if existing_code is None and proposed_code is not None:
-            result = self._sandbox.execute(
+            return self._sandbox_score_with_dedup(
                 proposed_code,
+                agent_id=agent_id,
                 error_signature=sig,
-                timeout_seconds=settings.sandbox_timeout_seconds,
                 environment=env,
+                success_score=0.8,
+                failure_score=0.3,
             )
-            return 0.8 if result.success else 0.3
 
         # Existing has code but proposed doesn't: existing wins.
         if existing_code is not None and proposed_code is None:
             return 0.2
 
         # Both have code: run both and compare.
-        existing_result = self._sandbox.execute(
+        existing_result = self._sandbox_run_guarded(
             existing_code,
+            agent_id=agent_id,
             error_signature=sig,
-            timeout_seconds=settings.sandbox_timeout_seconds,
             environment=env,
         )
-        proposed_result = self._sandbox.execute(
+        proposed_result = self._sandbox_run_guarded(
             proposed_code,
+            agent_id=agent_id,
             error_signature=sig,
-            timeout_seconds=settings.sandbox_timeout_seconds,
             environment=env,
         )
+        if existing_result is None or proposed_result is None:
+            return None
 
         if proposed_result.success and not existing_result.success:
             return 0.9
@@ -1630,18 +1717,26 @@ class AgentbookService:
         self,
         problem: Problem,
         solution: Solution,
+        *,
+        agent_id: UUID,
     ) -> None:
-        """Run a solution in the sandbox and record the outcome."""
+        """Run a solution in the sandbox and record the outcome.
+
+        Skips outcome recording when a DoS gate blocks the call -- the
+        gate already incremented its observability counter.
+        """
         code = self._extract_executable_code(solution)
         if code is None:
             return
 
-        result = self._sandbox.execute(
+        result = self._sandbox_run_guarded(
             code,
+            agent_id=agent_id,
             error_signature=problem.error_signature,
-            timeout_seconds=settings.sandbox_timeout_seconds,
             environment=problem.environment,
         )
+        if result is None:
+            return
         self._record_synthetic_outcome(
             solution,
             SANDBOX_AGENT_ID,
@@ -1978,6 +2073,23 @@ class AgentbookService:
         ids = {c.researcher_id for c in cycles}
         models = self._agent_models_map(ids)
         return [_research_cycle_to_dict(c, models.get(c.researcher_id)) for c in cycles]
+
+    def get_problem(self, problem_id: UUID) -> Problem | None:
+        return self._problems.get(problem_id)
+
+    def list_outcomes_for_solution(self, solution_id: UUID) -> list[Outcome]:
+        return self._outcomes.list_by_solution(solution_id)
+
+    def list_outcomes_by_reporter(
+        self, reporter_id: UUID, since: datetime | None = None
+    ) -> list[Outcome]:
+        outcomes = self._outcomes.list_by_reporter(reporter_id)
+        if since is None:
+            return outcomes
+        return [o for o in outcomes if o.created_at >= since]
+
+    def get_health_counters(self) -> dict[str, int]:
+        return dict(self._health_counters)
 
     def get_failed_approaches(
         self, problem_id: UUID, stall_threshold: int, limit: int = 5

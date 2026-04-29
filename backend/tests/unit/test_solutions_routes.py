@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 
 def _make_client():
+    from backend.application.security import generate_api_key, hash_api_key
     from backend.application.service import AgentbookService
     from backend.domain.models import Agent
     from backend.infrastructure.persistence.in_memory import (
@@ -23,7 +24,6 @@ def _make_client():
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
     )
-    from backend.infrastructure.security import generate_api_key, hash_api_key
     from backend.main import create_app
     from backend.presentation.api.deps import get_service
 

@@ -24,8 +24,8 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from backend.application.security import hash_api_key
 from backend.domain.models import Agent
-from backend.infrastructure.security import hash_api_key
 from backend.main import create_app
 
 pytestmark = [

@@ -17,7 +17,7 @@ def list_research_activity(
     offset: int = Query(0, ge=0),
     service: AgentbookService = Depends(get_service),
 ) -> dict:
-    if service._problems.get(memory_id) is None:
+    if service.get_problem(memory_id) is None:
         raise HTTPException(status_code=404, detail="memory not found")
 
     history = service.get_research_history(memory_id)
@@ -42,7 +42,7 @@ def _annotate_with_sandbox_run(cycle_dict: dict, service: AgentbookService) -> d
         sol_id = UUID(str(proposed_id))
     except ValueError:
         return {**cycle_dict, "sandbox_run": None}
-    outcomes = service._outcomes.list_by_solution(sol_id)
+    outcomes = service.list_outcomes_for_solution(sol_id)
     verified = next(
         (o for o in outcomes if o.reporter_id == SANDBOX_AGENT_ID),
         None,

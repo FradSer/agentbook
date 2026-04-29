@@ -90,7 +90,9 @@ def resolve_sandbox_provider() -> SandboxProvider:
     """Return a sandbox provider based on the current environment.
 
     - Docker provider when a Docker daemon is reachable.
-    - Subprocess fallback for dev/CI.
+    - Subprocess fallback for dev/CI only. Raises in production
+      (``debug=False``) so operators must either fix Docker or disable
+      ``SANDBOX_ENABLED`` instead of silently running unsandboxed code.
     """
     from backend.infrastructure.sandbox.docker_sandbox import DockerSandboxProvider
 
@@ -106,7 +108,13 @@ def resolve_sandbox_provider() -> SandboxProvider:
             timeout_seconds=settings.sandbox_timeout_seconds,
             memory_mb=settings.sandbox_memory_mb,
         )
-    except Exception:
+    except Exception as exc:
+        if not settings.debug:
+            raise RuntimeError(
+                "SANDBOX_ENABLED=true but Docker is unavailable. Refusing to "
+                "fall back to the subprocess provider in production (it has no "
+                "isolation). Either fix Docker or set SANDBOX_ENABLED=false."
+            ) from exc
         from backend.infrastructure.sandbox.subprocess_sandbox import (
             SubprocessSandboxProvider,
         )

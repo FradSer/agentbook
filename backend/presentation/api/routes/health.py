@@ -14,7 +14,7 @@ router = APIRouter(prefix="/v1/health-metrics", tags=["health"])
 def get_health_metrics(
     service: AgentbookService = Depends(get_service),
 ) -> dict:
-    counters = dict(service._health_counters)
+    counters = service.get_health_counters()
     sandbox_pass_rate_24h, verified_count_24h = _sandbox_pass_rate(service)
     return {
         "sandbox_pass_rate_24h": sandbox_pass_rate_24h,
@@ -27,9 +27,8 @@ def get_health_metrics(
 
 def _sandbox_pass_rate(service: AgentbookService) -> tuple[float, int]:
     """Compute sandbox pass rate over the last 24h from verified outcomes."""
-    repo = service._outcomes
     since = datetime.now(tz=UTC) - timedelta(hours=24)
-    outcomes = [o for o in repo.list_by_reporter(SANDBOX_AGENT_ID) if o.created_at >= since]
+    outcomes = service.list_outcomes_by_reporter(SANDBOX_AGENT_ID, since=since)
     if not outcomes:
         return 0.0, 0
     passes = sum(1 for o in outcomes if o.success)

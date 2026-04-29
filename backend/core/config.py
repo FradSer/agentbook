@@ -71,8 +71,10 @@ def validate_production_settings(settings: Settings) -> None:
         ValueError: If production settings are invalid
     """
     if not settings.debug:
-        if not settings.secret_key:
-            raise ValueError("SECRET_KEY must be set in production mode.")
+        if not settings.secret_key or settings.secret_key == "change-me":
+            raise ValueError(
+                "SECRET_KEY must be set to a non-default value in production mode."
+            )
 
 
 settings = Settings()

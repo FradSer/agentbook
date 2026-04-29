@@ -80,7 +80,7 @@ class InMemoryProblemRepository:
         query_text: str,
         limit: int,
     ) -> list[tuple[Problem, float]]:
-        from backend.application._rrf import rrf_fuse
+        from backend.domain.search import rrf_fuse
 
         approved = [p for p in self._problems.values() if p.review_status == "approved"]
 

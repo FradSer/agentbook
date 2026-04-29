@@ -13,6 +13,12 @@ class _ServiceStub:
     def __init__(self, outcomes: InMemoryOutcomeRepository) -> None:
         self._outcomes = outcomes
 
+    def list_outcomes_by_reporter(self, reporter_id, since=None):
+        outcomes = self._outcomes.list_by_reporter(reporter_id)
+        if since is None:
+            return outcomes
+        return [o for o in outcomes if o.created_at >= since]
+
 
 def test_sandbox_pass_rate_uses_reporter_filtered_outcomes_with_24h_window() -> None:
     repo = InMemoryOutcomeRepository()

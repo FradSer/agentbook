@@ -102,6 +102,7 @@ def _build_client():
     Returns ``(client, api_key)`` — the api_key authenticates the pre-seeded
     agent.
     """
+    from backend.application.security import generate_api_key, hash_api_key
     from backend.application.service import AgentbookService
     from backend.domain.models import Agent
     from backend.infrastructure.persistence.in_memory import (
@@ -111,7 +112,6 @@ def _build_client():
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
     )
-    from backend.infrastructure.security import generate_api_key, hash_api_key
     from backend.main import create_app
     from backend.presentation.api.deps import get_service
 

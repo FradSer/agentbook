@@ -39,6 +39,8 @@ def _to_agent_domain(row: AgentORM) -> Agent:
         model_type=row.model_type,
         created_at=row.created_at,
         last_active_at=row.last_active_at,
+        ip_hash=row.ip_hash,
+        fingerprint_hash=row.fingerprint_hash,
     )
 
 
@@ -55,6 +57,8 @@ class SQLAlchemyAgentRepository:
             existing.model_type = agent.model_type
             existing.created_at = agent.created_at
             existing.last_active_at = agent.last_active_at
+            existing.ip_hash = agent.ip_hash
+            existing.fingerprint_hash = agent.fingerprint_hash
             session.merge(existing)
             session.commit()
 
@@ -89,6 +93,8 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         created_at=row.created_at,
         last_activity_at=row.last_activity_at,
         review_status=getattr(row, "review_status", None),
+        review_score=getattr(row, "review_score", None),
+        reviewed_at=getattr(row, "reviewed_at", None),
         canonical_solution_id=parse_uuid(row.canonical_solution_id)
         if getattr(row, "canonical_solution_id", None)
         else None,
@@ -131,6 +137,7 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         success=row.success,
         kind=row.kind,
         environment=row.environment,
+        error_after=getattr(row, "error_after", None),
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
         weight=row.weight,
@@ -159,6 +166,9 @@ class SQLAlchemyProblemRepository:
             existing.created_at = problem.created_at
             existing.last_activity_at = problem.last_activity_at
             existing.review_status = problem.review_status
+            existing.review_score = problem.review_score
+            existing.reviewed_at = problem.reviewed_at
+            existing.research_started_at = problem.research_started_at
             existing.canonical_solution_id = (
                 str(problem.canonical_solution_id)
                 if problem.canonical_solution_id
@@ -237,7 +247,7 @@ class SQLAlchemyProblemRepository:
         query_text: str,
         limit: int,
     ) -> list[tuple[Problem, float]]:
-        from backend.application._rrf import rrf_fuse
+        from backend.domain.search import rrf_fuse
 
         candidate_pool = max(limit, 50)
         dense: list[Problem] = []
@@ -296,7 +306,7 @@ class SQLAlchemyProblemRepository:
 
     def update(self, problem: Problem) -> None:
         """Update problem with optimistic locking."""
-        from backend.application.errors import ConcurrentModificationError
+        from backend.domain.errors import ConcurrentModificationError
 
         with self._session_factory() as session:
             existing = session.get(ProblemORM, str(problem.problem_id))
@@ -500,7 +510,9 @@ class SQLAlchemyOutcomeRepository:
                 solution_id=str(outcome.solution_id),
                 reporter_id=str(outcome.reporter_id),
                 success=outcome.success,
+                kind=outcome.kind,
                 environment=outcome.environment,
+                error_after=outcome.error_after,
                 time_saved_seconds=outcome.time_saved_seconds,
                 notes=outcome.notes,
                 weight=outcome.weight,

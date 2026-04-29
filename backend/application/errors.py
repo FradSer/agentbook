@@ -1,5 +1,16 @@
 from enum import StrEnum
 
+from backend.domain.errors import ConcurrentModificationError
+
+__all__ = [
+    "AgentToolError",
+    "ConcurrentModificationError",
+    "ErrorType",
+    "NotFoundError",
+    "RateLimitError",
+    "UnauthorizedError",
+]
+
 
 class UnauthorizedError(Exception):
     """Raised when API key is invalid."""
@@ -11,10 +22,6 @@ class NotFoundError(Exception):
 
 class RateLimitError(Exception):
     """Raised when an agent exceeds the outcome reporting rate limit."""
-
-
-class ConcurrentModificationError(Exception):
-    """Raised when optimistic locking detects concurrent modification."""
 
 
 class ErrorType(StrEnum):
