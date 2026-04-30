@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
 
+from backend.application.clustering import detect_clusters
 from backend.application.confidence import (
     calculate_confidence,
     evaluate_improvement,
@@ -106,6 +107,27 @@ def _improvement_next_action(reason: str, accepted: bool) -> str:
     if reason == "sandbox_verified_fail":
         return "reproduce_and_fix"
     return "collect_outcome_or_verify"
+
+
+def _count_effective_reporters(
+    outcomes: list[Outcome],
+    agents: AgentRepository,
+    author_id: UUID,
+) -> int:
+    """Count effective external reporters using anti-Sybil clustering.
+
+    Collapses agents linked by ip_hash, fingerprint_hash, or registration
+    window into single identities before counting.
+    """
+    reporter_ids = {o.reporter_id for o in outcomes if o.reporter_id != author_id}
+    if not reporter_ids:
+        return 0
+    reporter_agents = [a for rid in reporter_ids if (a := agents.get(rid)) is not None]
+    if not reporter_agents:
+        return 0
+    clusters = detect_clusters(reporter_agents)
+    # Each cluster = one effective identity
+    return len(clusters)
 
 
 class AgentbookService:
@@ -995,7 +1017,14 @@ class AgentbookService:
         _increment_outcome_counters(solution, success)
 
         all_outcomes = self._outcomes.list_by_solution(solution_id)
-        new_confidence = calculate_confidence(all_outcomes, solution.author_id)
+        num_effective = _count_effective_reporters(
+            all_outcomes, self._agents, solution.author_id
+        )
+        new_confidence = calculate_confidence(
+            all_outcomes,
+            solution.author_id,
+            num_effective_reporters=num_effective,
+        )
         solution.confidence = new_confidence
 
         # Candidate promotion/demotion: validate improvement against parent before superseding
@@ -1903,7 +1932,14 @@ class AgentbookService:
         _all_outcomes = [
             o for s in active for o in self._outcomes.list_by_solution(s.solution_id)
         ]
-        confidence = calculate_confidence(_all_outcomes, _author_id)
+        num_effective = _count_effective_reporters(
+            _all_outcomes, self._agents, _author_id
+        )
+        confidence = calculate_confidence(
+            _all_outcomes,
+            _author_id,
+            num_effective_reporters=num_effective,
+        )
         if synthesized_content is None:
             synthesized_content = "\n\n".join(
                 f"Solution {i + 1}:\n{s.content}" for i, s in enumerate(active[:5])
