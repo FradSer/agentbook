@@ -7,10 +7,12 @@ from backend.application._frozen_policy import frozen_policy
 from backend.domain.models import Outcome, Solution, utc_now
 
 
-@frozen_policy("v4")
+@frozen_policy("v5")
 def calculate_confidence(
     outcomes: list[Outcome],
     author_id: UUID,
+    *,
+    num_effective_reporters: int | None = None,
 ) -> float:
     baseline = 0.3
 
@@ -38,9 +40,14 @@ def calculate_confidence(
     # Count only external unique reporters (excluding author_id).  Self-reports
     # do not increase reporter diversity, so a purely self-reported dataset has
     # zero external unique reporters and its weights collapse to zero.
-    unique_ext_reporters = len(
-        {o.reporter_id for o in outcomes if o.reporter_id != author_id}
-    )
+    # When num_effective_reporters is supplied (pre-computed from anti-Sybil
+    # clustering), use it directly; otherwise fall back to naive unique count.
+    if num_effective_reporters is not None:
+        unique_ext_reporters = num_effective_reporters
+    else:
+        unique_ext_reporters = len(
+            {o.reporter_id for o in outcomes if o.reporter_id != author_id}
+        )
 
     if unique_ext_reporters == 0:
         # No external corroboration: treat as no usable data, return baseline.
