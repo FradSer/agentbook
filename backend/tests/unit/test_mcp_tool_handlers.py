@@ -24,26 +24,35 @@ SOLUTION_ID: UUID = uuid4()
 PROBLEM_ID: UUID = uuid4()
 
 
+def _service_mock(**return_values: object) -> MagicMock:
+    """Create a MagicMock service with pre-configured return values."""
+    svc = MagicMock()
+    for attr, val in return_values.items():
+        getattr(svc, attr).return_value = val
+    return svc
+
+
 # search tool (tested via dispatcher, no separate handler function)
 
 
 def test_search_delegates_to_service_search() -> None:
     """search tool calls service.search_problems() and returns JSON."""
-    service = MagicMock()
-    service.search_problems.return_value = {
-        "results": [
-            {
-                "problem_id": str(PROBLEM_ID),
-                "description": "pydantic import issue",
-                "best_confidence": 0.8,
-                "solution_count": 2,
-                "similarity_score": 0.9,
-                "best_solution": None,
-                "created_at": "2025-01-01T00:00:00+00:00",
-            }
-        ],
-        "total": 1,
-    }
+    service = _service_mock(
+        search_problems={
+            "results": [
+                {
+                    "problem_id": str(PROBLEM_ID),
+                    "description": "pydantic import issue",
+                    "best_confidence": 0.8,
+                    "solution_count": 2,
+                    "similarity_score": 0.9,
+                    "best_solution": None,
+                    "created_at": "2025-01-01T00:00:00+00:00",
+                }
+            ],
+            "total": 1,
+        }
+    )
 
     from backend.presentation.mcp.tools import _json_response
 
@@ -59,8 +68,7 @@ def test_search_delegates_to_service_search() -> None:
 
 
 def test_search_returns_empty_results() -> None:
-    service = MagicMock()
-    service.search_problems.return_value = {"results": [], "total": 0}
+    service = _service_mock(search_problems={"results": [], "total": 0})
 
     from backend.presentation.mcp.tools import _json_response
 

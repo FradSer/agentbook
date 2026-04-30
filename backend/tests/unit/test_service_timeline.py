@@ -58,6 +58,22 @@ def _create_approved_solution(
     return s
 
 
+def _setup_improved_solution(service, author_id):
+    """Create an approved problem + solution, then improve it."""
+    p = _create_approved_problem(service, author_id)
+    s = _create_approved_solution(service, p.problem_id, author_id)
+    s.confidence = 0.25
+    service._solutions.update(s)
+    long_content = "A" * (len(s.content) * 3)
+    service.improve_solution(
+        solution_id=s.solution_id,
+        improved_content=long_content,
+        reasoning="Better approach found",
+        author_id=author_id,
+    )
+    return p, s
+
+
 def test_get_problem_timeline_raises_not_found():
     service, _ = _make_service()
     with pytest.raises(NotFoundError):
@@ -107,40 +123,18 @@ def test_timeline_includes_solution_proposed():
 
 def test_timeline_solution_improved_has_parent():
     service, author_id = _make_service()
-    p = _create_approved_problem(service, author_id)
-    s = _create_approved_solution(service, p.problem_id, author_id)
-    s.confidence = 0.25
-    service._solutions.update(s)
-    # improve_solution creates a new solution with parent_solution_id set
-    long_content = "A" * (len(s.content) * 3)
-    service.improve_solution(
-        solution_id=s.solution_id,
-        improved_content=long_content,
-        reasoning="Better approach found",
-        author_id=author_id,
-    )
+    p, s = _setup_improved_solution(service, author_id)
     result = service.get_problem_timeline(p.problem_id)
     improved_events = [
         e for e in result["timeline"] if e["event_type"] == "solution_improved"
     ]
     assert len(improved_events) >= 1
-    event = improved_events[0]
-    assert event["parent_solution_id"] == str(s.solution_id)
+    assert improved_events[0]["parent_solution_id"] == str(s.solution_id)
 
 
 def test_timeline_solution_improved_merges_research_cycle():
     service, author_id = _make_service()
-    p = _create_approved_problem(service, author_id)
-    s = _create_approved_solution(service, p.problem_id, author_id)
-    s.confidence = 0.25
-    service._solutions.update(s)
-    long_content = "A" * (len(s.content) * 3)
-    service.improve_solution(
-        solution_id=s.solution_id,
-        improved_content=long_content,
-        reasoning="Detailed reasoning here",
-        author_id=author_id,
-    )
+    p, _s = _setup_improved_solution(service, author_id)
     result = service.get_problem_timeline(p.problem_id)
     improved_events = [
         e for e in result["timeline"] if e["event_type"] == "solution_improved"
@@ -152,6 +146,8 @@ def test_timeline_solution_improved_merges_research_cycle():
     assert "confidence_delta" in event
     assert "previous_best_confidence" in event
     assert "research_status" in event
+    # promotion_status should be present (candidate for hill-climbing accepted)
+    assert "promotion_status" in event
 
 
 def test_timeline_research_skipped_only_for_no_proposed():
@@ -176,17 +172,7 @@ def test_timeline_no_duplicate_for_improved_cycle():
     """When improve_solution produces a cycle with proposed_solution_id, it should
     appear as solution_improved only, not also as research_skipped."""
     service, author_id = _make_service()
-    p = _create_approved_problem(service, author_id)
-    s = _create_approved_solution(service, p.problem_id, author_id)
-    s.confidence = 0.25
-    service._solutions.update(s)
-    long_content = "A" * (len(s.content) * 3)
-    service.improve_solution(
-        solution_id=s.solution_id,
-        improved_content=long_content,
-        reasoning="Better approach",
-        author_id=author_id,
-    )
+    p, _s = _setup_improved_solution(service, author_id)
     result = service.get_problem_timeline(p.problem_id)
     event_types = [e["event_type"] for e in result["timeline"]]
     # research_skipped should not appear for cycles that produced a solution
@@ -237,28 +223,6 @@ def test_problem_updated_at_matches_latest_timeline_event():
     last_event_time = result["timeline"][-1]["created_at"]
     assert result["problem"]["updated_at"] == last_event_time
     assert result["problem"]["updated_at"] >= result["problem"]["created_at"]
-
-
-def test_timeline_promotion_status_included():
-    service, author_id = _make_service()
-    p = _create_approved_problem(service, author_id)
-    s = _create_approved_solution(service, p.problem_id, author_id)
-    s.confidence = 0.25
-    service._solutions.update(s)
-    long_content = "A" * (len(s.content) * 3)
-    service.improve_solution(
-        solution_id=s.solution_id,
-        improved_content=long_content,
-        reasoning="Better",
-        author_id=author_id,
-    )
-    result = service.get_problem_timeline(p.problem_id)
-    improved_events = [
-        e for e in result["timeline"] if e["event_type"] == "solution_improved"
-    ]
-    assert len(improved_events) >= 1
-    # promotion_status should be present (candidate for hill-climbing accepted)
-    assert "promotion_status" in improved_events[0]
 
 
 def test_timeline_synthesis_created_event():

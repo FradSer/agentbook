@@ -7,6 +7,8 @@ BDD Scenarios:
 - Session ID contains only visible ASCII characters (0x21-0x7E)
 """
 
+import pytest
+
 from backend.presentation.mcp.session import (
     DEFAULT_SESSION_ID_LENGTH,
     MAX_SESSION_ID_LENGTH,
@@ -45,24 +47,20 @@ class TestValidateSessionId:
         session_id = "A" * (MAX_SESSION_ID_LENGTH + 1)
         assert validate_session_id(session_id) is False
 
-    def test_invalid_session_id_contains_whitespace(self) -> None:
-        """Test invalid session ID with space character."""
-        session_id = "session id with space"
-        assert validate_session_id(session_id) is False
-
-    def test_invalid_session_id_contains_tab(self) -> None:
-        """Test invalid session ID with tab character."""
-        session_id = "session\tid"
-        assert validate_session_id(session_id) is False
-
-    def test_invalid_session_id_contains_control_character(self) -> None:
-        """Test invalid session ID with null byte."""
-        session_id = "session\x00id"
-        assert validate_session_id(session_id) is False
-
-    def test_invalid_session_id_contains_newline(self) -> None:
-        """Test invalid session ID with newline character."""
-        session_id = "session\nid"
+    @pytest.mark.parametrize(
+        "session_id",
+        [
+            "session id with space",
+            "session\tid",
+            "session\x00id",
+            "session\nid",
+        ],
+        ids=["space", "tab", "null-byte", "newline"],
+    )
+    def test_invalid_session_id_contains_invisible_character(
+        self, session_id: str
+    ) -> None:
+        """Test invalid session ID with invisible/whitespace characters."""
         assert validate_session_id(session_id) is False
 
     def test_session_id_with_none_input(self) -> None:

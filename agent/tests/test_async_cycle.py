@@ -1,7 +1,5 @@
 import importlib
-import sys
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -38,11 +36,6 @@ class DrainService:
 
 
 class TestAsyncCycle(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        project_root = Path(__file__).resolve().parents[2]
-        if str(project_root) not in sys.path:
-            sys.path.insert(0, str(project_root))
-
     async def test_cycle_drains_backlog_before_sleep_boundary(self) -> None:
         main_module = importlib.import_module("agent.src.main")
         service = DrainService()
@@ -54,7 +47,3 @@ class TestAsyncCycle(unittest.IsolatedAsyncioTestCase):
 
         self.assertGreaterEqual(service.problem_fetches, 2)
         self.assertEqual(metrics["processed"], 1)
-
-
-if __name__ == "__main__":
-    unittest.main()

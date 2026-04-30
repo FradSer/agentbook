@@ -126,9 +126,9 @@ def test_given_failures_after_first_improvement_when_improving_again_then_second
 
 
 def test_given_two_accepted_improvements_when_reading_lineage_then_three_nodes_exist():
-    """After 2 improvements, solution lineage should be 3 nodes deep: s1 → s2 → s3."""
+    """After 2 improvements, solution lineage should be 3 nodes deep: s1 -> s2 -> s3."""
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
+    _, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     result1 = service.improve_solution(
         solution_id=s1.solution_id,
@@ -158,10 +158,8 @@ def test_given_two_accepted_improvements_when_reading_lineage_then_three_nodes_e
 
     lineage = service.get_solution_lineage(s3_id)
     ids_in_lineage = [str(node["solution_id"]) for node in lineage]
-    assert str(s1.solution_id) in ids_in_lineage
-    assert str(s2_id) in ids_in_lineage
-    assert str(s3_id) in ids_in_lineage
     assert len(lineage) == 3
+    assert {str(s1.solution_id), str(s2_id), str(s3_id)} == set(ids_in_lineage)
 
 
 def test_given_many_successful_outcomes_when_improving_again_then_second_iteration_is_rejected():
@@ -257,8 +255,7 @@ def test_given_mock_tool_calling_agent_when_running_research_cycle_then_first_cy
 
 
 def test_given_degradation_between_cycles_when_running_two_research_cycles_then_both_improve():
-    """Two consecutive run_research_cycle calls: iteration 1 improves, iteration 2 also improves
-    after bad outcomes degrade the first improvement."""
+    """Two consecutive run_research_cycle calls: both improve after degradation."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
 
@@ -268,7 +265,6 @@ def test_given_degradation_between_cycles_when_running_two_research_cycles_then_
     tools = get_researcher_tools(service)
     agent = _ToolCallingAgent(tools, always_improve=True)
 
-    # Iteration 1: cold-start improvement (cooldown_hours=0 so all approved problems are candidates)
     metrics1 = asyncio.run(run_research_cycle(agent, service, cooldown_hours=0))
     assert metrics1["improved"] >= 1, f"Iteration 1 should improve: {metrics1}"
 
@@ -303,14 +299,7 @@ def test_given_degradation_between_cycles_when_running_two_research_cycles_then_
 
 
 def test_given_three_manual_iterations_with_external_feedback_when_improving_then_four_node_lineage_is_built():
-    """3 full autoresearch iterations with distinct external reporters between each.
-
-    Iteration 1: cold-start improvement when prior confidence is below default (0.25 → 0.3)
-    External feedback 1: 5 failures from reporter1 → confidence degrades below 0.5
-    Iteration 2: degraded solution → second proposal accepted
-    External feedback 2: 5 failures from reporter2 → degrades again
-    Iteration 3: third proposal accepted, lineage is 4 nodes deep (s1→s2→s3→s4)
-    """
+    """3 iterations with external failures between each builds a 4-node lineage."""
     service, author_id = _make_service()
     p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
@@ -398,15 +387,7 @@ def test_given_three_manual_iterations_with_external_feedback_when_improving_the
 
 
 def test_given_external_feedback_between_three_cycle_runs_when_running_research_cycle_then_total_improvements_reach_three():
-    """Three consecutive run_research_cycle calls, each with external feedback in between.
-
-    Validates the full autoresearch loop at the cycle level:
-    - Iteration 1: cold-start improvement
-    - External failures from reporter1 degrade the new best solution
-    - Iteration 2: degraded solution → improvement accepted
-    - External failures from reporter2 degrade the second-generation solution
-    - Iteration 3: third improvement accepted; total = 3 improvements across 3 cycle calls
-    """
+    """Three run_research_cycle calls with degradation between each: total >= 3 improvements."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
 

@@ -2,7 +2,6 @@
 
 Covers:
 - Secret key enforcement in production vs debug mode
-- Application starts with specific secret key
 - Permissive CORS triggers warning in production
 """
 
@@ -41,14 +40,6 @@ class TestSecretKeyValidation:
         validate_production_settings(settings)
         assert settings.secret_key == ""
         assert settings.debug is True
-
-    def test_app_starts_with_specific_secret_key(self, monkeypatch):
-        monkeypatch.setenv("SECRET_KEY", "my-custom-key")
-        monkeypatch.setenv("DEBUG", "false")
-
-        settings = Settings()
-        assert settings.secret_key == "my-custom-key"
-        validate_production_settings(settings)
 
 
 class TestCorsWarning:

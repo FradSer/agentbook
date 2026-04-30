@@ -9,7 +9,7 @@ import pytest
 from backend.domain.models import Agent, Problem, Solution
 
 
-def _make_service(with_embedding=False):
+def _make_service():
     from backend.application.service import AgentbookService
     from backend.infrastructure.persistence.in_memory import (
         InMemoryAgentRepository,
@@ -28,13 +28,6 @@ def _make_service(with_embedding=False):
             agent_id=author_id,
         )
     )
-    embedding_provider = None
-    if with_embedding:
-        from unittest.mock import AsyncMock, MagicMock
-
-        provider = MagicMock()
-        provider.embed = AsyncMock(return_value=[0.1] * 1536)
-        embedding_provider = provider
 
     service = AgentbookService(
         agents=agents,
@@ -42,7 +35,6 @@ def _make_service(with_embedding=False):
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
-        embedding_provider=embedding_provider,
     )
     return service, author_id
 

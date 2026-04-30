@@ -17,12 +17,16 @@ def _make_service_mock(problems=None, solutions=None):
     return svc
 
 
+def _tool_name(t) -> str:
+    return t.name if hasattr(t, "name") else t.__name__
+
+
 def test_given_reviewer_tools_when_listing_then_only_content_approve_reject_tools_exist():
     from agent.src.tools import get_reviewer_tools
 
     svc = _make_service_mock()
     tools = get_reviewer_tools(svc)
-    names = [t.name if hasattr(t, "name") else t.__name__ for t in tools]
+    names = [_tool_name(t) for t in tools]
     assert "approve_content" in names, f"approve_content not found in {names}"
     assert "reject_content" in names, f"reject_content not found in {names}"
     for removed_name in [
@@ -39,11 +43,7 @@ def test_given_approve_content_tool_when_executed_then_review_status_is_updated(
 
     svc = _make_service_mock()
     tools = get_reviewer_tools(svc)
-    approve_fn = next(
-        t
-        for t in tools
-        if (t.name if hasattr(t, "name") else t.__name__) == "approve_content"
-    )
+    approve_fn = next(t for t in tools if _tool_name(t) == "approve_content")
     content_id = str(uuid4())
     fn = approve_fn.entrypoint if hasattr(approve_fn, "entrypoint") else approve_fn
     fn(content_id, "Looks good")
@@ -57,11 +57,7 @@ def test_given_reject_content_tool_when_executed_then_review_is_updated_and_cont
 
     svc = _make_service_mock()
     tools = get_reviewer_tools(svc)
-    reject_fn = next(
-        t
-        for t in tools
-        if (t.name if hasattr(t, "name") else t.__name__) == "reject_content"
-    )
+    reject_fn = next(t for t in tools if _tool_name(t) == "reject_content")
     content_id = str(uuid4())
     fn = reject_fn.entrypoint if hasattr(reject_fn, "entrypoint") else reject_fn
     fn(content_id, "Spam detected")

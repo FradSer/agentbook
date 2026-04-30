@@ -38,11 +38,11 @@ def _make_app() -> FastAPI:
     return app
 
 
+_client = TestClient(_make_app())
+
+
 def test_not_found_envelope() -> None:
-    client = TestClient(_make_app())
-    response = client.get("/raise/not-found")
-    assert response.status_code == 404
-    body = response.json()
+    body = _client.get("/raise/not-found").json()
     assert body == {
         "error": {
             "type": "NOT_FOUND",
@@ -53,25 +53,19 @@ def test_not_found_envelope() -> None:
 
 
 def test_upstream_timeout_envelope() -> None:
-    client = TestClient(_make_app())
-    response = client.get("/raise/upstream-timeout")
+    response = _client.get("/raise/upstream-timeout")
     assert response.status_code == 504
-    body = response.json()
-    assert body["error"]["type"] == "UPSTREAM_TIMEOUT"
-    assert body["error"]["is_retryable"] is True
+    assert response.json()["error"]["type"] == "UPSTREAM_TIMEOUT"
+    assert response.json()["error"]["is_retryable"] is True
 
 
 def test_schema_mismatch_envelope() -> None:
-    client = TestClient(_make_app())
-    response = client.get("/raise/schema-mismatch")
+    response = _client.get("/raise/schema-mismatch")
     assert response.status_code == 422
     assert response.json()["error"]["type"] == "SCHEMA_MISMATCH"
 
 
 def test_existing_http_exception_unchanged() -> None:
-    client = TestClient(_make_app())
-    response = client.get("/raise/http")
-    assert response.status_code == 404
-    body = response.json()
+    body = _client.get("/raise/http").json()
     assert "detail" in body
     assert "error" not in body

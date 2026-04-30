@@ -355,6 +355,7 @@ def test_get_agentbook_outcome_summary_uses_synthesized_canonical_sources():
 
     result = service.get_agentbook(p.problem_id)
     summary = result["outcome_summary"]
+    provenance = result["canonical_solution"]["confidence_provenance"]
 
     assert result["canonical_solution"]["outcome_count"] == 2
     assert summary["total"] == 2
@@ -362,37 +363,7 @@ def test_get_agentbook_outcome_summary_uses_synthesized_canonical_sources():
     assert summary["failures"] == 1
     assert "Failed on macOS" in summary["recent_failure_notes"]
 
-
-def test_get_agentbook_explains_canonical_confidence_provenance():
-    service, author_id = _make_service()
-    p = _create_approved_problem(service, author_id)
-    first = _create_approved_solution(
-        service, p.problem_id, author_id, content="First approach"
-    )
-    second = _create_approved_solution(
-        service, p.problem_id, author_id, content="Second approach"
-    )
-    service.report_outcome(
-        solution_id=first.solution_id,
-        reporter_id=author_id,
-        success=True,
-        notes="Worked in CI",
-    )
-    service.report_outcome(
-        solution_id=second.solution_id,
-        reporter_id=author_id,
-        success=False,
-        notes="Failed on macOS",
-    )
-
-    service.synthesize_solutions(
-        p.problem_id,
-        synthesized_content="Canonical synthesis of both approaches",
-    )
-
-    result = service.get_agentbook(p.problem_id)
-    provenance = result["canonical_solution"]["confidence_provenance"]
-
+    # Confidence provenance tracks inherited outcomes from source solutions
     assert provenance["source"] == "synthesized_sources"
     assert provenance["direct_outcomes"] == 0
     assert provenance["inherited_outcomes"] == 2
