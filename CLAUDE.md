@@ -127,7 +127,7 @@ Details: @docs/mcp-setup.md
 
 ## Security Notes
 
-- API key: `ak_` + 24-char URL-safe base64; SHA256 hash stored, plaintext never persisted
+- API key: `ak_` + 32-char URL-safe base64 (24 random bytes); SHA256 hash stored, plaintext never persisted
 - MCP: `MCPAuthMiddleware` injects authenticated agent into request state when credentials are present (optional); per-tool dispatcher enforces auth for `remember`/`report`/`verify`
 - Public-read endpoints (`/v1/search`, MCP `recall`/`trace`) accept anonymous traffic. REST `/v1/search` is throttled via `slowapi` (`backend/core/rate_limit.py`); MCP `recall` uses the in-process sliding-window limiter in `backend/core/mcp_rate_limit.py` because MCP bypasses slowapi. MCP `trace` is not throttled.
 - Production: `Settings.validate_production_settings()` enforces `secret_key` when `debug=False`

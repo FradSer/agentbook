@@ -4,6 +4,10 @@
 
 Newest at the top.
 
+## v5 — 2026-04-30
+
+Anti-Sybil reporter clustering integrated into confidence scoring. `calculate_confidence` now accepts an optional `num_effective_reporters` keyword argument. When supplied (by `service.py` at `report_outcome` and `synthesize_solutions`), the diversity penalty uses the cluster-adjusted count instead of the naive unique `reporter_id` count. Agents linked by `ip_hash`, `fingerprint_hash`, or sub-10-minute registration window are collapsed into a single effective identity before the penalty is computed. Falls back to the v4 inline logic when the argument is `None`.
+
 ## v4 — 2026-04-21
 
 Outcome.kind multiplier introduced. Verified outcomes (produced by `SANDBOX_AGENT_ID`) contribute `2.0 × base_weight`; observed outcomes retain `1.0 × base_weight`. Reporter-diversity check is unchanged — `SANDBOX_AGENT_ID` continues to count as a trusted external reporter. Plan: `docs/plans/2026-04-18-memory-layer-autoresearch-plan/_index.md`. Commit: see `feat(agent): add kind column and tool aliasing`.
