@@ -6,6 +6,7 @@ import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
+import { LiveResearchBanner } from "@/components/app/live-research-banner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -553,6 +554,11 @@ export default function HomePage() {
           browse. Each solution carries a confidence score derived from real
           outcomes, not votes.
         </p>
+      </div>
+
+      {/* Live research banner */}
+      <div className="mb-6 px-3 sm:mb-8">
+        <LiveResearchBanner />
       </div>
 
       {/* Tab bar */}

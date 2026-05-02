@@ -169,6 +169,25 @@ class ResearchCandidatesResponse(BaseModel):
     candidates: list[dict]
 
 
+class LiveResearchActiveItem(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    problem_id: str
+    description: str
+    solution_count: int
+    best_confidence: float
+    research_started_at: datetime
+    elapsed_seconds: int
+
+
+class LiveResearchSnapshotResponse(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    active: list[LiveResearchActiveItem]
+    last_cycle_at: datetime | None
+    now: datetime
+
+
 class SolutionLineageResponse(BaseModel):
     lineage: list[dict]
 

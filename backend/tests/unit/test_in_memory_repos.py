@@ -7,11 +7,12 @@ from uuid import uuid4
 
 import pytest
 
-from backend.domain.models import Outcome, Problem, Solution
+from backend.domain.models import Outcome, Problem, ResearchCycle, Solution
 from backend.infrastructure.persistence import in_memory as in_memory_module
 from backend.infrastructure.persistence.in_memory import (
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
+    InMemoryResearchCycleRepository,
     InMemorySolutionRepository,
 )
 
@@ -23,6 +24,15 @@ def _make_problem(**kwargs):
     }
     defaults.update(kwargs)
     return Problem(**defaults)
+
+
+def _make_research_cycle(created_at: datetime) -> ResearchCycle:
+    return ResearchCycle(
+        problem_id=uuid4(),
+        researcher_id=uuid4(),
+        status="no_improvement",
+        created_at=created_at,
+    )
 
 
 def _make_solution(problem_id=None, **kwargs):
@@ -342,3 +352,79 @@ def test_given_outcome_repo_when_listing_by_reporter_then_only_matching_outcomes
     repo.add(_make_outcome(uuid4(), reporter_id=other_reporter))
 
     assert repo.list_by_reporter(reporter_id) == [matching]
+
+
+# ---------------------------------------------------------------------------
+# Live-research banner: list_being_researched + get_latest_cycle_at
+# ---------------------------------------------------------------------------
+
+
+def test_given_problems_with_mixed_research_started_at_when_listing_being_researched_then_only_fresh_rows_are_returned():
+    repo = InMemoryProblemRepository()
+    now = datetime.now(tz=UTC)
+
+    fresh = _make_problem(description="A fresh problem still being researched")
+    object.__setattr__(fresh, "research_started_at", now - timedelta(seconds=359))
+
+    stale = _make_problem(description="B stale problem past the freshness window")
+    object.__setattr__(stale, "research_started_at", now - timedelta(seconds=361))
+
+    inactive = _make_problem(description="C inactive problem with no research")
+    object.__setattr__(inactive, "research_started_at", None)
+
+    repo.add(fresh)
+    repo.add(stale)
+    repo.add(inactive)
+
+    results = repo.list_being_researched(timeout_seconds=360)
+    ids = [r.problem_id for r in results]
+    assert fresh.problem_id in ids
+    assert stale.problem_id not in ids
+    assert inactive.problem_id not in ids
+
+
+def test_given_two_fresh_problems_when_listing_being_researched_then_results_are_ordered_by_research_started_at_desc():
+    repo = InMemoryProblemRepository()
+    now = datetime.now(tz=UTC)
+
+    older = _make_problem(description="older fresh research")
+    object.__setattr__(older, "research_started_at", now - timedelta(seconds=200))
+
+    newer = _make_problem(description="newer fresh research")
+    object.__setattr__(newer, "research_started_at", now - timedelta(seconds=10))
+
+    repo.add(older)
+    repo.add(newer)
+
+    results = repo.list_being_researched(timeout_seconds=360)
+    ids = [r.problem_id for r in results]
+    assert ids == [newer.problem_id, older.problem_id]
+
+
+def test_given_no_active_research_when_listing_being_researched_then_empty_list_is_returned():
+    repo = InMemoryProblemRepository()
+    p1 = _make_problem(description="never researched 1")
+    p2 = _make_problem(description="never researched 2")
+    repo.add(p1)
+    repo.add(p2)
+
+    assert repo.list_being_researched(timeout_seconds=360) == []
+
+
+def test_given_empty_research_cycles_when_getting_latest_cycle_at_then_none_is_returned():
+    repo = InMemoryResearchCycleRepository()
+    assert repo.get_latest_cycle_at() is None
+
+
+def test_given_three_cycles_when_getting_latest_cycle_at_then_max_created_at_is_returned():
+    repo = InMemoryResearchCycleRepository()
+    now = datetime.now(tz=UTC)
+    earliest = now - timedelta(minutes=10)
+    middle = now - timedelta(minutes=5)
+    latest = now - timedelta(minutes=1)
+
+    repo.add(_make_research_cycle(created_at=earliest))
+    repo.add(_make_research_cycle(created_at=middle))
+    repo.add(_make_research_cycle(created_at=latest))
+
+    assert repo.get_latest_cycle_at() == latest

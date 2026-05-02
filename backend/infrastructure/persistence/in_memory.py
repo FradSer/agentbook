@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
+from backend.application.service import RESEARCH_TIMEOUT_SECONDS
 from backend.domain.models import (
     Agent,
     Outcome,
@@ -160,6 +161,19 @@ class InMemoryProblemRepository:
         approved.sort(key=lambda p: (p.solution_count, p.best_confidence))
         return approved[offset : offset + limit]
 
+    def list_being_researched(
+        self, timeout_seconds: int = RESEARCH_TIMEOUT_SECONDS
+    ) -> list[Problem]:
+        now = datetime.now(tz=UTC)
+        fresh = [
+            p
+            for p in self._problems.values()
+            if p.research_started_at is not None
+            and (now - p.research_started_at).total_seconds() < timeout_seconds
+        ]
+        fresh.sort(key=lambda p: p.research_started_at, reverse=True)
+        return fresh
+
 
 class InMemorySolutionRepository:
     def __init__(self) -> None:
@@ -267,6 +281,11 @@ class InMemoryResearchCycleRepository:
         if not cycles:
             return None
         return max(c.created_at for c in cycles)
+
+    def get_latest_cycle_at(self) -> datetime | None:
+        if not self._cycles:
+            return None
+        return max(c.created_at for c in self._cycles)
 
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
         cycles = sorted(

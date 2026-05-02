@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
+from backend.application.service import RESEARCH_TIMEOUT_SECONDS
 from backend.domain.models import (
     Agent,
     Outcome,
@@ -383,6 +384,22 @@ class SQLAlchemyProblemRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_problem_domain(r) for r in rows]
 
+    def list_being_researched(
+        self, timeout_seconds: int = RESEARCH_TIMEOUT_SECONDS
+    ) -> list[Problem]:
+        with self._session_factory() as session:
+            # Server-side interval keeps clock skew off the application layer;
+            # PostgreSQL `make_interval(secs => :timeout_seconds)`.
+            interval = func.make_interval(0, 0, 0, 0, 0, 0, timeout_seconds)
+            stmt = (
+                select(ProblemORM)
+                .where(ProblemORM.research_started_at.isnot(None))
+                .where(ProblemORM.research_started_at > func.now() - interval)
+                .order_by(ProblemORM.research_started_at.desc())
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_problem_domain(r) for r in rows]
+
     def delete(self, problem_id: UUID) -> None:
         with self._session_factory() as session:
             row = session.get(ProblemORM, str(problem_id))
@@ -632,6 +649,11 @@ class SQLAlchemyResearchCycleRepository:
             stmt = select(func.max(ResearchCycleORM.created_at)).where(
                 ResearchCycleORM.problem_id == str(problem_id)
             )
+            return session.execute(stmt).scalar_one_or_none()
+
+    def get_latest_cycle_at(self) -> datetime | None:
+        with self._session_factory() as session:
+            stmt = select(func.max(ResearchCycleORM.created_at))
             return session.execute(stmt).scalar_one_or_none()
 
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int:

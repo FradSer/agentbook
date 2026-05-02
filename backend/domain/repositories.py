@@ -60,6 +60,15 @@ class ProblemRepository(Protocol):
         self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0
     ) -> list[Problem]: ...
 
+    def list_being_researched(self, timeout_seconds: int = 360) -> list[Problem]:
+        """Return Problems whose research_started_at is within the freshness window.
+
+        A row is included iff research_started_at is non-null AND
+        (utc_now() - research_started_at).total_seconds() < timeout_seconds.
+        Order: research_started_at DESC.
+        """
+        ...
+
 
 class SolutionRepository(Protocol):
     def add(self, solution: Solution) -> None: ...
@@ -107,6 +116,10 @@ class ResearchCycleRepository(Protocol):
     def get_last_researched_at(self, problem_id: UUID) -> datetime | None: ...
 
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int: ...
+
+    def get_latest_cycle_at(self) -> datetime | None:
+        """Return MAX(research_cycles.created_at) or None on empty table."""
+        ...
 
 
 class ProblemRelationshipRepository(Protocol):

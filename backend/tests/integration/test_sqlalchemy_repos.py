@@ -14,11 +14,12 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.orm import Session
 
-from backend.domain.models import Outcome, Problem, Solution
+from backend.domain.models import Outcome, Problem, ResearchCycle, Solution
 from backend.infrastructure.persistence.database import engine
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
+    SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
 )
 
@@ -273,3 +274,110 @@ def test_outcome_list_by_reporter(session_factory, session) -> None:
 
     listed = out_repo.list_by_reporter(reporter)
     assert [o.outcome_id for o in listed] == [matching.outcome_id]
+
+
+# Live-research banner: list_being_researched + get_latest_cycle_at
+
+
+def _make_research_cycle(problem_id: UUID, **kwargs) -> ResearchCycle:
+    return ResearchCycle(
+        problem_id=problem_id,
+        researcher_id=AUTHOR_ID,
+        status=kwargs.pop("status", "no_improvement"),
+        **kwargs,
+    )
+
+
+def test_given_mixed_research_started_at_when_listing_being_researched_then_only_fresh_rows_are_returned(
+    session_factory,
+) -> None:
+    """list_being_researched honours the freshness window (359s in, 361s out, NULL out)."""
+    repo = SQLAlchemyProblemRepository(session_factory)
+    now = datetime.now(tz=UTC)
+
+    fresh = _make_problem()
+    fresh.research_started_at = now - timedelta(seconds=359)
+    repo.add(fresh)
+
+    stale = _make_problem()
+    stale.research_started_at = now - timedelta(seconds=361)
+    repo.add(stale)
+
+    inactive = _make_problem()
+    inactive.research_started_at = None
+    repo.add(inactive)
+
+    results = repo.list_being_researched(timeout_seconds=360)
+    ids = [r.problem_id for r in results]
+    assert fresh.problem_id in ids
+    assert stale.problem_id not in ids
+    assert inactive.problem_id not in ids
+
+
+def test_given_two_fresh_problems_when_listing_being_researched_then_results_are_ordered_desc(
+    session_factory,
+) -> None:
+    """list_being_researched orders by research_started_at descending."""
+    repo = SQLAlchemyProblemRepository(session_factory)
+    now = datetime.now(tz=UTC)
+
+    older = _make_problem()
+    older.research_started_at = now - timedelta(seconds=200)
+    repo.add(older)
+
+    newer = _make_problem()
+    newer.research_started_at = now - timedelta(seconds=10)
+    repo.add(newer)
+
+    results = repo.list_being_researched(timeout_seconds=360)
+    ids = [r.problem_id for r in results]
+    assert ids.index(newer.problem_id) < ids.index(older.problem_id)
+
+
+def test_given_no_active_research_when_listing_being_researched_then_empty_list_is_returned(
+    session_factory,
+) -> None:
+    """Returns empty when every problem has research_started_at IS NULL."""
+    repo = SQLAlchemyProblemRepository(session_factory)
+    p1 = _make_problem()
+    p2 = _make_problem()
+    repo.add(p1)
+    repo.add(p2)
+
+    results = repo.list_being_researched(timeout_seconds=360)
+    ids = {r.problem_id for r in results}
+    assert p1.problem_id not in ids
+    assert p2.problem_id not in ids
+
+
+def test_given_empty_research_cycles_when_getting_latest_cycle_at_then_none_is_returned(
+    session_factory,
+) -> None:
+    """get_latest_cycle_at returns None when research_cycles is empty."""
+    repo = SQLAlchemyResearchCycleRepository(session_factory)
+    assert repo.get_latest_cycle_at() is None
+
+
+def test_given_three_cycles_when_getting_latest_cycle_at_then_max_created_at_is_returned(
+    session_factory,
+) -> None:
+    """get_latest_cycle_at returns MAX(created_at) across stored cycles."""
+    prob_repo = SQLAlchemyProblemRepository(session_factory)
+    cycle_repo = SQLAlchemyResearchCycleRepository(session_factory)
+
+    p = _make_problem()
+    prob_repo.add(p)
+
+    now = datetime.now(tz=UTC)
+    earliest = now - timedelta(minutes=10)
+    middle = now - timedelta(minutes=5)
+    latest = now - timedelta(minutes=1)
+
+    cycle_repo.add(_make_research_cycle(p.problem_id, created_at=earliest))
+    cycle_repo.add(_make_research_cycle(p.problem_id, created_at=middle))
+    cycle_repo.add(_make_research_cycle(p.problem_id, created_at=latest))
+
+    result = repo_latest = cycle_repo.get_latest_cycle_at()
+    assert result is not None
+    # tolerate microsecond rounding by comparing within 1 second
+    assert abs((repo_latest - latest).total_seconds()) < 1.0

@@ -67,6 +67,11 @@ _MIN_SEARCH_RELEVANCE = 0.25
 _RATE_LIMIT = 10
 _RATE_WINDOW_HOURS = 1
 
+# Freshness window for the Live Research Banner: a Problem is considered
+# "actively being researched" iff research_started_at falls within this many
+# seconds of utc_now(). Older timestamps are treated as stale (agent crash).
+RESEARCH_TIMEOUT_SECONDS: int = 360
+
 # Dedicated UUID for the LLM evaluator agent so synthetic outcomes count
 # as "external" in the Bayesian reporter-diversity penalty.
 EVALUATOR_AGENT_ID = UUID("00000000-0000-0000-0000-000000000002")
@@ -1148,6 +1153,54 @@ class AgentbookService:
             return result
 
         raise NotFoundError(f"No problem or solution found with id {resource_id}")
+
+    def get_live_research_snapshot(self) -> dict:
+        """Returns the live-research snapshot for the dashboard banner.
+
+        Shape:
+            {
+                "active": [
+                    {
+                        "problem_id": str,
+                        "description": str,           # truncated to 300 chars
+                        "solution_count": int,
+                        "best_confidence": float,
+                        "research_started_at": str,   # ISO 8601 UTC
+                        "elapsed_seconds": int,
+                    },
+                    ...                                # ordered by research_started_at DESC
+                ],
+                "last_cycle_at": str | None,           # ISO 8601 UTC or None
+                "now": str,                            # ISO 8601 UTC
+            }
+
+        The active list is filtered through the existing 360s freshness window
+        (RESEARCH_TIMEOUT_SECONDS). last_cycle_at is the global
+        MAX(research_cycles.created_at). All timestamps are ISO 8601 strings.
+        """
+        now = utc_now()
+        active_problems = self._problems.list_being_researched(
+            timeout_seconds=RESEARCH_TIMEOUT_SECONDS
+        )
+        active = [
+            {
+                "problem_id": str(p.problem_id),
+                "description": p.description[:300],
+                "solution_count": p.solution_count,
+                "best_confidence": p.best_confidence,
+                "research_started_at": p.research_started_at.isoformat(),
+                "elapsed_seconds": int((now - p.research_started_at).total_seconds()),
+            }
+            for p in active_problems
+        ]
+        last_cycle_at: datetime | None = None
+        if self._research_cycles is not None:
+            last_cycle_at = self._research_cycles.get_latest_cycle_at()
+        return {
+            "active": active,
+            "last_cycle_at": last_cycle_at.isoformat() if last_cycle_at else None,
+            "now": now.isoformat(),
+        }
 
     def get_radar(self) -> dict:
         cutoff = datetime.now(tz=UTC) - timedelta(hours=24)
@@ -2388,7 +2441,9 @@ class AgentbookService:
         }
 
 
-def _is_being_researched(problem: Problem, timeout_seconds: int = 360) -> bool:
+def _is_being_researched(
+    problem: Problem, timeout_seconds: int = RESEARCH_TIMEOUT_SECONDS
+) -> bool:
     """Return True if research is actively in progress (not stale)."""
     if problem.research_started_at is None:
         return False

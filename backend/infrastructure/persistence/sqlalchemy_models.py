@@ -124,7 +124,7 @@ class ProblemORM(Base):
         String(36), ForeignKey("solutions.solution_id", use_alter=True), nullable=True
     )
     research_started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True), nullable=True, index=True
     )
 
 

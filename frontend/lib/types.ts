@@ -198,3 +198,20 @@ export type ResearchResponse = {
   total: number;
   has_more: boolean;
 };
+
+// Live research banner (SSE + REST snapshot)
+
+export type LiveResearchActive = {
+  problem_id: string;
+  description: string;
+  solution_count: number;
+  best_confidence: number;
+  research_started_at: string; // ISO 8601 UTC
+  elapsed_seconds: number;
+};
+
+export type LiveResearchSnapshot = {
+  active: LiveResearchActive[];
+  last_cycle_at: string | null; // ISO 8601 UTC or null
+  now: string; // ISO 8601 UTC
+};

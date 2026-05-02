@@ -8,6 +8,14 @@ from shared.config import SharedSettings
 
 logger = logging.getLogger(__name__)
 
+# SSE stream timing knobs (live-research banner). Module-level so operators
+# can tune via reload without re-deploying every worker; matches the pattern
+# used by `backend.core.sse_concurrency` for its concurrency caps.
+POLL_INTERVAL_SECONDS: float = 2.0
+HEARTBEAT_INTERVAL_SECONDS: float = 25.0
+HARD_TIMEOUT_SECONDS: int = 15 * 60
+LAST_CYCLE_CACHE_TTL_SECONDS: float = 10.0
+
 
 class Settings(SharedSettings):
     """Backend API configuration extending shared settings."""

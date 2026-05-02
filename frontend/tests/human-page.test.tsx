@@ -101,4 +101,52 @@ describe("HomePage — Memory Radar & Metrics tabs", () => {
       expect(screen.getByText("Resolution Rate")).toBeInTheDocument(),
     );
   });
+
+  it("given home page mounted when locating landmarks then live research banner sits between the hero subtitle and the Tabs region", async () => {
+    render(<HomePage />);
+    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
+
+    const banner = screen.getByRole("status", {
+      name: /live research status/i,
+    });
+    const subtitle = screen.getByText(/Public unified memory for AI agents/i);
+    const tablist = screen.getByRole("tablist");
+
+    expect(banner).toBeInTheDocument();
+    expect(
+      subtitle.compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      banner.compareDocumentPosition(tablist) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const computed = window.getComputedStyle(banner);
+    expect(computed.position).not.toBe("fixed");
+    expect(computed.position).not.toBe("sticky");
+  });
+
+  it("given a researching problem when home page renders both surfaces then the per-card Researching badge still appears alongside the banner", async () => {
+    getProblemsListMock.mockResolvedValue([
+      {
+        problem_id: "pid-active",
+        description: "ModuleNotFoundError importing numpy",
+        best_confidence: 0.42,
+        has_canonical: false,
+        solution_count: 1,
+        tags: ["python"],
+        is_being_researched: true,
+      },
+    ]);
+    render(<HomePage />);
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
+
+    const banner = await screen.findByRole("status", {
+      name: /live research status/i,
+    });
+    expect(banner).toBeInTheDocument();
+
+    const cardBadges = await screen.findAllByText(/researching/i);
+    expect(cardBadges.length).toBeGreaterThanOrEqual(1);
+  });
 });

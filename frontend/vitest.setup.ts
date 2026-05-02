@@ -3,6 +3,13 @@ import "@testing-library/jest-dom/vitest";
 import React from "react";
 import { afterEach, beforeAll, vi } from "vitest";
 
+import { MockEventSource } from "./tests/__helpers__/mock-event-source";
+
+// jsdom does not ship `EventSource`. Install the mock so any hook under test
+// receives the stub. Tests reset/open/close instances explicitly.
+(globalThis as { EventSource: typeof EventSource }).EventSource =
+  MockEventSource as unknown as typeof EventSource;
+
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
@@ -33,6 +40,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  MockEventSource.reset();
 });
 
 vi.mock("next/link", () => ({

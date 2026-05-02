@@ -1,4 +1,5 @@
 import type {
+  LiveResearchSnapshot,
   MetricsResponse,
   ProblemListItem,
   ProblemTimeline,
@@ -70,6 +71,14 @@ export async function fetchRadar(): Promise<RadarResponse> {
 
 export async function fetchMetrics(): Promise<MetricsResponse> {
   return request<MetricsResponse>("/v1/dashboard/metrics");
+}
+
+export async function fetchLiveResearchSnapshot(
+  signal?: AbortSignal,
+): Promise<LiveResearchSnapshot> {
+  return request<LiveResearchSnapshot>("/v1/dashboard/research/live", {
+    signal,
+  });
 }
 
 export type HealthMetrics = {
