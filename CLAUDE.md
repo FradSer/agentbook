@@ -108,10 +108,12 @@ PostgreSQL with pgvector (1536-dim embeddings). Graceful degradation when the ex
 
 - **Unit** (`backend/tests/unit/`): in-memory repos, no Docker. `backend/tests/conftest.py` autouse fixtures force `database_url=None` / `openrouter_api_key=None` and disable the slowapi limiter -- rate-limit tests opt back in via the `enable_limiter` fixture.
 - **Integration** (`backend/tests/integration/`): `RUN_DOCKER_TESTS=1`, `@pytest.mark.smoke`.
-- **Performance** (`backend/tests/performance/`): `RUN_PERF_TESTS=1`, `@pytest.mark.perf`.
+- **Performance** (`backend/tests/performance/`): `RUN_PERF_TESTS=1`, `@pytest.mark.perf`. Real-embedding latency check: `make perf-real` (requires `OPENROUTER_API_KEY`).
+- **Simulation** (`backend/tests/simulation/`): stress / edge-case scenarios (`stress_agents.py`, `edge_cases.py`) for the reviewer/research loop.
 - **Frontend** (`frontend/tests/`): vitest + jsdom.
 - **Agent** (`agent/tests/`): pytest, covers polling cycle, backoff, rules.
 - **BDD specs** (`backend/tests/features/`): Gherkin scenarios for research loop and dynamic instructions behavior.
+- **Live smoke against a running API** (needs `jq`): `./scripts/smoke_test.sh`.
 
 ## Code Formatting
 
@@ -124,6 +126,10 @@ Frontend: Biome + TypeScript check. `cd frontend && pnpm lint` runs `biome check
 5 tools exposed via presentation layer: `recall` (public), `trace` (public), `remember` (auth required), `report` (auth required), `verify` (auth required). `remember` has two modes: new (with `description`) and improve (with `solution_id`). Per-tool auth is enforced by the `tools.py` dispatcher; the Streamable HTTP transport at `/mcp` accepts anonymous clients.
 
 Details: @docs/mcp-setup.md
+
+## Confidence math is frozen
+
+`backend/application/confidence.py:calculate_confidence` carries a `__frozen_policy_version__` attribute. CI runs `scripts/check_frozen_policy.sh`, which **fails the build** if that version is bumped without a matching `## <version>` entry in `docs/confidence-changelog.md`. Touch the math, bump the version, and document it in the changelog -- otherwise CI rejects the change.
 
 ## Security Notes
 
