@@ -1,9 +1,12 @@
-.PHONY: test fast smoke perf perf-real full frontend-lint frontend-build
+.PHONY: test fast smoke perf perf-real eval full frontend-lint frontend-build
 
 test: fast
 
 fast:
-	uv run pytest -m "not smoke and not perf"
+	uv run pytest -m "not smoke and not perf and not eval"
+
+eval:
+	uv run pytest backend/tests/eval -m eval -v
 
 smoke:
 	RUN_DOCKER_TESTS=1 uv run pytest -m smoke
