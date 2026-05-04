@@ -100,6 +100,38 @@ def _tokenize_search_text(text: str) -> list[str]:
     return re.findall(r"[a-z0-9_.'-]+", text.lower())
 
 
+def _jaccard(a: set[str], b: set[str]) -> float:
+    """Jaccard similarity between two token sets; 0 when both are empty."""
+    union = a | b
+    if not union:
+        return 0.0
+    return len(a & b) / len(union)
+
+
+def _signature_match(query_normalized: str, signature_normalized: str) -> bool:
+    """True when the full normalized query and signature are substrings of one
+    another (either direction). Reserved for the strict ``"exact"`` tier."""
+    if not query_normalized or not signature_normalized:
+        return False
+    return (
+        query_normalized in signature_normalized
+        or signature_normalized in query_normalized
+    )
+
+
+# Tier-2 admission rule for token-overlap matches against ``error_signature``.
+# Both gates must hold to escape "lexical_overlap" land and earn the
+# ``error_signature`` reason. Tuned against the 22-Agent simulation FP set:
+# every documented FP shares 1-2 distinctive tokens and Jaccard < 0.35.
+_DISTINCTIVE_TOKEN_MIN_LENGTH = 6
+_DISTINCTIVE_OVERLAP_MIN = 3
+_SIGNATURE_JACCARD_MIN = 0.35
+# Cap relevance scores below 1.0 unless the query/signature substring rule
+# fires. This is the contract that prevents Bayesian confidence inflation
+# from token-overlap false positives.
+_NON_EXACT_SCORE_CAP = 0.95
+
+
 def _improvement_next_action(reason: str, accepted: bool) -> str:
     if accepted:
         return "report_outcome_or_verify"
@@ -314,8 +346,11 @@ class AgentbookService:
             ):
                 rows_by_id[row["problem_id"]] = row
 
+        # Pass raw_score=0.0 so the vector / RRF leg below decides ranking.
+        # Quality tier still derives from token analysis inside
+        # ``_classify_match_quality`` regardless of raw_score.
         for problem in self._exact_error_signature_candidates(search_text):
-            add_candidate(problem, 1.0)
+            add_candidate(problem, 0.0)
 
         if query_embedding is not None or normalized_query:
             hybrid = self._problems.find_hybrid(
@@ -376,25 +411,66 @@ class AgentbookService:
         }
 
     def _exact_error_signature_candidates(self, search_text: str) -> list[Problem]:
+        """Pre-filter approved problems whose ``error_signature`` plausibly
+        addresses the query. Two admission paths:
+
+        * Substring match between normalized query and signature (either
+          direction) — the "exact" tier.
+        * Token-overlap with at least ``_DISTINCTIVE_OVERLAP_MIN`` distinctive
+          tokens AND Jaccard >= ``_SIGNATURE_JACCARD_MIN`` — the "strong"
+          tier when keyed on signature.
+
+        The previous single-distinctive-token rule produced 27% high-confidence
+        false positives in the 22-Agent simulation (Docker socket query
+        matched a Docker rootless tmp problem; TS2742 query matched an Xcode
+        pbxproj problem). The double gate eliminates them without losing any
+        legitimate match in the eval set.
+        """
         normalized_query = _normalize_search_text(search_text)
         if not normalized_query:
             return []
         query_tokens = set(_tokenize_search_text(search_text))
-        distinctive_tokens = {token for token in query_tokens if len(token) >= 6}
+        distinctive_query = {
+            t for t in query_tokens if len(t) >= _DISTINCTIVE_TOKEN_MIN_LENGTH
+        }
 
-        matches = []
+        matches: list[Problem] = []
         for problem in self._problems.list_all():
             if problem.review_status != "approved" or not problem.error_signature:
                 continue
             signature = _normalize_search_text(problem.error_signature)
             signature_tokens = set(_tokenize_search_text(problem.error_signature))
-            if normalized_query in signature or distinctive_tokens & signature_tokens:
+            if _signature_match(normalized_query, signature):
+                matches.append(problem)
+                continue
+            matching_distinctive = distinctive_query & signature_tokens
+            if (
+                len(matching_distinctive) >= _DISTINCTIVE_OVERLAP_MIN
+                and _jaccard(query_tokens, signature_tokens) >= _SIGNATURE_JACCARD_MIN
+            ):
                 matches.append(problem)
         return matches
 
-    def _score_problem_relevance(
+    def _classify_match_quality(
         self, problem: Problem, search_text: str, raw_score: float
-    ) -> tuple[float, str, list[str]]:
+    ) -> tuple[str, list[str], dict[str, float]]:
+        """Classify ``problem`` into a quality tier for ``search_text``.
+
+        Returns ``(quality, reasons, signals)`` where ``signals`` carries the
+        pre-computed overlap / Jaccard values so ``_compute_relevance_score``
+        does not re-tokenize.
+
+        Tiers, in priority order:
+
+        * ``"exact"`` — full normalized query is a substring of the
+          ``error_signature`` (or vice versa). The only path that earns
+          ``similarity_score == 1.0``.
+        * ``"strong"`` — distinctive overlap with ``error_signature`` clears
+          both gates (>= 3 distinct tokens AND Jaccard >= 0.35), OR the raw
+          vector score >= 0.6, OR lexical overlap_ratio >= 0.5.
+        * ``"partial"`` — overlap_ratio or raw_score in [0.25, threshold).
+        * ``"poor"`` — fallback, kept only when no better candidate exists.
+        """
         normalized_query = _normalize_search_text(search_text)
         query_tokens = set(_tokenize_search_text(search_text))
         candidate_text = " ".join(
@@ -407,38 +483,94 @@ class AgentbookService:
             if part
         )
         candidate_tokens = set(_tokenize_search_text(candidate_text))
+        signature_tokens: set[str] = set()
+        if problem.error_signature:
+            signature_tokens = set(_tokenize_search_text(problem.error_signature))
+
+        overlap_ratio = len(query_tokens & candidate_tokens) / max(len(query_tokens), 1)
+        signature_jaccard = (
+            _jaccard(query_tokens, signature_tokens) if signature_tokens else 0.0
+        )
+        signals = {
+            "overlap_ratio": overlap_ratio,
+            "signature_jaccard": signature_jaccard,
+        }
         reasons: list[str] = []
 
         if problem.error_signature:
             signature = _normalize_search_text(problem.error_signature)
-            signature_tokens = set(_tokenize_search_text(problem.error_signature))
-            distinctive_tokens = {token for token in query_tokens if len(token) >= 6}
-            if normalized_query and (
-                normalized_query in signature
-                or bool(distinctive_tokens & signature_tokens)
-            ):
-                return 1.0, "exact", ["error_signature"]
+            if _signature_match(normalized_query, signature):
+                return "exact", ["error_signature"], signals
 
-        overlap = len(query_tokens & candidate_tokens)
-        overlap_ratio = overlap / max(len(query_tokens), 1)
-        if overlap:
+            distinctive_query = {
+                t for t in query_tokens if len(t) >= _DISTINCTIVE_TOKEN_MIN_LENGTH
+            }
+            matching_distinctive = distinctive_query & signature_tokens
+            if (
+                len(matching_distinctive) >= _DISTINCTIVE_OVERLAP_MIN
+                and signature_jaccard >= _SIGNATURE_JACCARD_MIN
+            ):
+                reasons.append("error_signature")
+                if raw_score >= 0.6:
+                    reasons.append("semantic")
+                return "strong", reasons, signals
+
+        if query_tokens & candidate_tokens:
             reasons.append("lexical_overlap")
 
         if raw_score >= 0.6:
             reasons.append("semantic")
-            return min(max(raw_score, overlap_ratio), 0.99), "strong", reasons
+            return "strong", reasons, signals
 
         if overlap_ratio >= 0.5:
-            return overlap_ratio, "strong", reasons
+            return "strong", reasons, signals
 
         if overlap_ratio >= _MIN_SEARCH_RELEVANCE:
-            return overlap_ratio, "partial", reasons
+            return "partial", reasons, signals
 
         if raw_score >= _MIN_SEARCH_RELEVANCE:
-            reasons.append("semantic")
-            return raw_score, "partial", reasons
+            if "semantic" not in reasons:
+                reasons.append("semantic")
+            return "partial", reasons, signals
 
-        return max(raw_score, overlap_ratio), "poor", reasons
+        return "poor", reasons, signals
+
+    def _compute_relevance_score(
+        self,
+        *,
+        quality: str,
+        raw_score: float,
+        overlap_ratio: float,
+        signature_jaccard: float,
+    ) -> float:
+        """Numeric similarity score derived from the classification signals.
+
+        ``1.0`` is reserved for ``quality == "exact"``. Every other tier is
+        capped at ``_NON_EXACT_SCORE_CAP`` (0.95) so token-overlap false
+        positives can never inflate a downstream Bayesian confidence to the
+        same level as a confirmed substring match.
+        """
+        if quality == "exact":
+            return 1.0
+        score = max(raw_score, overlap_ratio, signature_jaccard)
+        return min(score, _NON_EXACT_SCORE_CAP)
+
+    def _score_problem_relevance(
+        self, problem: Problem, search_text: str, raw_score: float
+    ) -> tuple[float, str, list[str]]:
+        """Compatibility shim that returns the tuple ``_row_from_problem``
+        consumes. Composes ``_classify_match_quality`` + ``_compute_relevance_score``.
+        """
+        quality, reasons, signals = self._classify_match_quality(
+            problem, search_text, raw_score
+        )
+        score = self._compute_relevance_score(
+            quality=quality,
+            raw_score=raw_score,
+            overlap_ratio=signals["overlap_ratio"],
+            signature_jaccard=signals["signature_jaccard"],
+        )
+        return score, quality, reasons
 
     def _enrich_search_row(self, row: dict, include: set[str]) -> None:
         problem_id = UUID(row["problem_id"])
