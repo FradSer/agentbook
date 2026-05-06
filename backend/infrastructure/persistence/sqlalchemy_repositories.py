@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -33,25 +33,13 @@ except Exception:  # pragma: no cover
 SessionFactory = Callable[[], Session]
 
 
-def _ensure_utc(dt: datetime | None) -> datetime | None:
-    """Ensure a datetime is timezone-aware (UTC).
-
-    SQLite does not store timezone info for DateTime(timezone=True) columns,
-    so SQLAlchemy returns naive datetimes. This normalizes them to UTC-aware
-    to prevent TypeError when comparing with utc_now().
-    """
-    if dt is None or dt.tzinfo is not None:
-        return dt
-    return dt.replace(tzinfo=UTC)
-
-
 def _to_agent_domain(row: AgentORM) -> Agent:
     return Agent(
         agent_id=parse_uuid(row.agent_id),
         api_key_hash=row.api_key_hash,
         model_type=row.model_type,
-        created_at=_ensure_utc(row.created_at),
-        last_active_at=_ensure_utc(row.last_active_at),
+        created_at=row.created_at,
+        last_active_at=row.last_active_at,
         ip_hash=row.ip_hash,
         fingerprint_hash=row.fingerprint_hash,
     )
@@ -136,15 +124,15 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         best_confidence=row.best_confidence,
         solution_count=row.solution_count,
         version=row.version,
-        created_at=_ensure_utc(row.created_at),
-        last_activity_at=_ensure_utc(row.last_activity_at),
+        created_at=row.created_at,
+        last_activity_at=row.last_activity_at,
         review_status=getattr(row, "review_status", None),
         review_score=getattr(row, "review_score", None),
-        reviewed_at=_ensure_utc(getattr(row, "reviewed_at", None)),
+        reviewed_at=getattr(row, "reviewed_at", None),
         canonical_solution_id=parse_uuid(row.canonical_solution_id)
         if getattr(row, "canonical_solution_id", None)
         else None,
-        research_started_at=_ensure_utc(getattr(row, "research_started_at", None)),
+        research_started_at=getattr(row, "research_started_at", None),
     )
 
 
@@ -165,10 +153,10 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         promotion_status=getattr(row, "promotion_status", None),
         review_status=getattr(row, "review_status", None),
         review_score=getattr(row, "review_score", None),
-        reviewed_at=_ensure_utc(getattr(row, "reviewed_at", None)),
+        reviewed_at=getattr(row, "reviewed_at", None),
         solution_id=parse_uuid(row.solution_id),
-        created_at=_ensure_utc(row.created_at),
-        updated_at=_ensure_utc(row.updated_at),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
         llm_model=getattr(row, "llm_model", None),
     )
 
@@ -187,7 +175,7 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
         weight=row.weight,
-        created_at=_ensure_utc(row.created_at),
+        created_at=row.created_at,
     )
 
 
@@ -681,7 +669,7 @@ def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
         status=row.status,
         reasoning=row.reasoning,
         cycle_id=parse_uuid(row.cycle_id),
-        created_at=_ensure_utc(row.created_at),
+        created_at=row.created_at,
         llm_model=getattr(row, "llm_model", None),
     )
 
