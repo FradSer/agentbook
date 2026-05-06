@@ -29,9 +29,37 @@ class Settings(SharedSettings):
     api_key_prefix: str = "ak_"
     secret_key: str = "change-me"
 
-    # OpenRouter embeddings (api_key inherited from SharedSettings)
+    # OpenRouter embeddings (api_key inherited from SharedSettings).
+    # Kept as a fallback after Voyage in the resolver chain.
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
-    embedding_dimension: int = 1536
+    # Vector dimension shared by both embedding providers (Voyage v3-large at
+    # output_dimension=1024 and the Fallback / OpenRouter paths). Lowered from
+    # 1536 (text-embedding-3-small native) so that Voyage's Matryoshka
+    # truncation lines up with the IVFFlat / HNSW column type.
+    embedding_dimension: int = 1024
+
+    # Voyage AI commercial models. ``voyage-3-large`` is the engineering-text
+    # tuned embedder; ``rerank-2.5-lite`` is the latency-optimised cross
+    # encoder (full ``rerank-2.5`` is reserved for the offline Reviewer pass
+    # in a future Phase 4). Voyage rerank caps at 100 requests/minute per
+    # account so the in-process token bucket in
+    # ``backend/infrastructure/reranking/voyage.py`` mirrors that limit.
+    voyage_embedding_model: str = "voyage-3-large"
+    voyage_rerank_model: str = "rerank-2.5-lite"
+
+    # Search reranking configuration. ``rerank_top_k`` is the candidate pool
+    # size handed to the reranker before final truncation to ``limit``.
+    # ``rerank_enabled`` lets operators kill-switch the reranker without
+    # redeploy if Voyage has an outage.
+    rerank_enabled: bool = True
+    rerank_top_k: int = 30
+
+    # Embedding column cutover flag. ``v1`` reads/writes the legacy
+    # ``problems.embedding`` column (1536-dim). ``v2`` switches to
+    # ``problems.embedding_v2`` (1024-dim, populated by
+    # ``backend/scripts/reembed_corpus.py``). Operators flip this only after
+    # the backfill reports >99% coverage on the new column.
+    embedding_version: str = "v1"
 
     # LLM Evaluator (optional — A/B comparison for cold-start signal)
     evaluator_enabled: bool = False

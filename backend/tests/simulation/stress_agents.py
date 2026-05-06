@@ -1,6 +1,8 @@
 """Stress simulation: 25 concurrent coding agents exercising AgentBook.
 
-Run with: DEMO_MODE=1 uv run python backend/tests/simulation/stress_agents.py
+Run with a database:
+  DATABASE_URL=postgresql://user:pass@localhost:5432/agentbook_sim \
+  uv run python backend/tests/simulation/stress_agents.py
 
 Each agent performs a realistic workflow:
   1. Register
@@ -11,6 +13,7 @@ Each agent performs a realistic workflow:
   6. Report outcomes
   7. Improve solutions
 
+Data is persisted to the database specified by DATABASE_URL.
 Issues are collected and reported at the end.
 """
 
@@ -27,12 +30,19 @@ from collections import Counter
 from dataclasses import dataclass, field
 from uuid import UUID
 
-# Ensure DEMO_MODE is set
-os.environ.setdefault("DEMO_MODE", "1")
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 
 from backend.application.service import AgentbookService
-from backend.demo import build_demo_repos
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
+from backend.infrastructure.persistence.sqlalchemy_models import Base
+from backend.infrastructure.persistence.sqlalchemy_repositories import (
+    SQLAlchemyAgentRepository,
+    SQLAlchemyOutcomeRepository,
+    SQLAlchemyProblemRepository,
+    SQLAlchemyResearchCycleRepository,
+    SQLAlchemySolutionRepository,
+)
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -566,17 +576,161 @@ async def main():
     print("=" * 70)
     print()
 
-    # Build service with demo data
-    agents_repo, problems_repo, solutions_repo, outcomes_repo, cycles_repo = (
-        build_demo_repos()
+    # ── Database setup ──────────────────────────────────────────────
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        # Default to SQLite for zero-config simulation
+        db_path = os.path.join(os.path.dirname(__file__), "simulation_agentbook.db")
+        database_url = f"sqlite:///{db_path}"
+        os.environ.setdefault("DATABASE_URL", database_url)
+        print(f"  No DATABASE_URL set. Using SQLite: {db_path}")
+    else:
+        print(f"  Using DATABASE_URL: {database_url[:40]}...")
+    print()
+
+    engine = create_engine(
+        database_url,
+        pool_pre_ping=True,
+        # SQLite needs single-thread for async safety
+        connect_args={"check_same_thread": False}
+        if database_url.startswith("sqlite")
+        else {},
     )
+    Base.metadata.create_all(bind=engine)
+    SessionFactory = sessionmaker(
+        bind=engine, autoflush=False, autocommit=False, expire_on_commit=False
+    )
+
+    # Seed demo data into the database
+    from backend.demo import (
+        AGENTS,
+        OUTCOMES,
+        PROBLEMS,
+        RESEARCH_CYCLES,
+        SOLUTIONS,
+    )
+
+    with SessionFactory() as seed_session:
+        from backend.infrastructure.persistence.sqlalchemy_models import (
+            AgentORM,
+            OutcomeORM,
+            ProblemORM,
+            ResearchCycleORM,
+            SolutionORM,
+        )
+
+        # Check if already seeded
+        existing = seed_session.execute(text("SELECT count(*) FROM agents")).scalar()
+        if existing == 0:
+            for a in AGENTS:
+                seed_session.add(
+                    AgentORM(
+                        agent_id=str(a.agent_id),
+                        api_key_hash=a.api_key_hash,
+                        model_type=a.model_type,
+                        created_at=a.created_at,
+                        last_active_at=a.last_active_at,
+                    )
+                )
+            for p in PROBLEMS:
+                seed_session.add(
+                    ProblemORM(
+                        problem_id=str(p.problem_id),
+                        author_id=str(p.author_id),
+                        description=p.description,
+                        error_signature=p.error_signature,
+                        environment=p.environment or {},
+                        tags=p.tags or [],
+                        review_status=p.review_status,
+                        review_score=p.review_score,
+                        reviewed_at=p.reviewed_at,
+                        canonical_solution_id=str(p.canonical_solution_id)
+                        if p.canonical_solution_id
+                        else None,
+                        created_at=p.created_at,
+                        last_activity_at=p.last_activity_at,
+                        best_confidence=p.best_confidence,
+                        solution_count=p.solution_count,
+                        version=p.version,
+                    )
+                )
+            for s in SOLUTIONS:
+                seed_session.add(
+                    SolutionORM(
+                        solution_id=str(s.solution_id),
+                        problem_id=str(s.problem_id),
+                        author_id=str(s.author_id),
+                        content=s.content,
+                        steps=s.steps,
+                        confidence=s.confidence,
+                        outcome_count=s.outcome_count,
+                        success_count=s.success_count,
+                        failure_count=s.failure_count,
+                        canonical_id=str(s.canonical_id) if s.canonical_id else None,
+                        parent_solution_id=str(s.parent_solution_id)
+                        if s.parent_solution_id
+                        else None,
+                        promotion_status=s.promotion_status,
+                        review_status=s.review_status,
+                        review_score=s.review_score,
+                        reviewed_at=s.reviewed_at,
+                        created_at=s.created_at,
+                        updated_at=s.updated_at,
+                        llm_model=s.llm_model,
+                    )
+                )
+            for o in OUTCOMES:
+                seed_session.add(
+                    OutcomeORM(
+                        outcome_id=str(o.outcome_id),
+                        solution_id=str(o.solution_id),
+                        reporter_id=str(o.reporter_id),
+                        success=o.success,
+                        kind=o.kind or "observed",
+                        environment=o.environment or {},
+                        error_after=o.error_after,
+                        time_saved_seconds=o.time_saved_seconds,
+                        notes=o.notes,
+                        weight=o.weight,
+                        created_at=o.created_at,
+                    )
+                )
+            for c in RESEARCH_CYCLES:
+                seed_session.add(
+                    ResearchCycleORM(
+                        cycle_id=str(c.cycle_id),
+                        problem_id=str(c.problem_id),
+                        researcher_id=str(c.researcher_id),
+                        status=c.status,
+                        proposed_solution_id=str(c.proposed_solution_id)
+                        if c.proposed_solution_id
+                        else None,
+                        previous_best_confidence=c.previous_best_confidence,
+                        new_confidence=c.new_confidence,
+                        reasoning=c.reasoning,
+                        created_at=c.created_at,
+                        llm_model=c.llm_model,
+                    )
+                )
+            seed_session.commit()
+            print(
+                f"  Seeded demo data ({len(PROBLEMS)} problems, {len(SOLUTIONS)} solutions, {len(OUTCOMES)} outcomes)"
+            )
+        else:
+            print(f"  Database already has {existing} agents, skipping seed")
+    print()
+
+    # Build service with SQLAlchemy repositories
+    def session_factory():
+        return SessionFactory()
+
     service = AgentbookService(
-        agents=agents_repo,
+        agents=SQLAlchemyAgentRepository(session_factory),
         embedding_provider=FallbackEmbeddingProvider(),
-        problems=problems_repo,
-        solutions=solutions_repo,
-        outcomes=outcomes_repo,
-        research_cycles=cycles_repo,
+        problems=SQLAlchemyProblemRepository(session_factory),
+        solutions=SQLAlchemySolutionRepository(session_factory),
+        outcomes=SQLAlchemyOutcomeRepository(session_factory),
+        research_cycles=SQLAlchemyResearchCycleRepository(session_factory),
     )
 
     # Create 25 simulated agents

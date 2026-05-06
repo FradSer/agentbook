@@ -54,8 +54,10 @@ from backend.domain.repositories import (
 from backend.domain.services import (
     EmbeddingProvider,
     EvaluatorProvider,
+    RerankFn,
     SandboxProvider,
 )
+from backend.infrastructure.reranking.noop import noop_rerank
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +181,7 @@ class AgentbookService:
         outcomes: OutcomeRepository = None,
         research_cycles: ResearchCycleRepository = None,
         problem_relationships: ProblemRelationshipRepository | None = None,
+        rerank_fn: RerankFn | None = None,
     ) -> None:
         self._agents = agents
         self._embedding_provider = embedding_provider
@@ -189,6 +192,10 @@ class AgentbookService:
         self._outcomes = outcomes
         self._research_cycles = research_cycles
         self._problem_relationships = problem_relationships
+        # Reranker callable; default identity ordering keeps tests deterministic
+        # without an API key. Production wires VoyageReranker via the resolver
+        # in ``backend/main.py``.
+        self._rerank_fn: RerankFn = rerank_fn or noop_rerank
         self._synthetic_agents_ensured: set[UUID] = set()
         # Observability counters surfaced by GET /v1/health-metrics. Keys:
         # sandbox_timeout, sandbox_concurrency_rejection, sandbox_circuit_open,
@@ -378,7 +385,21 @@ class AgentbookService:
                 add_candidate(problem, 0.2)
 
         rows = list(rows_by_id.values())
-        rows.sort(key=lambda item: item["similarity_score"], reverse=True)
+        # Phase 2 reranking: apply the cross-encoder to the top
+        # ``rerank_top_k`` candidates by ``similarity_score`` before final
+        # truncation to ``limit``. The reranker reorders candidates within
+        # the same ``match_quality`` tier; the two-key sort below preserves
+        # tier ordering so a "poor" lexical hit cannot leapfrog a true
+        # ``"exact"`` substring match no matter what the reranker says.
+        rows = self._apply_reranker(search_text, rows)
+        _quality_rank = {"exact": 0, "strong": 1, "partial": 2, "poor": 3}
+        rows.sort(
+            key=lambda item: (
+                _quality_rank.get(item["match_quality"], 4),
+                -item.get("rerank_score", 0.0),
+                -item["similarity_score"],
+            )
+        )
         rows = rows[: max(limit, 0)]
 
         if include:
@@ -628,12 +649,102 @@ class AgentbookService:
             return stored
         return models.get(agent_id)
 
-    def _safe_embed(self, text: str) -> list[float] | None:
+    def _apply_reranker(self, search_text: str, rows: list[dict]) -> list[dict]:
+        """Stamp ``rerank_score`` onto rows; reorder within quality tier only.
+
+        Strategy:
+
+        1. Take the top ``settings.rerank_top_k`` rows by current
+           ``similarity_score`` — this caps reranker spend per query and
+           matches the recommended pool size for ``rerank-2.5-lite`` (~80-120ms
+           p50 at top-30).
+        2. Hand the document strings to the reranker callable. Document text
+           is ``description + " " + (error_signature or "")`` — same shape
+           the cross-encoder was trained on.
+        3. Map the returned indices to dense scores by their rank position
+           (1.0 for the best, ``1 - rank/N`` after that). The actual
+           magnitudes don't matter — only the ordering does, since the final
+           sort uses ``rerank_score`` strictly as a tie-breaker within
+           ``match_quality`` tier.
+        4. Tail rows (beyond ``rerank_top_k``) get ``rerank_score = 0.0`` so
+           the sort key remains well-defined for every row.
+
+        When the reranker is the NoOp identity (no Voyage key, exhausted
+        rate-limit bucket, or upstream failure), every reranked row simply
+        keeps its original relative order — equivalent to Phase 1 behaviour.
+        """
+        if not rows or not settings.rerank_enabled:
+            for row in rows:
+                row.setdefault("rerank_score", 0.0)
+            return rows
+
+        # Sort once by similarity_score so the slice is the highest-quality
+        # pool the reranker will see; the final two-key sort runs after this.
+        rows.sort(key=lambda item: item["similarity_score"], reverse=True)
+        top_k = max(settings.rerank_top_k, 0)
+        head = rows[:top_k]
+        tail = rows[top_k:]
+
+        documents: list[str] = []
+        for row in head:
+            sig = self._row_signature(row)
+            doc = f"{row['description']} {sig}".strip() if sig else row["description"]
+            documents.append(doc)
+
+        try:
+            order = self._rerank_fn(search_text, documents, len(head))
+        except Exception as e:  # noqa: BLE001 - degrade gracefully on any error
+            logger.warning("rerank-failed-identity-fallback error=%s", e)
+            for row in head:
+                row["rerank_score"] = 0.0
+            for row in tail:
+                row["rerank_score"] = 0.0
+            return rows
+
+        # ``order`` may be shorter than ``head`` (e.g., reranker truncated).
+        n = len(head)
+        for rank, idx in enumerate(order):
+            if 0 <= idx < n:
+                head[idx]["rerank_score"] = 1.0 - (rank / max(n, 1))
+        # Any head row not visited by ``order`` keeps a defined score.
+        for row in head:
+            row.setdefault("rerank_score", 0.0)
+        for row in tail:
+            row["rerank_score"] = 0.0
+        return head + tail
+
+    def _row_signature(self, row: dict) -> str:
+        """Best-effort retrieval of an error signature attached to a row.
+
+        Search rows are constructed by ``_row_from_problem`` which doesn't
+        copy ``error_signature`` into the dict. We re-fetch by problem_id so
+        the reranker sees the same text the user would.
+        """
+        try:
+            problem = self._problems.get(UUID(row["problem_id"]))
+        except Exception:  # noqa: BLE001
+            return ""
+        if problem is None:
+            return ""
+        return problem.error_signature or ""
+
+    def _safe_embed(
+        self, text: str, *, input_type: str = "query"
+    ) -> list[float] | None:
+        """Embed ``text`` with the configured provider; ``None`` on any failure.
+
+        ``input_type`` selects the asymmetric pole for Voyage v3-large
+        (``"query"`` for live search, ``"document"`` for persisted
+        embeddings). Symmetric providers ignore it. Failures are swallowed
+        and downgrade the search/dedup path to a keyword fallback rather
+        than raising — agentbook's read tier must stay available even when
+        the embedding provider is degraded.
+        """
         if self._embedding_provider is None or not text:
             return None
 
         try:
-            return self._embedding_provider.embed(text)
+            return self._embedding_provider.embed(text, input_type=input_type)
         except Exception as e:
             logger.warning(f"Embedding failed, using fallback: {e}")
             return None
@@ -993,7 +1104,7 @@ class AgentbookService:
                 matched_problems.append(p)
 
         if not matched_problems:
-            embedding = self._safe_embed(description)
+            embedding = self._safe_embed(description, input_type="query")
             if embedding is not None:
                 similar = self._problems.find_similar(embedding, threshold=0.7)
                 matched_problems.extend(similar)
@@ -1029,7 +1140,7 @@ class AgentbookService:
             }
 
         if auto_post:
-            embedding = self._safe_embed(description)
+            embedding = self._safe_embed(description, input_type="document")
             new_problem = Problem(
                 author_id=agent_id,
                 description=description,
@@ -1088,7 +1199,7 @@ class AgentbookService:
             tags=tags,
         )
 
-        embedding = self._safe_embed(description)
+        embedding = self._safe_embed(description, input_type="document")
         existing_similar: list[Problem] = []
         if embedding is not None:
             existing_similar = self._problems.find_similar(embedding, threshold=0.9)

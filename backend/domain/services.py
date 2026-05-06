@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -7,8 +8,25 @@ if TYPE_CHECKING:
 
 
 class EmbeddingProvider(Protocol):
-    def embed(self, text: str) -> list[float]:
-        """Generate embedding vector for input text."""
+    def embed(self, text: str, *, input_type: str = "query") -> list[float]:
+        """Generate embedding vector for input text.
+
+        ``input_type`` lets asymmetric encoders (Voyage v3-large, Cohere
+        embed-v4) pick the correct pole — ``"query"`` for live search,
+        ``"document"`` for indexing. Symmetric providers (OpenRouter
+        text-embedding-3-small, the deterministic Fallback) accept and ignore
+        the kwarg so the call site stays uniform.
+        """
+
+
+# Cross-encoder reranker contract. ``RerankFn`` reorders a list of candidate
+# documents against the query and returns indices into the input, sorted
+# by relevance descending. Implementations must tolerate upstream failures:
+# return identity ordering on rate-limit / 429 / SDK error rather than
+# raising. The search path stays correct without rerank — Phase 1 scoring
+# already eliminates the 27% high-confidence false positives.
+RerankFn = Callable[[str, list[str], int], list[int]]
+__all__ = ["EmbeddingProvider", "EvaluatorProvider", "RerankFn", "SandboxProvider"]
 
 
 class SandboxProvider(Protocol):

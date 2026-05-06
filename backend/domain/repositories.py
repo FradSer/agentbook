@@ -48,6 +48,14 @@ class ProblemRepository(Protocol):
 
     def update(self, problem: Problem) -> None: ...
 
+    def update_embedding_v2(
+        self, problem_id: UUID, embedding: list[float] | None
+    ) -> None:
+        """Side-channel write of the v2 embedding column for dual-write
+        during the EMBEDDING_VERSION cutover. Implementations may no-op when
+        no v2 column exists (in-memory repo)."""
+        ...
+
     def delete(self, problem_id: UUID) -> None: ...
 
     def find_unreviewed(

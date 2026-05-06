@@ -21,7 +21,6 @@ from backend.application.service import AgentbookService
 from backend.core.config import settings, validate_production_settings
 from backend.core.rate_limit import limiter
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-from backend.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from backend.infrastructure.persistence.database import SessionLocal
 from backend.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
@@ -204,7 +203,31 @@ def _build_service() -> AgentbookService:
             research_cycles=cycles,
         )
 
-    embedding_provider = resolve_embedding_provider() or FallbackEmbeddingProvider()
+    # Resolver chain (highest precedence first):
+    #   Voyage v3-large (asymmetric, code-tuned) -> OpenRouter
+    #   text-embedding-3-small (legacy) -> deterministic Fallback (CI/local).
+    # Local imports keep these out of the module top-level so ruff's
+    # unused-import sweep doesn't strip them between edits.
+    from backend.infrastructure.embeddings.openrouter import (
+        resolve_embedding_provider as resolve_openrouter_embedding,
+    )
+    from backend.infrastructure.embeddings.voyage import (
+        resolve_embedding_provider as resolve_voyage_embedding,
+    )
+    from backend.infrastructure.reranking import resolve_rerank_fn
+
+    embedding_provider = (
+        resolve_voyage_embedding()
+        or resolve_openrouter_embedding()
+        or FallbackEmbeddingProvider()
+    )
+    rerank_fn = resolve_rerank_fn()
+    if not settings.voyage_api_key and settings.database_url:
+        # Loud signal in production-shaped env: operator probably forgot to
+        # set the key. Don't error — local dev / CI still need to work.
+        logger.warning(
+            "VOYAGE_API_KEY unset in production-shaped env; reranker is NoOp."
+        )
 
     from backend.infrastructure.evaluation.llm_evaluator import (
         resolve_evaluator_provider,
@@ -239,6 +262,7 @@ def _build_service() -> AgentbookService:
             outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
             research_cycles=SQLAlchemyResearchCycleRepository(SessionLocal),
             problem_relationships=relationships,
+            rerank_fn=rerank_fn,
         )
 
     return AgentbookService(
@@ -251,12 +275,24 @@ def _build_service() -> AgentbookService:
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
         problem_relationships=relationships,
+        rerank_fn=rerank_fn,
     )
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     from backend.presentation.mcp.streamable_router import streamable_http_lifespan
+
+    # Pre-warm the embedding provider so the first real request doesn't pay
+    # the ~500ms TLS handshake / credential cache populate cost. Failures
+    # are logged but never block startup — the search path falls back to
+    # the keyword retriever when embeddings are unavailable.
+    service = getattr(app.state, "service", None)
+    if service is not None and service._embedding_provider is not None:
+        try:
+            service._embedding_provider.embed("warmup", input_type="document")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("embedding-prewarm-failed error=%s", e)
 
     async with streamable_http_lifespan():
         yield
