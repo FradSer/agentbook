@@ -108,6 +108,12 @@ class ProblemORM(Base):
     environment: Mapped[dict | None] = mapped_column(_environment_column_type())
     tags: Mapped[list | None] = mapped_column(_tags_column_type())
     embedding: Mapped[list | None] = mapped_column(_embedding_column_type())
+    # Voyage v3-large 1024-dim column added by the
+    # ``add_embedding_v2_column`` Alembic migration. ``embedding_version=v2``
+    # in settings flips reads to this column. Existing rows stay NULL until
+    # ``backend/scripts/reembed_corpus.py`` backfills them; service-level
+    # dual-write keeps new writes current.
+    embedding_v2: Mapped[list | None] = mapped_column(FlexibleVector(1024))
     best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     solution_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -33,13 +33,25 @@ except Exception:  # pragma: no cover
 SessionFactory = Callable[[], Session]
 
 
+def _ensure_utc(dt: datetime | None) -> datetime | None:
+    """Ensure a datetime is timezone-aware (UTC).
+
+    SQLite does not store timezone info for DateTime(timezone=True) columns,
+    so SQLAlchemy returns naive datetimes. This normalizes them to UTC-aware
+    to prevent TypeError when comparing with utc_now().
+    """
+    if dt is None or dt.tzinfo is not None:
+        return dt
+    return dt.replace(tzinfo=UTC)
+
+
 def _to_agent_domain(row: AgentORM) -> Agent:
     return Agent(
         agent_id=parse_uuid(row.agent_id),
         api_key_hash=row.api_key_hash,
         model_type=row.model_type,
-        created_at=row.created_at,
-        last_active_at=row.last_active_at,
+        created_at=_ensure_utc(row.created_at),
+        last_active_at=_ensure_utc(row.last_active_at),
         ip_hash=row.ip_hash,
         fingerprint_hash=row.fingerprint_hash,
     )
@@ -79,6 +91,39 @@ class SQLAlchemyAgentRepository:
             return _to_agent_domain(row)
 
 
+def _write_active_embedding(row: ProblemORM, embedding: list[float] | None) -> None:
+    """Mirror of ``_read_active_embedding`` for write paths.
+
+    During cutover (``EMBEDDING_VERSION=v1`` with ``VOYAGE_API_KEY`` set),
+    service-level callers also invoke ``update_embedding_v2`` separately so
+    the v2 column tracks new writes — that's the dual-write strategy. This
+    helper just picks the primary column based on the active version."""
+    from backend.core.config import settings
+
+    if settings.embedding_version == "v2":
+        row.embedding_v2 = embedding
+    else:
+        row.embedding = embedding
+
+
+def _read_active_embedding(row: ProblemORM) -> list[float] | None:
+    """Pick whichever embedding column the cutover flag selects.
+
+    Falls back to the legacy column when ``embedding_v2`` is NULL during the
+    backfill window — that way queries before the operator flips
+    ``EMBEDDING_VERSION=v2`` continue to retrieve relevant rows even though
+    they may have already had v2 embeddings written by service-level
+    dual-write."""
+    from backend.core.config import settings
+
+    if settings.embedding_version == "v2":
+        primary = getattr(row, "embedding_v2", None)
+        if primary is not None:
+            return primary
+        return row.embedding
+    return row.embedding
+
+
 def _to_problem_domain(row: ProblemORM) -> Problem:
     return Problem(
         problem_id=parse_uuid(row.problem_id),
@@ -87,19 +132,19 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         error_signature=row.error_signature,
         environment=row.environment,
         tags=list(row.tags) if row.tags else None,
-        embedding=row.embedding,
+        embedding=_read_active_embedding(row),
         best_confidence=row.best_confidence,
         solution_count=row.solution_count,
         version=row.version,
-        created_at=row.created_at,
-        last_activity_at=row.last_activity_at,
+        created_at=_ensure_utc(row.created_at),
+        last_activity_at=_ensure_utc(row.last_activity_at),
         review_status=getattr(row, "review_status", None),
         review_score=getattr(row, "review_score", None),
-        reviewed_at=getattr(row, "reviewed_at", None),
+        reviewed_at=_ensure_utc(getattr(row, "reviewed_at", None)),
         canonical_solution_id=parse_uuid(row.canonical_solution_id)
         if getattr(row, "canonical_solution_id", None)
         else None,
-        research_started_at=getattr(row, "research_started_at", None),
+        research_started_at=_ensure_utc(getattr(row, "research_started_at", None)),
     )
 
 
@@ -120,10 +165,10 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         promotion_status=getattr(row, "promotion_status", None),
         review_status=getattr(row, "review_status", None),
         review_score=getattr(row, "review_score", None),
-        reviewed_at=getattr(row, "reviewed_at", None),
+        reviewed_at=_ensure_utc(getattr(row, "reviewed_at", None)),
         solution_id=parse_uuid(row.solution_id),
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        created_at=_ensure_utc(row.created_at),
+        updated_at=_ensure_utc(row.updated_at),
         llm_model=getattr(row, "llm_model", None),
     )
 
@@ -142,7 +187,7 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
         weight=row.weight,
-        created_at=row.created_at,
+        created_at=_ensure_utc(row.created_at),
     )
 
 
@@ -160,7 +205,7 @@ class SQLAlchemyProblemRepository:
             existing.error_signature = problem.error_signature
             existing.environment = problem.environment
             existing.tags = problem.tags
-            existing.embedding = problem.embedding
+            _write_active_embedding(existing, problem.embedding)
             existing.best_confidence = problem.best_confidence
             existing.solution_count = problem.solution_count
             existing.version = problem.version
@@ -194,16 +239,31 @@ class SQLAlchemyProblemRepository:
             row = session.execute(stmt).scalar_one_or_none()
             return None if row is None else _to_problem_domain(row)
 
+    def _active_embedding_column(self):
+        """Return the ORM column matching ``settings.embedding_version``.
+
+        ``v1`` reads/writes ``problems.embedding`` (legacy 1536-dim).
+        ``v2`` reads/writes ``problems.embedding_v2`` (Voyage v3-large 1024-dim,
+        added by the ``add_embedding_v2_column`` Alembic migration).
+
+        Centralised so ``find_similar``, ``find_similar_scored`` and
+        ``find_hybrid`` cannot drift apart during the cutover window — every
+        vector query path resolves to the same column on every call."""
+        from backend.core.config import settings
+
+        return (
+            ProblemORM.embedding_v2
+            if settings.embedding_version == "v2"
+            else ProblemORM.embedding
+        )
+
     def _vector_query(self, session, embedding: list[float]) -> tuple | None:
         """Build base cosine-distance query. Returns (distance_expr, base_stmt) or None."""
         if session.bind is None or session.bind.dialect.name != "postgresql":
             return None
-        distance_expr = ProblemORM.embedding.cosine_distance(embedding)
-        base = (
-            select(ProblemORM)
-            .where(ProblemORM.embedding.is_not(None))
-            .order_by(distance_expr)
-        )
+        column = self._active_embedding_column()
+        distance_expr = column.cosine_distance(embedding)
+        base = select(ProblemORM).where(column.is_not(None)).order_by(distance_expr)
         return distance_expr, base
 
     def find_similar(self, embedding: list[float], threshold: float) -> list[Problem]:
@@ -260,13 +320,14 @@ class SQLAlchemyProblemRepository:
 
             if query_embedding and Vector is not None:
                 try:
+                    column = self._active_embedding_column()
                     dense_stmt = (
                         select(ProblemORM)
                         .where(
                             ProblemORM.review_status == "approved",
-                            ProblemORM.embedding.is_not(None),
+                            column.is_not(None),
                         )
-                        .order_by(ProblemORM.embedding.cosine_distance(query_embedding))
+                        .order_by(column.cosine_distance(query_embedding))
                         .limit(candidate_pool)
                     )
                     dense = [
@@ -327,7 +388,7 @@ class SQLAlchemyProblemRepository:
             existing.error_signature = problem.error_signature
             existing.environment = problem.environment
             existing.tags = problem.tags
-            existing.embedding = problem.embedding
+            _write_active_embedding(existing, problem.embedding)
             existing.best_confidence = problem.best_confidence
             existing.solution_count = problem.solution_count
             existing.version = problem.version + 1
@@ -340,6 +401,30 @@ class SQLAlchemyProblemRepository:
                 else None
             )
             existing.research_started_at = problem.research_started_at
+            session.merge(existing)
+            session.commit()
+
+    def update_embedding_v2(
+        self, problem_id: UUID, embedding: list[float] | None
+    ) -> None:
+        """Write only the ``embedding_v2`` column for an existing problem.
+
+        Used by:
+
+        * ``backend/scripts/reembed_corpus.py`` — bulk backfill from Voyage.
+        * ``AgentbookService`` dual-write during the
+          ``EMBEDDING_VERSION=v1`` window with ``VOYAGE_API_KEY`` set, so new
+          problems land both columns simultaneously and the eventual flip is
+          a no-op for new rows.
+
+        Does NOT bump ``version`` — this is a side-channel write that should
+        never trigger optimistic-lock contention with the primary write
+        path."""
+        with self._session_factory() as session:
+            existing = session.get(ProblemORM, str(problem_id))
+            if existing is None:
+                return
+            existing.embedding_v2 = embedding
             session.merge(existing)
             session.commit()
 
@@ -596,7 +681,7 @@ def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
         status=row.status,
         reasoning=row.reasoning,
         cycle_id=parse_uuid(row.cycle_id),
-        created_at=row.created_at,
+        created_at=_ensure_utc(row.created_at),
         llm_model=getattr(row, "llm_model", None),
     )
 

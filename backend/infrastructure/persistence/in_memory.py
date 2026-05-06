@@ -129,6 +129,14 @@ class InMemoryProblemRepository:
     def update(self, problem: Problem) -> None:
         self._problems[problem.problem_id] = problem
 
+    def update_embedding_v2(
+        self, problem_id: UUID, embedding: list[float] | None
+    ) -> None:
+        # In-memory mode has no separate v2 column; the dual-write is a no-op
+        # because there is no SQL schema to bifurcate. Tests and DEMO_MODE
+        # rely on this behaviour.
+        del problem_id, embedding
+
     def find_unreviewed(
         self,
         limit: int,
