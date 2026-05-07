@@ -1,6 +1,6 @@
 # Retrieval Quality Baseline (Frozen)
 
-This document is the **frozen reference** for `backend/tests/eval/test_retrieval_quality.py`. The harness reads the JSON block below in `EVAL_BASELINE_MODE=guard` (the default) and asserts that current numbers have not regressed.
+This document is the **frozen reference** for `backend/tests/eval/test_retrieval_quality.py`. The harness reads the JSON block under the **`## Frozen aggregate`** heading in `EVAL_BASELINE_MODE=guard` (the default) and asserts that current numbers have not regressed. The heading is the parser's anchor — keep it stable; later real-mode or per-environment baselines should sit under their own heading (e.g. `## Frozen aggregate (real-mode)`) so the fallback parser still finds the right block.
 
 | Field | Value |
 |---|---|
@@ -8,7 +8,7 @@ This document is the **frozen reference** for `backend/tests/eval/test_retrieval
 | Dataset version | `2026-05-07.v1` |
 | Corpus | `backend/tests/simulation/stress_agents.PROBLEM_TEMPLATES` (15 problems, list-index order) |
 | Mode | fallback embedding + noop reranker (the default test environment, forced by `backend/tests/conftest.py:isolate_runtime_settings_for_tests`) |
-| Tolerance | 5 absolute points on `recall@{1,5,10}`, `mrr`, `ndcg@10_binary` (drops only — gains are unrestricted but should be re-frozen in the same PR). `no_false_exact_rate` must not regress at all. `latency_p95_ms` may grow up to 2× before it fails. |
+| Tolerance | 5 absolute points on `recall@{1,5,10}`, `mrr`, `ndcg@10_binary` (drops only — gains are unrestricted but should be re-frozen in the same PR). `no_false_exact_rate` must not regress at all. `latency_p95_ms` may grow up to `max(2× baseline, 50ms)` before it fails — the absolute floor avoids flakes when the fallback baseline is sub-millisecond. `dataset_version` must match the current fixture exactly (a mismatch is hard-failed before any drift is evaluated). |
 | Captured | 2026-05-07, `EVAL_BASELINE_MODE=collect uv run pytest backend/tests/eval/test_retrieval_quality.py -v -s` |
 
 ## Frozen aggregate (machine-readable; do not edit by hand)
@@ -23,7 +23,6 @@ This document is the **frozen reference** for `backend/tests/eval/test_retrieval
     "mrr": 1.0,
     "n": 58,
     "ndcg@10_binary": 0.9986158756749688,
-    "ndcg@10_graded": 0.8620689655172413,
     "recall@1": 0.9741379310344828,
     "recall@10": 1.0,
     "recall@5": 1.0
@@ -58,9 +57,9 @@ Updating the frozen numbers is a deliberate act, not a routine:
 
 1. Run `EVAL_BASELINE_MODE=collect uv run pytest backend/tests/eval/test_retrieval_quality.py -v -s` and inspect the printed per-query report.
 2. Confirm the drift is intended (a retrieval-logic change is in the same diff) — silent shifts in fallback-mode numbers usually indicate a regression, not an improvement.
-3. Replace the JSON block above with the freshly printed `--- machine-readable JSON ---` block.
+3. Replace the JSON block under `## Frozen aggregate` with the freshly printed `--- machine-readable JSON ---` block. Do **not** rename or remove that heading — the harness uses it as the parser anchor.
 4. Update the by-category and top1-quality tables for human readers.
-5. Bump `dataset_version` only if the queries themselves changed; service-side improvements that re-rank the same queries leave the version alone.
+5. Bump `dataset_version` only if the queries themselves changed; service-side improvements that re-rank the same queries leave the version alone. The harness hard-fails when the dataset version drifts from the baseline, so a bump without a re-collected JSON block will produce a clear error rather than a silent miscompare.
 6. Reviewers: question any drop greater than 2 percentage points without a corresponding `service.py` / retrieval-stack change in the same PR.
 
 ## What this baseline does not measure

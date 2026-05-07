@@ -6,11 +6,17 @@ latency / match_quality distribution, and either:
 
 * ``EVAL_BASELINE_MODE=collect`` -- prints the report and skips assertions
   (use this to capture a fresh baseline for ``docs/retrieval-baseline.md``).
-* ``EVAL_BASELINE_MODE=guard`` (default) -- parses the JSON fenced block in
-  ``docs/retrieval-baseline.md`` and asserts that ``recall@{1,5,10}``, MRR,
-  binary nDCG@10, and ``no_false_exact_rate`` have not regressed beyond a
-  5-absolute-point tolerance, and that p95 latency has not regressed beyond
-  2x the frozen baseline.
+* ``EVAL_BASELINE_MODE=guard`` (default) -- parses the JSON fenced block
+  beneath the ``## Frozen aggregate`` heading in
+  ``docs/retrieval-baseline.md`` and asserts that
+
+    * ``dataset_version`` matches the current fixture exactly,
+    * ``recall@{1,5,10}``, MRR, and binary nDCG@10 have not regressed
+      beyond a 5-absolute-point tolerance,
+    * ``no_false_exact_rate`` has not regressed at all,
+    * p95 latency has not exceeded ``max(2x baseline, 50ms)`` — the
+      absolute floor avoids spurious flakes when the fallback baseline is
+      sub-millisecond.
 
 The harness runs in the conftest-forced fallback environment (no Voyage,
 no OpenRouter, no DB), which makes the numbers deterministic and offline.
@@ -42,9 +48,13 @@ BASELINE_MD_PATH = (
     Path(__file__).parent.parent.parent.parent / "docs" / "retrieval-baseline.md"
 )
 
-_QUALITY_GRADE = {"exact": 3, "strong": 2, "partial": 1, "poor": 0}
-_AGGREGATE_TOLERANCE = 0.05
+_REGRESSION_DROP_TOLERANCE = 0.05
 _LATENCY_P95_FACTOR = 2.0
+# Absolute floor on the p95 latency assertion. The fallback baseline is
+# sub-millisecond, so 2x of it is comparable to a single CI runner stall —
+# we'd rather miss noise than red-flag clean PRs. Real regressions
+# (accidental sync I/O, N+1 query) sit well above this floor anyway.
+_LATENCY_P95_ABSOLUTE_FLOOR_MS = 50.0
 _GUARDED_METRICS = ("recall@1", "recall@5", "recall@10", "mrr", "ndcg@10_binary")
 _AGGREGATE_CATEGORIES = {
     "exact_signature",
@@ -53,12 +63,6 @@ _AGGREGATE_CATEGORIES = {
     "keyword_partial",
     "cross_topic_confusion",
 }
-
-
-def _grades_for(query: dict, expected_ids: list[str]) -> dict[str, int]:
-    quality = query.get("expected_match_quality")
-    grade = _QUALITY_GRADE.get(quality, 0) if quality else 0
-    return {pid: grade for pid in expected_ids}
 
 
 def _score_query(
@@ -81,8 +85,12 @@ def _score_query(
         "latency_ms": latency_ms,
     }
 
+    # Graded nDCG was removed because the fixture only carries one
+    # ``expected_match_quality`` per query — every ``expected_id`` ends up
+    # with the same grade, so graded DCG/IDCG reduces to binary scaled by
+    # a constant. Re-introduce per-target grades in the dataset before
+    # adding it back.
     if contributes:
-        grades = _grades_for(q, expected_ids)
         metrics.update(
             {
                 "recall@1": recall_at_k(result_ids, expected_ids, 1),
@@ -91,13 +99,6 @@ def _score_query(
                 "rr": reciprocal_rank(result_ids, expected_ids),
                 "ndcg@10_binary": ndcg_at_k(
                     result_ids, expected_ids, 10, mode="binary"
-                ),
-                "ndcg@10_graded": ndcg_at_k(
-                    result_ids,
-                    expected_ids,
-                    10,
-                    mode="graded",
-                    grades_by_id=grades,
                 ),
             }
         )
@@ -109,7 +110,6 @@ def _score_query(
                 "recall@10": None,
                 "rr": None,
                 "ndcg@10_binary": None,
-                "ndcg@10_graded": None,
             }
         )
 
@@ -138,14 +138,7 @@ def _no_false_exact(
 
 
 def _aggregate_subset(rows: list[dict]) -> dict[str, float]:
-    keys = (
-        "recall@1",
-        "recall@5",
-        "recall@10",
-        "rr",
-        "ndcg@10_binary",
-        "ndcg@10_graded",
-    )
+    keys = ("recall@1", "recall@5", "recall@10", "rr", "ndcg@10_binary")
     out: dict = {"n": len(rows)}
     for k in keys:
         vals = [r[k] for r in rows if r.get(k) is not None]
@@ -195,11 +188,12 @@ def _fmt(x) -> str:
     return str(x)
 
 
-def print_report(per_query: list[dict], aggregate: dict) -> None:
+def print_report(per_query: list[dict], aggregate: dict, dataset: dict) -> None:
     lines: list[str] = []
     lines.append("")
     lines.append("=" * 78)
     lines.append("RETRIEVAL QUALITY EVAL  (fallback embedding + noop rerank)")
+    lines.append(f"dataset_version = {dataset['dataset_version']}")
     lines.append("=" * 78)
 
     lines.append("")
@@ -246,7 +240,6 @@ def print_report(per_query: list[dict], aggregate: dict) -> None:
         "recall@10",
         "mrr",
         "ndcg@10_binary",
-        "ndcg@10_graded",
     ):
         lines.append(f"  {k:18s} = {overall[k]:.4f}")
     lines.append(
@@ -274,7 +267,7 @@ def print_report(per_query: list[dict], aggregate: dict) -> None:
         "--- machine-readable JSON (paste into docs/retrieval-baseline.md) ---"
     )
     payload = {
-        "dataset_version": _load_dataset()["dataset_version"],
+        "dataset_version": dataset["dataset_version"],
         "overall": overall,
         "no_false_exact_rate": aggregate["no_false_exact_rate"],
         "latency_p50_ms": aggregate["latency_p50_ms"],
@@ -291,17 +284,40 @@ def _load_dataset() -> dict:
 
 
 def _parse_baseline_from_md(path: Path) -> dict | None:
-    """Extract the first ```json fenced block from the baseline markdown."""
+    """Extract the JSON block beneath the ``## Frozen aggregate`` heading.
+
+    Anchoring on the section heading future-proofs against later real-mode
+    or per-environment JSON blocks that may be added to the document — the
+    older greedy "first json fence" approach would have silently picked
+    the wrong one.
+    """
     if not path.exists():
         return None
     text = path.read_text()
-    m = re.search(r"```json\s*\n(.*?)\n```", text, re.DOTALL)
+    m = re.search(
+        r"##\s+Frozen aggregate[^\n]*\n.*?```json\s*\n(.*?)\n```",
+        text,
+        re.DOTALL,
+    )
     if m is None:
         return None
     return json.loads(m.group(1))
 
 
-def _assert_against_baseline(aggregate: dict, baseline: dict) -> None:
+def _assert_against_baseline(
+    aggregate: dict, baseline: dict, dataset_version: str
+) -> None:
+    base_version = baseline.get("dataset_version")
+    if base_version != dataset_version:
+        raise AssertionError(
+            f"\nDataset version mismatch:\n"
+            f"  current dataset = {dataset_version!r}\n"
+            f"  frozen baseline = {base_version!r}\n"
+            f"\nGuard mode refuses to compare metrics across dataset versions. "
+            f"Re-run EVAL_BASELINE_MODE=collect make eval and update "
+            f"{BASELINE_MD_PATH}."
+        )
+
     failures: list[str] = []
     overall = aggregate["overall"]
     base_overall = baseline["overall"]
@@ -312,10 +328,10 @@ def _assert_against_baseline(aggregate: dict, baseline: dict) -> None:
         if cur is None or base is None:
             continue
         drift = cur - base
-        if drift < -_AGGREGATE_TOLERANCE:
+        if drift < -_REGRESSION_DROP_TOLERANCE:
             failures.append(
                 f"  {metric:18s} current={cur:.4f}  baseline={base:.4f}  "
-                f"drift={drift:+.4f}  (tolerance -{_AGGREGATE_TOLERANCE:.2f})"
+                f"drift={drift:+.4f}  (tolerance -{_REGRESSION_DROP_TOLERANCE:.2f})"
             )
 
     cur_nfe = aggregate["no_false_exact_rate"]
@@ -328,10 +344,13 @@ def _assert_against_baseline(aggregate: dict, baseline: dict) -> None:
 
     cur_p95 = aggregate["latency_p95_ms"]
     base_p95 = baseline.get("latency_p95_ms", 0.0)
-    if base_p95 > 0 and cur_p95 > base_p95 * _LATENCY_P95_FACTOR:
+    p95_threshold = max(base_p95 * _LATENCY_P95_FACTOR, _LATENCY_P95_ABSOLUTE_FLOOR_MS)
+    if cur_p95 > p95_threshold:
         failures.append(
             f"  latency_p95_ms      current={cur_p95:.2f}  baseline={base_p95:.2f}  "
-            f"(>{_LATENCY_P95_FACTOR}x)"
+            f"threshold={p95_threshold:.2f}  "
+            f"(max(baseline x {_LATENCY_P95_FACTOR}, "
+            f"{_LATENCY_P95_ABSOLUTE_FLOOR_MS:.0f}ms))"
         )
 
     if failures:
@@ -360,7 +379,7 @@ def test_retrieval_quality_baseline(service_and_author) -> None:
         per_query.append(_score_query(q, payload["results"], expected_ids, latency_ms))
 
     aggregate = aggregate_metrics(per_query)
-    print_report(per_query, aggregate)
+    print_report(per_query, aggregate, dataset)
 
     mode = os.environ.get("EVAL_BASELINE_MODE", "guard")
     if mode == "collect":
@@ -375,4 +394,4 @@ def test_retrieval_quality_baseline(service_and_author) -> None:
             f"Frozen baseline not found at {BASELINE_MD_PATH}. "
             f"Run EVAL_BASELINE_MODE=collect make eval to populate it."
         )
-    _assert_against_baseline(aggregate, baseline)
+    _assert_against_baseline(aggregate, baseline, dataset["dataset_version"])

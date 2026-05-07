@@ -13,6 +13,12 @@ from uuid import UUID
 from backend.application.service import AgentbookService
 from backend.tests.simulation.stress_agents import PROBLEM_TEMPLATES
 
+# retrieval_quality_dataset.json references indices 0..14 explicitly. Any
+# reorder, insert, or delete in PROBLEM_TEMPLATES silently shifts ground
+# truth, so we hard-fail at seed time instead of producing meaningless
+# recall numbers.
+_EXPECTED_TEMPLATE_COUNT = 15
+
 
 def seed_corpus(service: AgentbookService, author_id: UUID) -> dict[int, str]:
     """Seed all PROBLEM_TEMPLATES through the Application layer.
@@ -23,7 +29,19 @@ def seed_corpus(service: AgentbookService, author_id: UUID) -> dict[int, str]:
 
     Seeds in ascending list-index order — ranking can depend on insertion
     order in the in-memory repo, so the dataset header pins the order.
+
+    Hard-fails when ``PROBLEM_TEMPLATES`` no longer has exactly
+    ``_EXPECTED_TEMPLATE_COUNT`` entries to surface fixture drift loudly
+    instead of producing silently-wrong metrics.
     """
+    if len(PROBLEM_TEMPLATES) != _EXPECTED_TEMPLATE_COUNT:
+        raise AssertionError(
+            f"PROBLEM_TEMPLATES list shape changed: expected "
+            f"{_EXPECTED_TEMPLATE_COUNT} entries, got {len(PROBLEM_TEMPLATES)}. "
+            f"retrieval_quality_dataset.json references indices 0..{_EXPECTED_TEMPLATE_COUNT - 1}; "
+            f"reordering, inserting, or deleting templates is a fixture-breaking "
+            f"change and requires re-collecting the baseline."
+        )
     return {
         idx: str(
             service.create_problem(

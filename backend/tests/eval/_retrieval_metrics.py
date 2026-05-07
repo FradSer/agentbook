@@ -21,12 +21,16 @@ def recall_at_k(
 ) -> float:
     """Fraction of expected items that appear in top-k results.
 
-    Caller filters out queries whose ``expected_in_top_k`` is 0
-    (out-of-corpus / confusion cases) before invoking this; if
-    ``expected_ids`` is empty here we return 1.0 as a defensive default.
+    Raises ``ValueError`` when ``expected_ids`` is empty — callers must
+    filter out queries whose ``expected_in_top_k`` is 0 (out-of-corpus /
+    confusion cases) before invoking this. Silently returning a default
+    would hide caller bugs.
     """
     if not expected_ids:
-        return 1.0
+        raise ValueError(
+            "recall_at_k requires non-empty expected_ids; "
+            "filter expected_in_top_k=0 queries before calling"
+        )
     top = set(result_ids[: max(k, 0)])
     hits = top & set(expected_ids)
     return len(hits) / len(expected_ids)

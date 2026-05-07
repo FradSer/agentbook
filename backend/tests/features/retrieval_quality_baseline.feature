@@ -20,12 +20,21 @@ Feature: Retrieval quality baseline
   Scenario: Regression guard catches a 5-point drop in any guarded metric
     Given the environment variable EVAL_BASELINE_MODE is "guard"
     And docs/retrieval-baseline.md contains a frozen JSON aggregate block
+          beneath the "## Frozen aggregate" heading
     When the harness runs all 65 queries
     Then current recall@1, recall@5, recall@10, MRR, and binary nDCG@10
          are within 5 absolute points of the frozen baseline
     And no_false_exact_rate is greater than or equal to the frozen baseline
-    And latency p95 is at most 2x the frozen baseline p95
+    And latency p95 is at most max(2x baseline, 50ms) so sub-millisecond
+        runner noise does not cause spurious flakes
     And the test fails listing per-metric drift on regression
+
+  Scenario: Dataset version mismatch is rejected before any drift check
+    Given the dataset_version in retrieval_quality_dataset.json
+    And the dataset_version in the frozen baseline JSON block
+    When the two values differ
+    Then the harness hard-fails with a "Dataset version mismatch" error
+    And no recall, MRR, nDCG, or latency comparison is performed
 
   Scenario: Cross-topic confusion does not earn match_quality "exact" on a non-target
     Given a query containing keywords from two unrelated templates
