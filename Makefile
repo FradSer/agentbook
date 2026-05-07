@@ -23,4 +23,4 @@ frontend-lint:
 frontend-build:
 	cd frontend && pnpm build
 
-full: fast smoke perf frontend-lint frontend-build
+full: fast smoke perf eval frontend-lint frontend-build
