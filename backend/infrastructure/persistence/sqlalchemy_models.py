@@ -201,6 +201,17 @@ class OutcomeORM(Base):
         DateTime(timezone=True), nullable=False
     )
 
+    # Mirror of the Postgres-level CHECK constraint added by migration
+    # ``2026_05_05_outcome_kind_not_null_with_check.py``. Declaring it
+    # at the ORM level so SQLite-backed unit tests also reject forged
+    # kind values and the constraint travels with the model definition.
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('verified', 'observed')",
+            name="outcomes_kind_check",
+        ),
+    )
+
 
 def parse_uuid(uuid_text: str) -> UUID:
     return UUID(uuid_text)

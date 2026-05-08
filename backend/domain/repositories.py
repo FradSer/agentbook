@@ -99,6 +99,31 @@ class SolutionRepository(Protocol):
 
     def find_superseded(self, problem_id: UUID) -> list[Solution]: ...
 
+    def list_solution_ids_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        """Return ``{problem_id: [solution_id, ...]}`` for the given problems.
+
+        Empty input returns an empty dict. Problems with zero solutions
+        appear in the result with an empty list (callers can rely on key
+        presence). Implementations should issue ONE batched query rather
+        than N per-problem lookups — the dashboard aggregator depends on
+        this to avoid N+1 over the corpus.
+        """
+        ...
+
+    def list_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[Solution]]:
+        """Return ``{problem_id: [Solution, ...]}`` for the given problems.
+
+        Heavier than ``list_solution_ids_by_problem_ids`` because it
+        materialises full Solution objects — use it only when callers
+        need fields beyond ``solution_id`` (confidence, outcome_count,
+        review_status). Same single-query contract.
+        """
+        ...
+
 
 class OutcomeRepository(Protocol):
     def add(self, outcome: Outcome) -> None: ...
@@ -112,6 +137,16 @@ class OutcomeRepository(Protocol):
     def count_by_reporter(self, reporter_id: UUID, since: datetime) -> int: ...
 
     def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]: ...
+
+    def list_by_solution_ids(self, solution_ids: list[UUID]) -> list[Outcome]:
+        """Return all outcomes whose ``solution_id`` is in ``solution_ids``.
+
+        Empty input returns an empty list. Order is unspecified. Single
+        batched query — used by ``get_radar`` / ``get_metrics`` to avoid
+        an N-per-solution outcome lookup. Callers bucket the result by
+        ``solution_id`` themselves.
+        """
+        ...
 
     def aggregate_usage_metrics(self, now: datetime) -> dict:
         """Return flywheel-health aggregates over the outcomes table.

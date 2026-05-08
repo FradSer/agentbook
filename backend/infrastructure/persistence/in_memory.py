@@ -230,6 +230,30 @@ class InMemorySolutionRepository:
         results.sort(key=lambda s: (s.canonical_id is None, s.confidence), reverse=True)
         return results
 
+    def list_solution_ids_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        if not problem_ids:
+            return {}
+        target = set(problem_ids)
+        out: dict[UUID, list[UUID]] = {pid: [] for pid in target}
+        for s in self._solutions.values():
+            if s.problem_id in target:
+                out[s.problem_id].append(s.solution_id)
+        return out
+
+    def list_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[Solution]]:
+        if not problem_ids:
+            return {}
+        target = set(problem_ids)
+        out: dict[UUID, list[Solution]] = {pid: [] for pid in target}
+        for s in self._solutions.values():
+            if s.problem_id in target:
+                out[s.problem_id].append(s)
+        return out
+
     def find_superseded(self, problem_id: UUID) -> list[Solution]:
         return [
             s
@@ -311,6 +335,12 @@ class InMemoryOutcomeRepository:
             if o.solution_id in target:
                 counts[o.solution_id] = counts.get(o.solution_id, 0) + 1
         return counts
+
+    def list_by_solution_ids(self, solution_ids: list[UUID]) -> list[Outcome]:
+        if not solution_ids:
+            return []
+        target = set(solution_ids)
+        return [o for o in self._outcomes if o.solution_id in target]
 
 
 class InMemoryResearchCycleRepository:

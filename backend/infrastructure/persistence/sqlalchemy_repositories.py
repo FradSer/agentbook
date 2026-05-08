@@ -571,6 +571,39 @@ class SQLAlchemySolutionRepository:
             rows = session.execute(stmt).scalars().all()
             return [_to_solution_domain(r) for r in rows]
 
+    def list_solution_ids_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        if not problem_ids:
+            return {}
+        with self._session_factory() as session:
+            str_ids = [str(pid) for pid in problem_ids]
+            stmt = select(SolutionORM.problem_id, SolutionORM.solution_id).where(
+                SolutionORM.problem_id.in_(str_ids)
+            )
+            out: dict[UUID, list[UUID]] = {pid: [] for pid in problem_ids}
+            for problem_id_str, solution_id_str in session.execute(stmt).all():
+                pid = parse_uuid(problem_id_str)
+                if pid in out:
+                    out[pid].append(parse_uuid(solution_id_str))
+            return out
+
+    def list_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[Solution]]:
+        if not problem_ids:
+            return {}
+        with self._session_factory() as session:
+            str_ids = [str(pid) for pid in problem_ids]
+            stmt = select(SolutionORM).where(SolutionORM.problem_id.in_(str_ids))
+            rows = session.execute(stmt).scalars().all()
+            out: dict[UUID, list[Solution]] = {pid: [] for pid in problem_ids}
+            for row in rows:
+                pid = parse_uuid(row.problem_id)
+                if pid in out:
+                    out[pid].append(_to_solution_domain(row))
+            return out
+
     def find_superseded(self, problem_id: UUID) -> list[Solution]:
         with self._session_factory() as session:
             stmt = (
@@ -723,6 +756,15 @@ class SQLAlchemyOutcomeRepository:
             )
             rows = session.execute(stmt).all()
             return {parse_uuid(sid): int(cnt) for sid, cnt in rows}
+
+    def list_by_solution_ids(self, solution_ids: list[UUID]) -> list[Outcome]:
+        if not solution_ids:
+            return []
+        with self._session_factory() as session:
+            str_ids = [str(sid) for sid in solution_ids]
+            stmt = select(OutcomeORM).where(OutcomeORM.solution_id.in_(str_ids))
+            rows = session.execute(stmt).scalars().all()
+            return [_to_outcome_domain(r) for r in rows]
 
 
 def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:
