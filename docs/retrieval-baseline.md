@@ -64,6 +64,24 @@ Updating the frozen numbers is a deliberate act, not a routine:
 
 ## What this baseline does not measure
 
-- **Real Voyage embeddings + cross-encoder rerank** — the conftest forces fallback. Real-mode numbers belong in a follow-up PR that adds an `RUN_REAL_EVAL=1` opt-in fixture and a separate JSON block here.
 - **Solution-aware retrieval (`format="full"`)** — this baseline only exercises `format="concise"`. A solution-aware eval needs the corpus seeded with solutions and outcomes.
 - **Cold-start / cache-miss latency** — `service._search_cache` is empty per `service_and_author` fixture, so all numbers reflect a cold cache, but they do not reflect the first request after `service` startup in production.
+
+## Frozen aggregate (real-mode)
+
+This block is the analog of the fallback baseline above for the real production retrieval stack (Voyage 3-large embeddings + Voyage rerank-2.5-lite cross-encoder). It is opt-in: `make eval-real` reads it; `make eval` does not.
+
+Until the first real-mode collection has been performed, the JSON block below is a placeholder. Run:
+
+```bash
+EVAL_BASELINE_MODE=collect RUN_REAL_EVAL=1 VOYAGE_API_KEY=… uv run pytest backend/tests/eval/test_retrieval_quality.py -v -s
+```
+
+then paste the printed `--- machine-readable JSON ---` block in place of the placeholder below.
+
+```json
+{
+  "placeholder": true,
+  "note": "Run EVAL_BASELINE_MODE=collect RUN_REAL_EVAL=1 to populate."
+}
+```
