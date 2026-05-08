@@ -113,6 +113,32 @@ class OutcomeRepository(Protocol):
 
     def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]: ...
 
+    def aggregate_usage_metrics(self, now: datetime) -> dict:
+        """Return flywheel-health aggregates over the outcomes table.
+
+        Output is a flat dict with eight ints:
+
+        * ``outcomes_total``, ``outcomes_last_7d``, ``outcomes_last_30d``
+        * ``verified_total``, ``observed_total``
+        * ``unique_reporters_total``, ``unique_reporters_7d``,
+          ``unique_reporters_30d``
+
+        ``now`` is the upper bound for the time windows; pass
+        ``utc_now()`` from the service layer.
+        """
+        ...
+
+    def outcome_counts_by_solution_ids(
+        self, solution_ids: list[UUID]
+    ) -> dict[UUID, int]:
+        """Return ``{solution_id: outcome_count}`` for the given solutions.
+
+        Empty input returns an empty dict. Solutions with zero outcomes
+        are absent from the result rather than mapped to ``0`` — callers
+        treat missing as zero.
+        """
+        ...
+
 
 class ResearchCycleRepository(Protocol):
     def add(self, cycle: ResearchCycle) -> None: ...

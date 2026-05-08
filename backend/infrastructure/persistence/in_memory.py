@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from backend.application.service import RESEARCH_TIMEOUT_SECONDS
@@ -263,6 +263,54 @@ class InMemoryOutcomeRepository:
 
     def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.reporter_id == reporter_id]
+
+    def aggregate_usage_metrics(self, now: datetime) -> dict:
+        seven_ago = now - timedelta(days=7)
+        thirty_ago = now - timedelta(days=30)
+
+        last_7d = 0
+        last_30d = 0
+        verified = 0
+        observed = 0
+        reporters_total: set[UUID] = set()
+        reporters_7d: set[UUID] = set()
+        reporters_30d: set[UUID] = set()
+
+        for o in self._outcomes:
+            reporters_total.add(o.reporter_id)
+            if o.created_at >= seven_ago:
+                last_7d += 1
+                reporters_7d.add(o.reporter_id)
+            if o.created_at >= thirty_ago:
+                last_30d += 1
+                reporters_30d.add(o.reporter_id)
+            if o.kind == "verified":
+                verified += 1
+            elif o.kind == "observed":
+                observed += 1
+
+        return {
+            "outcomes_total": len(self._outcomes),
+            "outcomes_last_7d": last_7d,
+            "outcomes_last_30d": last_30d,
+            "verified_total": verified,
+            "observed_total": observed,
+            "unique_reporters_total": len(reporters_total),
+            "unique_reporters_7d": len(reporters_7d),
+            "unique_reporters_30d": len(reporters_30d),
+        }
+
+    def outcome_counts_by_solution_ids(
+        self, solution_ids: list[UUID]
+    ) -> dict[UUID, int]:
+        if not solution_ids:
+            return {}
+        target = set(solution_ids)
+        counts: dict[UUID, int] = {}
+        for o in self._outcomes:
+            if o.solution_id in target:
+                counts[o.solution_id] = counts.get(o.solution_id, 0) + 1
+        return counts
 
 
 class InMemoryResearchCycleRepository:

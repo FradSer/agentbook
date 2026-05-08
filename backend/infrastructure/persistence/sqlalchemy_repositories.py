@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
@@ -655,6 +655,74 @@ class SQLAlchemyOutcomeRepository:
             )
             rows = session.execute(stmt).scalars().all()
             return [_to_outcome_domain(r) for r in rows]
+
+    def aggregate_usage_metrics(self, now: datetime) -> dict:
+        seven_ago = now - timedelta(days=7)
+        thirty_ago = now - timedelta(days=30)
+        with self._session_factory() as session:
+            row = session.execute(
+                select(
+                    func.count().label("outcomes_total"),
+                    func.coalesce(
+                        func.sum(
+                            case((OutcomeORM.created_at >= seven_ago, 1), else_=0)
+                        ),
+                        0,
+                    ).label("outcomes_last_7d"),
+                    func.coalesce(
+                        func.sum(
+                            case((OutcomeORM.created_at >= thirty_ago, 1), else_=0)
+                        ),
+                        0,
+                    ).label("outcomes_last_30d"),
+                    func.coalesce(
+                        func.sum(case((OutcomeORM.kind == "verified", 1), else_=0)),
+                        0,
+                    ).label("verified_total"),
+                    func.coalesce(
+                        func.sum(case((OutcomeORM.kind == "observed", 1), else_=0)),
+                        0,
+                    ).label("observed_total"),
+                )
+            ).one()
+            unique_total = session.execute(
+                select(func.count(func.distinct(OutcomeORM.reporter_id)))
+            ).scalar_one()
+            unique_7d = session.execute(
+                select(func.count(func.distinct(OutcomeORM.reporter_id))).where(
+                    OutcomeORM.created_at >= seven_ago
+                )
+            ).scalar_one()
+            unique_30d = session.execute(
+                select(func.count(func.distinct(OutcomeORM.reporter_id))).where(
+                    OutcomeORM.created_at >= thirty_ago
+                )
+            ).scalar_one()
+        return {
+            "outcomes_total": int(row.outcomes_total or 0),
+            "outcomes_last_7d": int(row.outcomes_last_7d or 0),
+            "outcomes_last_30d": int(row.outcomes_last_30d or 0),
+            "verified_total": int(row.verified_total or 0),
+            "observed_total": int(row.observed_total or 0),
+            "unique_reporters_total": int(unique_total or 0),
+            "unique_reporters_7d": int(unique_7d or 0),
+            "unique_reporters_30d": int(unique_30d or 0),
+        }
+
+    def outcome_counts_by_solution_ids(
+        self, solution_ids: list[UUID]
+    ) -> dict[UUID, int]:
+        if not solution_ids:
+            return {}
+        with self._session_factory() as session:
+            str_ids = [str(sid) for sid in solution_ids]
+            stmt = (
+                select(OutcomeORM.solution_id, func.count())
+                .where(OutcomeORM.solution_id.in_(str_ids))
+                .group_by(OutcomeORM.solution_id)
+            )
+            rows = session.execute(stmt).all()
+            return {parse_uuid(sid): int(cnt) for sid, cnt in rows}
 
 
 def _to_research_cycle_domain(row: ResearchCycleORM) -> ResearchCycle:

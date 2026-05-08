@@ -16,6 +16,7 @@ import time
 from collections import OrderedDict, deque
 from threading import Lock
 
+from backend.core.rate_limit import format_rate_key
 from backend.domain.models import Agent
 
 
@@ -73,12 +74,11 @@ class MCPRateLimiter:
 def mcp_rate_key(agent: Agent | None, remote_addr: str | None) -> str:
     """Build a rate-limit bucket key.
 
-    Authenticated callers key by agent id so their quota is independent of
-    any anonymous traffic from the same IP. Mirrors `core.rate_limit._rate_key`.
+    Direct alias of :func:`backend.core.rate_limit.format_rate_key` — both
+    surfaces must produce identical keys so a single agent's REST + MCP
+    traffic shares one quota.
     """
-    if agent is not None:
-        return f"agent:{agent.agent_id}"
-    return f"ip:{remote_addr or 'unknown'}"
+    return format_rate_key(agent, remote_addr)
 
 
 # Mirrors the REST `/v1/search` contract: 30 per minute per IP for anon callers.

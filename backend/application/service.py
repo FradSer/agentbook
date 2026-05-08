@@ -1551,6 +1551,87 @@ class AgentbookService:
             "stale_solutions": stale,
         }
 
+    def get_usage_dashboard(self) -> dict:
+        """Use-side flywheel-health snapshot.
+
+        Aggregates outcome volume (total / last_7d / last_30d), the
+        verified-vs-observed split, unique reporter counts per window,
+        problems-with-outcomes vs total approved, and the top 10 problems
+        ranked by total outcome count. All values derive from existing
+        tables — no write hot path is added by this view.
+
+        Ranking ties on ``outcome_count`` are broken by ``best_confidence``
+        DESC and then ``problem_id`` ASC for determinism.
+        """
+        now = utc_now()
+        o = self._outcomes.aggregate_usage_metrics(now)
+
+        approved = [
+            p for p in self._problems.list_all() if p.review_status == "approved"
+        ]
+        approved_total = len(approved)
+
+        all_solution_ids: list[UUID] = []
+        problem_solutions: dict[UUID, list[UUID]] = {}
+        for p in approved:
+            sols = [
+                s.solution_id for s in self._solutions.list_by_problem(p.problem_id)
+            ]
+            problem_solutions[p.problem_id] = sols
+            all_solution_ids.extend(sols)
+
+        counts_by_solution = self._outcomes.outcome_counts_by_solution_ids(
+            all_solution_ids
+        )
+
+        problem_outcome_count: dict[UUID, int] = {
+            pid: sum(counts_by_solution.get(sid, 0) for sid in sids)
+            for pid, sids in problem_solutions.items()
+        }
+
+        approved_with_outcomes = sum(1 for c in problem_outcome_count.values() if c > 0)
+
+        ranked_with_outcomes = sorted(
+            (p for p in approved if problem_outcome_count.get(p.problem_id, 0) > 0),
+            key=lambda p: (
+                -problem_outcome_count[p.problem_id],
+                -p.best_confidence,
+                str(p.problem_id),
+            ),
+        )
+
+        def _truncate(text: str, n: int = 80) -> str:
+            return text if len(text) <= n else text[: n - 1] + "…"
+
+        return {
+            "outcomes": {
+                "total": o["outcomes_total"],
+                "last_7_days": o["outcomes_last_7d"],
+                "last_30_days": o["outcomes_last_30d"],
+                "verified_total": o["verified_total"],
+                "observed_total": o["observed_total"],
+            },
+            "reporters": {
+                "unique_total": o["unique_reporters_total"],
+                "unique_last_7_days": o["unique_reporters_7d"],
+                "unique_last_30_days": o["unique_reporters_30d"],
+            },
+            "problems": {
+                "total_approved": approved_total,
+                "with_outcomes": approved_with_outcomes,
+                "with_zero_outcomes": approved_total - approved_with_outcomes,
+            },
+            "top_problems_by_outcomes": [
+                {
+                    "problem_id": str(p.problem_id),
+                    "description": _truncate(p.description),
+                    "outcome_count": problem_outcome_count[p.problem_id],
+                    "best_confidence": float(p.best_confidence),
+                }
+                for p in ranked_with_outcomes[:10]
+            ],
+        }
+
     # --- Research loop methods ---
 
     def _validate_no_lineage_cycle(self, new_parent_id: UUID) -> None:
