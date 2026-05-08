@@ -16,7 +16,7 @@ import time
 from collections import OrderedDict, deque
 from threading import Lock
 
-from backend.core.rate_limit import format_rate_key
+from backend.core._rate_keys import format_rate_key
 from backend.domain.models import Agent
 
 
