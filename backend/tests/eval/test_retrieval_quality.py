@@ -7,8 +7,8 @@ latency / match_quality distribution, and either:
 * ``EVAL_BASELINE_MODE=collect`` -- prints the report and skips assertions
   (use this to capture a fresh baseline for ``docs/retrieval-baseline.md``).
 * ``EVAL_BASELINE_MODE=guard`` (default) -- parses the JSON fenced block
-  beneath the ``## Frozen aggregate`` heading in
-  ``docs/retrieval-baseline.md`` and asserts that
+  beneath the active mode's heading in ``docs/retrieval-baseline.md`` and
+  asserts that
 
     * ``dataset_version`` matches the current fixture exactly,
     * ``recall@{1,5,10}``, MRR, and binary nDCG@10 have not regressed
@@ -18,9 +18,22 @@ latency / match_quality distribution, and either:
       absolute floor avoids spurious flakes when the fallback baseline is
       sub-millisecond.
 
-The harness runs in the conftest-forced fallback environment (no Voyage,
-no OpenRouter, no DB), which makes the numbers deterministic and offline.
-A real-Voyage variant is out of scope for this PR.
+The harness has two modes selected by the ``RUN_REAL_EVAL`` environment
+variable:
+
+* **fallback** (``RUN_REAL_EVAL`` unset, the default) — runs in the
+  conftest-forced fallback environment (no Voyage, no OpenRouter, no DB),
+  which makes the numbers deterministic and offline. The frozen baseline
+  for this mode lives under ``## Frozen aggregate`` in
+  ``docs/retrieval-baseline.md``. ``make eval`` and ``make fast`` exercise
+  this path on every CI run.
+* **real** (``RUN_REAL_EVAL=1`` plus ``VOYAGE_API_KEY`` set) — uses the
+  production retrieval stack: Voyage 3-large embeddings + Voyage
+  rerank-2.5-lite cross-encoder, still backed by in-memory repositories.
+  The frozen baseline for this mode lives under
+  ``## Frozen aggregate (real-mode)`` in ``docs/retrieval-baseline.md``.
+  ``make eval-real`` exercises this path; it is deliberately excluded from
+  ``make full`` because real-mode burns Voyage API quota.
 """
 
 from __future__ import annotations
@@ -63,6 +76,32 @@ _AGGREGATE_CATEGORIES = {
     "keyword_partial",
     "cross_topic_confusion",
 }
+
+# Heading anchors in docs/retrieval-baseline.md keyed by active mode. The
+# parser uses these as exact section anchors so future per-environment
+# blocks can co-exist without the regex picking the wrong JSON fence.
+_BASELINE_ANCHORS = {
+    "fallback": "## Frozen aggregate",
+    "real": "## Frozen aggregate (real-mode)",
+}
+
+
+def _active_mode() -> str:
+    """Return ``"real"`` when ``RUN_REAL_EVAL`` is set, otherwise ``"fallback"``.
+
+    Anchored on ``RUN_REAL_EVAL`` rather than ``EVAL_BASELINE_MODE`` because
+    mode selection is orthogonal to collect/guard: a real-mode run can be in
+    either collect or guard, and so can fallback.
+    """
+    return "real" if os.environ.get("RUN_REAL_EVAL") else "fallback"
+
+
+def _baseline_anchor(mode: str) -> str:
+    """Return the markdown heading that anchors the JSON block for ``mode``."""
+    try:
+        return _BASELINE_ANCHORS[mode]
+    except KeyError as exc:
+        raise ValueError(f"unknown eval mode: {mode!r}") from exc
 
 
 def _score_query(
@@ -188,11 +227,18 @@ def _fmt(x) -> str:
     return str(x)
 
 
-def print_report(per_query: list[dict], aggregate: dict, dataset: dict) -> None:
+def print_report(
+    per_query: list[dict], aggregate: dict, dataset: dict, mode: str
+) -> None:
+    stack_label = (
+        "Voyage 3-large embedding + Voyage rerank-2.5-lite"
+        if mode == "real"
+        else "fallback embedding + noop rerank"
+    )
     lines: list[str] = []
     lines.append("")
     lines.append("=" * 78)
-    lines.append("RETRIEVAL QUALITY EVAL  (fallback embedding + noop rerank)")
+    lines.append(f"RETRIEVAL QUALITY EVAL  (mode={mode}; {stack_label})")
     lines.append(f"dataset_version = {dataset['dataset_version']}")
     lines.append("=" * 78)
 
@@ -267,6 +313,7 @@ def print_report(per_query: list[dict], aggregate: dict, dataset: dict) -> None:
         "--- machine-readable JSON (paste into docs/retrieval-baseline.md) ---"
     )
     payload = {
+        "mode": mode,
         "dataset_version": dataset["dataset_version"],
         "overall": overall,
         "no_false_exact_rate": aggregate["no_false_exact_rate"],
@@ -283,22 +330,22 @@ def _load_dataset() -> dict:
     return json.loads(DATASET_PATH.read_text())
 
 
-def _parse_baseline_from_md(path: Path) -> dict | None:
-    """Extract the JSON block beneath the ``## Frozen aggregate`` heading.
+def _parse_baseline_from_md(path: Path, anchor: str) -> dict | None:
+    """Extract the JSON block beneath ``anchor`` in ``path``.
 
-    Anchoring on the section heading future-proofs against later real-mode
-    or per-environment JSON blocks that may be added to the document — the
-    older greedy "first json fence" approach would have silently picked
-    the wrong one.
+    ``anchor`` is the literal markdown heading (e.g. ``"## Frozen aggregate"``
+    or ``"## Frozen aggregate (real-mode)"``); it is regex-escaped before
+    being inserted into the parser. The match is line-anchored (``MULTILINE``
+    + ``^``) so the inline reference to ``## Frozen aggregate (real-mode)``
+    in the document's intro paragraph is not mistaken for the actual heading
+    — that bug would have silently aimed the real-mode parser at the
+    fallback JSON fence.
     """
     if not path.exists():
         return None
     text = path.read_text()
-    m = re.search(
-        r"##\s+Frozen aggregate[^\n]*\n.*?```json\s*\n(.*?)\n```",
-        text,
-        re.DOTALL,
-    )
+    pattern = r"^" + re.escape(anchor) + r"[^\n]*\n.*?```json\s*\n(.*?)\n```"
+    m = re.search(pattern, text, re.DOTALL | re.MULTILINE)
     if m is None:
         return None
     return json.loads(m.group(1))
@@ -364,9 +411,68 @@ def _assert_against_baseline(
         raise AssertionError(msg)
 
 
+def _build_real_mode_service():
+    """Build an in-memory ``AgentbookService`` wired to real Voyage providers.
+
+    Mirrors the precedence chain in ``backend/main.py:_build_service`` but
+    skips the OpenRouter/Fallback fallthrough — real-mode must use Voyage or
+    not run at all, otherwise the printed metrics would silently describe
+    the wrong stack. Caller is responsible for ensuring ``VOYAGE_API_KEY`` is
+    present in the environment via the conftest ``RUN_REAL_EVAL`` carve-out.
+    """
+    from uuid import uuid4
+
+    from backend.application.service import AgentbookService
+    from backend.domain.models import Agent
+    from backend.infrastructure.embeddings.voyage import (
+        resolve_embedding_provider as resolve_voyage_embedding,
+    )
+    from backend.infrastructure.persistence.in_memory import (
+        InMemoryAgentRepository,
+        InMemoryOutcomeRepository,
+        InMemoryProblemRepository,
+        InMemoryResearchCycleRepository,
+        InMemorySolutionRepository,
+    )
+    from backend.infrastructure.reranking import resolve_rerank_fn
+
+    embedding_provider = resolve_voyage_embedding()
+    if embedding_provider is None:
+        raise RuntimeError(
+            "real-mode eval requires a working Voyage embedding provider; "
+            "resolve_embedding_provider returned None despite VOYAGE_API_KEY "
+            "being set — check that the voyageai package is installed."
+        )
+    rerank_fn = resolve_rerank_fn()
+
+    agents = InMemoryAgentRepository()
+    author_id = uuid4()
+    agents.add(Agent(api_key_hash="test-hash", model_type="test", agent_id=author_id))
+    service = AgentbookService(
+        agents=agents,
+        embedding_provider=embedding_provider,
+        problems=InMemoryProblemRepository(),
+        solutions=InMemorySolutionRepository(),
+        outcomes=InMemoryOutcomeRepository(),
+        research_cycles=InMemoryResearchCycleRepository(),
+        rerank_fn=rerank_fn,
+    )
+    return service, author_id
+
+
 @pytest.mark.eval
 def test_retrieval_quality_baseline(service_and_author) -> None:
-    service, author_id = service_and_author
+    active_mode = _active_mode()
+    if active_mode == "real" and not os.environ.get("VOYAGE_API_KEY"):
+        # Skip BEFORE seeding the corpus so we don't waste time on a 65-query
+        # run that has nowhere meaningful to land.
+        pytest.skip("RUN_REAL_EVAL=1 requires VOYAGE_API_KEY in env (real-mode eval)")
+
+    if active_mode == "real":
+        service, author_id = _build_real_mode_service()
+    else:
+        service, author_id = service_and_author
+
     template_to_pid = seed_corpus(service, author_id)
     dataset = _load_dataset()
 
@@ -379,19 +485,36 @@ def test_retrieval_quality_baseline(service_and_author) -> None:
         per_query.append(_score_query(q, payload["results"], expected_ids, latency_ms))
 
     aggregate = aggregate_metrics(per_query)
-    print_report(per_query, aggregate, dataset)
+    print_report(per_query, aggregate, dataset, active_mode)
 
-    mode = os.environ.get("EVAL_BASELINE_MODE", "guard")
-    if mode == "collect":
+    baseline_mode = os.environ.get("EVAL_BASELINE_MODE", "guard")
+    anchor = _baseline_anchor(active_mode)
+    if baseline_mode == "collect":
         pytest.skip(
-            "EVAL_BASELINE_MODE=collect: report printed, skipping regression "
-            "assertions. Paste the JSON block above into docs/retrieval-baseline.md."
+            f"EVAL_BASELINE_MODE=collect (mode={active_mode}): report printed, "
+            f"skipping regression assertions. Paste the JSON block above under "
+            f"the {anchor!r} heading in docs/retrieval-baseline.md."
         )
 
-    baseline = _parse_baseline_from_md(BASELINE_MD_PATH)
+    baseline = _parse_baseline_from_md(BASELINE_MD_PATH, anchor)
     if baseline is None:
         pytest.fail(
-            f"Frozen baseline not found at {BASELINE_MD_PATH}. "
-            f"Run EVAL_BASELINE_MODE=collect make eval to populate it."
+            f"Frozen baseline ({active_mode} mode) not found beneath the "
+            f"{anchor!r} heading at {BASELINE_MD_PATH}. Run "
+            f"EVAL_BASELINE_MODE=collect "
+            f"{'RUN_REAL_EVAL=1 ' if active_mode == 'real' else ''}"
+            f"make {'eval-real' if active_mode == 'real' else 'eval'} "
+            f"to populate it."
+        )
+    if baseline.get("placeholder") is True:
+        pytest.fail(
+            f"Frozen baseline ({active_mode} mode) is still the placeholder "
+            f"under the {anchor!r} heading at {BASELINE_MD_PATH}. Run "
+            f"EVAL_BASELINE_MODE=collect "
+            f"{'RUN_REAL_EVAL=1 ' if active_mode == 'real' else ''}"
+            f"VOYAGE_API_KEY=... uv run pytest "
+            f"backend/tests/eval/test_retrieval_quality.py -v -s "
+            f"and replace the placeholder JSON with the printed "
+            f"`--- machine-readable JSON ---` block."
         )
     _assert_against_baseline(aggregate, baseline, dataset["dataset_version"])

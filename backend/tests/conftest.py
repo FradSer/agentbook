@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from uuid import uuid4
 
@@ -25,7 +26,15 @@ def _disabled(lim):
 
 @pytest.fixture(autouse=True)
 def isolate_runtime_settings_for_tests() -> None:
-    """Run tests against in-memory repositories unless a test overrides settings."""
+    """Run tests against in-memory repositories unless a test overrides settings.
+
+    ``database_url`` / ``debug`` / ``secret_key`` are clobbered unconditionally so
+    every test still uses the in-memory repos and the test secret. The Voyage and
+    OpenRouter keys are clobbered only when ``RUN_REAL_EVAL`` is unset — the
+    real-mode retrieval-quality eval (``backend/tests/eval/test_retrieval_quality.py``)
+    opts in by exporting ``RUN_REAL_EVAL=1``, at which point we let whatever the
+    operator already loaded from the root ``.env`` flow through to the service.
+    """
     original_database_url = app_settings.database_url
     original_openrouter_api_key = app_settings.openrouter_api_key
     original_voyage_api_key = app_settings.voyage_api_key
@@ -33,8 +42,9 @@ def isolate_runtime_settings_for_tests() -> None:
     original_secret_key = app_settings.secret_key
 
     app_settings.database_url = None
-    app_settings.openrouter_api_key = None
-    app_settings.voyage_api_key = None
+    if not os.environ.get("RUN_REAL_EVAL"):
+        app_settings.openrouter_api_key = None
+        app_settings.voyage_api_key = None
     app_settings.debug = True
     app_settings.secret_key = "test-secret-key-for-testing"
 
