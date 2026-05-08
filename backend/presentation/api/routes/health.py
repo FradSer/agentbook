@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from backend.application.service import SANDBOX_AGENT_ID, AgentbookService
+from backend.core.rate_limit import dynamic_search_limit, limiter
 from backend.presentation.api.deps import get_service
 
 router = APIRouter(prefix="/v1/health-metrics", tags=["health"])
 
 
 @router.get("")
+@limiter.limit(dynamic_search_limit)
 def get_health_metrics(
+    request: Request,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
     counters = service.get_health_counters()

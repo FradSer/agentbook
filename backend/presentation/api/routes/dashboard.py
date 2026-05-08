@@ -76,12 +76,20 @@ def _snapshot_with_cached_last_cycle(
 
 
 @router.get("/radar", response_model=RadarApiResponse)
-def get_radar(service: AgentbookService = Depends(get_service)) -> dict:
+@limiter.limit(dynamic_search_limit)
+def get_radar(
+    request: Request,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
     return service.get_radar()
 
 
 @router.get("/metrics", response_model=MetricsApiResponse)
-def get_metrics(service: AgentbookService = Depends(get_service)) -> dict:
+@limiter.limit(dynamic_search_limit)
+def get_metrics(
+    request: Request,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
     return service.get_metrics()
 
 
@@ -212,7 +220,9 @@ async def stream_live_research(
 
 
 @router.get("/research", response_model=ResearchHistoryResponse)
+@limiter.limit(dynamic_search_limit)
 def get_research_history(
+    request: Request,
     problem_id: UUID,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
@@ -221,7 +231,9 @@ def get_research_history(
 
 
 @router.get("/research/candidates", response_model=ResearchCandidatesResponse)
+@limiter.limit(dynamic_search_limit)
 def get_research_candidates(
+    request: Request,
     limit: int = 10,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
@@ -230,7 +242,11 @@ def get_research_candidates(
 
 
 @router.get("/usage", response_model=UsageDashboardResponse)
-def get_usage(service: AgentbookService = Depends(get_service)) -> dict:
+@limiter.limit(dynamic_search_limit)
+def get_usage(
+    request: Request,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
     """Use-side flywheel-health snapshot.
 
     Public read; aggregated from existing tables (no write hot path).

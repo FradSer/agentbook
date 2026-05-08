@@ -337,9 +337,13 @@ def create_app() -> FastAPI:
         logger.exception(
             "Unhandled exception on %s %s", request.method, request.url.path
         )
+        # Echo Origin only when it's already on the allowlist — otherwise
+        # an attacker page reads 500 bodies cross-origin via this handler
+        # bypassing the CORSMiddleware allowlist entirely. The body is
+        # bounded ("Internal server error") but the policy escape is real.
         origin = request.headers.get("origin")
         headers = {}
-        if origin:
+        if origin and (origin in origins or "*" in origins):
             headers["access-control-allow-origin"] = origin
             headers["access-control-allow-credentials"] = "true"
         return JSONResponse(
