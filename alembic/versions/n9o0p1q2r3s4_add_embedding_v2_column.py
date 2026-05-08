@@ -32,9 +32,6 @@ down_revision = "c7bae2af560d"
 branch_labels = None
 depends_on = None
 
-# Required so CREATE INDEX CONCURRENTLY runs outside a transaction.
-disable_ddl_transaction = True
-
 
 def _has_vector_extension() -> bool:
     bind = op.get_bind()
@@ -65,8 +62,12 @@ def upgrade() -> None:
             )
 
     if bind.dialect.name == "postgresql" and _has_vector_extension():
+        # Plain ``CREATE INDEX`` rather than ``CONCURRENTLY``: at pre-pilot
+        # scale the column is empty until ``backend/scripts/reembed_corpus.py``
+        # runs, so blocking is irrelevant. ``CONCURRENTLY`` also cannot run
+        # inside the implicit transaction Alembic opens per migration.
         op.execute(
-            "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+            "CREATE INDEX IF NOT EXISTS "
             "ix_problems_embedding_v2 "
             "ON problems USING hnsw (embedding_v2 vector_cosine_ops)"
         )
