@@ -24,6 +24,7 @@ from backend.presentation.api.schemas import (
     RadarApiResponse,
     ResearchCandidatesResponse,
     ResearchHistoryResponse,
+    UsageDashboardResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -226,3 +227,15 @@ def get_research_candidates(
 ) -> dict:
     candidates = service.find_research_candidates(limit=limit)
     return {"candidates": candidates}
+
+
+@router.get("/usage", response_model=UsageDashboardResponse)
+def get_usage(service: AgentbookService = Depends(get_service)) -> dict:
+    """Use-side flywheel-health snapshot.
+
+    Public read; aggregated from existing tables (no write hot path).
+    Surfaces outcome volume (total / 7d / 30d), the verified-vs-observed
+    split, unique reporter counts per window, problems-with-outcomes vs
+    total approved, and the top 10 problems by outcome count.
+    """
+    return service.get_usage_dashboard()
