@@ -692,6 +692,18 @@ class SQLAlchemyOutcomeRepository:
     def aggregate_usage_metrics(self, now: datetime) -> dict:
         seven_ago = now - timedelta(days=7)
         thirty_ago = now - timedelta(days=30)
+        # ``count(distinct case when cond then col end)`` is the portable
+        # idiom for windowed COUNT DISTINCT (Postgres FILTER is not
+        # supported on SQLite). Rows outside the window evaluate to NULL
+        # which DISTINCT excludes — same semantics, one round-trip.
+        reporter_in_7d = case(
+            (OutcomeORM.created_at >= seven_ago, OutcomeORM.reporter_id),
+            else_=None,
+        )
+        reporter_in_30d = case(
+            (OutcomeORM.created_at >= thirty_ago, OutcomeORM.reporter_id),
+            else_=None,
+        )
         with self._session_factory() as session:
             row = session.execute(
                 select(
@@ -716,30 +728,22 @@ class SQLAlchemyOutcomeRepository:
                         func.sum(case((OutcomeORM.kind == "observed", 1), else_=0)),
                         0,
                     ).label("observed_total"),
+                    func.count(func.distinct(OutcomeORM.reporter_id)).label(
+                        "unique_total"
+                    ),
+                    func.count(func.distinct(reporter_in_7d)).label("unique_7d"),
+                    func.count(func.distinct(reporter_in_30d)).label("unique_30d"),
                 )
             ).one()
-            unique_total = session.execute(
-                select(func.count(func.distinct(OutcomeORM.reporter_id)))
-            ).scalar_one()
-            unique_7d = session.execute(
-                select(func.count(func.distinct(OutcomeORM.reporter_id))).where(
-                    OutcomeORM.created_at >= seven_ago
-                )
-            ).scalar_one()
-            unique_30d = session.execute(
-                select(func.count(func.distinct(OutcomeORM.reporter_id))).where(
-                    OutcomeORM.created_at >= thirty_ago
-                )
-            ).scalar_one()
         return {
             "outcomes_total": int(row.outcomes_total or 0),
             "outcomes_last_7d": int(row.outcomes_last_7d or 0),
             "outcomes_last_30d": int(row.outcomes_last_30d or 0),
             "verified_total": int(row.verified_total or 0),
             "observed_total": int(row.observed_total or 0),
-            "unique_reporters_total": int(unique_total or 0),
-            "unique_reporters_7d": int(unique_7d or 0),
-            "unique_reporters_30d": int(unique_30d or 0),
+            "unique_reporters_total": int(row.unique_total or 0),
+            "unique_reporters_7d": int(row.unique_7d or 0),
+            "unique_reporters_30d": int(row.unique_30d or 0),
         }
 
     def outcome_counts_by_solution_ids(

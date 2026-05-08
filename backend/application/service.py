@@ -5,6 +5,7 @@ import logging
 import random
 import re
 import time
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -37,6 +38,7 @@ from backend.core.search_cache import TTLCache
 from backend.domain.models import (
     Agent,
     Outcome,
+    OutcomeKind,
     Problem,
     ProblemRelationship,
     ResearchCycle,
@@ -68,14 +70,16 @@ _MIN_SEARCH_RELEVANCE = 0.25
 # Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
 _RATE_WINDOW_HOURS = 1
-# Minimum outcome count before a candidate solution can be demoted on
-# negative signal. Was 2 pre-2026-05 — too cheap given the 2026-04-01
-# inflated-confidence post-mortem demonstrated 15 sybil identities cost
-# nothing. At 5, a successful demotion attack requires 5 distinct
-# reporters spending one rate-limited slot each. Pair with anti-Sybil
-# clustering (``backend/application/clustering.py``) for compounding
-# defense.
+# Minimum outcomes before a candidate can be demoted: a 2-bot sybil
+# can't pay this much, and the anti-sybil clustering compounds.
 _DEMOTION_MIN_OUTCOMES = 5
+
+
+def _truncate_with_ellipsis(text: str, n: int = 80) -> str:
+    """Truncate ``text`` to ``n`` chars max, appending a single Unicode
+    ellipsis when truncation actually happens."""
+    return text if len(text) <= n else text[: n - 1] + "…"
+
 
 # Freshness window for the Live Research Banner: a Problem is considered
 # "actively being researched" iff research_started_at falls within this many
@@ -1257,7 +1261,9 @@ class AgentbookService:
             raise RateLimitError("Rate limit exceeded: max 10 outcomes per hour")
 
         weight = 0.5 if (notes and "partial" in notes.lower()) else 1.0
-        kind = "verified" if reporter_id == SANDBOX_AGENT_ID else "observed"
+        kind: OutcomeKind = (
+            "verified" if reporter_id == SANDBOX_AGENT_ID else "observed"
+        )
 
         outcome = Outcome(
             solution_id=solution_id,
@@ -1466,29 +1472,25 @@ class AgentbookService:
         cutoff = datetime.now(tz=UTC) - timedelta(hours=24)
         all_problems = self._problems.list_all()
 
-        # Bulk-load solution_ids per problem and all matching outcomes in
-        # two queries — replaces the previous N+1 (`list_by_problem` per
-        # problem, twice; `list_by_solution` per solution).
+        # Two queries: solution_ids per problem + recent outcomes flat.
+        # Per-problem recent_count is just a Counter lookup — the older
+        # bucket-by-solution-id dict was redundant.
         problem_solution_ids = self._solutions.list_solution_ids_by_problem_ids(
             [p.problem_id for p in all_problems]
         )
         all_solution_ids = [
             sid for sids in problem_solution_ids.values() for sid in sids
         ]
-        all_outcomes = self._outcomes.list_by_solution_ids(all_solution_ids)
-        outcomes_by_solution: dict[UUID, list] = {}
-        for o in all_outcomes:
-            outcomes_by_solution.setdefault(o.solution_id, []).append(o)
+        recent_count_by_sid: Counter[UUID] = Counter(
+            o.solution_id
+            for o in self._outcomes.list_by_solution_ids(all_solution_ids)
+            if o.created_at >= cutoff
+        )
 
         trending = []
         for p in all_problems:
             sol_ids = problem_solution_ids.get(p.problem_id, [])
-            recent_count = sum(
-                1
-                for sid in sol_ids
-                for o in outcomes_by_solution.get(sid, ())
-                if o.created_at >= cutoff
-            )
+            recent_count = sum(recent_count_by_sid.get(sid, 0) for sid in sol_ids)
             if recent_count > 0:
                 rate = round(p.best_confidence, 2) if sol_ids else 0.0
                 trending.append(
@@ -1649,9 +1651,6 @@ class AgentbookService:
             ),
         )
 
-        def _truncate(text: str, n: int = 80) -> str:
-            return text if len(text) <= n else text[: n - 1] + "…"
-
         return {
             "outcomes": {
                 "total": o["outcomes_total"],
@@ -1673,7 +1672,7 @@ class AgentbookService:
             "top_problems_by_outcomes": [
                 {
                     "problem_id": str(p.problem_id),
-                    "description": _truncate(p.description),
+                    "description": _truncate_with_ellipsis(p.description),
                     "outcome_count": problem_outcome_count[p.problem_id],
                     "best_confidence": float(p.best_confidence),
                 }
@@ -1962,17 +1961,12 @@ class AgentbookService:
         weight: float = 0.3,
         notes: str = "",
         environment: dict | None = None,
-        kind: str = "observed",
+        kind: OutcomeKind = "observed",
     ) -> None:
-        """Record a synthetic outcome from an automated evaluator.
+        """Record an automated-evaluator outcome.
 
-        ``kind`` defaults to ``"observed"`` for the LLM A/B evaluator path
-        (weak signal, weight 0.3). The sandbox auto-evaluator path
-        explicitly passes ``kind="verified", weight=1.0`` so the
-        ``kind_multiplier`` 2x in ``confidence.calculate_confidence``
-        actually fires for ground-truth executions. Without the explicit
-        kind argument both paths used to share the dataclass default
-        (``"observed"``), silently nullifying the sandbox-primary lever.
+        Defaults are calibrated for the LLM A/B evaluator (weak signal).
+        The sandbox path overrides to ``kind="verified", weight=1.0``.
         """
         try:
             self._ensure_synthetic_agent(reporter_id, reporter_id.hex[:8])

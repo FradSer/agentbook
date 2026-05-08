@@ -230,29 +230,27 @@ class InMemorySolutionRepository:
         results.sort(key=lambda s: (s.canonical_id is None, s.confidence), reverse=True)
         return results
 
-    def list_solution_ids_by_problem_ids(
-        self, problem_ids: list[UUID]
-    ) -> dict[UUID, list[UUID]]:
+    def _bucket_solutions_by_problem(
+        self, problem_ids: list[UUID], project
+    ) -> dict[UUID, list]:
         if not problem_ids:
             return {}
         target = set(problem_ids)
-        out: dict[UUID, list[UUID]] = {pid: [] for pid in target}
+        out: dict[UUID, list] = {pid: [] for pid in target}
         for s in self._solutions.values():
             if s.problem_id in target:
-                out[s.problem_id].append(s.solution_id)
+                out[s.problem_id].append(project(s))
         return out
+
+    def list_solution_ids_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        return self._bucket_solutions_by_problem(problem_ids, lambda s: s.solution_id)
 
     def list_by_problem_ids(
         self, problem_ids: list[UUID]
     ) -> dict[UUID, list[Solution]]:
-        if not problem_ids:
-            return {}
-        target = set(problem_ids)
-        out: dict[UUID, list[Solution]] = {pid: [] for pid in target}
-        for s in self._solutions.values():
-            if s.problem_id in target:
-                out[s.problem_id].append(s)
-        return out
+        return self._bucket_solutions_by_problem(problem_ids, lambda s: s)
 
     def find_superseded(self, problem_id: UUID) -> list[Solution]:
         return [

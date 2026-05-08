@@ -15,6 +15,14 @@ ResearchStatus = Literal[
     "synthesis_completed",
 ]
 
+# Outcome provenance: "verified" = sandbox-executed (ground truth, 2x
+# kind_multiplier in confidence math), "observed" = crowd / LLM-evaluator
+# report (proxy signal). Mirrored at the DB layer by the
+# ``outcomes_kind_check`` constraint in ``backend/infrastructure/persistence/
+# sqlalchemy_models.py`` and at the runtime layer by the kind-multiplier in
+# ``backend/application/confidence.py``.
+OutcomeKind = Literal["verified", "observed"]
+
 
 def utc_now() -> datetime:
     return datetime.now(tz=UTC)
@@ -105,7 +113,7 @@ class Outcome:
     solution_id: UUID
     reporter_id: UUID
     success: bool
-    kind: str = "observed"  # "verified" (sandbox) | "observed" (crowd report)
+    kind: OutcomeKind = "observed"
     environment: dict | None = None
     error_after: str | None = None
     time_saved_seconds: int | None = None

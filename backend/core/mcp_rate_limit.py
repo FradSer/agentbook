@@ -71,14 +71,10 @@ class MCPRateLimiter:
             self._buckets.clear()
 
 
-def mcp_rate_key(agent: Agent | None, remote_addr: str | None) -> str:
-    """Build a rate-limit bucket key.
-
-    Direct alias of :func:`backend.core.rate_limit.format_rate_key` — both
-    surfaces must produce identical keys so a single agent's REST + MCP
-    traffic shares one quota.
-    """
-    return format_rate_key(agent, remote_addr)
+# MCP key formatter is intentionally identical to REST's. Both surfaces
+# must produce the same key for a given caller (the limiters keep
+# separate state — see ``backend/core/rate_limit.py``).
+mcp_rate_key = format_rate_key
 
 
 # Mirrors the REST `/v1/search` contract: 30 per minute per IP for anon callers.
