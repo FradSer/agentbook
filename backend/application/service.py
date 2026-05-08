@@ -68,6 +68,14 @@ _MIN_SEARCH_RELEVANCE = 0.25
 # Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
 _RATE_WINDOW_HOURS = 1
+# Minimum outcome count before a candidate solution can be demoted on
+# negative signal. Was 2 pre-2026-05 — too cheap given the 2026-04-01
+# inflated-confidence post-mortem demonstrated 15 sybil identities cost
+# nothing. At 5, a successful demotion attack requires 5 distinct
+# reporters spending one rate-limited slot each. Pair with anti-Sybil
+# clustering (``backend/application/clustering.py``) for compounding
+# defense.
+_DEMOTION_MIN_OUTCOMES = 5
 
 # Freshness window for the Live Research Banner: a Problem is considered
 # "actively being researched" iff research_started_at falls within this many
@@ -1292,8 +1300,17 @@ class AgentbookService:
                     solution.promotion_status = "promoted"
                     parent.canonical_id = solution.solution_id
                     self._solutions.update(parent)
-                elif solution.outcome_count >= 2 and new_confidence < parent.confidence:
-                    # Insufficient improvement after real data — demote
+                elif (
+                    solution.outcome_count >= _DEMOTION_MIN_OUTCOMES
+                    and new_confidence < parent.confidence
+                ):
+                    # Insufficient improvement after real data — demote.
+                    # Threshold is 5 (was 2 pre-2026-05): two coordinated
+                    # bots reporting failure could permanently kill a
+                    # legitimate candidate before real users could weigh
+                    # in. 5 is still cheap for genuine fail-loud signal
+                    # but raises the cost of a successful sybil attack to
+                    # 5 reporter identities + spending one each.
                     solution.promotion_status = "demoted"
                     solution.canonical_id = solution.parent_solution_id
 
@@ -1449,15 +1466,31 @@ class AgentbookService:
         cutoff = datetime.now(tz=UTC) - timedelta(hours=24)
         all_problems = self._problems.list_all()
 
+        # Bulk-load solution_ids per problem and all matching outcomes in
+        # two queries — replaces the previous N+1 (`list_by_problem` per
+        # problem, twice; `list_by_solution` per solution).
+        problem_solution_ids = self._solutions.list_solution_ids_by_problem_ids(
+            [p.problem_id for p in all_problems]
+        )
+        all_solution_ids = [
+            sid for sids in problem_solution_ids.values() for sid in sids
+        ]
+        all_outcomes = self._outcomes.list_by_solution_ids(all_solution_ids)
+        outcomes_by_solution: dict[UUID, list] = {}
+        for o in all_outcomes:
+            outcomes_by_solution.setdefault(o.solution_id, []).append(o)
+
         trending = []
         for p in all_problems:
-            recent_count = 0
-            for sol in self._solutions.list_by_problem(p.problem_id):
-                sol_outcomes = self._outcomes.list_by_solution(sol.solution_id)
-                recent_count += sum(1 for o in sol_outcomes if o.created_at >= cutoff)
+            sol_ids = problem_solution_ids.get(p.problem_id, [])
+            recent_count = sum(
+                1
+                for sid in sol_ids
+                for o in outcomes_by_solution.get(sid, ())
+                if o.created_at >= cutoff
+            )
             if recent_count > 0:
-                n_sols = len(self._solutions.list_by_problem(p.problem_id))
-                rate = round(p.best_confidence, 2) if n_sols > 0 else 0.0
+                rate = round(p.best_confidence, 2) if sol_ids else 0.0
                 trending.append(
                     {
                         "problem_id": p.problem_id,
@@ -1508,18 +1541,22 @@ class AgentbookService:
             round(solved / total_problems, 2) if total_problems > 0 else 0.0
         )
 
-        all_solutions = []
-        for p in all_problems:
-            all_solutions.extend(self._solutions.list_by_problem(p.problem_id))
+        # Bulk-load all solutions then all their outcomes in two queries —
+        # replaces the previous N+M loop (one ``list_by_problem`` per
+        # problem, one ``list_by_solution`` per solution).
+        problem_solutions = self._solutions.list_by_problem_ids(
+            [p.problem_id for p in all_problems]
+        )
+        all_solutions = [s for sols in problem_solutions.values() for s in sols]
         avg_confidence = (
             round(sum(s.confidence for s in all_solutions) / len(all_solutions), 2)
             if all_solutions
             else 0.0
         )
 
-        all_outcomes = []
-        for sol in all_solutions:
-            all_outcomes.extend(self._outcomes.list_by_solution(sol.solution_id))
+        all_outcomes = self._outcomes.list_by_solution_ids(
+            [s.solution_id for s in all_solutions]
+        )
         timed = [o.time_saved_seconds for o in all_outcomes if o.time_saved_seconds]
         median_ttr = int(sum(timed) / len(timed)) if timed else 0
 
@@ -1562,6 +1599,16 @@ class AgentbookService:
 
         Ranking ties on ``outcome_count`` are broken by ``best_confidence``
         DESC and then ``problem_id`` ASC for determinism.
+
+        ``outcomes.*`` vs ``problems.*`` asymmetry is intentional:
+        ``outcomes`` counts every row in the ``outcomes`` table regardless
+        of the parent problem's ``review_status`` (gives raw flow signal),
+        while ``problems.*`` and ``top_problems_by_outcomes`` are scoped
+        to ``review_status='approved'`` only (what end-users actually see).
+        Pending/rejected problems can therefore drive ``outcomes.total``
+        upward without appearing under ``problems.with_outcomes`` or in
+        the top-10 list. ``test_usage_dashboard.py::test_…asymmetry`` is
+        the regression guard for this contract.
         """
         now = utc_now()
         o = self._outcomes.aggregate_usage_metrics(now)
@@ -1571,14 +1618,16 @@ class AgentbookService:
         ]
         approved_total = len(approved)
 
-        all_solution_ids: list[UUID] = []
-        problem_solutions: dict[UUID, list[UUID]] = {}
-        for p in approved:
-            sols = [
-                s.solution_id for s in self._solutions.list_by_problem(p.problem_id)
-            ]
-            problem_solutions[p.problem_id] = sols
-            all_solution_ids.extend(sols)
+        # Bulk-load solution_ids per problem in ONE query (or one set scan
+        # in-memory) — avoids N+1 round trips when the corpus has thousands
+        # of approved problems. The previous per-problem ``list_by_problem``
+        # loop turned this dashboard into a free DoS pedal on Postgres.
+        problem_solutions = self._solutions.list_solution_ids_by_problem_ids(
+            [p.problem_id for p in approved]
+        )
+        all_solution_ids: list[UUID] = [
+            sid for sids in problem_solutions.values() for sid in sids
+        ]
 
         counts_by_solution = self._outcomes.outcome_counts_by_solution_ids(
             all_solution_ids
@@ -1913,14 +1962,25 @@ class AgentbookService:
         weight: float = 0.3,
         notes: str = "",
         environment: dict | None = None,
+        kind: str = "observed",
     ) -> None:
-        """Record a synthetic outcome from an automated evaluator."""
+        """Record a synthetic outcome from an automated evaluator.
+
+        ``kind`` defaults to ``"observed"`` for the LLM A/B evaluator path
+        (weak signal, weight 0.3). The sandbox auto-evaluator path
+        explicitly passes ``kind="verified", weight=1.0`` so the
+        ``kind_multiplier`` 2x in ``confidence.calculate_confidence``
+        actually fires for ground-truth executions. Without the explicit
+        kind argument both paths used to share the dataclass default
+        (``"observed"``), silently nullifying the sandbox-primary lever.
+        """
         try:
             self._ensure_synthetic_agent(reporter_id, reporter_id.hex[:8])
             synthetic = Outcome(
                 solution_id=solution.solution_id,
                 reporter_id=reporter_id,
                 success=success,
+                kind=kind,
                 weight=weight,
                 notes=notes,
                 environment=environment,
@@ -2147,6 +2207,8 @@ class AgentbookService:
             solution,
             SANDBOX_AGENT_ID,
             success=result.success,
+            kind="verified",
+            weight=1.0,
             notes=f"sandbox: exit={result.exit_code} dur={result.duration_seconds}s",
             environment=result.environment or None,
         )
