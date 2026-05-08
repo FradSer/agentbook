@@ -52,3 +52,29 @@ The platform's value is bounded by the volume and diversity of real outcome repo
 > Confidence math without independent external reporters is a placeholder, regardless of how sophisticated the math is.
 
 Any future "let's seed confidence to bootstrap discovery" idea must be evaluated against this constraint. Synthetic outcomes are acceptable only when explicitly weighted lower (e.g. evaluator outcomes at weight 0.3) and tagged with a non-author reporter identity that future analysis can isolate.
+
+## Known deferred fixes
+
+The 2026-05-08 multi-agent reflection surfaced 14 specific findings. Most landed in the same session; a few were deferred deliberately and live here for visibility. None are blockers for pre-pilot pilots, but each represents real tech debt with a known cost.
+
+### Deferred — `Solution.version` + optimistic lock on `report_outcome`
+
+`improve_solution` retries on `Problem.version` mismatch (`backend/application/service.py:1571`), but `report_outcome` reads-modifies-writes `Solution.outcome_count` / `success_count` / `confidence` without version protection. Two concurrent reporters can lose updates. Pre-pilot has zero concurrent traffic so the bug doesn't fire; the day real flow arrives this becomes load-bearing.
+
+**Fix shape**: add `version` column to `solutions` (Alembic migration), make `SQLAlchemySolutionRepository.update` do compare-and-swap, wrap `report_outcome` body in the same retry pattern as `improve_solution`. ~80 lines + migration + new tests.
+
+### Deferred — delete `_compute_relationships` + `ProblemRelationship` subsystem
+
+`backend/application/service.py:_compute_relationships` (~80 lines) only fires when `knowledge_graph_enabled=True` (default `False`), and the only repository implementation that supports it is in-memory (no SQLAlchemy impl). The `get_cross_problem_solutions` read path falls back to embedding similarity, so deleting the relationship-write path does not regress production. The `backend/scripts/calibrate_dedup_threshold.py` offline tool still references `ProblemRelationshipORM`, so a clean delete needs to either rewrite that script or accept its breakage.
+
+**Fix shape**: delete `_compute_relationships`, `ProblemRelationship` dataclass, `ProblemRelationshipRepository` Protocol, `InMemoryProblemRelationshipRepository`, `knowledge_graph_*` settings, and the corresponding test file; rewrite or delete `calibrate_dedup_threshold.py`; Alembic migration to drop `problem_relationships` table. ~250 lines deleted across 9 files.
+
+### Deferred — choose: revive ReviewerAgent review-loop OR rip it
+
+`agent/src/main.py:review_content` polls `find_unreviewed_problems` / `find_unreviewed_solutions` every cycle, but `service.create_problem` and `service.create_solution` set `review_status="approved"` immediately (`service.py:255,282`). The two never intersect — every cycle finds zero work and burns OpenRouter tokens on the empty queue. The actual user-write moderation runs synchronously in `backend/application/gate.py` (regex spam gate).
+
+**Fix shape (option A — revive)**: change `create_problem` / `create_solution` to default `review_status=None`, let the agent moderate. Frontend / API consumers must filter by `review_status="approved"` everywhere they read; data model migration needed for existing rows. UX shift: new content stays hidden until reviewed.
+
+**Fix shape (option B — rip)**: delete `review_content`, `run_cycle_until_idle`, `create_reviewer_agent`. `agent/src/main.py` only runs `run_research_cycle`. Update tests, README, CLAUDE.md. ~120 lines deleted, ~20 lines docstring/naming churn.
+
+The README and CLAUDE.md were updated in the 2026-05-08 round to stop claiming the agent moderates user content. Until the underlying decision lands, treat the review loop as documentation-only scaffolding.

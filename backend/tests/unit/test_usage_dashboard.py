@@ -358,6 +358,60 @@ def test_usage_dashboard_endpoint_returns_valid_json(service_and_author) -> None
     assert body["top_problems_by_outcomes"][0]["outcome_count"] == 1
 
 
+def test_usage_dashboard_review_status_asymmetry(service_and_author) -> None:
+    """``outcomes.total`` is corpus-wide; ``problems.*`` is approved-only.
+
+    A non-approved problem with an outcome must drive ``outcomes.total``
+    upward but stay invisible under ``problems.total_approved`` /
+    ``problems.with_outcomes`` and out of the top-10 list. The contract
+    is documented on ``AgentbookService.get_usage_dashboard``.
+    """
+    service, author_id = service_and_author
+    reporter_id = _register_reporter(service)
+    now = utc_now()
+
+    # 1 approved problem with 1 outcome → counted everywhere.
+    _, approved_sid = _seed_problem_with_solution(service, author_id)
+    _seed_outcome(
+        service,
+        solution_id=approved_sid,
+        reporter_id=reporter_id,
+        created_at=now - timedelta(hours=1),
+    )
+
+    # 1 pending problem with 1 outcome → outcome flows into outcomes.total
+    # but the problem must NOT appear in problems.* or top_problems_*.
+    pending_problem = service.create_problem(
+        author_id=author_id,
+        description="Pending problem awaiting review with sufficient text.",
+    )
+    pending_problem.review_status = "pending"
+    service._problems.update(pending_problem)
+    pending_solution = service.create_solution(
+        problem_id=pending_problem.problem_id,
+        author_id=author_id,
+        content="A solution to the pending problem with enough characters.",
+    )
+    _seed_outcome(
+        service,
+        solution_id=pending_solution.solution_id,
+        reporter_id=reporter_id,
+        created_at=now - timedelta(hours=1),
+    )
+
+    result = service.get_usage_dashboard()
+    # outcomes.total counts both
+    assert result["outcomes"]["total"] == 2
+    # problems.* only counts approved
+    assert result["problems"]["total_approved"] == 1
+    assert result["problems"]["with_outcomes"] == 1
+    assert result["problems"]["with_zero_outcomes"] == 0
+    # top list only contains the approved problem
+    top = result["top_problems_by_outcomes"]
+    assert len(top) == 1
+    assert UUID(top[0]["problem_id"]) != pending_problem.problem_id
+
+
 @pytest.mark.parametrize("solution_ids", [[], None])
 def test_outcome_counts_by_solution_ids_handles_empty(
     service_and_author, solution_ids

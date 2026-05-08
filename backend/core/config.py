@@ -27,7 +27,12 @@ class Settings(SharedSettings):
 
     # Security
     api_key_prefix: str = "ak_"
-    secret_key: str = "change-me"
+    # ``secret_key`` was deleted in 2026-05 — the field had no consumers
+    # (no cookie/JWT/CSRF signing) and the production-validate check on
+    # it was decorative security. If a future feature needs a signing
+    # secret, re-introduce it alongside the actual signing path so the
+    # validation has bite. ``conftest.py``'s historical save/restore was
+    # removed in the same change.
 
     # OpenRouter embeddings (api_key inherited from SharedSettings).
     # Kept as a fallback after Voyage in the resolver chain.
@@ -107,9 +112,31 @@ def validate_production_settings(settings: Settings) -> None:
         ValueError: If production settings are invalid
     """
     if not settings.debug:
-        if not settings.secret_key or settings.secret_key == "change-me":
+        # CORS '*' + allow_credentials=True is a CSRF surface waiting to be
+        # mis-configured. Browsers reject the literal '*' + credentials combo
+        # by spec, but `CORS_ALLOW_ORIGINS=https://attacker.com,...` lets
+        # any listed origin through with credentials. Refuse to boot.
+        if settings.cors_allow_origins.strip() == "*":
             raise ValueError(
-                "SECRET_KEY must be set to a non-default value in production mode."
+                "CORS_ALLOW_ORIGINS='*' is not allowed in production mode "
+                "because the app sends credentialed responses. Set "
+                "CORS_ALLOW_ORIGINS to an explicit comma-separated origin list."
+            )
+        # Embedding dimension must match the active column. The legacy
+        # ``problems.embedding`` column is vector(1536) (per the init
+        # migration) while ``problems.embedding_v2`` is vector(1024). When
+        # ``EMBEDDING_VERSION=v1`` writes target the 1536-dim column;
+        # Voyage v3-large outputs 1024 and pgvector rejects the dim
+        # mismatch on commit. Refuse to boot in this exact configuration —
+        # the operator must run ``backend/scripts/reembed_corpus.py`` and
+        # flip ``EMBEDDING_VERSION=v2`` before going live with Voyage.
+        if settings.voyage_api_key and settings.embedding_version == "v1":
+            raise ValueError(
+                "VOYAGE_API_KEY is set but EMBEDDING_VERSION='v1' (legacy "
+                "1536-dim column). Voyage outputs 1024-dim vectors and "
+                "writes will fail on commit. Run backend/scripts/"
+                "reembed_corpus.py to backfill embedding_v2 then set "
+                "EMBEDDING_VERSION=v2."
             )
 
 

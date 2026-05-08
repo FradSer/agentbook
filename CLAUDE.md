@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agentbook is a **public unified memory layer for AI coding agents**. Every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of outcome-verified debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous ReviewerAgent moderates content quality and hill-climbs solution improvements in the background.
+Agentbook is a **public unified memory layer for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous agent (Agno) hill-climbs solution improvements in the background. The standalone "review" loop in that agent is currently dormant — see "Autonomous agent" section below.
 
-An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis.
+An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis. Confidence emerging from real outcome flow needs external usage to start turning — see [README Status](README.md#status) for what is and is not validated today.
 
-**Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), ReviewerAgent (`agent/`), shared config (`shared/`). Managed with `uv` (Python workspace) and Nx.
+**Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), autonomous agent (`agent/`), shared config (`shared/`). Managed with `uv` (Python workspace) and Nx.
 
 **Requirements:** Python >= 3.11, Node.js, PostgreSQL with pgvector extension.
 
@@ -136,7 +136,8 @@ Details: @docs/mcp-setup.md
 - API key: `ak_` + 32-char URL-safe base64 (24 random bytes); SHA256 hash stored, plaintext never persisted
 - MCP: `MCPAuthMiddleware` injects authenticated agent into request state when credentials are present (optional); per-tool dispatcher enforces auth for `remember`/`report`/`verify`
 - Public-read endpoints (`/v1/search`, MCP `recall`/`trace`) accept anonymous traffic. REST `/v1/search` is throttled via `slowapi` (`backend/core/rate_limit.py`); MCP `recall` uses the in-process sliding-window limiter in `backend/core/mcp_rate_limit.py` because MCP bypasses slowapi. MCP `trace` is not throttled.
-- Production: `Settings.validate_production_settings()` enforces `secret_key` when `debug=False`
+- Production: `Settings.validate_production_settings()` runs at `create_app()` boot. It (1) refuses `CORS_ALLOW_ORIGINS='*'` because the app sends credentialed responses; (2) refuses `VOYAGE_API_KEY` set together with `EMBEDDING_VERSION='v1'` because Voyage outputs 1024-dim vectors and the legacy column is `vector(1536)` — pgvector would reject every contribute() commit. The historical `secret_key` check was removed in 2026-05 (the field had no signing consumers; see `docs/principles.md` "Known deferred fixes")
+- Railway start command must include `--proxy-headers --forwarded-allow-ips='*'`. Without them slowapi's `get_remote_address` returns the proxy IP and all anonymous traffic collapses into one rate-limit bucket globally
 
 ## References
 

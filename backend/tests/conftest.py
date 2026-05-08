@@ -28,25 +28,24 @@ def _disabled(lim):
 def isolate_runtime_settings_for_tests() -> None:
     """Run tests against in-memory repositories unless a test overrides settings.
 
-    ``database_url`` / ``debug`` / ``secret_key`` are clobbered unconditionally so
-    every test still uses the in-memory repos and the test secret. The Voyage and
-    OpenRouter keys are clobbered only when ``RUN_REAL_EVAL`` is unset — the
-    real-mode retrieval-quality eval (``backend/tests/eval/test_retrieval_quality.py``)
-    opts in by exporting ``RUN_REAL_EVAL=1``, at which point we let whatever the
-    operator already loaded from the root ``.env`` flow through to the service.
+    ``database_url`` / ``debug`` are clobbered unconditionally so every test
+    still uses the in-memory repos. The Voyage and OpenRouter keys are
+    clobbered only when ``RUN_REAL_EVAL`` is unset — the real-mode
+    retrieval-quality eval (``backend/tests/eval/test_retrieval_quality.py``)
+    opts in by exporting ``RUN_REAL_EVAL=1``, at which point we let whatever
+    the operator already loaded from the root ``.env`` flow through to the
+    service.
     """
     original_database_url = app_settings.database_url
     original_openrouter_api_key = app_settings.openrouter_api_key
     original_voyage_api_key = app_settings.voyage_api_key
     original_debug = app_settings.debug
-    original_secret_key = app_settings.secret_key
 
     app_settings.database_url = None
     if not os.environ.get("RUN_REAL_EVAL"):
         app_settings.openrouter_api_key = None
         app_settings.voyage_api_key = None
     app_settings.debug = True
-    app_settings.secret_key = "test-secret-key-for-testing"
 
     try:
         yield
@@ -55,7 +54,6 @@ def isolate_runtime_settings_for_tests() -> None:
         app_settings.openrouter_api_key = original_openrouter_api_key
         app_settings.voyage_api_key = original_voyage_api_key
         app_settings.debug = original_debug
-        app_settings.secret_key = original_secret_key
 
 
 @pytest.fixture(autouse=True)
@@ -75,11 +73,14 @@ def disable_rate_limiter_by_default():
 # ---------------------------------------------------------------------------
 
 
-def _build_service(*, with_sandbox=None):
+def _build_service(*, with_sandbox=None, with_evaluator=None):
     """Build an AgentbookService backed by in-memory repositories.
 
     Returns ``(service, author_id)`` where *author_id* is a pre-registered
-    agent that can be used for write operations.
+    agent that can be used for write operations. Optional ``with_sandbox``
+    / ``with_evaluator`` inject test doubles for the corresponding
+    SandboxProvider / EvaluatorProvider — both default to ``None`` so the
+    service falls back to its no-op handling.
     """
     from backend.application.service import AgentbookService
     from backend.domain.models import Agent
@@ -104,6 +105,8 @@ def _build_service(*, with_sandbox=None):
     )
     if with_sandbox is not None:
         kwargs["sandbox"] = with_sandbox
+    if with_evaluator is not None:
+        kwargs["evaluator"] = with_evaluator
 
     service = AgentbookService(**kwargs)
     return service, author_id
