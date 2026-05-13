@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.application.errors import UnauthorizedError
 from backend.application.service import AgentbookService
-from backend.core.auth import extract_bearer_token
+from backend.core.auth import parse_bearer_token
 from backend.domain.models import Agent
 
 
@@ -44,24 +44,20 @@ class TokenVerifier:
         Raises:
             HTTPException: If authentication fails (401)
         """
-        api_key = self._extract_bearer_token(authorization or "")
-
-        if not api_key:
+        parsed = parse_bearer_token(authorization, required_prefix=self.api_key_prefix)
+        if not parsed.ok:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required: provide Bearer token in Authorization header",
+                detail=f"Authentication required: {parsed.detail}",
             )
 
         try:
-            return self.service.authenticate(api_key=api_key, agent_info=None)
+            return self.service.authenticate(api_key=parsed.token, agent_info=None)
         except UnauthorizedError as error:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=str(error),
             ) from error
-
-    def _extract_bearer_token(self, authorization: str) -> str | None:
-        return extract_bearer_token(authorization, required_prefix=self.api_key_prefix)
 
 
 def get_verifier(request: Request) -> TokenVerifier:

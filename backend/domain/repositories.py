@@ -12,6 +12,9 @@ from backend.domain.models import (
     ResearchCycle,
     Solution,
 )
+from backend.domain.search import (
+    SearchDiagnostics,  # noqa: TC001  (used in Protocol annotation)
+)
 
 
 class AgentRepository(Protocol):
@@ -43,6 +46,31 @@ class ProblemRepository(Protocol):
         query_text: str,
         limit: int,
     ) -> list[tuple[Problem, float]]: ...
+
+    def find_hybrid_with_diagnostics(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> tuple[list[tuple[Problem, float]], SearchDiagnostics]:
+        """Same as ``find_hybrid``, but also reports which legs ran.
+
+        The application layer uses the carrier to derive a
+        ``search_mode`` label on the response so calling agents can
+        detect when retrieval silently degraded (e.g. pgvector
+        unavailable, dense leg empty, fallback served the row).
+        """
+        ...
+
+    def retrieval_status(self) -> tuple[str, bool]:
+        """Report ``(backend, pgvector_available)`` without issuing a search.
+
+        Used by the health endpoint so a Railway pgvector outage shows
+        up in monitoring even before a search would have surfaced the
+        degradation. Cheap by contract — implementations must not run
+        the hybrid pipeline.
+        """
+        ...
 
     def find_by_error_signature(self, signature: str) -> Problem | None: ...
 
@@ -127,6 +155,22 @@ class SolutionRepository(Protocol):
 
 class OutcomeRepository(Protocol):
     def add(self, outcome: Outcome) -> None: ...
+
+    def upsert(self, outcome: Outcome) -> tuple[Outcome, bool]:
+        """Insert or update an outcome by ``(solution_id, reporter_id)``.
+
+        When a row for the same pair already exists, its mutable fields
+        (``success``, ``kind``, ``weight``, ``environment``, ``notes``,
+        ``time_saved_seconds``, ``error_after``, ``created_at``) are
+        replaced with the incoming outcome's values. The original
+        ``outcome_id`` is retained so external references stay stable.
+
+        Returns ``(persisted, inserted)`` where ``inserted`` is True
+        when a new row was created and False when an existing row was
+        updated — callers use the flag to know whether to bump
+        outcome-counter aggregates.
+        """
+        ...
 
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]: ...
 

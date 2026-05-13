@@ -12,6 +12,7 @@ from backend.domain.models import (
     ResearchCycle,
     Solution,
 )
+from backend.domain.search import SearchDiagnostics
 from backend.infrastructure.persistence.vector_utils import cosine_similarity
 
 
@@ -81,6 +82,22 @@ class InMemoryProblemRepository:
         query_text: str,
         limit: int,
     ) -> list[tuple[Problem, float]]:
+        results, _ = self.find_hybrid_with_diagnostics(
+            query_embedding=query_embedding,
+            query_text=query_text,
+            limit=limit,
+        )
+        return results
+
+    def retrieval_status(self) -> tuple[str, bool]:
+        return ("memory", False)
+
+    def find_hybrid_with_diagnostics(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> tuple[list[tuple[Problem, float]], SearchDiagnostics]:
         from backend.domain.search import rrf_fuse
 
         approved = [p for p in self._problems.values() if p.review_status == "approved"]
@@ -116,9 +133,15 @@ class InMemoryProblemRepository:
             with_overlap.sort(key=lambda item: item[1], reverse=True)
             sparse = [p for p, _ in with_overlap]
 
+        diagnostics = SearchDiagnostics(
+            backend="memory",
+            pgvector_available=False,
+            dense_hits=len(dense),
+            sparse_hits=len(sparse),
+        )
         if not dense and not sparse:
-            return []
-        return rrf_fuse([dense, sparse], k=60, limit=limit)
+            return [], diagnostics
+        return rrf_fuse([dense, sparse], k=60, limit=limit), diagnostics
 
     def find_by_error_signature(self, signature: str) -> Problem | None:
         for problem in self._problems.values():
@@ -266,6 +289,33 @@ class InMemoryOutcomeRepository:
 
     def add(self, outcome: Outcome) -> None:
         self._outcomes.append(outcome)
+
+    def upsert(self, outcome: Outcome) -> tuple[Outcome, bool]:
+        for idx, existing in enumerate(self._outcomes):
+            if (
+                existing.solution_id == outcome.solution_id
+                and existing.reporter_id == outcome.reporter_id
+            ):
+                # Preserve the original outcome_id — external references
+                # (logs, tickets, lineage) point at it. Only replace the
+                # mutable signal fields.
+                merged = Outcome(
+                    outcome_id=existing.outcome_id,
+                    solution_id=outcome.solution_id,
+                    reporter_id=outcome.reporter_id,
+                    success=outcome.success,
+                    kind=outcome.kind,
+                    weight=outcome.weight,
+                    environment=outcome.environment,
+                    notes=outcome.notes,
+                    time_saved_seconds=outcome.time_saved_seconds,
+                    error_after=outcome.error_after,
+                    created_at=outcome.created_at,
+                )
+                self._outcomes[idx] = merged
+                return merged, False
+        self._outcomes.append(outcome)
+        return outcome, True
 
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.solution_id == solution_id]

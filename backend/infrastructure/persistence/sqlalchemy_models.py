@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     TypeDecorator,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -205,10 +206,20 @@ class OutcomeORM(Base):
     # ``2026_05_05_outcome_kind_not_null_with_check.py``. Declaring it
     # at the ORM level so SQLite-backed unit tests also reject forged
     # kind values and the constraint travels with the model definition.
+    # ``uq_outcome_reporter_solution`` enforces v6's anti-inflation rule
+    # at the database layer: the same reporter cannot vote twice on the
+    # same solution. Installed by migration
+    # ``p1q2r3s4t5u6_outcome_reporter_solution_unique`` and surfaced here
+    # so SQLite-backed unit tests pick the same constraint up.
     __table_args__ = (
         CheckConstraint(
             "kind IN ('verified', 'observed')",
             name="outcomes_kind_check",
+        ),
+        UniqueConstraint(
+            "solution_id",
+            "reporter_id",
+            name="uq_outcome_reporter_solution",
         ),
     )
 

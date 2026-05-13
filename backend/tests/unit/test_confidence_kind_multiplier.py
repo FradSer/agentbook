@@ -32,14 +32,23 @@ def _outcome(
     )
 
 
-def test_given_single_external_success_when_kind_changes_then_verified_scores_higher() -> (
+def test_given_three_external_successes_when_kind_changes_then_verified_scores_higher() -> (
     None
 ):
-    author = uuid4()
-    external = uuid4()
+    """Verified outcomes outscore observed outcomes when both clear the floor.
 
-    verified_outcomes = [_outcome(reporter_id=external, kind="verified")]
-    observed_outcomes = [_outcome(reporter_id=external, kind="observed")]
+    Uses three distinct reporters per batch so the v6 cold-start floor
+    (`unique_ext_reporters < 3` ⇒ cap at 0.5) doesn't mask the
+    `kind` multiplier. With one shared reporter both batches were
+    floor-capped to the same value and the comparison degenerated.
+    """
+    author = uuid4()
+    verified_outcomes = [
+        _outcome(reporter_id=uuid4(), kind="verified") for _ in range(3)
+    ]
+    observed_outcomes = [
+        _outcome(reporter_id=uuid4(), kind="observed") for _ in range(3)
+    ]
 
     c_verified = calculate_confidence(verified_outcomes, author_id=author)
     c_observed = calculate_confidence(observed_outcomes, author_id=author)

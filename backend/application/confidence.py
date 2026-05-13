@@ -4,10 +4,16 @@ import math
 from uuid import UUID
 
 from backend.application._frozen_policy import frozen_policy
+from backend.application.clustering import SANDBOX_AGENT_ID
 from backend.domain.models import Outcome, Solution, utc_now
 
+# v6 caps. See docs/confidence-changelog.md ## v6 for the rationale.
+COLD_START_MIN_REPORTERS = 3
+COLD_START_FLOOR = 0.5
+SANDBOX_ONLY_CEILING = 0.6
 
-@frozen_policy("v5")
+
+@frozen_policy("v6")
 def calculate_confidence(
     outcomes: list[Outcome],
     author_id: UUID,
@@ -70,6 +76,25 @@ def calculate_confidence(
 
     prior_weight = 0.8 / total
     confidence = (sum_sv_w + baseline * prior_weight) / (sum_w + prior_weight)
+
+    # v6 caps applied last so they can't be circumvented by feeding an
+    # inflated num_effective_reporters in. Both caps are upper bounds
+    # only — failure signals stay free to drive confidence below 0.5.
+    if unique_ext_reporters < COLD_START_MIN_REPORTERS:
+        confidence = min(confidence, COLD_START_FLOOR)
+
+    has_sandbox_verified = False
+    external_observed_corroboration = False
+    for o in outcomes:
+        if o.reporter_id == SANDBOX_AGENT_ID:
+            if o.kind == "verified":
+                has_sandbox_verified = True
+        elif o.reporter_id != author_id and o.kind == "observed" and o.success:
+            external_observed_corroboration = True
+        if has_sandbox_verified and external_observed_corroboration:
+            break
+    if has_sandbox_verified and not external_observed_corroboration:
+        confidence = min(confidence, SANDBOX_ONLY_CEILING)
 
     return max(0.0, min(1.0, confidence))
 

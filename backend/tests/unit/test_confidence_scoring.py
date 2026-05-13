@@ -51,9 +51,18 @@ def make_outcome(
     weight: float = 1.0,
     days_ago: int = 0,
 ) -> Outcome:
+    """Build an outcome.
+
+    ``reporter_id`` defaults to a fresh ``uuid4()`` so that constructing
+    N outcomes without overriding the reporter expresses what these
+    tests actually mean — N distinct external reporters. The pre-v6
+    default re-used ``EXTERNAL_ID`` for every call, which silently
+    became a single-reporter dataset and inflated the score past the
+    v6 cold-start floor.
+    """
     o = Outcome(
         solution_id=SOLUTION_ID,
-        reporter_id=reporter_id if reporter_id is not None else EXTERNAL_ID,
+        reporter_id=reporter_id if reporter_id is not None else uuid4(),
         success=success,
         weight=weight,
     )
@@ -88,11 +97,15 @@ def test_all_failures_returns_value_close_to_0() -> None:
 # Self-report weighting
 
 
-def test_external_single_success_confidence_above_half() -> None:
-    """1 external success -> confidence > 0.5."""
+def test_external_single_success_confidence_at_cold_start_floor() -> None:
+    """1 external success -> capped at the v6 cold-start floor (0.5).
+
+    Pre-v6 returned ~0.689 here. The cap exists because a single
+    reporter (whether genuine or sybil) is not consensus.
+    """
     outcomes = [make_outcome(reporter_id=EXTERNAL_ID, success=True)]
     result = calculate_confidence(outcomes, AUTHOR_ID)
-    assert result > 0.5
+    assert result == pytest.approx(0.5, abs=1e-6)
 
 
 def test_self_report_single_success_confidence_below_half() -> None:
@@ -114,10 +127,14 @@ def test_self_report_carries_less_weight_than_external() -> None:
 # Recency decay
 
 
-def test_recent_outcome_decays_less_than_old_outcome() -> None:
-    """An outcome from today contributes more than one from 270 days ago."""
-    recent = [make_outcome(success=True, days_ago=0)]
-    old = [make_outcome(success=True, days_ago=270)]
+def test_recent_outcomes_decay_less_than_old_outcomes() -> None:
+    """3 fresh successes outrank 3 270-day-old successes.
+
+    Three distinct reporters in each batch keep the comparison above
+    the v6 cold-start floor so the cap doesn't mask the decay signal.
+    """
+    recent = [make_outcome(success=True, days_ago=0) for _ in range(3)]
+    old = [make_outcome(success=True, days_ago=270) for _ in range(3)]
     assert calculate_confidence(recent, AUTHOR_ID) > calculate_confidence(
         old, AUTHOR_ID
     )
@@ -135,17 +152,20 @@ def test_270_day_old_outcome_has_negligible_contribution() -> None:
     assert result < 0.35
 
 
-def test_90_day_old_outcome_applies_exp_minus_1_decay() -> None:
-    """An outcome 90 days ago should still move the score away from baseline.
+def test_90_day_old_outcomes_apply_exp_minus_1_decay() -> None:
+    """3 90-day-old successes still beat baseline but trail 3 fresh successes.
 
-    exp(-1) ≈ 0.368 decay means the outcome is weighted at ~36.8% of its
-    original value -- still enough to push confidence above 0.3.
+    exp(-1) ≈ 0.368 decay on each outcome's weight. Three distinct
+    reporters in both batches keep the comparison above the v6
+    cold-start floor.
     """
-    outcome_90d = [make_outcome(success=True, days_ago=90)]
-    result = calculate_confidence(outcome_90d, AUTHOR_ID)
-    # Should be above the no-outcome baseline of 0.3 but less than a fresh outcome
+    outcomes_90d = [make_outcome(success=True, days_ago=90) for _ in range(3)]
+    result = calculate_confidence(outcomes_90d, AUTHOR_ID)
     assert result > 0.3
-    fresh = calculate_confidence([make_outcome(success=True, days_ago=0)], AUTHOR_ID)
+    fresh = calculate_confidence(
+        [make_outcome(success=True, days_ago=0) for _ in range(3)],
+        AUTHOR_ID,
+    )
     assert result < fresh
 
 

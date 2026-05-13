@@ -92,6 +92,39 @@ def _api_error(
     return payload
 
 
+# Default retry window when the throttler can't supply a precise hint.
+# 60s mirrors the smallest configured window (per-minute search).
+_DEFAULT_RETRY_AFTER_SECONDS = 60
+
+
+def _retry_after_from_slowapi(exc: RateLimitExceeded) -> int:
+    """Read the bucket reset window straight off the slowapi exception.
+
+    ``exc.limit`` is the slowapi ``LimitWrapper``; its ``.limit`` is the
+    underlying ``limits.RateLimitItem``, whose ``get_expiry()`` is the
+    canonical seconds-per-window. Falls back to the default when an
+    exotic slowapi internal layout removes that path.
+    """
+    try:
+        return max(1, int(exc.limit.limit.get_expiry()))
+    except (AttributeError, TypeError, ValueError):
+        return _DEFAULT_RETRY_AFTER_SECONDS
+
+
+def _rate_limited_response(*, message: str, retry_after: int) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content=_api_error(
+            code="rate_limited",
+            message=message,
+            retryable=True,
+            action="retry_after_delay",
+            details={"retry_after_seconds": retry_after},
+        ),
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
 def _http_error_code(status_code: int) -> tuple[str, bool, str]:
     if status_code == 401:
         return "unauthorized", False, "provide_valid_api_key"
@@ -121,14 +154,9 @@ def _install_domain_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RateLimitError)
     async def _rate_limited(request: Request, exc: RateLimitError) -> JSONResponse:
-        return JSONResponse(
-            status_code=429,
-            content=_api_error(
-                code="rate_limited",
-                message=str(exc),
-                retryable=True,
-                action="retry_after_delay",
-            ),
+        return _rate_limited_response(
+            message=str(exc),
+            retry_after=exc.retry_after_seconds or _DEFAULT_RETRY_AFTER_SECONDS,
         )
 
     @app.exception_handler(UnauthorizedError)
@@ -176,14 +204,9 @@ def _install_domain_error_handlers(app: FastAPI) -> None:
     async def _slowapi_rate_limited(
         request: Request, exc: RateLimitExceeded
     ) -> JSONResponse:
-        return JSONResponse(
-            status_code=429,
-            content=_api_error(
-                code="rate_limited",
-                message=str(exc.detail),
-                retryable=True,
-                action="retry_after_delay",
-            ),
+        return _rate_limited_response(
+            message=str(exc.detail),
+            retry_after=_retry_after_from_slowapi(exc),
         )
 
 

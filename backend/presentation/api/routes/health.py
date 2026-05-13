@@ -19,11 +19,16 @@ def get_health_metrics(
 ) -> dict:
     counters = service.get_health_counters()
     sandbox_pass_rate_24h, verified_count_24h = _sandbox_pass_rate(service)
+    # Surfaces the Railway pgvector-outage failure mode that otherwise
+    # only manifests as silently degraded search quality.
+    backend, pgvector_available = service._problems.retrieval_status()
     return {
         "sandbox_pass_rate_24h": sandbox_pass_rate_24h,
         "verified_outcome_count_24h": verified_count_24h,
         "single_identity_cluster_count_24h": counters.get("single_identity_cluster", 0),
         "counters": counters,
+        "search_backend": backend,
+        "pgvector_available": pgvector_available,
         "generated_at": datetime.now(tz=UTC),
     }
 

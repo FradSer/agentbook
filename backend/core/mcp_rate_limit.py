@@ -12,6 +12,7 @@ same caveat as the slowapi default.
 
 from __future__ import annotations
 
+import math
 import time
 from collections import OrderedDict, deque
 from threading import Lock
@@ -70,6 +71,28 @@ class MCPRateLimiter:
         with self._lock:
             self._buckets.clear()
 
+    def retry_after(self, key: str) -> int:
+        """Seconds until ``key`` can hit again.
+
+        Returns 0 when the bucket has room (caller should not have asked).
+        Otherwise returns the seconds until the oldest hit ages out of the
+        sliding window, floored to 1 — advising 0 to a throttled caller
+        just re-trips the bucket and is the entire reason this method
+        exists.
+        """
+        if not self.enabled:
+            return 0
+        with self._lock:
+            bucket = self._buckets.get(key)
+            if bucket is None or len(bucket) < self.max_calls:
+                return 0
+            oldest = bucket[0]
+            remaining = self._window - (time.monotonic() - oldest)
+            if remaining <= 0:
+                return 0
+            # Floor of 1s — advising 0 to a throttled caller just re-trips.
+            return max(1, math.ceil(remaining))
+
 
 # MCP key formatter is intentionally identical to REST's. Both surfaces
 # must produce the same key for a given caller (the limiters keep
@@ -81,6 +104,15 @@ mcp_rate_key = format_rate_key
 mcp_search_limiter = MCPRateLimiter(max_calls=30, window_seconds=60)
 # Authenticated agents get a higher quota to support batch debugging.
 mcp_search_limiter_auth = MCPRateLimiter(max_calls=300, window_seconds=60)
+
+# `verify` is synchronous and blocks the MCP request for the duration
+# of the sandbox run (Docker pull + python execution, easily multi-second).
+# Without an explicit per-agent throttle independent of the sandbox
+# budget, a single agent can monopolise all 8 sandbox slots and starve
+# every other caller's improve / verify path. 5/min is the smallest
+# limit that still lets a real debug loop verify a candidate, retry on
+# transient flake, and re-verify after a fix in the same minute.
+mcp_verify_limiter = MCPRateLimiter(max_calls=5, window_seconds=60)
 
 
 def pick_mcp_search_limiter(agent: Agent | None) -> MCPRateLimiter:

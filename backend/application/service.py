@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
+    from backend.domain.search import SearchMode
 
 from backend.application.clustering import detect_clusters
 from backend.application.confidence import (
@@ -104,6 +105,29 @@ def _increment_outcome_counters(solution: Solution, success: bool) -> None:
         solution.success_count += 1
     else:
         solution.failure_count += 1
+
+
+def _provenance_from_outcomes(solution: Solution, outcomes: list[Outcome]) -> dict:
+    """Snapshot the inputs that produced ``solution.confidence``.
+
+    Distinguishes a real Bayesian estimate from a seed value or a
+    single observation. ``has_seed_override`` is True iff the
+    persisted confidence diverges from baseline despite zero outcomes
+    — the only realistic shape demo / migration data takes; recomputing
+    the full Bayesian on the read path was the alternative and
+    multiplied search latency.
+    """
+    unique_reporters = len(
+        {o.reporter_id for o in outcomes if o.reporter_id != solution.author_id}
+    )
+    verified_n = sum(1 for o in outcomes if o.kind == "verified")
+    has_seed_override = not outcomes and abs(solution.confidence - 0.3) > 0.05
+    return {
+        "outcomes_n": len(outcomes),
+        "unique_reporters": unique_reporters,
+        "verified_n": verified_n,
+        "has_seed_override": has_seed_override,
+    }
 
 
 def _normalize_search_text(text: str) -> str:
@@ -319,7 +343,7 @@ class AgentbookService:
         cached = self._search_cache.get(cache_key)
         if cached is not None:
             return cached
-        rows = self._search_problems(
+        rows, search_mode = self._search_problems(
             query=query,
             limit=limit,
             error_log=error_log,
@@ -330,6 +354,7 @@ class AgentbookService:
             "results": rows,
             "total": len(rows),
             "no_good_match": len(rows) == 0,
+            "search_mode": search_mode,
         }
         self._search_cache.set(cache_key, payload)
         return payload
@@ -341,7 +366,24 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
-    ) -> list[dict]:
+    ) -> tuple[list[dict], SearchMode]:
+        """Execute the layered retrieval pipeline.
+
+        Returns ``(rows, search_mode)`` where ``search_mode`` names the
+        path that actually served the result so callers — agents, MCP
+        clients, monitoring — can detect silent quality regression
+        (e.g. pgvector unavailable, dense leg empty, in-process keyword
+        scan recovering the row).
+
+        Mode precedence on success:
+            ``hybrid``          — both dense and sparse legs contributed
+            ``vector_only``     — only the dense leg matched
+            ``lexical_only``    — only the sparse leg matched (or pgvector down)
+            ``keyword_fallback``— in-process keyword scan recovered a row
+            ``in_memory_scan``  — InMemory backend (DEMO_MODE / no DB)
+            ``no_match``        — every retrieval path returned empty
+        """
+        from backend.domain.search import SearchDiagnostics
 
         search_text = self._compose_search_text(query=query, error_log=error_log)
         normalized_query = search_text.lower()
@@ -371,8 +413,17 @@ class AgentbookService:
         for problem in self._exact_error_signature_candidates(search_text):
             add_candidate(problem, 0.0)
 
+        diagnostics = SearchDiagnostics(
+            backend="unavailable",
+            pgvector_available=False,
+            dense_hits=0,
+            sparse_hits=0,
+        )
+        keyword_fallback_used = False
+        semantic_fallback_dense_hits = 0
+
         if query_embedding is not None or normalized_query:
-            hybrid = self._problems.find_hybrid(
+            hybrid, diagnostics = self._problems.find_hybrid_with_diagnostics(
                 query_embedding=query_embedding,
                 query_text=normalized_query,
                 limit=max(limit * 2, 20),
@@ -381,9 +432,20 @@ class AgentbookService:
                 add_candidate(problem, score)
 
         if not rows_by_id and query_embedding is not None:
-            semantic = self._problems.find_similar_scored(query_embedding)
-            for problem, score in semantic:
+            for problem, score in self._problems.find_similar_scored(query_embedding):
                 add_candidate(problem, score)
+                semantic_fallback_dense_hits += 1
+
+        if semantic_fallback_dense_hits:
+            # find_similar_scored is the dense-only fallback — fold its
+            # contribution back into the diagnostics so the mode
+            # classifier sees a non-zero dense leg.
+            diagnostics = SearchDiagnostics(
+                backend=diagnostics.backend,
+                pgvector_available=diagnostics.pgvector_available,
+                dense_hits=diagnostics.dense_hits + semantic_fallback_dense_hits,
+                sparse_hits=diagnostics.sparse_hits,
+            )
 
         if not rows_by_id:
             query_terms = self._extract_terms(normalized_query)
@@ -395,6 +457,7 @@ class AgentbookService:
                     if not any(term in desc_lower for term in query_terms):
                         continue
                 add_candidate(problem, 0.2)
+                keyword_fallback_used = True
 
         rows = list(rows_by_id.values())
         # Phase 2 reranking: apply the cross-encoder to the top
@@ -418,7 +481,45 @@ class AgentbookService:
             for row in rows:
                 self._enrich_search_row(row, include)
 
-        return rows
+        search_mode = self._classify_search_mode(
+            diagnostics=diagnostics,
+            keyword_fallback_used=keyword_fallback_used,
+            rows=rows,
+        )
+        return rows, search_mode
+
+    @staticmethod
+    def _classify_search_mode(
+        *,
+        diagnostics,
+        keyword_fallback_used: bool,
+        rows: list[dict],
+    ) -> SearchMode:
+        """Map low-level retrieval signals into the user-facing label.
+
+        The precedence is documented above ``_search_problems`` — keep
+        them aligned. ``in_memory_scan`` wins regardless of which leg
+        served the row because that backend is an architectural fact
+        the operator needs to see; the dense/sparse split inside it is
+        secondary.
+        """
+        if not rows:
+            return "no_match"
+        if diagnostics.backend == "memory":
+            return "in_memory_scan"
+        if keyword_fallback_used:
+            return "keyword_fallback"
+        if diagnostics.dense_hits > 0 and diagnostics.sparse_hits > 0:
+            return "hybrid"
+        if diagnostics.dense_hits > 0:
+            return "vector_only"
+        if diagnostics.sparse_hits > 0:
+            return "lexical_only"
+        # Rows came from the exact-error-signature path — neither hybrid
+        # leg fired but we still surfaced a row from a deterministic
+        # lookup. Label it lexical-flavoured so the agent treats it as
+        # signature-matched rather than an embedding hit.
+        return "lexical_only"
 
     def _row_from_problem(
         self,
@@ -1088,11 +1189,13 @@ class AgentbookService:
             return None
         best = max(approved, key=lambda s: s.confidence)
         content_preview = best.content if full else best.content[:200]
+        outcomes = self._outcomes.list_by_solution(best.solution_id)
         return {
             "solution_id": str(best.solution_id),
             "confidence": best.confidence,
             "content_preview": content_preview,
             "outcome_count": best.outcome_count,
+            "confidence_provenance": _provenance_from_outcomes(best, outcomes),
         }
 
     # --- Problem/Solution/Outcome methods ---
@@ -1256,27 +1359,56 @@ class AgentbookService:
         if solution is None:
             raise NotFoundError(f"Solution {solution_id} not found")
 
-        since = datetime.now(tz=UTC) - timedelta(hours=_RATE_WINDOW_HOURS)
+        now = datetime.now(tz=UTC)
+        since = now - timedelta(hours=_RATE_WINDOW_HOURS)
         if self._outcomes.count_by_reporter(reporter_id, since=since) >= _RATE_LIMIT:
-            raise RateLimitError("Rate limit exceeded: max 10 outcomes per hour")
+            # Wait until the oldest in-window outcome ages out of the
+            # bucket. Without this hint clients fall back to the 60s
+            # default and immediately retrip a 1-hour bucket.
+            in_window = [
+                o
+                for o in self._outcomes.list_by_reporter(reporter_id)
+                if o.created_at >= since
+            ]
+            oldest = min(in_window, key=lambda o: o.created_at)
+            retry_after = max(
+                1,
+                int(
+                    (
+                        oldest.created_at + timedelta(hours=_RATE_WINDOW_HOURS) - now
+                    ).total_seconds()
+                ),
+            )
+            raise RateLimitError(
+                f"Rate limit exceeded: max {_RATE_LIMIT} outcomes per "
+                f"{_RATE_WINDOW_HOURS} hour",
+                retry_after_seconds=retry_after,
+            )
 
         weight = 0.5 if (notes and "partial" in notes.lower()) else 1.0
         kind: OutcomeKind = (
             "verified" if reporter_id == SANDBOX_AGENT_ID else "observed"
         )
 
-        outcome = Outcome(
-            solution_id=solution_id,
-            reporter_id=reporter_id,
-            success=success,
-            kind=kind,
-            environment=environment,
-            notes=notes,
-            time_saved_seconds=time_saved_seconds,
-            weight=weight,
+        # Upsert by (solution_id, reporter_id): the OutcomeRepository
+        # enforces uniqueness on that pair so the same agent cannot
+        # vote twice and inflate the Bayesian estimate. A re-report
+        # refreshes the recency factor and lets the caller flip
+        # success/notes, but it does not multiply.
+        outcome, inserted = self._outcomes.upsert(
+            Outcome(
+                solution_id=solution_id,
+                reporter_id=reporter_id,
+                success=success,
+                kind=kind,
+                environment=environment,
+                notes=notes,
+                time_saved_seconds=time_saved_seconds,
+                weight=weight,
+            )
         )
-        self._outcomes.add(outcome)
-        _increment_outcome_counters(solution, success)
+        if inserted:
+            _increment_outcome_counters(solution, success)
 
         all_outcomes = self._outcomes.list_by_solution(solution_id)
         num_effective = _count_effective_reporters(

@@ -8,7 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.core.config import settings as app_settings
-from backend.core.mcp_rate_limit import mcp_search_limiter, mcp_search_limiter_auth
+from backend.core.mcp_rate_limit import (
+    mcp_search_limiter,
+    mcp_search_limiter_auth,
+    mcp_verify_limiter,
+)
 from backend.core.rate_limit import limiter
 
 
@@ -63,6 +67,7 @@ def disable_rate_limiter_by_default():
         _disabled(limiter),
         _disabled(mcp_search_limiter),
         _disabled(mcp_search_limiter_auth),
+        _disabled(mcp_verify_limiter),
     ):
         yield
 
@@ -211,3 +216,16 @@ def enable_mcp_limiter():
     finally:
         mcp_search_limiter.enabled = original
         mcp_search_limiter.reset()
+
+
+@pytest.fixture()
+def enable_mcp_verify_limiter():
+    """Opt the test into MCP verify-tool per-agent rate-limit enforcement."""
+    original = mcp_verify_limiter.enabled
+    mcp_verify_limiter.enabled = True
+    mcp_verify_limiter.reset()
+    try:
+        yield
+    finally:
+        mcp_verify_limiter.enabled = original
+        mcp_verify_limiter.reset()

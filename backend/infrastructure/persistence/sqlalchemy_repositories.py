@@ -16,6 +16,7 @@ from backend.domain.models import (
     ResearchCycle,
     Solution,
 )
+from backend.domain.search import SearchDiagnostics
 from backend.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
     OutcomeORM,
@@ -179,6 +180,28 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
     )
 
 
+def _orm_from_outcome(outcome: Outcome) -> OutcomeORM:
+    """Build an ORM row from a domain Outcome.
+
+    Single source of truth for the column→field mapping so adding a
+    column doesn't have to be threaded through every write path
+    (``add``, ``upsert``, future bulk-loaders).
+    """
+    return OutcomeORM(
+        outcome_id=str(outcome.outcome_id),
+        solution_id=str(outcome.solution_id),
+        reporter_id=str(outcome.reporter_id),
+        success=outcome.success,
+        kind=outcome.kind,
+        environment=outcome.environment,
+        error_after=outcome.error_after,
+        time_saved_seconds=outcome.time_saved_seconds,
+        notes=outcome.notes,
+        weight=outcome.weight,
+        created_at=outcome.created_at,
+    )
+
+
 class SQLAlchemyProblemRepository:
     def __init__(self, session_factory: SessionFactory) -> None:
         self._session_factory = session_factory
@@ -296,17 +319,66 @@ class SQLAlchemyProblemRepository:
         query_text: str,
         limit: int,
     ) -> list[tuple[Problem, float]]:
+        results, _ = self.find_hybrid_with_diagnostics(
+            query_embedding=query_embedding,
+            query_text=query_text,
+            limit=limit,
+        )
+        return results
+
+    def retrieval_status(self) -> tuple[str, bool]:
+        """Report backend + pgvector availability without a search round-trip.
+
+        ``Vector is None`` means the pgvector Python adapter is not
+        installed; in that case the dense leg is permanently dark
+        regardless of what the database itself supports. Otherwise we
+        confirm pgvector is loaded server-side via ``pg_extension``.
+        """
+        if Vector is None:
+            return ("postgres", False)
+        with self._session_factory() as session:
+            if session.bind is None or session.bind.dialect.name != "postgresql":
+                return ("unavailable", False)
+            try:
+                installed = session.execute(
+                    select(func.count())
+                    .select_from(func.pg_extension())
+                    .where(func.text("extname = 'vector'"))
+                ).scalar_one()
+                return ("postgres", bool(installed))
+            except (ProgrammingError, OperationalError):
+                # pg_extension introspection is the canonical path; if it
+                # itself fails, the connection is too sick to call pgvector
+                # available regardless of adapter presence.
+                return ("postgres", False)
+
+    def find_hybrid_with_diagnostics(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> tuple[list[tuple[Problem, float]], SearchDiagnostics]:
         from backend.domain.search import rrf_fuse
 
         candidate_pool = max(limit, 50)
         dense: list[Problem] = []
         sparse: list[Problem] = []
+        # ``Vector is None`` means the pgvector adapter could not be
+        # imported (extension not installed in this environment). Without
+        # this signal the dense leg silently no-ops and the response
+        # looks identical to a normal hybrid hit.
+        pgvector_available = Vector is not None
 
         with self._session_factory() as session:
             if session.bind is None or session.bind.dialect.name != "postgresql":
-                return []
+                return [], SearchDiagnostics(
+                    backend="unavailable",
+                    pgvector_available=False,
+                    dense_hits=0,
+                    sparse_hits=0,
+                )
 
-            if query_embedding and Vector is not None:
+            if query_embedding and pgvector_available:
                 try:
                     column = self._active_embedding_column()
                     dense_stmt = (
@@ -323,7 +395,11 @@ class SQLAlchemyProblemRepository:
                         for row in session.execute(dense_stmt).scalars().all()
                     ]
                 except (ProgrammingError, OperationalError):
+                    # Extension was loadable as a Python adapter but the
+                    # database itself can't run cosine_distance — treat as
+                    # unavailable so the service can label it.
                     dense = []
+                    pgvector_available = False
 
             if query_text:
                 try:
@@ -350,9 +426,15 @@ class SQLAlchemyProblemRepository:
                 except (ProgrammingError, OperationalError):
                     sparse = []
 
+        diagnostics = SearchDiagnostics(
+            backend="postgres",
+            pgvector_available=pgvector_available,
+            dense_hits=len(dense),
+            sparse_hits=len(sparse),
+        )
         if not dense and not sparse:
-            return []
-        return rrf_fuse([dense, sparse], k=60, limit=limit)
+            return [], diagnostics
+        return rrf_fuse([dense, sparse], k=60, limit=limit), diagnostics
 
     def update(self, problem: Problem) -> None:
         """Update problem with optimistic locking."""
@@ -628,21 +710,41 @@ class SQLAlchemyOutcomeRepository:
 
     def add(self, outcome: Outcome) -> None:
         with self._session_factory() as session:
-            row = OutcomeORM(
-                outcome_id=str(outcome.outcome_id),
-                solution_id=str(outcome.solution_id),
-                reporter_id=str(outcome.reporter_id),
-                success=outcome.success,
-                kind=outcome.kind,
-                environment=outcome.environment,
-                error_after=outcome.error_after,
-                time_saved_seconds=outcome.time_saved_seconds,
-                notes=outcome.notes,
-                weight=outcome.weight,
-                created_at=outcome.created_at,
-            )
-            session.add(row)
+            session.add(_orm_from_outcome(outcome))
             session.commit()
+
+    def upsert(self, outcome: Outcome) -> tuple[Outcome, bool]:
+        """Update by ``(solution_id, reporter_id)`` if present, else insert.
+
+        Bound by the ``uq_outcome_reporter_solution`` UniqueConstraint
+        added in migration ``p1q2r3s4t5u6_outcome_reporter_solution_unique``;
+        this method is the only safe write path once that constraint is
+        live.
+        """
+        with self._session_factory() as session:
+            existing = (
+                session.query(OutcomeORM)
+                .filter(
+                    OutcomeORM.solution_id == str(outcome.solution_id),
+                    OutcomeORM.reporter_id == str(outcome.reporter_id),
+                )
+                .one_or_none()
+            )
+            if existing is None:
+                session.add(_orm_from_outcome(outcome))
+                session.commit()
+                return outcome, True
+
+            existing.success = outcome.success
+            existing.kind = outcome.kind
+            existing.weight = outcome.weight
+            existing.environment = outcome.environment
+            existing.notes = outcome.notes
+            existing.time_saved_seconds = outcome.time_saved_seconds
+            existing.error_after = outcome.error_after
+            existing.created_at = outcome.created_at
+            session.commit()
+            return _to_outcome_domain(existing), False
 
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         with self._session_factory() as session:
