@@ -260,22 +260,26 @@ def _seeded_service() -> tuple[AgentbookService, UUID, UUID]:
     return service, problem.problem_id, solution.solution_id
 
 
-class TestConfidenceProvenanceOnResponse:
-    def test_search_response_best_solution_carries_provenance(self) -> None:
+class TestConfidenceInputsOnSearchResponse:
+    def test_search_response_best_solution_carries_inputs(self) -> None:
         service, _, _ = _seeded_service()
         payload = service.search_problems(query="docker python", limit=5)
         assert payload["results"], "expected the seeded problem to surface"
         best = payload["results"][0]["best_solution"]
         assert best is not None
-        provenance = best.get("confidence_provenance")
-        assert provenance is not None, (
-            "Every confidence number in a response must come with a "
-            "provenance carrier so agents can distinguish a real "
+        inputs = best.get("confidence_inputs")
+        assert inputs is not None, (
+            "Every confidence number in a search response must be paired "
+            "with the raw outcome inputs so agents can distinguish a real "
             "Bayesian estimate from a seed-override."
         )
-        assert isinstance(provenance.get("outcomes_n"), int)
-        assert isinstance(provenance.get("unique_reporters"), int)
-        assert isinstance(provenance.get("verified_n"), int)
-        assert isinstance(provenance.get("has_seed_override"), bool)
-        assert provenance["outcomes_n"] >= 1
-        assert provenance["unique_reporters"] >= 1
+        assert isinstance(inputs.get("outcomes_n"), int)
+        assert isinstance(inputs.get("unique_reporters"), int)
+        assert isinstance(inputs.get("verified_n"), int)
+        assert isinstance(inputs.get("has_seed_override"), bool)
+        assert inputs["outcomes_n"] >= 1
+        assert inputs["unique_reporters"] >= 1
+        # The agentbook-view ``confidence_provenance`` field has a
+        # different shape (lineage/inheritance); the search payload's
+        # ``confidence_inputs`` must not collide with that namespace.
+        assert "confidence_provenance" not in best

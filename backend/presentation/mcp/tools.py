@@ -465,13 +465,11 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                 }
             )
         # Per-agent verify budget is independent of the sandbox slot
-        # pool — without it, a single agent can fan out verifies and
-        # starve every other caller's improve / verify path. The limit
-        # is keyed strictly by ``agent_id`` (no anonymous tier — verify
-        # is auth-only) so a multi-worker deployment sharing one key
-        # still gets one shared bucket; that's intentional and
-        # documented in the tool description.
-        verify_key = f"verify:{agent.agent_id}"
+        # pool — without it, a single agent can monopolise every slot
+        # and starve other callers. Keyed via the canonical formatter
+        # so a multi-worker deployment sharing one key gets one shared
+        # bucket; that's intentional, see the tool description.
+        verify_key = mcp_rate_key(agent, None)
         if not mcp_verify_limiter.hit(verify_key):
             return _json_response(
                 {

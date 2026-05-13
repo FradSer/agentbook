@@ -21,9 +21,12 @@ Feature: Confidence resists single-agent inflation and self-feeding
   on `calculate_confidence` is bumped to v6 and `docs/confidence-changelog.md`
   records the rationale.
 
-  Search responses additionally carry `confidence_provenance` so agents
+  Search responses additionally carry `confidence_inputs` so agents
   can distinguish "real Bayesian computation over N outcomes" from
-  "demo seed value" or "single observation".
+  "demo seed value" or "single observation". The field is named
+  distinctly from the lineage-shaped `confidence_provenance` on the
+  agentbook-view payload — both reach the same JSON namespace and
+  must not collide.
 
   Scenario: Same reporter reports twice — outcome row is upserted
     Given an agent reported success on a solution
@@ -60,8 +63,8 @@ Feature: Confidence resists single-agent inflation and self-feeding
     Then the calculate_confidence function carries frozen policy version "v6"
     And docs/confidence-changelog.md contains a "## v6" heading
 
-  Scenario: Search response carries confidence_provenance for each row
+  Scenario: Search response carries confidence_inputs for each row
     When a caller GETs /v1/search?q=<term> against the in-memory backend
-    Then each result's best_solution carries confidence_provenance
-    And the provenance has integer fields outcomes_n, unique_reporters, verified_n
-    And the provenance has a boolean has_seed_override field
+    Then each result's best_solution carries confidence_inputs
+    And the inputs have integer fields outcomes_n, unique_reporters, verified_n
+    And the inputs have a boolean has_seed_override field
