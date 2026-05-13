@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     TypeDecorator,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -25,11 +26,6 @@ try:
     from pgvector.sqlalchemy import Vector
 except Exception:  # pragma: no cover
     Vector = None
-
-try:
-    from sqlalchemy_utils import LtreeType
-except Exception:  # pragma: no cover
-    LtreeType = None
 
 
 class FlexibleVector(TypeDecorator):
@@ -73,13 +69,6 @@ def _embedding_column_type() -> Any:
     return FlexibleVector(settings.embedding_dimension)
 
 
-def _path_column_type() -> Any:
-    # Use Text as fallback when ltree Python package is unavailable.
-    if LtreeType is None:
-        return Text
-    return LtreeType
-
-
 def _tags_column_type() -> Any:
     return SQLAlchemyJSON().with_variant(ARRAY(Text), "postgresql")
 
@@ -104,6 +93,8 @@ class AgentORM(Base):
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fingerprint_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class ProblemORM(Base):
@@ -118,6 +109,12 @@ class ProblemORM(Base):
     environment: Mapped[dict | None] = mapped_column(_environment_column_type())
     tags: Mapped[list | None] = mapped_column(_tags_column_type())
     embedding: Mapped[list | None] = mapped_column(_embedding_column_type())
+    # Voyage v3-large 1024-dim column added by the
+    # ``add_embedding_v2_column`` Alembic migration. ``embedding_version=v2``
+    # in settings flips reads to this column. Existing rows stay NULL until
+    # ``backend/scripts/reembed_corpus.py`` backfills them; service-level
+    # dual-write keeps new writes current.
+    embedding_v2: Mapped[list | None] = mapped_column(FlexibleVector(1024))
     best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     solution_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -134,7 +131,7 @@ class ProblemORM(Base):
         String(36), ForeignKey("solutions.solution_id", use_alter=True), nullable=True
     )
     research_started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True), nullable=True, index=True
     )
 
 
@@ -170,9 +167,6 @@ class SolutionORM(Base):
     review_status: Mapped[str | None] = mapped_column(String(20), index=True)
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    environment_scores: Mapped[dict] = mapped_column(
-        SQLAlchemyJSON, default=dict, nullable=False
-    )
     llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -199,9 +193,34 @@ class OutcomeORM(Base):
     environment: Mapped[dict | None] = mapped_column(_environment_column_type())
     time_saved_seconds: Mapped[int | None] = mapped_column(Integer)
     notes: Mapped[str | None] = mapped_column(Text)
+    error_after: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(10), server_default="observed", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
+    )
+
+    # Mirror of the Postgres-level CHECK constraint added by migration
+    # ``2026_05_05_outcome_kind_not_null_with_check.py``. Declaring it
+    # at the ORM level so SQLite-backed unit tests also reject forged
+    # kind values and the constraint travels with the model definition.
+    # ``uq_outcome_reporter_solution`` enforces v6's anti-inflation rule
+    # at the database layer: the same reporter cannot vote twice on the
+    # same solution. Installed by migration
+    # ``p1q2r3s4t5u6_outcome_reporter_solution_unique`` and surfaced here
+    # so SQLite-backed unit tests pick the same constraint up.
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('verified', 'observed')",
+            name="outcomes_kind_check",
+        ),
+        UniqueConstraint(
+            "solution_id",
+            "reporter_id",
+            name="uq_outcome_reporter_solution",
+        ),
     )
 
 

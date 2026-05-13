@@ -1,6 +1,6 @@
 """End-to-end tests for the autonomous research loop (run_research_cycle).
 
-Validates the autoresearch (karpathy/autoresearch hill-climbing) pattern with:
+Validates the autoresearch hill-climbing pattern with:
 - 3 real iterations (service-level and full cycle-level)
 - External feedback (report_outcome from distinct reporters) between each iteration
 - Superseded-solution filtering in _build_research_prompt
@@ -14,36 +14,11 @@ import re
 from uuid import UUID, uuid4
 
 from backend.domain.models import Agent
+from backend.tests.conftest import _build_service
 
 
 def _make_service():
-    from backend.application.service import AgentbookService
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-
-    agents = InMemoryAgentRepository()
-    author_id = uuid4()
-    agents.add(
-        Agent(
-            api_key_hash="test-hash",
-            model_type="test",
-            agent_id=author_id,
-        )
-    )
-
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-    )
-    return service, author_id
+    return _build_service()
 
 
 def _add_external_reporter(service) -> UUID:
@@ -76,12 +51,10 @@ def _setup_problem_with_solution(service, author_id, confidence: float = 0.25):
     return p, s
 
 
-# ---------------------------------------------------------------------------
 # Service-level: 2 direct iterations
-# ---------------------------------------------------------------------------
 
 
-def test_iteration_1_cold_start_improvement():
+def test_given_cold_start_baseline_when_improving_solution_then_first_iteration_is_accepted():
     """Iteration 1: baseline below cold-start default (0.25 → 0.3) → accepted."""
     service, author_id = _make_service()
     p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
@@ -98,7 +71,7 @@ def test_iteration_1_cold_start_improvement():
     assert result["new_confidence"] > result["previous_confidence"]
 
 
-def test_iteration_2_after_bad_outcomes():
+def test_given_failures_after_first_improvement_when_improving_again_then_second_iteration_is_accepted():
     """Iteration 2: bad outcomes degrade confidence → second proposal accepted again.
 
     This validates the core autoresearch keep/discard loop:
@@ -152,10 +125,10 @@ def test_iteration_2_after_bad_outcomes():
     )
 
 
-def test_two_iterations_produce_correct_lineage():
-    """After 2 improvements, solution lineage should be 3 nodes deep: s1 → s2 → s3."""
+def test_given_two_accepted_improvements_when_reading_lineage_then_three_nodes_exist():
+    """After 2 improvements, solution lineage should be 3 nodes deep: s1 -> s2 -> s3."""
     service, author_id = _make_service()
-    p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
+    _, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
     result1 = service.improve_solution(
         solution_id=s1.solution_id,
@@ -185,13 +158,11 @@ def test_two_iterations_produce_correct_lineage():
 
     lineage = service.get_solution_lineage(s3_id)
     ids_in_lineage = [str(node["solution_id"]) for node in lineage]
-    assert str(s1.solution_id) in ids_in_lineage
-    assert str(s2_id) in ids_in_lineage
-    assert str(s3_id) in ids_in_lineage
     assert len(lineage) == 3
+    assert {str(s1.solution_id), str(s2_id), str(s3_id)} == set(ids_in_lineage)
 
 
-def test_good_outcomes_block_second_iteration():
+def test_given_many_successful_outcomes_when_improving_again_then_second_iteration_is_rejected():
     """After GOOD outcomes push confidence above 0.5, second iteration correctly returns no_improvement."""
     service, author_id = _make_service()
     p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
@@ -207,9 +178,11 @@ def test_good_outcomes_block_second_iteration():
     assert result1["status"] == "improved"
     s2_id = result1["solution_id"]
 
-    # 5 external successes push confidence above 0.5
-    reporter = _add_external_reporter(service)
+    # 5 distinct external successes push confidence above the v6
+    # cold-start floor (0.5). Re-using one reporter would upsert into
+    # a single row and cap the score at the floor.
     for _ in range(5):
+        reporter = _add_external_reporter(service)
         service.report_outcome(reporter_id=reporter, solution_id=s2_id, success=True)
 
     s2 = service._solutions.get(s2_id)
@@ -231,9 +204,7 @@ def test_good_outcomes_block_second_iteration():
     )
 
 
-# ---------------------------------------------------------------------------
 # run_research_cycle integration: mock agent calls real tools
-# ---------------------------------------------------------------------------
 
 
 class _ToolCallingAgent:
@@ -268,7 +239,7 @@ class _ToolCallingAgent:
         return "Status: no_improvement. No tool called."
 
 
-def test_run_research_cycle_iteration_1_improves():
+def test_given_mock_tool_calling_agent_when_running_research_cycle_then_first_cycle_improves():
     """run_research_cycle with a mock tool-calling agent reports 1 improvement."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
@@ -285,9 +256,8 @@ def test_run_research_cycle_iteration_1_improves():
     assert metrics["improved"] >= 1
 
 
-def test_run_research_cycle_two_iterations():
-    """Two consecutive run_research_cycle calls: iteration 1 improves, iteration 2 also improves
-    after bad outcomes degrade the first improvement."""
+def test_given_degradation_between_cycles_when_running_two_research_cycles_then_both_improve():
+    """Two consecutive run_research_cycle calls: both improve after degradation."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
 
@@ -297,7 +267,6 @@ def test_run_research_cycle_two_iterations():
     tools = get_researcher_tools(service)
     agent = _ToolCallingAgent(tools, always_improve=True)
 
-    # Iteration 1: cold-start improvement (cooldown_hours=0 so all approved problems are candidates)
     metrics1 = asyncio.run(run_research_cycle(agent, service, cooldown_hours=0))
     assert metrics1["improved"] >= 1, f"Iteration 1 should improve: {metrics1}"
 
@@ -331,15 +300,8 @@ def test_run_research_cycle_two_iterations():
     assert total_improved >= 2
 
 
-def test_three_iterations_with_external_feedback():
-    """3 full autoresearch iterations with distinct external reporters between each.
-
-    Iteration 1: cold-start improvement when prior confidence is below default (0.25 → 0.3)
-    External feedback 1: 5 failures from reporter1 → confidence degrades below 0.5
-    Iteration 2: degraded solution → second proposal accepted
-    External feedback 2: 5 failures from reporter2 → degrades again
-    Iteration 3: third proposal accepted, lineage is 4 nodes deep (s1→s2→s3→s4)
-    """
+def test_given_three_manual_iterations_with_external_feedback_when_improving_then_four_node_lineage_is_built():
+    """3 iterations with external failures between each builds a 4-node lineage."""
     service, author_id = _make_service()
     p, s1 = _setup_problem_with_solution(service, author_id, confidence=0.25)
 
@@ -426,16 +388,8 @@ def test_three_iterations_with_external_feedback():
     )
 
 
-def test_run_research_cycle_three_iterations():
-    """Three consecutive run_research_cycle calls, each with external feedback in between.
-
-    Validates the full autoresearch loop at the cycle level:
-    - Iteration 1: cold-start improvement
-    - External failures from reporter1 degrade the new best solution
-    - Iteration 2: degraded solution → improvement accepted
-    - External failures from reporter2 degrade the second-generation solution
-    - Iteration 3: third improvement accepted; total = 3 improvements across 3 cycle calls
-    """
+def test_given_external_feedback_between_three_cycle_runs_when_running_research_cycle_then_total_improvements_reach_three():
+    """Three run_research_cycle calls with degradation between each: total >= 3 improvements."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
 
@@ -506,7 +460,7 @@ def test_run_research_cycle_three_iterations():
     )
 
 
-def test_run_research_cycle_filters_superseded_solutions():
+def test_given_superseded_and_active_solutions_when_running_research_cycle_then_only_active_solution_is_targeted():
     """Research loop must not select a superseded solution as the improvement target."""
     from agent.src.research_loop import run_research_cycle
     from agent.src.tools import get_researcher_tools
@@ -581,12 +535,10 @@ def test_run_research_cycle_filters_superseded_solutions():
         )
 
 
-# ---------------------------------------------------------------------------
 # Cooldown escape fix: invalid/timeout/exception paths record a ResearchCycle
-# ---------------------------------------------------------------------------
 
 
-def test_invalid_agent_response_records_research_cycle():
+def test_given_invalid_agent_response_when_running_research_cycle_then_skip_cycle_is_recorded():
     """When the agent returns no recognisable status, a ResearchCycle skip must be recorded
     so the cooldown prevents an immediate hot-loop retry."""
     from agent.src.research_loop import run_research_cycle
@@ -610,7 +562,7 @@ def test_invalid_agent_response_records_research_cycle():
     )
 
 
-def test_timeout_records_research_cycle():
+def test_given_per_candidate_timeout_when_running_research_cycle_then_skip_cycle_is_recorded():
     """A per-candidate timeout must record a ResearchCycle skip to prevent hot-loop retry."""
     import asyncio as _asyncio
 

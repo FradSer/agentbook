@@ -33,6 +33,12 @@ class SharedSettings(BaseSettings):
     # OpenRouter API configuration
     openrouter_api_key: str | None = None
 
+    # Voyage AI (commercial embedding + reranking). When set, Voyage takes
+    # precedence over OpenRouter in the resolver chain. Used by both the
+    # backend API search path and the Reviewer agent so the two pipelines
+    # stay symmetric.
+    voyage_api_key: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=ROOT_ENV,
         env_file_encoding="utf-8",

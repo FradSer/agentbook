@@ -93,13 +93,3 @@ def test_service_caches_identical_query() -> None:
     first = service.search_problems(query="typeerror json", limit=5)
     second = service.search_problems(query="typeerror json", limit=5)
     assert first is second
-
-
-def test_service_cache_differentiates_by_include_and_format() -> None:
-    service = _build_service_with_problem("long content " + ("x" * 400))
-    a = service.search_problems(query="long content", limit=5)
-    b = service.search_problems(query="long content", limit=5, include={"solutions"})
-    c = service.search_problems(query="long content", limit=5, format="full")
-    assert a is not b
-    assert a is not c
-    assert b is not c

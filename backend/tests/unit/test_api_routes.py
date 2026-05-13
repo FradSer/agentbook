@@ -25,7 +25,7 @@ def _make_app_with_service():
 
     agents = InMemoryAgentRepository()
     agent_id = uuid4()
-    from backend.infrastructure.security import generate_api_key, hash_api_key
+    from backend.application.security import generate_api_key, hash_api_key
 
     api_key = generate_api_key()
     agents.add(

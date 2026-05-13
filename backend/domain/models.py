@@ -2,9 +2,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID, uuid4
 
 """Domain models for Agentbook."""
+
+
+ResearchStatus = Literal[
+    "improved",
+    "no_improvement",
+    "no_solution_proposed",
+    "synthesis_completed",
+]
+
+# Outcome provenance: "verified" = sandbox-executed (ground truth, 2x
+# kind_multiplier in confidence math), "observed" = crowd / LLM-evaluator
+# report (proxy signal). Mirrored at the DB layer by the
+# ``outcomes_kind_check`` constraint in ``backend/infrastructure/persistence/
+# sqlalchemy_models.py`` and at the runtime layer by the kind-multiplier in
+# ``backend/application/confidence.py``.
+OutcomeKind = Literal["verified", "observed"]
 
 
 def utc_now() -> datetime:
@@ -18,6 +35,8 @@ class Agent:
     agent_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
     last_active_at: datetime = field(default_factory=utc_now)
+    ip_hash: str | None = None  # sha256(/24) for IPv4, sha256(/56) for IPv6
+    fingerprint_hash: str | None = None  # sha256(UA + Accept-Lang + TLS JA3)
 
 
 @dataclass(slots=True)
@@ -56,7 +75,6 @@ class Solution:
     promotion_status: str | None = (
         None  # None (legacy) | "candidate" | "promoted" | "demoted"
     )
-    environment_scores: dict = field(default_factory=dict)
     review_status: str | None = None
     review_score: float | None = None
     reviewed_at: datetime | None = None
@@ -70,7 +88,7 @@ class Solution:
 class ResearchCycle:
     problem_id: UUID
     researcher_id: UUID
-    status: str  # "improved" | "no_improvement" | "no_solution_proposed"
+    status: ResearchStatus
     proposed_solution_id: UUID | None = None
     previous_best_confidence: float = 0.0
     new_confidence: float = 0.0
@@ -95,6 +113,7 @@ class Outcome:
     solution_id: UUID
     reporter_id: UUID
     success: bool
+    kind: OutcomeKind = "observed"
     environment: dict | None = None
     error_after: str | None = None
     time_saved_seconds: int | None = None

@@ -1,0 +1,102 @@
+{
+  "cases": [
+    {
+      "name": "docker_socket_permission",
+      "kind": "false_positive",
+      "query": "Docker socket permission denied",
+      "target": {
+        "description": "Docker daemon socket permission denied for non-root user on Linux",
+        "error_signature": "permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock"
+      },
+      "collider": {
+        "description": "Docker rootless mode cannot mount /tmp without CONFIG_USER_NS",
+        "error_signature": "Permission denied: cannot mount /tmp in rootless container with CONFIG_USER_NS unsupported"
+      }
+    },
+    {
+      "name": "nextjs_hydration_mismatch",
+      "kind": "false_positive",
+      "query": "Next.js hydration failed server client mismatch",
+      "target": {
+        "description": "Next.js 16 hydration error from Date.now in Server Component streamed to Client island",
+        "error_signature": "Hydration failed because the initial UI does not match what was rendered on the server"
+      },
+      "collider": {
+        "description": "Chrome DevTools Protocol viewport types mismatch in headless Puppeteer",
+        "error_signature": "Cannot read property 'viewport' of undefined: Chrome DevTools Protocol type mismatch"
+      }
+    },
+    {
+      "name": "node_eaddrinuse",
+      "kind": "false_positive",
+      "query": "EADDRINUSE port 3000 node listen",
+      "target": {
+        "description": "Node.js HTTP server fails to bind because previous process holds port",
+        "error_signature": "Error: listen EADDRINUSE: address already in use :::3000"
+      },
+      "collider": {
+        "description": "mDNS Bonjour responder cannot register on port 3000 due to firewall",
+        "error_signature": "mDNS bind failure: cannot register service on port 3000 with Bonjour responder"
+      }
+    },
+    {
+      "name": "rsc_function_serialization",
+      "kind": "false_positive",
+      "query": "functions cannot be passed to client components server",
+      "target": {
+        "description": "Next.js Server Component passes a callback prop directly to a Client Component",
+        "error_signature": "Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with use server"
+      },
+      "collider": {
+        "description": "Xcode pbxproj file editing breaks build phases when functions are reordered",
+        "error_signature": "pbxproj parse error: build phase functions cannot be reordered without project regeneration"
+      }
+    },
+    {
+      "name": "typescript_ts2742_inferred",
+      "kind": "false_positive",
+      "query": "TS2742 inferred type cannot be named portable",
+      "target": {
+        "description": "TypeScript fails to emit declarations for re-exported Drizzle query builder return types",
+        "error_signature": "TS2742: The inferred type of X cannot be named without a reference to node_modules. This is likely not portable. A type annotation is necessary."
+      },
+      "collider": {
+        "description": "Xcode pbxproj file inferred type annotations missing for Swift module map",
+        "error_signature": "Xcode pbxproj inferred type cannot be parsed without explicit annotation in module map"
+      }
+    },
+    {
+      "name": "bun_install_private_hang",
+      "kind": "false_positive",
+      "query": "bun install hang private registry scoped",
+      "target": {
+        "description": "Bun install stalls indefinitely on a scoped package from private GitHub Packages registry",
+        "error_signature": "bun install hangs forever resolving @private-org/utils from GitHub Packages with auth token"
+      },
+      "collider": {
+        "description": "npm install OOM when building native dependencies inside Docker on low-memory host",
+        "error_signature": "npm install fails with JavaScript heap out of memory inside Docker private network"
+      }
+    },
+    {
+      "name": "python_module_not_found",
+      "kind": "true_positive_substring",
+      "query": "ModuleNotFoundError: No module named 'requests'",
+      "target": {
+        "description": "Python ModuleNotFoundError after pip install in inactive virtualenv on macOS",
+        "error_signature": "ModuleNotFoundError: No module named 'requests'"
+      },
+      "collider": null
+    },
+    {
+      "name": "python_ssl_cert_verify",
+      "kind": "true_positive_substring",
+      "query": "SSL: CERTIFICATE_VERIFY_FAILED unable to get local issuer certificate",
+      "target": {
+        "description": "Python requests fails on macOS due to missing CA bundle from python.org installer",
+        "error_signature": "SSL: CERTIFICATE_VERIFY_FAILED unable to get local issuer certificate"
+      },
+      "collider": null
+    }
+  ]
+}

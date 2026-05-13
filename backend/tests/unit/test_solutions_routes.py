@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 
 def _make_client():
+    from backend.application.security import generate_api_key, hash_api_key
     from backend.application.service import AgentbookService
     from backend.domain.models import Agent
     from backend.infrastructure.persistence.in_memory import (
@@ -23,7 +24,6 @@ def _make_client():
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
     )
-    from backend.infrastructure.security import generate_api_key, hash_api_key
     from backend.main import create_app
     from backend.presentation.api.deps import get_service
 
@@ -76,19 +76,21 @@ def _seed_problem_and_solution(service, author_id):
     return problem, solution
 
 
-# ---------------------------------------------------------------------------
+def _bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
 # POST /v1/solutions/{id}/outcomes
-# ---------------------------------------------------------------------------
 
 
-def test_post_outcome_succeeds_with_external_reporter():
+def test_given_authenticated_external_reporter_when_posting_outcome_then_response_is_created_and_confidence_is_updated():
     client, service, _, author_id, reporter_key = _make_client()
     _, solution = _seed_problem_and_solution(service, author_id)
 
     response = client.post(
         f"/v1/solutions/{solution.solution_id}/outcomes",
         json={"success": True},
-        headers={"Authorization": f"Bearer {reporter_key}"},
+        headers=_bearer(reporter_key),
     )
 
     assert response.status_code == 201, response.text
@@ -97,7 +99,7 @@ def test_post_outcome_succeeds_with_external_reporter():
     assert body["solution_confidence_updated"] > 0.3
 
 
-def test_post_outcome_requires_authorization():
+def test_given_outcome_endpoint_when_authorization_is_missing_then_response_is_unauthorized():
     client, service, _, author_id, _ = _make_client()
     _, solution = _seed_problem_and_solution(service, author_id)
 
@@ -109,24 +111,20 @@ def test_post_outcome_requires_authorization():
     assert response.status_code == 401
 
 
-def test_post_outcome_on_unknown_solution_returns_404():
-    client, _, _, _, reporter_key = _make_client()
+def test_given_outcome_endpoint_rate_limit_budget_when_exceeded_then_response_is_throttled():
+    """Reporter budget is 10 distinct (solution, reporter) outcomes per hour.
 
-    response = client.post(
-        f"/v1/solutions/{uuid4()}/outcomes",
-        json={"success": True},
-        headers={"Authorization": f"Bearer {reporter_key}"},
-    )
-
-    assert response.status_code == 404
-
-
-def test_post_outcome_rate_limit_returns_429():
+    Under v6 the same reporter cannot pile multiple outcomes onto a
+    single solution — that's an upsert and consumes no budget. The
+    limit guards the actual threat: one reporter fanning out across
+    many solutions in a short window. We seed 11 solutions and
+    confirm the 11th distinct vote is throttled.
+    """
     client, service, _, author_id, reporter_key = _make_client()
-    _, solution = _seed_problem_and_solution(service, author_id)
-    headers = {"Authorization": f"Bearer {reporter_key}"}
+    solutions = [_seed_problem_and_solution(service, author_id)[1] for _ in range(11)]
+    headers = _bearer(reporter_key)
 
-    for _ in range(10):
+    for solution in solutions[:10]:
         ok = client.post(
             f"/v1/solutions/{solution.solution_id}/outcomes",
             json={"success": True},
@@ -135,19 +133,17 @@ def test_post_outcome_rate_limit_returns_429():
         assert ok.status_code == 201, ok.text
 
     limited = client.post(
-        f"/v1/solutions/{solution.solution_id}/outcomes",
+        f"/v1/solutions/{solutions[10].solution_id}/outcomes",
         json={"success": True},
         headers=headers,
     )
     assert limited.status_code == 429
 
 
-# ---------------------------------------------------------------------------
 # POST /v1/solutions/{id}/improve
-# ---------------------------------------------------------------------------
 
 
-def test_post_improve_succeeds_with_auth():
+def test_given_authorized_author_when_posting_improvement_then_improvement_response_fields_are_present():
     client, service, author_key, author_id, _ = _make_client()
     _, solution = _seed_problem_and_solution(service, author_id)
 
@@ -160,7 +156,7 @@ def test_post_improve_succeeds_with_auth():
             ),
             "reasoning": "Adds missing gfortran for scipy co-installs",
         },
-        headers={"Authorization": f"Bearer {author_key}"},
+        headers=_bearer(author_key),
     )
 
     assert response.status_code == 200, response.text
@@ -170,7 +166,7 @@ def test_post_improve_succeeds_with_auth():
     assert "previous_confidence" in body
 
 
-def test_post_improve_requires_authorization():
+def test_given_improve_endpoint_when_authorization_is_missing_then_response_is_unauthorized():
     client, service, _, author_id, _ = _make_client()
     _, solution = _seed_problem_and_solution(service, author_id)
 
@@ -185,12 +181,33 @@ def test_post_improve_requires_authorization():
     assert response.status_code == 401
 
 
-# ---------------------------------------------------------------------------
+def test_given_rejected_improvement_when_posting_then_response_includes_guidance():
+    client, service, author_key, author_id, _ = _make_client()
+    _, solution = _seed_problem_and_solution(service, author_id)
+    solution.confidence = 0.5
+    solution.outcome_count = 1
+    service._solutions.update(solution)
+
+    response = client.post(
+        f"/v1/solutions/{solution.solution_id}/improve",
+        json={
+            "improved_content": "pip fix now",
+            "reasoning": "Too terse",
+        },
+        headers=_bearer(author_key),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "no_improvement"
+    assert body["reason"] == "content_regression"
+    assert body["next_action"] == "revise_content"
+
+
 # GET /v1/solutions/{id}/lineage
-# ---------------------------------------------------------------------------
 
 
-def test_get_solution_lineage_is_public_and_returns_list():
+def test_given_solution_lineage_endpoint_when_fetching_known_solution_then_public_lineage_list_is_returned():
     client, service, _, author_id, _ = _make_client()
     _, solution = _seed_problem_and_solution(service, author_id)
 
@@ -202,20 +219,10 @@ def test_get_solution_lineage_is_public_and_returns_list():
     assert isinstance(body["lineage"], list)
 
 
-def test_get_solution_lineage_unknown_returns_404():
-    client, *_ = _make_client()
-
-    response = client.get(f"/v1/solutions/{uuid4()}/lineage")
-
-    assert response.status_code == 404
-
-
-# ---------------------------------------------------------------------------
 # GET /v1/problems/{id}/timeline — route ordering guard
-# ---------------------------------------------------------------------------
 
 
-def test_problem_timeline_route_wins_over_generic_problem_route():
+def test_given_problem_timeline_route_when_requesting_timeline_then_specific_timeline_handler_wins_over_generic_problem_route():
     """CLAUDE.md mandates /problems/{id}/timeline be registered before /problems/{id}.
 
     If the ordering regresses, a timeline request would get matched by the
@@ -233,34 +240,44 @@ def test_problem_timeline_route_wins_over_generic_problem_route():
     assert body["problem"]["problem_id"] == str(problem.problem_id)
 
 
-def test_problem_timeline_unknown_returns_404():
-    client, *_ = _make_client()
-
-    response = client.get(f"/v1/problems/{uuid4()}/timeline")
-
-    assert response.status_code == 404
-
-
-# ---------------------------------------------------------------------------
 # POST /v1/problems/{id}/solutions — 404 when parent problem is missing
-# ---------------------------------------------------------------------------
 
 
-def test_post_solution_on_unknown_problem_returns_404():
-    client, _, author_key, _, _ = _make_client()
-
-    response = client.post(
-        f"/v1/problems/{uuid4()}/solutions",
-        json={"content": "Install build-base via apk then pip install numpy"},
-        headers={"Authorization": f"Bearer {author_key}"},
-    )
-
+@pytest.mark.parametrize(
+    ("route_template", "method", "payload", "needs_auth"),
+    [
+        ("/v1/solutions/{id}/outcomes", "post", {"success": True}, True),
+        ("/v1/solutions/{id}/lineage", "get", None, False),
+        ("/v1/problems/{id}/timeline", "get", None, False),
+        (
+            "/v1/problems/{id}/solutions",
+            "post",
+            {"content": "Install build-base via apk then pip install numpy"},
+            True,
+        ),
+    ],
+)
+def test_given_unknown_resource_id_when_calling_route_then_response_is_not_found(
+    route_template: str,
+    method: str,
+    payload: dict | None,
+    needs_auth: bool,
+):
+    client, _, author_key, _, reporter_key = _make_client()
+    resource_id = uuid4()
+    url = route_template.format(id=resource_id)
+    headers = {}
+    if needs_auth:
+        headers = (
+            _bearer(reporter_key)
+            if route_template.endswith("/outcomes")
+            else _bearer(author_key)
+        )
+    response = client.request(method.upper(), url, json=payload, headers=headers)
     assert response.status_code == 404
 
 
-# ---------------------------------------------------------------------------
 # ProblemCreateRequest 422 validation at the HTTP layer
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -276,7 +293,7 @@ def test_post_problem_validation_errors(payload, expected_code):
     response = client.post(
         "/v1/problems",
         json=payload,
-        headers={"Authorization": f"Bearer {author_key}"},
+        headers=_bearer(author_key),
     )
 
     assert response.status_code == expected_code

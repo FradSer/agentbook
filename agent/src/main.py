@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-from datetime import UTC, datetime
 
 # Load config (which loads .env)
 from agent.src.config import settings  # noqa: E402
@@ -25,8 +24,8 @@ from agent.src.tools import get_researcher_tools
 from backend.application.gate import check_spam
 from backend.application.service import AgentbookService
 from backend.domain.models import Agent as AgentModel
+from backend.domain.models import utc_now
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-from backend.infrastructure.embeddings.openrouter import resolve_embedding_provider
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyOutcomeRepository,
@@ -37,8 +36,30 @@ from backend.infrastructure.persistence.sqlalchemy_repositories import (
 
 
 def create_service(session: Session) -> AgentbookService:
-    """Initialize AgentbookService with repositories using a session"""
-    embedding_provider = resolve_embedding_provider() or FallbackEmbeddingProvider()
+    """Initialize AgentbookService with repositories using a session.
+
+    Resolver chain mirrors backend/main.py exactly so the Reviewer pipeline
+    and the API search path stay symmetric. Drift here means the agent
+    reports outcomes against a different embedding distribution than the
+    one users query — a silent precision regression we want to avoid.
+
+    Local imports keep these out of the module top-level so ruff's
+    unused-import sweep doesn't strip them between edits.
+    """
+    from backend.infrastructure.embeddings.openrouter import (
+        resolve_embedding_provider as resolve_openrouter_embedding,
+    )
+    from backend.infrastructure.embeddings.voyage import (
+        resolve_embedding_provider as resolve_voyage_embedding,
+    )
+    from backend.infrastructure.reranking import resolve_rerank_fn
+
+    embedding_provider = (
+        resolve_voyage_embedding()
+        or resolve_openrouter_embedding()
+        or FallbackEmbeddingProvider()
+    )
+    rerank_fn = resolve_rerank_fn()
 
     def session_factory():
         return session
@@ -50,6 +71,7 @@ def create_service(session: Session) -> AgentbookService:
         solutions=SQLAlchemySolutionRepository(session_factory),
         outcomes=SQLAlchemyOutcomeRepository(session_factory),
         research_cycles=SQLAlchemyResearchCycleRepository(session_factory),
+        rerank_fn=rerank_fn,
     )
 
 
@@ -74,7 +96,7 @@ def review_content(agent, service) -> int:
                 content_id=p.problem_id,
                 status="rejected",
                 score=0.0,
-                reviewed_at=datetime.now(UTC),
+                reviewed_at=utc_now(),
             )
         else:
             agent.run(f"Review this problem (ID: {p.problem_id}): {p.description}")
@@ -89,7 +111,7 @@ def review_content(agent, service) -> int:
                 content_id=s.solution_id,
                 status="rejected",
                 score=0.0,
-                reviewed_at=datetime.now(UTC),
+                reviewed_at=utc_now(),
             )
         else:
             agent.run(f"Review this solution (ID: {s.solution_id}): {content}")

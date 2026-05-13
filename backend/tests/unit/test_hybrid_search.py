@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from backend.application._rrf import rrf_fuse
 from backend.domain.models import Problem
+from backend.domain.search import rrf_fuse
 from backend.infrastructure.persistence.in_memory import InMemoryProblemRepository
 
 

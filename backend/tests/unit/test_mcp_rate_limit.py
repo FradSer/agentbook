@@ -1,8 +1,8 @@
 """Rate-limit contract for MCP public tools.
 
-After the public-memory pivot, `search` over MCP is anonymous and must be
-throttled the same way the REST `/v1/search` endpoint is — otherwise a
-runaway MCP client could burn embedding credits and hammer the DB unchecked.
+`recall` over MCP is anonymous and must be throttled the same way the
+REST `/v1/search` endpoint is — otherwise a runaway MCP client could
+burn embedding credits and hammer the DB unchecked.
 
 These tests exercise `dispatch_tool` directly so we cover both the
 authenticated and anonymous paths without spinning up the SDK session
@@ -18,7 +18,6 @@ from uuid import uuid4
 import pytest
 from mcp.server import Server
 
-from backend.core.mcp_rate_limit import mcp_search_limiter
 from backend.domain.models import Agent
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
@@ -39,19 +38,6 @@ def _reset_mcp_context():
         _current_agent_ctx.reset(agent_token)
 
 
-@pytest.fixture()
-def enable_mcp_limiter():
-    """Opt the test into MCP rate-limit enforcement (disabled in the conftest)."""
-    original = mcp_search_limiter.enabled
-    mcp_search_limiter.enabled = True
-    mcp_search_limiter.reset()
-    try:
-        yield
-    finally:
-        mcp_search_limiter.enabled = original
-        mcp_search_limiter.reset()
-
-
 def _make_mock_server() -> Server:
     service = MagicMock()
     service.search_problems.return_value = {"results": [], "total": 0}
@@ -62,17 +48,18 @@ def _make_mock_server() -> Server:
 
     server = Server("agentbook-ratelimit-test")
     server._service = service
-    server._agent = None
     return server
 
 
 async def _search_once(server: Server) -> dict:
-    result = await dispatch_tool(server, "search", {"query": "err"})
+    result = await dispatch_tool(server, "recall", {"query": "err"})
     return json.loads(result[0]["text"])
 
 
 @pytest.mark.asyncio
-async def test_anonymous_mcp_search_throttled_after_30_hits(enable_mcp_limiter):
+async def test_given_anonymous_mcp_caller_when_search_hits_31st_request_then_response_is_rate_limited(
+    enable_mcp_limiter,
+):
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
 
@@ -84,6 +71,7 @@ async def test_anonymous_mcp_search_throttled_after_30_hits(enable_mcp_limiter):
     assert success_count == 30, f"Expected 30 successful calls, got {success_count}"
     assert len(throttled) == 1
     assert "30 requests per minute" in throttled[0]["detail"]
+    assert throttled[0]["error"] == "rate_limit_exceeded"
 
 
 @pytest.mark.asyncio
@@ -100,15 +88,16 @@ async def test_authenticated_caller_has_independent_quota(enable_mcp_limiter):
 
     agent = Agent(api_key_hash="hash", model_type="test")
     _current_agent_ctx.set(agent)
-    server._agent = agent
 
     response = await _search_once(server)
     assert "results" in response, f"Authenticated caller was starved: {response}"
 
 
 @pytest.mark.asyncio
-async def test_inspect_is_not_throttled_by_search_limiter(enable_mcp_limiter):
-    """`inspect` is cheaper than `search` — the 30/min bucket must not cover it."""
+async def test_given_recall_bucket_is_exhausted_when_tracing_then_trace_is_not_throttled(
+    enable_mcp_limiter,
+):
+    """`trace` is cheaper than `recall` — the 30/min bucket must not cover it."""
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
 
@@ -117,14 +106,14 @@ async def test_inspect_is_not_throttled_by_search_limiter(enable_mcp_limiter):
     throttled = await _search_once(server)
     assert throttled["error"] == "rate_limit_exceeded"
 
-    result = await dispatch_tool(server, "inspect", {"id": str(uuid4())})
+    result = await dispatch_tool(server, "trace", {"id": str(uuid4())})
     payload = json.loads(result[0]["text"])
     assert payload.get("type") == "problem"
     server._service.inspect_resource.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_limiter_disabled_by_default_in_test_suite():
+async def test_given_limiter_disabled_by_default_when_searching_then_calls_are_not_throttled():
     """Sanity: the autouse conftest fixture keeps the MCP limiter off by default."""
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.7")
@@ -137,14 +126,16 @@ async def test_limiter_disabled_by_default_in_test_suite():
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_response_is_well_formed(enable_mcp_limiter):
+async def test_given_rate_limited_search_when_dispatch_returns_text_message_then_payload_shape_is_stable(
+    enable_mcp_limiter,
+):
     server = _make_mock_server()
     _current_remote_addr_ctx.set("203.0.113.99")
 
     for _ in range(30):
         await _search_once(server)
 
-    result = await dispatch_tool(server, "search", {"query": "err"})
+    result = await dispatch_tool(server, "recall", {"query": "err"})
 
     assert len(result) == 1
     assert result[0]["type"] == "text"

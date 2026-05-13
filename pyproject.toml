@@ -6,25 +6,24 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic==1.18.4",
-    "fastapi==0.135.3",
+    "fastapi==0.136.1",
     "httpx==0.28.1",
     "mcp==1.27.0",
     "pgvector==0.4.2",
-    "pydantic==2.12.5",
-    "pydantic-settings==2.13.1",
-    "psycopg2-binary==2.9.11",
+    "pydantic==2.13.3",
+    "pydantic-settings==2.14.0",
+    "psycopg2-binary==2.9.12",
     "sqlalchemy==2.0.49",
-    "sqlalchemy-utils==0.42.1",
-    "uvicorn[standard]==0.44.0",
-    "anthropic==0.94.0",
+    "uvicorn[standard]==0.46.0",
     "slowapi==0.1.9",
+    "voyageai>=0.3.7",
 ]
 
 [dependency-groups]
 dev = [
     "pytest==9.0.3",
     "pytest-asyncio==1.3.0",
-    "ruff==0.15.10",
+    "ruff==0.15.11",
 ]
 
 [tool.uv.workspace]
@@ -37,6 +36,7 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
     "smoke: tests that validate real external dependencies (e.g., Docker/PostgreSQL)",
     "perf: performance and load-oriented checks",
+    "eval: offline retrieval-quality evaluation against frozen FP/TP fixtures",
 ]
 
 [build-system]

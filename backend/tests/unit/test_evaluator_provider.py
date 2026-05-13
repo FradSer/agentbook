@@ -96,10 +96,10 @@ def test_evaluator_agent_id_is_distinct():
     assert EVALUATOR_AGENT_ID != SYSTEM_AGENT_ID
 
 
-def test_improve_solution_with_evaluator_creates_synthetic_outcome():
+def _make_improve_service(*, evaluator=None):
+    """Build a minimal service with an approved problem + low-confidence solution."""
     from backend.application.service import AgentbookService
     from backend.domain.models import Agent
-    from backend.infrastructure.evaluation.fallback import FallbackEvaluatorProvider
     from backend.infrastructure.persistence.in_memory import (
         InMemoryAgentRepository,
         InMemoryOutcomeRepository,
@@ -110,19 +110,11 @@ def test_improve_solution_with_evaluator_creates_synthetic_outcome():
 
     agents = InMemoryAgentRepository()
     author_id = uuid4()
-    agents.add(
-        Agent(
-            api_key_hash="test-hash",
-            model_type="test",
-            agent_id=author_id,
-        )
-    )
+    agents.add(Agent(api_key_hash="test-hash", model_type="test", agent_id=author_id))
 
-    # FallbackEvaluatorProvider returns 0.5 (tie), so no synthetic outcome
-    # should change success/failure counts in a meaningful way.
     service = AgentbookService(
         agents=agents,
-        evaluator=FallbackEvaluatorProvider(),
+        evaluator=evaluator,
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
@@ -145,16 +137,23 @@ def test_improve_solution_with_evaluator_creates_synthetic_outcome():
     s.confidence = 0.25
     service._solutions.update(s)
 
+    return service, s
+
+
+def test_improve_solution_with_evaluator_creates_synthetic_outcome():
+    from backend.infrastructure.evaluation.fallback import FallbackEvaluatorProvider
+
+    service, sol = _make_improve_service(evaluator=FallbackEvaluatorProvider())
+
     result = service.improve_solution(
-        solution_id=s.solution_id,
+        solution_id=sol.solution_id,
         improved_content="Better solution with more detail and steps for testing here in Alpine",
         reasoning="Test improvement",
     )
 
     if result["status"] == "improved":
-        # Verify synthetic outcome was created
         new_sol = service._solutions.get(result["solution_id"])
-        assert new_sol.outcome_count == 1  # synthetic outcome
+        assert new_sol.outcome_count == 1
         outcomes = service._outcomes.list_by_solution(new_sol.solution_id)
         assert len(outcomes) == 1
         assert outcomes[0].reporter_id == EVALUATOR_AGENT_ID
@@ -163,57 +162,14 @@ def test_improve_solution_with_evaluator_creates_synthetic_outcome():
 
 
 def test_improve_solution_without_evaluator_no_synthetic_outcome():
-    from backend.application.service import AgentbookService
-    from backend.domain.models import Agent
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-
-    agents = InMemoryAgentRepository()
-    author_id = uuid4()
-    agents.add(
-        Agent(
-            api_key_hash="test-hash",
-            model_type="test",
-            agent_id=author_id,
-        )
-    )
-
-    # No evaluator passed
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-    )
-
-    p = service.create_problem(
-        author_id=author_id,
-        description="Test problem without evaluator for regression testing purposes",
-    )
-    p.review_status = "approved"
-    service._problems.update(p)
-
-    s = service.create_solution(
-        problem_id=p.problem_id,
-        author_id=author_id,
-        content="Original solution for testing without evaluator purposes here",
-    )
-    s.review_status = "approved"
-    s.confidence = 0.25
-    service._solutions.update(s)
+    service, sol = _make_improve_service()
 
     result = service.improve_solution(
-        solution_id=s.solution_id,
+        solution_id=sol.solution_id,
         improved_content="Better solution with more detail for testing without evaluator here",
         reasoning="Test improvement",
     )
 
     if result["status"] == "improved":
         new_sol = service._solutions.get(result["solution_id"])
-        assert new_sol.outcome_count == 0  # no synthetic outcome
+        assert new_sol.outcome_count == 0

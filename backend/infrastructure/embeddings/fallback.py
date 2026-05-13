@@ -4,9 +4,12 @@ from backend.core.config import settings
 
 
 class FallbackEmbeddingProvider:
-    """Deterministic local embedding for environments without OpenRouter key."""
+    """Deterministic local embedding for environments without an API key."""
 
-    def embed(self, text: str) -> list[float]:
+    def embed(self, text: str, *, input_type: str = "query") -> list[float]:
+        # Symmetric provider; ``input_type`` is accepted for Protocol parity
+        # with asymmetric encoders such as Voyage v3-large but has no effect.
+        del input_type
         lowered = text.lower()
         dimension = settings.embedding_dimension
         vector = [0.0] * dimension

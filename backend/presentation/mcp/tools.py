@@ -14,7 +14,11 @@ from mcp import types
 from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
-from backend.core.mcp_rate_limit import mcp_rate_key, pick_mcp_search_limiter
+from backend.core.mcp_rate_limit import (
+    mcp_rate_key,
+    mcp_verify_limiter,
+    pick_mcp_search_limiter,
+)
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
@@ -23,6 +27,46 @@ from backend.presentation.mcp.context import (
 
 def _json_response(data: dict) -> list[dict]:
     return [{"type": "text", "text": json.dumps(data, default=str)}]
+
+
+def _call_tool_result(data: dict, *, is_error: bool = False) -> types.CallToolResult:
+    text = json.dumps(data, default=str)
+    return types.CallToolResult(
+        content=[types.TextContent(type="text", text=text)],
+        structuredContent=json.loads(text),
+        isError=is_error,
+    )
+
+
+def _as_structured_tool_result(result: list[Any]) -> types.CallToolResult:
+    if (
+        len(result) == 1
+        and isinstance(result[0], dict)
+        and result[0].get("type") == "text"
+    ):
+        try:
+            payload = json.loads(result[0]["text"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            return types.CallToolResult(
+                content=[
+                    types.TextContent(
+                        type="text",
+                        text="Tool produced invalid JSON output",
+                    )
+                ],
+                isError=True,
+            )
+        return _call_tool_result(payload, is_error="error" in payload)
+
+    return types.CallToolResult(
+        content=[
+            types.TextContent(
+                type="text",
+                text=json.dumps(result, default=str),
+            )
+        ],
+        isError=False,
+    )
 
 
 async def handle_contribute(
@@ -39,7 +83,6 @@ async def handle_contribute(
     solution_id = arguments.get("solution_id")
 
     if solution_id is not None:
-        # Improvement mode
         improved_content = arguments.get("improved_content")
         if not improved_content:
             return _json_response(
@@ -62,7 +105,6 @@ async def handle_contribute(
         except ValueError as exc:
             return _json_response({"error": "invalid_input", "detail": str(exc)})
 
-    # New-contribution mode
     description = arguments.get("description")
     if not description:
         return _json_response(
@@ -119,10 +161,7 @@ async def handle_inspect(
     service,
     arguments: dict,
 ) -> list[Any]:
-    """Retrieve problem/solution details, optionally including lineage.
-
-    `inspect` is a public read — the dispatcher calls it without an agent.
-    """
+    """Retrieve problem/solution details, optionally including lineage."""
     raw_id = arguments.get("id")
     if not raw_id:
         return _json_response({"error": "invalid_input", "detail": "id is required"})
@@ -154,17 +193,14 @@ async def handle_inspect(
     return _json_response(result)
 
 
-def _get_authenticated_agent(server: Server):
-    """Get authenticated agent from request context.
+class _MCPAuthError(Exception):
+    """Raised when an MCP write tool is called without an authenticated agent."""
 
-    Checks the per-request ContextVar first (Streamable HTTP stateless mode),
-    then falls back to the server attribute (SSE per-connection mode).
-    """
+
+def _get_authenticated_agent(server: Server):
     agent = _current_agent_ctx.get(None)
     if agent is None:
-        agent = getattr(server, "_agent", None)
-    if agent is None:
-        raise ValueError(
+        raise _MCPAuthError(
             "Authentication required: No authenticated agent found in MCP context. "
             "Please provide a valid API key with 'ak_' prefix."
         )
@@ -173,14 +209,14 @@ def _get_authenticated_agent(server: Server):
 
 TOOL_DEFINITIONS = [
     types.Tool(
-        name="search",
+        name="recall",
         description=(
-            "Search agentbook for known solutions to a programming problem. "
-            "Use when you encounter an error, exception, or technical issue "
-            "during development. Returns ranked results with confidence scores. "
-            "If no results, use 'contribute' to register the problem and share "
-            "your solution. Do NOT use for general knowledge questions -- only "
-            "specific technical problems."
+            "Recall known solutions from the shared agent memory layer. "
+            "Queries the public body of outcome-verified debug knowledge. "
+            "Use when you hit an error, exception, or technical issue during "
+            "development. Returns ranked memories with confidence scores. "
+            "If nothing matches, use 'remember' to register the problem and "
+            "share your solution."
         ),
         inputSchema={
             "type": "object",
@@ -198,27 +234,19 @@ TOOL_DEFINITIONS = [
                     "description": "Max results (1-20, default 5)",
                     "default": 5,
                 },
-                "environment": {
-                    "type": "object",
-                    "description": (
-                        "Your runtime context for environment-aware ranking: "
-                        "{os, language, version, framework}"
-                    ),
-                },
             },
             "required": ["query"],
         },
     ),
     types.Tool(
-        name="contribute",
+        name="remember",
         description=(
-            "Share knowledge with agentbook. Two modes: "
-            "(1) New -- provide 'description' to create a problem with optional "
-            "solution. (2) Improve -- provide 'solution_id' and 'improved_content' "
-            "to propose a better version via hill-climbing. Improvements are "
-            "evaluated automatically: only accepted if confidence strictly "
-            "increases. Use after solving a problem not yet in agentbook, or when "
-            "you find a better approach to an existing solution."
+            "Store knowledge into the shared agent memory layer. Two modes: "
+            "(1) New -- provide 'description' to create a memory with an "
+            "optional solution. (2) Improve -- provide 'solution_id' and "
+            "'improved_content' to propose a better version via hill-climbing. "
+            "Improvements are evaluated automatically by the immutable "
+            "scoring infrastructure."
         ),
         inputSchema={
             "type": "object",
@@ -268,6 +296,10 @@ TOOL_DEFINITIONS = [
                 },
             },
             "required": [],
+            "oneOf": [
+                {"required": ["description"]},
+                {"required": ["solution_id", "improved_content"]},
+            ],
         },
     ),
     types.Tool(
@@ -307,13 +339,12 @@ TOOL_DEFINITIONS = [
         },
     ),
     types.Tool(
-        name="inspect",
+        name="trace",
         description=(
-            "Retrieve detailed information about a specific problem or solution. "
-            "Use when 'search' returned a result and you need the full solution "
-            "text, all candidate solutions, outcome history, or evolution lineage "
-            "before trying it. Not needed when the search response already has "
-            "enough detail."
+            "Trace a memory's full lineage: problem detail, candidate "
+            "solutions, outcome history, and evolution chain. Use after "
+            "'recall' returned a candidate and you need the full context "
+            "before applying it."
         ),
         inputSchema={
             "type": "object",
@@ -343,25 +374,50 @@ TOOL_DEFINITIONS = [
             "required": ["id"],
         },
     ),
+    types.Tool(
+        name="verify",
+        description=(
+            "Run a sandboxed reproduction of a solution. Synchronous and "
+            "blocking — the call waits for the sandbox to finish before "
+            "returning, so latency is dominated by Docker pull + script "
+            "execution time (typically multi-second, sometimes >30s). "
+            "Currently only Python single-file solutions are evaluable; "
+            "shell, Node, Rust, etc. fall through and return without a "
+            "verdict. Each successful call costs one sandbox-budget unit "
+            "(global cap 20/hour per agent) and is additionally throttled "
+            "to 5 calls per minute per agent in the dispatcher. "
+            "Authenticated agents only."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "solution_id": {
+                    "type": "string",
+                    "description": "UUID of the solution to verify",
+                },
+            },
+            "required": ["solution_id"],
+        },
+    ),
 ]
 
 
 async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]:
     """Route an MCP tool call to the matching handler.
 
-    `search` and `inspect` are served without auth; `search` is rate-limited
+    `recall` and `trace` are served without auth; `recall` is rate-limited
     to mirror the REST `/v1/search` contract (30/minute per agent or remote
-    IP), since MCP bypasses slowapi entirely. `contribute` and `report`
-    resolve the authenticated agent before touching the service layer so an
-    anonymous caller gets a clear `Authentication required` error.
+    IP) since MCP bypasses slowapi. `remember`, `report`, and `verify`
+    require an authenticated agent.
     """
     service = server._service
 
-    if name == "search":
-        agent = _current_agent_ctx.get(None) or getattr(server, "_agent", None)
+    if name == "recall":
+        agent = _current_agent_ctx.get(None)
         remote_addr = _current_remote_addr_ctx.get(None)
         search_limiter = pick_mcp_search_limiter(agent)
-        if not search_limiter.hit(mcp_rate_key(agent, remote_addr)):
+        rate_key = mcp_rate_key(agent, remote_addr)
+        if not search_limiter.hit(rate_key):
             return _json_response(
                 {
                     "error": "rate_limit_exceeded",
@@ -369,26 +425,67 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                         f"MCP search is limited to {search_limiter.max_calls} "
                         "requests per minute."
                     ),
+                    "retry_after_seconds": search_limiter.retry_after(rate_key),
                 }
             )
         search_response = service.search_problems(
             query=arguments.get("query", ""),
             error_log=arguments.get("error_log"),
             limit=arguments.get("limit", 5),
-            environment=arguments.get("environment"),
         )
         return _json_response(search_response)
 
-    if name == "inspect":
+    if name == "trace":
         return await handle_inspect(service, arguments)
 
-    if name == "contribute":
-        agent = _get_authenticated_agent(server)
-        return await handle_contribute(service, agent.agent_id, arguments)
+    if name in {"remember", "report", "verify"}:
+        try:
+            agent = _get_authenticated_agent(server)
+        except _MCPAuthError as exc:
+            return _json_response({"error": "unauthorized", "detail": str(exc)})
 
-    if name == "report":
-        agent = _get_authenticated_agent(server)
-        return await handle_report(service, agent.agent_id, arguments)
+        if name == "remember":
+            return await handle_contribute(service, agent.agent_id, arguments)
+
+        if name == "report":
+            return await handle_report(service, agent.agent_id, arguments)
+
+        solution_id_raw = arguments.get("solution_id")
+        if not solution_id_raw:
+            return _json_response(
+                {"error": "invalid_input", "detail": "solution_id is required"}
+            )
+        try:
+            solution_id = UUID(solution_id_raw)
+        except ValueError:
+            return _json_response(
+                {
+                    "error": "invalid_input",
+                    "detail": "solution_id is not a valid UUID",
+                }
+            )
+        # Per-agent verify budget is independent of the sandbox slot
+        # pool — without it, a single agent can monopolise every slot
+        # and starve other callers. Keyed via the canonical formatter
+        # so a multi-worker deployment sharing one key gets one shared
+        # bucket; that's intentional, see the tool description.
+        verify_key = mcp_rate_key(agent, None)
+        if not mcp_verify_limiter.hit(verify_key):
+            return _json_response(
+                {
+                    "error": "rate_limit_exceeded",
+                    "detail": (
+                        f"verify is limited to {mcp_verify_limiter.max_calls} "
+                        "calls per minute per agent."
+                    ),
+                    "retry_after_seconds": mcp_verify_limiter.retry_after(verify_key),
+                }
+            )
+        try:
+            result = service.verify_solution(solution_id, agent.agent_id)
+        except NotFoundError:
+            return _json_response({"error": "not_found"})
+        return _json_response(result)
 
     return _json_response(
         {"error": "unknown_tool", "detail": f"Tool '{name}' not found"}
@@ -396,18 +493,13 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
 
 
 def register_tools(server: Server) -> None:
-    """Register all MCP tools with the low-level Server.
-
-    Uses a single @server.call_tool() handler that delegates to
-    `dispatch_tool`, plus a @server.list_tools() handler returning the
-    static tool definitions. The inner closures are kept thin so unit tests
-    can exercise routing via `dispatch_tool` directly.
-    """
+    """Register all MCP tools with the low-level Server."""
 
     @server.list_tools()
     async def list_tools() -> list[types.Tool]:
         return TOOL_DEFINITIONS
 
     @server.call_tool()
-    async def _dispatch(name: str, arguments: dict) -> list[Any]:
-        return await dispatch_tool(server, name, arguments)
+    async def _dispatch(name: str, arguments: dict) -> types.CallToolResult:
+        result = await dispatch_tool(server, name, arguments)
+        return _as_structured_tool_result(result)

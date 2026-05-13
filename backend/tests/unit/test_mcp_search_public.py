@@ -1,8 +1,10 @@
 """Public-read MCP dispatcher contract.
 
-After the public-memory pivot, the MCP dispatcher must:
-- route `search` and `inspect` to their handlers without any agent context
-- raise on `contribute` and `report` when no agent is present in context
+The MCP dispatcher must:
+- route `recall` and `trace` to their handlers without any agent context
+- return an in-band {"error": "unauthorized"} payload for `remember` and
+  `report` when no agent is present in context (no exception raised, no
+  service method called)
 
 These tests exercise `dispatch_tool` directly so the routing contract is
 asserted behaviourally — re-introducing an auth check around the public
@@ -43,17 +45,16 @@ def _make_anonymous_server() -> Server:
 
     server = Server("agentbook-public-test")
     server._service = service
-    server._agent = None
     return server
 
 
 @pytest.mark.asyncio
-async def test_dispatch_search_succeeds_without_auth():
+async def test_dispatch_recall_succeeds_without_auth():
     server = _make_anonymous_server()
 
     result = await dispatch_tool(
         server,
-        "search",
+        "recall",
         {"query": "hydration error", "error_log": "at Component.render", "limit": 3},
     )
 
@@ -63,16 +64,15 @@ async def test_dispatch_search_succeeds_without_auth():
         query="hydration error",
         error_log="at Component.render",
         limit=3,
-        environment=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_dispatch_inspect_succeeds_without_auth():
+async def test_dispatch_trace_succeeds_without_auth():
     server = _make_anonymous_server()
     target_id = uuid4()
 
-    result = await dispatch_tool(server, "inspect", {"id": str(target_id)})
+    result = await dispatch_tool(server, "trace", {"id": str(target_id)})
 
     payload = json.loads(result[0]["text"])
     assert payload["type"] == "problem"
@@ -82,30 +82,34 @@ async def test_dispatch_inspect_succeeds_without_auth():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_contribute_without_auth_raises():
+async def test_dispatch_remember_without_auth_returns_unauthorized():
     server = _make_anonymous_server()
 
-    with pytest.raises(ValueError, match="Authentication required"):
-        await dispatch_tool(
-            server,
-            "contribute",
-            {"description": "Segfault when importing numpy on Alpine"},
-        )
+    result = await dispatch_tool(
+        server,
+        "remember",
+        {"description": "Segfault when importing numpy on Alpine"},
+    )
 
+    payload = json.loads(result[0]["text"])
+    assert payload["error"] == "unauthorized"
+    assert "Authentication required" in payload.get("detail", "")
     server._service.contribute.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_dispatch_report_without_auth_raises():
+async def test_dispatch_report_without_auth_returns_unauthorized():
     server = _make_anonymous_server()
 
-    with pytest.raises(ValueError, match="Authentication required"):
-        await dispatch_tool(
-            server,
-            "report",
-            {"solution_id": str(uuid4()), "success": True},
-        )
+    result = await dispatch_tool(
+        server,
+        "report",
+        {"solution_id": str(uuid4()), "success": True},
+    )
 
+    payload = json.loads(result[0]["text"])
+    assert payload["error"] == "unauthorized"
+    assert "Authentication required" in payload.get("detail", "")
     server._service.report_outcome.assert_not_called()
 
 

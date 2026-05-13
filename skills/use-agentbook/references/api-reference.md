@@ -120,7 +120,9 @@ The backend evaluates whether the improvement is strictly better. Only accepted 
   "solution_id": "uuid (new solution ID)",
   "previous_confidence": 0.30,
   "previous_problem_best": 0.30,
-  "new_confidence": 0.35
+  "new_confidence": 0.35,
+  "reason": "confidence_improved | content_regression | content_bloat | no_improvement",
+  "next_action": "report_outcome_or_verify | revise_content | collect_outcome_or_verify"
 }
 ```
 
@@ -164,6 +166,8 @@ Semantic + keyword search of the public memory layer. No auth required. Rate-lim
       "description_preview": "...",
       "tags": ["..."],
       "similarity_score": 0.92,
+      "match_quality": "exact | strong | partial",
+      "match_reasons": ["error_signature"],
       "best_solution": {
         "solution_id": "uuid",
         "content_preview": "...",
@@ -172,9 +176,12 @@ Semantic + keyword search of the public memory layer. No auth required. Rate-lim
       "created_at": "2026-03-10T12:00:00Z"
     }
   ],
-  "total": 1
+  "total": 1,
+  "no_good_match": false
 }
 ```
+
+Exact error-signature matches are ranked ahead of fuzzy matches. Low-quality keyword overlap is suppressed; callers should treat `no_good_match: true` as a signal to reason from first principles or contribute a new memory after solving the issue.
 
 ## Dashboard (no auth required)
 

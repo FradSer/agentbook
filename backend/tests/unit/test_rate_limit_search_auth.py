@@ -5,82 +5,20 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
 
 from backend.core.mcp_rate_limit import (
     mcp_rate_key,
     mcp_search_limiter,
     mcp_search_limiter_auth,
 )
-from backend.core.rate_limit import limiter
 from backend.domain.models import Agent
+from backend.tests.conftest import _build_client
 
 
-@pytest.fixture()
-def enable_limiter():
-    original = limiter.enabled
-    limiter.enabled = True
-    limiter.reset()
-    try:
-        yield
-    finally:
-        limiter.enabled = original
-        limiter.reset()
-
-
-@pytest.fixture()
-def enable_mcp_limiters():
-    originals = (mcp_search_limiter.enabled, mcp_search_limiter_auth.enabled)
-    mcp_search_limiter.enabled = True
-    mcp_search_limiter_auth.enabled = True
-    mcp_search_limiter.reset()
-    mcp_search_limiter_auth.reset()
-    try:
-        yield
-    finally:
-        mcp_search_limiter.enabled, mcp_search_limiter_auth.enabled = originals
-        mcp_search_limiter.reset()
-        mcp_search_limiter_auth.reset()
-
-
-def _make_client():
-    from backend.application.service import AgentbookService
-    from backend.infrastructure.persistence.in_memory import (
-        InMemoryAgentRepository,
-        InMemoryOutcomeRepository,
-        InMemoryProblemRepository,
-        InMemoryResearchCycleRepository,
-        InMemorySolutionRepository,
-    )
-    from backend.infrastructure.security import generate_api_key, hash_api_key
-    from backend.main import create_app
-    from backend.presentation.api.deps import get_service
-
-    agents = InMemoryAgentRepository()
-    api_key = generate_api_key()
-    agents.add(
-        Agent(
-            api_key_hash=hash_api_key(api_key),
-            model_type="test",
-            agent_id=uuid4(),
-        )
-    )
-
-    service = AgentbookService(
-        agents=agents,
-        problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
-        research_cycles=InMemoryResearchCycleRepository(),
-    )
-
-    app = create_app()
-    app.dependency_overrides[get_service] = lambda: service
-    return TestClient(app, raise_server_exceptions=False), api_key
-
-
-def test_authenticated_caller_throttled_above_300_per_minute(enable_limiter):
-    client, api_key = _make_client()
+def test_given_authenticated_rest_caller_when_exceeding_300_per_minute_then_remaining_requests_are_throttled(
+    enable_limiter,
+):
+    client, api_key = _build_client()
     headers = {"Authorization": f"Bearer {api_key}"}
 
     statuses = [
@@ -99,20 +37,30 @@ def test_authenticated_caller_throttled_above_300_per_minute(enable_limiter):
     )
 
 
-def test_mcp_anonymous_throttled_at_30(enable_mcp_limiters):
-    """MCP anonymous caller hits the 30/min ceiling."""
-    key = mcp_rate_key(None, "127.0.0.1")
-    successes = sum(1 for _ in range(35) if mcp_search_limiter.hit(key))
-    assert successes == 30
-
-
-def test_mcp_authenticated_throttled_at_300(enable_mcp_limiters):
-    """MCP authenticated caller has the 300/min ceiling."""
-    agent = Agent(
-        api_key_hash="hash",
-        model_type="test",
-        agent_id=uuid4(),
-    )
-    key = mcp_rate_key(agent, None)
-    successes = sum(1 for _ in range(305) if mcp_search_limiter_auth.hit(key))
-    assert successes == 300
+@pytest.mark.parametrize(
+    ("agent", "remote_addr", "attempts", "expected_successes"),
+    [
+        (None, "127.0.0.1", 35, 30),
+        (
+            Agent(
+                api_key_hash="hash",
+                model_type="test",
+                agent_id=uuid4(),
+            ),
+            None,
+            305,
+            300,
+        ),
+    ],
+)
+def test_given_mcp_identity_tier_when_hitting_quota_then_successes_match_configured_limit(
+    enable_mcp_limiters,
+    agent: Agent | None,
+    remote_addr: str | None,
+    attempts: int,
+    expected_successes: int,
+):
+    key = mcp_rate_key(agent, remote_addr)
+    limiter_to_use = mcp_search_limiter_auth if agent else mcp_search_limiter
+    successes = sum(1 for _ in range(attempts) if limiter_to_use.hit(key))
+    assert successes == expected_successes

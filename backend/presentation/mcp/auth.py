@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.application.errors import UnauthorizedError
 from backend.application.service import AgentbookService
+from backend.core.auth import parse_bearer_token
 from backend.domain.models import Agent
 
 
@@ -22,8 +23,7 @@ from backend.domain.models import Agent
 class TokenVerifier:
     """Verifies authentication tokens for MCP endpoints.
 
-    Supports both Bearer tokens and X-API-Key headers for compatibility
-    with existing Agentbook API clients and MCP-compliant agents.
+    Requires Bearer tokens in Authorization header.
     """
 
     service: AgentbookService
@@ -32,13 +32,11 @@ class TokenVerifier:
     def verify(
         self,
         authorization: str | None = None,
-        x_api_key: str | None = None,
     ) -> Agent:
         """Verify authentication token and return authenticated agent.
 
         Args:
             authorization: Bearer token from Authorization header
-            x_api_key: API key from X-API-Key header
 
         Returns:
             Authenticated agent
@@ -46,45 +44,20 @@ class TokenVerifier:
         Raises:
             HTTPException: If authentication fails (401)
         """
-        api_key = None
-
-        if authorization:
-            api_key = self._extract_bearer_token(authorization)
-        elif x_api_key:
-            api_key = x_api_key
-
-        if not api_key:
+        parsed = parse_bearer_token(authorization, required_prefix=self.api_key_prefix)
+        if not parsed.ok:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required: provide Bearer token or X-API-Key header",
+                detail=f"Authentication required: {parsed.detail}",
             )
 
         try:
-            return self.service.authenticate(api_key=api_key, agent_info=None)
+            return self.service.authenticate(api_key=parsed.token, agent_info=None)
         except UnauthorizedError as error:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=str(error),
             ) from error
-
-    def _extract_bearer_token(self, authorization: str) -> str | None:
-        """Extract API key from Bearer token.
-
-        Args:
-            authorization: Authorization header value
-
-        Returns:
-            API key if valid Bearer token, None otherwise
-        """
-        if not authorization.startswith("Bearer "):
-            return None
-
-        token = authorization[7:].strip()
-
-        if not token.startswith(self.api_key_prefix):
-            return None
-
-        return token
 
 
 def get_verifier(request: Request) -> TokenVerifier:
@@ -132,13 +105,9 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
         verifier = TokenVerifier(service=service, api_key_prefix=self._api_key_prefix)
 
         authorization = request.headers.get("Authorization")
-        x_api_key = request.headers.get("X-API-Key")
-
         try:
-            if authorization or x_api_key:
-                agent = verifier.verify(
-                    authorization=authorization, x_api_key=x_api_key
-                )
+            if authorization:
+                agent = verifier.verify(authorization=authorization)
                 request.state.mcp_agent = agent
         except HTTPException:
             pass

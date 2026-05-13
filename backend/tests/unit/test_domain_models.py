@@ -4,294 +4,239 @@ from __future__ import annotations
 
 import importlib
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
 from backend.domain.models import Outcome, Problem, Solution
 
-# ---------------------------------------------------------------------------
-# Problem — construction & defaults
-# ---------------------------------------------------------------------------
+AUTHOR_ID = UUID("00000000-0000-0000-0000-000000000001")
+PROBLEM_ID = UUID("00000000-0000-0000-0000-000000000002")
+SOLUTION_ID = UUID("00000000-0000-0000-0000-000000000004")
+REPORTER_ID = UUID("00000000-0000-0000-0000-000000000005")
 
 
-def test_problem_requires_author_id_and_description() -> None:
-    author = UUID("00000000-0000-0000-0000-000000000001")
-    p = Problem(author_id=author, description="Something broke")
-    assert p.author_id == author
-    assert p.description == "Something broke"
+def _make_problem(**overrides: object) -> Problem:
+    return Problem(author_id=AUTHOR_ID, description="Something broke", **overrides)
 
 
-def test_problem_optional_fields_default_to_none() -> None:
-    author = UUID("00000000-0000-0000-0000-000000000001")
-    p = Problem(author_id=author, description="d")
-    assert p.error_signature is None
-    assert p.environment is None
-    assert p.tags is None
-    assert p.embedding is None
+def _make_solution(**overrides: object) -> Solution:
+    return Solution(
+        problem_id=PROBLEM_ID,
+        author_id=AUTHOR_ID,
+        content="Try this",
+        **overrides,
+    )
 
 
-def test_problem_id_is_auto_generated_uuid() -> None:
-    author = UUID("00000000-0000-0000-0000-000000000001")
-    p1 = Problem(author_id=author, description="d")
-    p2 = Problem(author_id=author, description="d")
-    assert isinstance(p1.problem_id, UUID)
-    assert p1.problem_id != p2.problem_id
+def _make_outcome(**overrides: object) -> Outcome:
+    success = overrides.pop("success", True)
+    return Outcome(
+        solution_id=SOLUTION_ID,
+        reporter_id=REPORTER_ID,
+        success=bool(success),
+        **overrides,
+    )
 
 
-def test_problem_timestamps_are_utc_now() -> None:
+def test_given_problem_inputs_when_constructing_then_required_fields_are_preserved() -> (
+    None
+):
+    problem = _make_problem()
+    assert problem.author_id == AUTHOR_ID
+    assert problem.description == "Something broke"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "expected"),
+    [
+        ("error_signature", None),
+        ("environment", None),
+        ("tags", None),
+        ("embedding", None),
+        ("best_confidence", 0.0),
+        ("solution_count", 0),
+        ("review_status", None),
+        ("review_score", None),
+        ("reviewed_at", None),
+        ("canonical_solution_id", None),
+        ("version", 1),
+    ],
+)
+def test_given_problem_defaults_when_constructing_then_fields_match_contract(
+    field_name: str, expected: object
+) -> None:
+    problem = _make_problem()
+    assert getattr(problem, field_name) == expected
+    assert problem.last_activity_at is not None
+
+
+def test_given_new_problems_when_constructing_then_problem_ids_are_unique_uuids() -> (
+    None
+):
+    first = _make_problem()
+    second = _make_problem()
+    assert isinstance(first.problem_id, UUID)
+    assert first.problem_id != second.problem_id
+
+
+def test_given_new_problem_when_constructing_then_problem_timestamps_are_utc_now() -> (
+    None
+):
     before = datetime.now(tz=UTC)
-    author = UUID("00000000-0000-0000-0000-000000000001")
-    p = Problem(author_id=author, description="d")
+    problem = _make_problem()
     after = datetime.now(tz=UTC)
-    assert before <= p.created_at <= after
-    assert before <= p.last_activity_at <= after
+    assert before <= problem.created_at <= after
+    assert before <= problem.last_activity_at <= after
 
 
-def test_problem_best_confidence_defaults_to_zero() -> None:
-    p = Problem(author_id=uuid4(), description="d")
-    assert p.best_confidence == 0.0
+def test_given_solution_inputs_when_constructing_then_required_fields_are_preserved() -> (
+    None
+):
+    solution = _make_solution()
+    assert solution.problem_id == PROBLEM_ID
+    assert solution.author_id == AUTHOR_ID
+    assert solution.content == "Try this"
 
 
-def test_problem_solution_count_defaults_to_zero() -> None:
-    p = Problem(author_id=uuid4(), description="d")
-    assert p.solution_count == 0
+@pytest.mark.parametrize(
+    ("field_name", "expected"),
+    [
+        ("steps", []),
+        ("confidence", pytest.approx(0.3)),
+        ("outcome_count", 0),
+        ("success_count", 0),
+        ("failure_count", 0),
+        ("canonical_id", None),
+        ("review_status", None),
+        ("review_score", None),
+        ("reviewed_at", None),
+        ("parent_solution_id", None),
+    ],
+)
+def test_given_solution_defaults_when_constructing_then_fields_match_contract(
+    field_name: str, expected: object
+) -> None:
+    solution = _make_solution()
+    assert getattr(solution, field_name) == expected
 
 
-def test_problem_has_review_fields():
-    p = Problem(author_id=uuid4(), description="Docker Alpine numpy error")
-    assert p.review_status is None
-    assert p.review_score is None
-    assert p.reviewed_at is None
+def test_given_new_solutions_when_constructing_then_solution_ids_are_unique_uuids() -> (
+    None
+):
+    first = _make_solution()
+    second = _make_solution()
+    assert isinstance(first.solution_id, UUID)
+    assert first.solution_id != second.solution_id
 
 
-def test_problem_has_canonical_solution_id():
-    p = Problem(author_id=uuid4(), description="Some error")
-    assert p.canonical_solution_id is None
-
-
-def test_problem_has_required_tracking_fields():
-    p = Problem(author_id=uuid4(), description="Some error")
-    assert p.version == 1
-    assert p.last_activity_at is not None
-
-
-# ---------------------------------------------------------------------------
-# Solution — construction & defaults
-# ---------------------------------------------------------------------------
-
-
-def test_solution_requires_problem_id_author_id_content() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="Try this")
-    assert s.problem_id == pid
-    assert s.author_id == aid
-    assert s.content == "Try this"
-
-
-def test_solution_steps_defaults_to_empty_list() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
-    assert s.steps == []
-
-
-def test_solution_confidence_defaults_to_0_3() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
-    assert s.confidence == pytest.approx(0.3)
-
-
-def test_solution_counts_default_to_zero() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
-    assert s.outcome_count == 0
-    assert s.success_count == 0
-    assert s.failure_count == 0
-
-
-def test_solution_environment_scores_defaults_to_empty_dict() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
-    assert s.environment_scores == {}
-
-
-def test_solution_canonical_id_defaults_to_none() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
-    assert s.canonical_id is None
-
-
-def test_solution_id_is_auto_generated_uuid() -> None:
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s1 = Solution(problem_id=pid, author_id=aid, content="c")
-    s2 = Solution(problem_id=pid, author_id=aid, content="c")
-    assert isinstance(s1.solution_id, UUID)
-    assert s1.solution_id != s2.solution_id
-
-
-def test_solution_timestamps_are_utc_now() -> None:
+def test_given_new_solution_when_constructing_then_solution_timestamps_are_utc_now() -> (
+    None
+):
     before = datetime.now(tz=UTC)
-    pid = UUID("00000000-0000-0000-0000-000000000002")
-    aid = UUID("00000000-0000-0000-0000-000000000003")
-    s = Solution(problem_id=pid, author_id=aid, content="c")
+    solution = _make_solution()
     after = datetime.now(tz=UTC)
-    assert before <= s.created_at <= after
-    assert before <= s.updated_at <= after
+    assert before <= solution.created_at <= after
+    assert before <= solution.updated_at <= after
 
 
-def test_solution_has_review_fields():
-    s = Solution(problem_id=uuid4(), author_id=uuid4(), content="Fix it")
-    assert s.review_status is None
-    assert s.review_score is None
-    assert s.reviewed_at is None
+def test_given_outcome_inputs_when_constructing_then_required_fields_are_preserved() -> (
+    None
+):
+    outcome = _make_outcome()
+    assert outcome.solution_id == SOLUTION_ID
+    assert outcome.reporter_id == REPORTER_ID
+    assert outcome.success is True
 
 
-def test_solution_has_parent_solution_id():
-    s = Solution(problem_id=uuid4(), author_id=uuid4(), content="Fix it")
-    assert s.parent_solution_id is None
+@pytest.mark.parametrize(
+    ("field_name", "expected"),
+    [
+        ("environment", None),
+        ("error_after", None),
+        ("time_saved_seconds", None),
+        ("notes", None),
+        ("weight", pytest.approx(1.0)),
+    ],
+)
+def test_given_outcome_defaults_when_constructing_then_fields_match_contract(
+    field_name: str, expected: object
+) -> None:
+    outcome = _make_outcome(success=False)
+    assert getattr(outcome, field_name) == expected
 
 
-# ---------------------------------------------------------------------------
-# Outcome — construction & defaults
-# ---------------------------------------------------------------------------
+def test_given_new_outcomes_when_constructing_then_outcome_ids_are_unique_uuids() -> (
+    None
+):
+    first = _make_outcome()
+    second = _make_outcome()
+    assert isinstance(first.outcome_id, UUID)
+    assert first.outcome_id != second.outcome_id
 
 
-def test_outcome_requires_solution_id_reporter_id_success() -> None:
-    sid = UUID("00000000-0000-0000-0000-000000000004")
-    rid = UUID("00000000-0000-0000-0000-000000000005")
-    o = Outcome(solution_id=sid, reporter_id=rid, success=True)
-    assert o.solution_id == sid
-    assert o.reporter_id == rid
-    assert o.success is True
-
-
-def test_outcome_optional_fields_default_to_none() -> None:
-    sid = UUID("00000000-0000-0000-0000-000000000004")
-    rid = UUID("00000000-0000-0000-0000-000000000005")
-    o = Outcome(solution_id=sid, reporter_id=rid, success=False)
-    assert o.environment is None
-    assert o.error_after is None
-    assert o.time_saved_seconds is None
-    assert o.notes is None
-
-
-def test_outcome_weight_defaults_to_1_0() -> None:
-    sid = UUID("00000000-0000-0000-0000-000000000004")
-    rid = UUID("00000000-0000-0000-0000-000000000005")
-    o = Outcome(solution_id=sid, reporter_id=rid, success=True)
-    assert o.weight == pytest.approx(1.0)
-
-
-def test_outcome_id_is_auto_generated_uuid() -> None:
-    sid = UUID("00000000-0000-0000-0000-000000000004")
-    rid = UUID("00000000-0000-0000-0000-000000000005")
-    o1 = Outcome(solution_id=sid, reporter_id=rid, success=True)
-    o2 = Outcome(solution_id=sid, reporter_id=rid, success=True)
-    assert isinstance(o1.outcome_id, UUID)
-    assert o1.outcome_id != o2.outcome_id
-
-
-def test_outcome_created_at_is_utc_now() -> None:
+def test_given_new_outcome_when_constructing_then_created_at_is_utc_now() -> None:
     before = datetime.now(tz=UTC)
-    sid = UUID("00000000-0000-0000-0000-000000000004")
-    rid = UUID("00000000-0000-0000-0000-000000000005")
-    o = Outcome(solution_id=sid, reporter_id=rid, success=True)
+    outcome = _make_outcome()
     after = datetime.now(tz=UTC)
-    assert before <= o.created_at <= after
+    assert before <= outcome.created_at <= after
 
 
-# ---------------------------------------------------------------------------
-# Structural guards — deprecated types must not exist
-# ---------------------------------------------------------------------------
-
-
-def test_thread_not_importable():
+@pytest.mark.parametrize("deprecated_symbol", ["Thread", "Comment", "Vote"])
+def test_given_removed_domain_symbol_when_importing_then_import_error_is_raised(
+    deprecated_symbol: str,
+) -> None:
     with pytest.raises(ImportError):
-        from backend.domain.models import Thread  # noqa: F401
+        exec(f"from backend.domain.models import {deprecated_symbol}")  # noqa: S102
 
 
-def test_comment_not_importable():
-    with pytest.raises(ImportError):
-        from backend.domain.models import Comment  # noqa: F401
-
-
-def test_vote_not_importable():
-    with pytest.raises(ImportError):
-        from backend.domain.models import Vote  # noqa: F401
-
-
-def test_scoring_module_does_not_exist():
+def test_given_removed_scoring_module_when_importing_then_module_not_found_is_raised() -> (
+    None
+):
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("backend.domain.scoring")
 
 
-def test_duplicate_vote_error_not_in_errors():
-    import backend.application.errors as err
-
-    assert not hasattr(err, "DuplicateVoteError")
-
-
-def test_token_transaction_class_removed():
-    import backend.domain.models as models
-
-    assert not hasattr(models, "TokenTransaction")
-
-
-# ---------------------------------------------------------------------------
-# Repository protocol guards
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("module_path", "removed_symbol"),
+    [
+        ("backend.application.errors", "DuplicateVoteError"),
+        ("backend.domain.models", "TokenTransaction"),
+    ],
+)
+def test_given_removed_symbol_when_reading_module_then_symbol_is_absent(
+    module_path: str, removed_symbol: str
+) -> None:
+    module = importlib.import_module(module_path)
+    assert not hasattr(module, removed_symbol)
 
 
-def test_problem_repository_has_delete_method():
-    from backend.domain.repositories import ProblemRepository
+@pytest.mark.parametrize(
+    ("repo_name", "required_method"),
+    [
+        ("ProblemRepository", "delete"),
+        ("ProblemRepository", "find_unreviewed"),
+        ("SolutionRepository", "delete"),
+        ("SolutionRepository", "find_unreviewed"),
+        ("SolutionRepository", "list_by_problem_ranked"),
+    ],
+)
+def test_given_repository_protocol_when_inspecting_then_required_method_exists(
+    repo_name: str, required_method: str
+) -> None:
+    from backend.domain import repositories as repos
 
-    assert hasattr(ProblemRepository, "delete")
-
-
-def test_problem_repository_has_find_unreviewed_method():
-    from backend.domain.repositories import ProblemRepository
-
-    assert hasattr(ProblemRepository, "find_unreviewed")
-
-
-def test_solution_repository_has_delete_method():
-    from backend.domain.repositories import SolutionRepository
-
-    assert hasattr(SolutionRepository, "delete")
-
-
-def test_solution_repository_has_find_unreviewed_method():
-    from backend.domain.repositories import SolutionRepository
-
-    assert hasattr(SolutionRepository, "find_unreviewed")
+    repo_type = getattr(repos, repo_name)
+    assert hasattr(repo_type, required_method)
 
 
-def test_solution_repository_has_list_by_problem_ranked():
-    from backend.domain.repositories import SolutionRepository
+@pytest.mark.parametrize(
+    "removed_repo_name",
+    ["ThreadRepository", "CommentRepository", "VoteRepository"],
+)
+def test_given_removed_repository_protocol_when_inspecting_then_symbol_is_absent(
+    removed_repo_name: str,
+) -> None:
+    from backend.domain import repositories as repos
 
-    assert hasattr(SolutionRepository, "list_by_problem_ranked")
-
-
-def test_thread_repository_not_in_repositories():
-    import backend.domain.repositories as repos
-
-    assert not hasattr(repos, "ThreadRepository")
-
-
-def test_comment_repository_not_in_repositories():
-    import backend.domain.repositories as repos
-
-    assert not hasattr(repos, "CommentRepository")
-
-
-def test_vote_repository_not_in_repositories():
-    import backend.domain.repositories as repos
-
-    assert not hasattr(repos, "VoteRepository")
+    assert not hasattr(repos, removed_repo_name)

@@ -36,7 +36,7 @@ const emptyMetrics = {
   stale_solutions: 0,
 };
 
-describe("HomePage — Problem Radar & Metrics tabs", () => {
+describe("HomePage — Memory Radar & Metrics tabs", () => {
   beforeEach(() => {
     fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
@@ -46,15 +46,16 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     getProblemsListMock.mockResolvedValue([]);
   });
 
-  it("renders Problem Radar and Quality Metrics tabs", async () => {
+  it("given home page load when initial data resolves then both primary tabs are visible", async () => {
     render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
-    expect(screen.getByText("Problem Radar")).toBeInTheDocument();
-    expect(screen.getByText("Quality Metrics")).toBeInTheDocument();
-    expect(document.getElementById("panel-problems")).toHaveAttribute(
-      "role",
-      "tabpanel",
-    );
+    expect(
+      screen.getByRole("tab", { name: "Memory Radar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Quality Metrics" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
 
   it("shows trending section with activity badge when trending data exists", async () => {
@@ -75,7 +76,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     render(<HomePage />);
     await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
 
-    const radarTab = screen.getByText("Problem Radar");
+    const radarTab = screen.getByText("Memory Radar");
     await userEvent.click(radarTab);
 
     await waitFor(() =>
@@ -84,7 +85,7 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     expect(screen.getByText("10 in 24h")).toBeInTheDocument();
   });
 
-  it("switches to metrics tab and shows metric cards", async () => {
+  it("given metrics data when switching tabs then metric cards are rendered", async () => {
     fetchMetricsMock.mockResolvedValue({
       ...emptyMetrics,
       resolution_rate: { value: 0.78, trend: "+0.03", target: 0.8 },
@@ -99,5 +100,53 @@ describe("HomePage — Problem Radar & Metrics tabs", () => {
     await waitFor(() =>
       expect(screen.getByText("Resolution Rate")).toBeInTheDocument(),
     );
+  });
+
+  it("given home page mounted when locating landmarks then live research banner sits between the hero subtitle and the Tabs region", async () => {
+    render(<HomePage />);
+    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
+
+    const banner = screen.getByRole("status", {
+      name: /live research status/i,
+    });
+    const subtitle = screen.getByText(/Public unified memory for AI agents/i);
+    const tablist = screen.getByRole("tablist");
+
+    expect(banner).toBeInTheDocument();
+    expect(
+      subtitle.compareDocumentPosition(banner) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      banner.compareDocumentPosition(tablist) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const computed = window.getComputedStyle(banner);
+    expect(computed.position).not.toBe("fixed");
+    expect(computed.position).not.toBe("sticky");
+  });
+
+  it("given a researching problem when home page renders both surfaces then the per-card Researching badge still appears alongside the banner", async () => {
+    getProblemsListMock.mockResolvedValue([
+      {
+        problem_id: "pid-active",
+        description: "ModuleNotFoundError importing numpy",
+        best_confidence: 0.42,
+        has_canonical: false,
+        solution_count: 1,
+        tags: ["python"],
+        is_being_researched: true,
+      },
+    ]);
+    render(<HomePage />);
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
+
+    const banner = await screen.findByRole("status", {
+      name: /live research status/i,
+    });
+    expect(banner).toBeInTheDocument();
+
+    const cardBadges = await screen.findAllByText(/researching/i);
+    expect(cardBadges.length).toBeGreaterThanOrEqual(1);
   });
 });

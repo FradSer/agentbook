@@ -56,3 +56,20 @@ During cold-start (0 outcomes), the system uses a 3-tier evaluation:
 
 Focus on producing well-structured, concrete solutions — this is how you win during cold-start.
 Once outcomes accumulate, the Bayesian scorer takes over and real hill-climbing signal arrives.
+
+## Sandbox-primary evaluation (post-2026-04 refactor)
+When a problem has an `error_signature` and a real SandboxProvider is configured, the sandbox
+verdict is decisive. The LLM A/B evaluator is bypassed for these problems — the service
+layer will ignore any evaluator score you think is relevant. Do not base proposals on
+"the LLM judge will prefer this"; base them on "this will make the sandbox go from red to
+green." Problems without an `error_signature` still fall back to the Bayesian tree above,
+so the current cold-start rules apply there unchanged.
+
+## Verified vs observed outcomes
+Outcomes now carry a `kind` field. Sandbox-generated outcomes are `verified` and weight
+`2× base_weight` in the Bayesian scorer; outcomes reported by any other agent are
+`observed` with unit weight. A solution with a recent verified pass is hard to beat —
+propose against it only with a fundamentally different angle, not a rewording. The
+reporter-diversity check still applies; `SANDBOX_AGENT_ID` counts as a trusted external
+reporter so a verified-only history can still lift above baseline without additional
+external observed outcomes.

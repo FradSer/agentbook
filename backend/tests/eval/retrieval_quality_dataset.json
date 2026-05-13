@@ -1,0 +1,541 @@
+{
+  "dataset_version": "2026-05-07.v1",
+  "corpus_source": "backend/tests/simulation/stress_agents.py:PROBLEM_TEMPLATES",
+  "corpus_seed_order": "PROBLEM_TEMPLATES_index_ascending",
+  "notes": "65 hand-curated queries against the 15 PROBLEM_TEMPLATES. expected_template_indices reference the list index of stress_agents.PROBLEM_TEMPLATES (0-based). Reordering that list is a fixture-breaking change — _retrieval_corpus.seed_corpus hard-fails when the list shape drifts. expected_match_quality is informational only (it is NOT asserted, and graded nDCG was removed from the harness because every expected_id in a query carries the same grade — bring it back when per-target grades are added). Categories drive harness behaviour: out_of_corpus and robustness_edge skip recall/MRR/nDCG and only assert no-high-quality-match; cross_topic_confusion contributes to recall/MRR AND additionally asserts that non-target templates do not earn match_quality=exact.",
+  "coverage_notes": "exact_signature (15) and paraphrase_natural (15) cover all 15 templates. signature_substring (10) covers templates {0,2,4,5,6,8,9,10,12,13} — missing {1,3,7,11,14} because their signatures are too short to substring meaningfully. keyword_partial (10) covers templates {0,2,3,4,6,7,9,11,13,14} — missing {1,5,8,10,12} to avoid query overlap with signature_substring. cross_topic_confusion (8) targets {0,1,3,4,6,8,9,11,12} via deliberate token collisions. Future PRs may rebalance — bump dataset_version to v2 in that case (the harness refuses to compare across versions).",
+  "queries": [
+    {
+      "id": "q001",
+      "category": "exact_signature",
+      "query": "error TS2307: Cannot find module '@workspace/pkg' or its corresponding type declarations.",
+      "expected_template_indices": [0],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q002",
+      "category": "exact_signature",
+      "query": "Error: Server Functions cannot be called within Client Components",
+      "expected_template_indices": [1],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q003",
+      "category": "exact_signature",
+      "query": "ERROR: deadlock detected. Process 1234 waits for ShareLock on transaction 5678",
+      "expected_template_indices": [2],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q004",
+      "category": "exact_signature",
+      "query": "Task exception was never retrieved",
+      "expected_template_indices": [3],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q005",
+      "category": "exact_signature",
+      "query": "connection refused: localhost:5432 - is the server running?",
+      "expected_template_indices": [4],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q006",
+      "category": "exact_signature",
+      "query": "Error: Connection is closed. All commands will be queued.",
+      "expected_template_indices": [5],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q007",
+      "category": "exact_signature",
+      "query": "Only plain objects, and a few built-in types can be passed to Client Components",
+      "expected_template_indices": [6],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q008",
+      "category": "exact_signature",
+      "query": "No changes in schema detected.",
+      "expected_template_indices": [7],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q009",
+      "category": "exact_signature",
+      "query": "Error: Cannot find module 'react' in '/workspace/packages/ui/node_modules/.pnpm/...'",
+      "expected_template_indices": [8],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q010",
+      "category": "exact_signature",
+      "query": "Error: Resource not accessible by integration",
+      "expected_template_indices": [9],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q011",
+      "category": "exact_signature",
+      "query": "OSError: [Errno 98] Address already in use",
+      "expected_template_indices": [10],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q012",
+      "category": "exact_signature",
+      "query": "Error: Cannot find stylesheet './custom.css'",
+      "expected_template_indices": [11],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q013",
+      "category": "exact_signature",
+      "query": "ENOSPC: no space left on device, write",
+      "expected_template_indices": [12],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q014",
+      "category": "exact_signature",
+      "query": "AttributeError: 'super' object has no attribute '__slots__'",
+      "expected_template_indices": [13],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q015",
+      "category": "exact_signature",
+      "query": "[vite] full page reload due to /src/App.tsx change",
+      "expected_template_indices": [14],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q016",
+      "category": "signature_substring",
+      "query": "Cannot find module '@workspace/pkg' or its corresponding type declarations",
+      "expected_template_indices": [0],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q017",
+      "category": "signature_substring",
+      "query": "deadlock detected. Process waits for ShareLock on transaction",
+      "expected_template_indices": [2],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q018",
+      "category": "signature_substring",
+      "query": "connection refused: localhost:5432",
+      "expected_template_indices": [4],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q019",
+      "category": "signature_substring",
+      "query": "Connection is closed. All commands will be queued",
+      "expected_template_indices": [5],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q020",
+      "category": "signature_substring",
+      "query": "Only plain objects, and a few built-in types",
+      "expected_template_indices": [6],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q021",
+      "category": "signature_substring",
+      "query": "Cannot find module 'react' in",
+      "expected_template_indices": [8],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q022",
+      "category": "signature_substring",
+      "query": "Resource not accessible by integration",
+      "expected_template_indices": [9],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q023",
+      "category": "signature_substring",
+      "query": "Address already in use",
+      "expected_template_indices": [10],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q024",
+      "category": "signature_substring",
+      "query": "no space left on device",
+      "expected_template_indices": [12],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q025",
+      "category": "signature_substring",
+      "query": "'super' object has no attribute '__slots__'",
+      "expected_template_indices": [13],
+      "expected_match_quality": "exact",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q026",
+      "category": "paraphrase_natural",
+      "query": "TypeScript can't find a workspace package import even though it works at runtime",
+      "expected_template_indices": [0],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q027",
+      "category": "paraphrase_natural",
+      "query": "Next.js form action says server function cannot be invoked from a client component",
+      "expected_template_indices": [1],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q028",
+      "category": "paraphrase_natural",
+      "query": "Two transactions deadlock when running concurrent UPDATE with JOIN against the same table in postgres",
+      "expected_template_indices": [2],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q029",
+      "category": "paraphrase_natural",
+      "query": "FastAPI background task using asyncio gather silently drops exceptions and produces no results",
+      "expected_template_indices": [3],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q030",
+      "category": "paraphrase_natural",
+      "query": "Docker pg_isready reports postgres healthy but connections are still refused for several seconds afterwards",
+      "expected_template_indices": [4],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q031",
+      "category": "paraphrase_natural",
+      "query": "ioredis stops working after AWS ElastiCache failover and never reconnects to the new primary",
+      "expected_template_indices": [5],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q032",
+      "category": "paraphrase_natural",
+      "query": "React server component returns a Date instance and the client complains about non-plain objects",
+      "expected_template_indices": [6],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q033",
+      "category": "paraphrase_natural",
+      "query": "Alembic autogenerate produces an empty migration when I change a SQLAlchemy column from String to Text",
+      "expected_template_indices": [7],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q034",
+      "category": "paraphrase_natural",
+      "query": "pnpm workspace peer dependency react is not symlinked into the nested package node_modules folder",
+      "expected_template_indices": [8],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q035",
+      "category": "paraphrase_natural",
+      "query": "GITHUB_TOKEN has write permissions but pull_request_target workflow still fails with resource not accessible",
+      "expected_template_indices": [9],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q036",
+      "category": "paraphrase_natural",
+      "query": "uvicorn workers fail to bind because the reloader process already grabbed the port inside Docker",
+      "expected_template_indices": [10],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q037",
+      "category": "paraphrase_natural",
+      "query": "Tailwind CSS v4 import resolves the framework but not local CSS files when using pnpm symlinks",
+      "expected_template_indices": [11],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q038",
+      "category": "paraphrase_natural",
+      "query": "Prisma generate dies with disk full despite the volume showing plenty of space — looks like /tmp is full",
+      "expected_template_indices": [12],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q039",
+      "category": "paraphrase_natural",
+      "query": "Python dataclass with __slots__ blows up when a subclass redefines a parent field",
+      "expected_template_indices": [13],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q040",
+      "category": "paraphrase_natural",
+      "query": "Vite reloads the whole page instead of doing HMR for every file change in a pnpm monorepo",
+      "expected_template_indices": [14],
+      "expected_match_quality": "strong",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q041",
+      "category": "keyword_partial",
+      "query": "TypeScript monorepo project references composite",
+      "expected_template_indices": [0],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q042",
+      "category": "keyword_partial",
+      "query": "postgres deadlock UPDATE FROM",
+      "expected_template_indices": [2],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q043",
+      "category": "keyword_partial",
+      "query": "asyncio gather swallow exceptions",
+      "expected_template_indices": [3],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q044",
+      "category": "keyword_partial",
+      "query": "pg_isready healthcheck timing",
+      "expected_template_indices": [4],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q045",
+      "category": "keyword_partial",
+      "query": "RSC Date serialization",
+      "expected_template_indices": [6],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q046",
+      "category": "keyword_partial",
+      "query": "alembic compare_type column change",
+      "expected_template_indices": [7],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q047",
+      "category": "keyword_partial",
+      "query": "pull_request_target permissions",
+      "expected_template_indices": [9],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q048",
+      "category": "keyword_partial",
+      "query": "tailwind v4 import pnpm symlink",
+      "expected_template_indices": [11],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q049",
+      "category": "keyword_partial",
+      "query": "dataclass slots inheritance",
+      "expected_template_indices": [13],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q050",
+      "category": "keyword_partial",
+      "query": "vite HMR pnpm monorepo",
+      "expected_template_indices": [14],
+      "expected_match_quality": "partial",
+      "expected_in_top_k": 10
+    },
+    {
+      "id": "q051",
+      "category": "cross_topic_confusion",
+      "query": "Cannot find module pnpm workspace",
+      "expected_template_indices": [0, 8],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Templates 0, 8 both match 'Cannot find module' substring; 11 says 'Cannot find stylesheet' (must NOT be tagged exact)"
+    },
+    {
+      "id": "q052",
+      "category": "cross_topic_confusion",
+      "query": "react peer dependency hoisting issue in nested packages",
+      "expected_template_indices": [8],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Template 8 is the legitimate target; template 6 (RSC) shares 'react' token but should not be exact"
+    },
+    {
+      "id": "q053",
+      "category": "cross_topic_confusion",
+      "query": "asyncio FastAPI Task exception background",
+      "expected_template_indices": [3],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Template 3 is the legitimate target; no other template should earn exact"
+    },
+    {
+      "id": "q054",
+      "category": "cross_topic_confusion",
+      "query": "Docker postgres connection refused",
+      "expected_template_indices": [4],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Template 4 is the legitimate target; templates 2 (postgres deadlock) and 10 (uvicorn docker) share tokens but must not be exact"
+    },
+    {
+      "id": "q055",
+      "category": "cross_topic_confusion",
+      "query": "next.js client component server function",
+      "expected_template_indices": [1, 6],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Both 1 and 6 mention 'Client Components' in their error_signature; no other template should match exact"
+    },
+    {
+      "id": "q056",
+      "category": "cross_topic_confusion",
+      "query": "pnpm symlink module resolution",
+      "expected_template_indices": [8, 11],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Both 8 and 11 involve pnpm symlinks; template 14 also touches pnpm but is HMR not module resolution"
+    },
+    {
+      "id": "q057",
+      "category": "cross_topic_confusion",
+      "query": "github actions docker permissions error",
+      "expected_template_indices": [9],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Template 9 is the legitimate target; 'docker' alone should not promote templates 4, 10 to exact"
+    },
+    {
+      "id": "q058",
+      "category": "cross_topic_confusion",
+      "query": "nodejs disk space CI failure",
+      "expected_template_indices": [12],
+      "expected_match_quality": null,
+      "expected_in_top_k": 10,
+      "notes": "Template 12 is the legitimate target; other nodejs templates (5, 8) must not match exact"
+    },
+    {
+      "id": "q059",
+      "category": "out_of_corpus",
+      "query": "iOS UIKit autolayout constraint conflict warning when rotating device",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0,
+      "notes": "No iOS / UIKit content in corpus; should produce no exact/strong match"
+    },
+    {
+      "id": "q060",
+      "category": "out_of_corpus",
+      "query": "Rust borrow checker lifetime mismatch in async closure across await points",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0
+    },
+    {
+      "id": "q061",
+      "category": "out_of_corpus",
+      "query": "Kubernetes pod CrashLoopBackOff with OOMKilled exit code 137",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0
+    },
+    {
+      "id": "q062",
+      "category": "out_of_corpus",
+      "query": "MongoDB aggregation pipeline lookup performance on sharded collection slow",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0
+    },
+    {
+      "id": "q063",
+      "category": "robustness_edge",
+      "query": "",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0,
+      "notes": "Empty query — must not raise; service confirmed to return empty results."
+    },
+    {
+      "id": "q064",
+      "category": "robustness_edge",
+      "query": "x",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0,
+      "notes": "Single low-signal token — must not crash, no high-quality match expected"
+    },
+    {
+      "id": "q065",
+      "category": "robustness_edge",
+      "query": "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt in culpa qui officia deserunt mollit anim id est laborum sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque",
+      "expected_template_indices": [],
+      "expected_match_quality": null,
+      "expected_in_top_k": 0,
+      "notes": "Long noise query (500+ chars) — must not crash"
+    }
+  ]
+}

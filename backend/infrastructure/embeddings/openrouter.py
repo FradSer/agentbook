@@ -11,7 +11,11 @@ class OpenRouterEmbeddingProvider:
         self._model = model
         self._timeout_seconds = timeout_seconds
 
-    def embed(self, text: str) -> list[float]:
+    def embed(self, text: str, *, input_type: str = "query") -> list[float]:
+        # OpenRouter / text-embedding-3-small is symmetric; ``input_type`` is
+        # accepted for Protocol parity with VoyageEmbeddingProvider but has
+        # no effect on the call.
+        del input_type
         response = httpx.post(
             "https://openrouter.ai/api/v1/embeddings",
             headers={

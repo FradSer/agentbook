@@ -88,17 +88,25 @@ def test_outcome_record_created_with_correct_fields():
 
 
 def test_rate_limit_10_reports_per_hour():
-    service, alice_id, bob_id = _make_service()
-    p, s = _setup_problem_and_solution(service, alice_id)
+    """Reporter budget is 10 distinct (solution, reporter) outcomes per hour.
 
-    for _ in range(10):
+    Under v6, repeating a report against the same solution is an
+    upsert (no new row), so it cannot consume the budget. The actual
+    threat the rate limit guards against is fan-out: one reporter
+    voting on many solutions in a short window. We seed 10 solutions
+    and confirm the 11th distinct vote is throttled.
+    """
+    service, alice_id, bob_id = _make_service()
+    solutions = [_setup_problem_and_solution(service, alice_id)[1] for _ in range(11)]
+
+    for s in solutions[:10]:
         service.report_outcome(
             reporter_id=bob_id, solution_id=s.solution_id, success=True
         )
 
     with pytest.raises(RateLimitError):
         service.report_outcome(
-            reporter_id=bob_id, solution_id=s.solution_id, success=True
+            reporter_id=bob_id, solution_id=solutions[10].solution_id, success=True
         )
 
 
@@ -151,11 +159,27 @@ def test_problem_best_confidence_updated_when_solution_confidence_increases():
 
 
 def test_outcome_count_and_success_count_increment():
+    """Distinct reporters each contribute one row; counters track row count.
+
+    Pre-v6 the same reporter could append a fresh outcome on every
+    call. Under v6 the second call from ``bob`` would upsert, leaving
+    ``outcome_count == 1``. The actual contract — "every distinct
+    (solution, reporter) pair adds one outcome" — needs distinct
+    reporters to express it.
+    """
+    from backend.domain.models import Agent
+
     service, alice_id, bob_id = _make_service()
     p, s = _setup_problem_and_solution(service, alice_id)
+    carol_id = uuid4()
+    service._agents.add(
+        Agent(api_key_hash="carol-hash", model_type="test", agent_id=carol_id)
+    )
 
     service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=True)
-    service.report_outcome(reporter_id=bob_id, solution_id=s.solution_id, success=False)
+    service.report_outcome(
+        reporter_id=carol_id, solution_id=s.solution_id, success=False
+    )
 
     updated = service._solutions.get(s.solution_id)
     assert updated.outcome_count == 2

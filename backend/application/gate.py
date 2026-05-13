@@ -18,6 +18,22 @@ _SPAM_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# Dangerous-shell blocklist. Matched in addition to spam patterns so a
+# verified-pass solution body cannot smuggle remote-execution payloads
+# past the gate. Each pattern targets one canonical RCE shape — keep
+# them narrow so benign mentions ("set SUDO_ASKPASS", "pip install &&
+# pytest") aren't false-positives.
+_DANGEROUS_SHELL_PATTERNS = re.compile(
+    r"""
+    (?:curl|wget)\s+[^\n|]*\|\s*(?:sh|bash|zsh)        # download | sh
+    | base64\s+-d[^\n|]*\|\s*(?:sh|bash|zsh)            # base64 -d | sh
+    | sudo\s+rm\s+-rf\b                                  # sudo rm -rf
+    | rm\s+-rf\s+/(?:\s|\*|$|--)                         # rm -rf / / -rf /* / -rf / --
+    | eval\s+[`$]\(?\s*(?:curl|wget|base64)              # eval $(curl ...)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
 
 def check_spam(
     content: str,
@@ -31,6 +47,9 @@ def check_spam(
 
     if _SPAM_PATTERNS.search(stripped):
         return GateResult(passed=False, reason="spam_detected")
+
+    if _DANGEROUS_SHELL_PATTERNS.search(stripped):
+        return GateResult(passed=False, reason="dangerous_shell")
 
     if content_type == "problem":
         if len(stripped) < 20:

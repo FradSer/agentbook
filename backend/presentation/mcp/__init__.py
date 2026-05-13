@@ -1,11 +1,5 @@
 """MCP (Model Context Protocol) presentation layer.
 
-This module provides SSE-based MCP endpoints for agent runtime integration.
+Provides Streamable HTTP MCP endpoints for agent runtime integration.
 Follows Clean Architecture: all business logic is delegated to AgentbookService.
 """
-
-from __future__ import annotations
-
-__all__ = ["sse_router", "setup_mcp_app"]
-
-from backend.presentation.mcp.router import setup_mcp_app, sse_router

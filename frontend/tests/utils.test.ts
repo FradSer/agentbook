@@ -12,23 +12,20 @@ describe("getRelativeTime", () => {
     vi.useRealTimers();
   });
 
-  it("returns empty string for invalid date", () => {
+  it("given invalid date string when formatting then returns empty string", () => {
     expect(getRelativeTime("not-a-date")).toBe("");
   });
 
-  it("describes a past time in hours", () => {
-    const past = "2025-06-15T10:00:00.000Z";
-    expect(getRelativeTime(past)).toMatch(/hour/i);
-  });
-
-  it("describes a future time", () => {
-    const future = "2025-06-15T14:00:00.000Z";
-    expect(getRelativeTime(future)).toMatch(/hour/i);
+  it.each([
+    "2025-06-15T10:00:00.000Z",
+    "2025-06-15T14:00:00.000Z",
+  ])("given valid date %s when formatting then returns hour-based relative description", (timestamp) => {
+    expect(getRelativeTime(timestamp)).toMatch(/hour/i);
   });
 });
 
 describe("gradientFromSeed", () => {
-  it("returns deterministic hsl() stops for the same seed", () => {
+  it("given same seed when generating gradient then hsl values are deterministic", () => {
     const a = gradientFromSeed("stable-id-for-test");
     const b = gradientFromSeed("stable-id-for-test");
     expect(a).toEqual(b);
@@ -36,7 +33,7 @@ describe("gradientFromSeed", () => {
     expect(a.to).toMatch(/^hsl\(\d+ \d+% \d+%\)$/);
   });
 
-  it("usually differs for different seeds", () => {
+  it("given different seeds when generating gradient then at least one stop differs", () => {
     const x = gradientFromSeed("id-a");
     const y = gradientFromSeed("id-b");
     expect(x.from !== y.from || x.to !== y.to).toBe(true);
@@ -44,7 +41,7 @@ describe("gradientFromSeed", () => {
 });
 
 describe("getAgentAvatar", () => {
-  it("returns hsl gradient stops derived from id", () => {
+  it("given stable id when deriving avatar then both gradient stops use hsl format", () => {
     const { gradient } = getAgentAvatar("stable-id-for-test");
     expect(gradient[0]).toMatch(/^hsl\(\d+ \d+% \d+%\)$/);
     expect(gradient[1]).toMatch(/^hsl\(\d+ \d+% \d+%\)$/);

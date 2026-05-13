@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from backend.application.service import RESEARCH_TIMEOUT_SECONDS
 from backend.domain.models import (
     Agent,
     Outcome,
@@ -11,6 +12,7 @@ from backend.domain.models import (
     ResearchCycle,
     Solution,
 )
+from backend.domain.search import SearchDiagnostics
 from backend.infrastructure.persistence.vector_utils import cosine_similarity
 
 
@@ -80,7 +82,23 @@ class InMemoryProblemRepository:
         query_text: str,
         limit: int,
     ) -> list[tuple[Problem, float]]:
-        from backend.application._rrf import rrf_fuse
+        results, _ = self.find_hybrid_with_diagnostics(
+            query_embedding=query_embedding,
+            query_text=query_text,
+            limit=limit,
+        )
+        return results
+
+    def retrieval_status(self) -> tuple[str, bool]:
+        return ("memory", False)
+
+    def find_hybrid_with_diagnostics(
+        self,
+        query_embedding: list[float] | None,
+        query_text: str,
+        limit: int,
+    ) -> tuple[list[tuple[Problem, float]], SearchDiagnostics]:
+        from backend.domain.search import rrf_fuse
 
         approved = [p for p in self._problems.values() if p.review_status == "approved"]
 
@@ -99,16 +117,31 @@ class InMemoryProblemRepository:
             terms = {t for t in query_text.lower().split() if t}
             with_overlap = []
             for p in approved:
-                tokens = set(p.description.lower().split())
+                searchable = " ".join(
+                    part
+                    for part in (
+                        p.description,
+                        p.error_signature or "",
+                        " ".join(p.tags or []),
+                    )
+                    if part
+                )
+                tokens = set(searchable.lower().split())
                 overlap = len(terms & tokens)
                 if overlap > 0:
                     with_overlap.append((p, overlap))
             with_overlap.sort(key=lambda item: item[1], reverse=True)
             sparse = [p for p, _ in with_overlap]
 
+        diagnostics = SearchDiagnostics(
+            backend="memory",
+            pgvector_available=False,
+            dense_hits=len(dense),
+            sparse_hits=len(sparse),
+        )
         if not dense and not sparse:
-            return []
-        return rrf_fuse([dense, sparse], k=60, limit=limit)
+            return [], diagnostics
+        return rrf_fuse([dense, sparse], k=60, limit=limit), diagnostics
 
     def find_by_error_signature(self, signature: str) -> Problem | None:
         for problem in self._problems.values():
@@ -118,6 +151,14 @@ class InMemoryProblemRepository:
 
     def update(self, problem: Problem) -> None:
         self._problems[problem.problem_id] = problem
+
+    def update_embedding_v2(
+        self, problem_id: UUID, embedding: list[float] | None
+    ) -> None:
+        # In-memory mode has no separate v2 column; the dual-write is a no-op
+        # because there is no SQL schema to bifurcate. Tests and DEMO_MODE
+        # rely on this behaviour.
+        del problem_id, embedding
 
     def find_unreviewed(
         self,
@@ -150,6 +191,19 @@ class InMemoryProblemRepository:
         ]
         approved.sort(key=lambda p: (p.solution_count, p.best_confidence))
         return approved[offset : offset + limit]
+
+    def list_being_researched(
+        self, timeout_seconds: int = RESEARCH_TIMEOUT_SECONDS
+    ) -> list[Problem]:
+        now = datetime.now(tz=UTC)
+        fresh = [
+            p
+            for p in self._problems.values()
+            if p.research_started_at is not None
+            and (now - p.research_started_at).total_seconds() < timeout_seconds
+        ]
+        fresh.sort(key=lambda p: p.research_started_at, reverse=True)
+        return fresh
 
 
 class InMemorySolutionRepository:
@@ -199,6 +253,28 @@ class InMemorySolutionRepository:
         results.sort(key=lambda s: (s.canonical_id is None, s.confidence), reverse=True)
         return results
 
+    def _bucket_solutions_by_problem(
+        self, problem_ids: list[UUID], project
+    ) -> dict[UUID, list]:
+        if not problem_ids:
+            return {}
+        target = set(problem_ids)
+        out: dict[UUID, list] = {pid: [] for pid in target}
+        for s in self._solutions.values():
+            if s.problem_id in target:
+                out[s.problem_id].append(project(s))
+        return out
+
+    def list_solution_ids_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        return self._bucket_solutions_by_problem(problem_ids, lambda s: s.solution_id)
+
+    def list_by_problem_ids(
+        self, problem_ids: list[UUID]
+    ) -> dict[UUID, list[Solution]]:
+        return self._bucket_solutions_by_problem(problem_ids, lambda s: s)
+
     def find_superseded(self, problem_id: UUID) -> list[Solution]:
         return [
             s
@@ -213,6 +289,33 @@ class InMemoryOutcomeRepository:
 
     def add(self, outcome: Outcome) -> None:
         self._outcomes.append(outcome)
+
+    def upsert(self, outcome: Outcome) -> tuple[Outcome, bool]:
+        for idx, existing in enumerate(self._outcomes):
+            if (
+                existing.solution_id == outcome.solution_id
+                and existing.reporter_id == outcome.reporter_id
+            ):
+                # Preserve the original outcome_id — external references
+                # (logs, tickets, lineage) point at it. Only replace the
+                # mutable signal fields.
+                merged = Outcome(
+                    outcome_id=existing.outcome_id,
+                    solution_id=outcome.solution_id,
+                    reporter_id=outcome.reporter_id,
+                    success=outcome.success,
+                    kind=outcome.kind,
+                    weight=outcome.weight,
+                    environment=outcome.environment,
+                    notes=outcome.notes,
+                    time_saved_seconds=outcome.time_saved_seconds,
+                    error_after=outcome.error_after,
+                    created_at=outcome.created_at,
+                )
+                self._outcomes[idx] = merged
+                return merged, False
+        self._outcomes.append(outcome)
+        return outcome, True
 
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.solution_id == solution_id]
@@ -229,6 +332,73 @@ class InMemoryOutcomeRepository:
             for o in self._outcomes
             if o.reporter_id == reporter_id and o.created_at >= since
         )
+
+    def oldest_created_at_by_reporter(
+        self, reporter_id: UUID, since: datetime
+    ) -> datetime | None:
+        in_window = (
+            o.created_at
+            for o in self._outcomes
+            if o.reporter_id == reporter_id and o.created_at >= since
+        )
+        return min(in_window, default=None)
+
+    def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]:
+        return [o for o in self._outcomes if o.reporter_id == reporter_id]
+
+    def aggregate_usage_metrics(self, now: datetime) -> dict:
+        seven_ago = now - timedelta(days=7)
+        thirty_ago = now - timedelta(days=30)
+
+        last_7d = 0
+        last_30d = 0
+        verified = 0
+        observed = 0
+        reporters_total: set[UUID] = set()
+        reporters_7d: set[UUID] = set()
+        reporters_30d: set[UUID] = set()
+
+        for o in self._outcomes:
+            reporters_total.add(o.reporter_id)
+            if o.created_at >= seven_ago:
+                last_7d += 1
+                reporters_7d.add(o.reporter_id)
+            if o.created_at >= thirty_ago:
+                last_30d += 1
+                reporters_30d.add(o.reporter_id)
+            if o.kind == "verified":
+                verified += 1
+            elif o.kind == "observed":
+                observed += 1
+
+        return {
+            "outcomes_total": len(self._outcomes),
+            "outcomes_last_7d": last_7d,
+            "outcomes_last_30d": last_30d,
+            "verified_total": verified,
+            "observed_total": observed,
+            "unique_reporters_total": len(reporters_total),
+            "unique_reporters_7d": len(reporters_7d),
+            "unique_reporters_30d": len(reporters_30d),
+        }
+
+    def outcome_counts_by_solution_ids(
+        self, solution_ids: list[UUID]
+    ) -> dict[UUID, int]:
+        if not solution_ids:
+            return {}
+        target = set(solution_ids)
+        counts: dict[UUID, int] = {}
+        for o in self._outcomes:
+            if o.solution_id in target:
+                counts[o.solution_id] = counts.get(o.solution_id, 0) + 1
+        return counts
+
+    def list_by_solution_ids(self, solution_ids: list[UUID]) -> list[Outcome]:
+        if not solution_ids:
+            return []
+        target = set(solution_ids)
+        return [o for o in self._outcomes if o.solution_id in target]
 
 
 class InMemoryResearchCycleRepository:
@@ -255,6 +425,11 @@ class InMemoryResearchCycleRepository:
         if not cycles:
             return None
         return max(c.created_at for c in cycles)
+
+    def get_latest_cycle_at(self) -> datetime | None:
+        if not self._cycles:
+            return None
+        return max(c.created_at for c in self._cycles)
 
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
         cycles = sorted(

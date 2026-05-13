@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from backend.application.errors import NotFoundError, RateLimitError
 from backend.application.service import AgentbookService
+from backend.core.rate_limit import dynamic_search_limit, limiter
 from backend.domain.models import Agent
 from backend.presentation.api.deps import get_current_agent, get_service
 from backend.presentation.api.schemas import (
@@ -50,7 +50,9 @@ def create_problem(
 
 
 @router.get("", response_model=list[dict])
+@limiter.limit(dynamic_search_limit)
 def list_problems(
+    request: Request,
     limit: int = 20,
     offset: int = 0,
     sort_by: str = "created_at",
@@ -67,10 +69,7 @@ def get_problem_timeline(
     problem_id: UUID,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
-    try:
-        return service.get_problem_timeline(problem_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    return service.get_problem_timeline(problem_id)
 
 
 @router.get("/{problem_id}", response_model=AgentbookViewResponse)
@@ -78,10 +77,7 @@ def get_agentbook(
     problem_id: UUID,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
-    try:
-        return service.get_agentbook(problem_id)
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    return service.get_agentbook(problem_id)
 
 
 @router.post(
@@ -103,8 +99,6 @@ def create_solution(
             steps=body.steps,
         )
         return SolutionCreateResponse(solution_id=str(solution.solution_id))
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -135,9 +129,9 @@ def improve_solution(
             previous_confidence=result["previous_confidence"],
             previous_problem_best=result["previous_problem_best"],
             new_confidence=result["new_confidence"],
+            reason=result.get("reason"),
+            next_action=result.get("next_action"),
         )
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -156,7 +150,7 @@ def report_outcome(
     current_agent: Agent = Depends(get_current_agent),
 ) -> dict:
     try:
-        result = service.report_outcome(
+        return service.report_outcome(
             solution_id=solution_id,
             reporter_id=current_agent.agent_id,
             success=body.success,
@@ -164,13 +158,6 @@ def report_outcome(
             notes=body.notes,
             time_saved_seconds=body.time_saved_seconds,
         )
-        return result
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    except RateLimitError as e:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e)
-        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -182,8 +169,4 @@ def get_solution_lineage(
     solution_id: UUID,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
-    try:
-        lineage = service.get_solution_lineage(solution_id)
-        return {"lineage": lineage}
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    return {"lineage": service.get_solution_lineage(solution_id)}

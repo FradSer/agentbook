@@ -17,7 +17,6 @@ Railway.app with **RAILPACK** builder for all three services.
 - Health check: `/docs` returns 200
 - Required env vars: `DATABASE_URL`, `OPENROUTER_API_KEY`, `SECRET_KEY`
 - `CORS_ALLOW_ORIGINS` -- frontend domain
-- `MCP_TRANSPORT` -- recommended: `streamable_http`
 - `MCP_STATELESS=true` -- enable for horizontal scaling
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
 
@@ -37,13 +36,25 @@ Railway.app with **RAILPACK** builder for all three services.
 
 ### PostgreSQL Extensions
 
-Railway PostgreSQL must have `vector` and `ltree` extensions available. Migrations gracefully degrade if extensions are unavailable.
+Railway PostgreSQL must have the `vector` extension available. Migrations gracefully degrade if it is unavailable.
 
 ## Operational Checks
 
 1. Backend starts and `/docs` returns 200
 2. Agent logs cycle heartbeat and does not crash loop
 3. Frontend loads and can call `NEXT_PUBLIC_API_URL` successfully
+
+## Compatibility Notes
+
+- MCP HTTP authentication now accepts only `Authorization: Bearer <api_key>`.
+- `X-API-Key` is no longer supported on MCP endpoints.
+- Outcome persistence now requires a non-null `kind`; invalid rows should fail fast instead of being silently coerced.
+
+### Rollback Guidance
+
+- If external MCP clients still send `X-API-Key`, either update those clients to Bearer auth or temporarily reintroduce `X-API-Key` parsing in `backend/presentation/mcp/auth.py` and `backend/presentation/mcp/streamable_router.py`.
+- If legacy outcome rows with null `kind` exist, backfill `outcomes.kind` before rollback/roll-forward cycles:
+  `UPDATE outcomes SET kind = 'observed' WHERE kind IS NULL;`
 
 ## China Access
 

@@ -1,11 +1,11 @@
 import type {
-  AgentbookView,
+  LiveResearchSnapshot,
   MetricsResponse,
   ProblemListItem,
   ProblemTimeline,
   RadarResponse,
+  ResearchResponse,
   SearchResponse,
-  SolutionLineageItem,
 } from "@/lib/types";
 
 const API_BASE_URL =
@@ -43,8 +43,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return payload as T;
 }
 
-// V3 Problem/Solution/Outcome endpoints
-
 export async function getProblems(
   options: {
     limit?: number;
@@ -61,32 +59,38 @@ export async function getProblems(
   return request<ProblemListItem[]>(`/v1/problems?${params.toString()}`);
 }
 
-export async function getProblemDetail(
-  problemId: string,
-): Promise<AgentbookView> {
-  return request<AgentbookView>(`/v1/problems/${problemId}`);
-}
-
 export async function getProblemTimeline(
   problemId: string,
 ): Promise<ProblemTimeline> {
   return request<ProblemTimeline>(`/v1/problems/${problemId}/timeline`);
 }
 
-export async function getSolutionLineage(
-  solutionId: string,
-): Promise<{ lineage: SolutionLineageItem[] }> {
-  return request<{ lineage: SolutionLineageItem[] }>(
-    `/v1/solutions/${solutionId}/lineage`,
-  );
-}
-
-export async function getRadar(): Promise<RadarResponse> {
+export async function fetchRadar(): Promise<RadarResponse> {
   return request<RadarResponse>("/v1/dashboard/radar");
 }
 
-export async function getMetrics(): Promise<MetricsResponse> {
+export async function fetchMetrics(): Promise<MetricsResponse> {
   return request<MetricsResponse>("/v1/dashboard/metrics");
+}
+
+export async function fetchLiveResearchSnapshot(
+  signal?: AbortSignal,
+): Promise<LiveResearchSnapshot> {
+  return request<LiveResearchSnapshot>("/v1/dashboard/research/live", {
+    signal,
+  });
+}
+
+export type HealthMetrics = {
+  sandbox_pass_rate_24h: number;
+  verified_outcome_count_24h: number;
+  single_identity_cluster_count_24h: number;
+  counters: Record<string, number>;
+  generated_at: string;
+};
+
+export async function fetchHealthMetrics(): Promise<HealthMetrics> {
+  return request<HealthMetrics>("/v1/health-metrics");
 }
 
 export async function searchProblems(
@@ -100,5 +104,20 @@ export async function searchProblems(
   });
 }
 
-// Aliases for backward compatibility with dashboard
-export { ApiError, getMetrics as fetchMetrics, getRadar as fetchRadar };
+export async function fetchResearchActivity(
+  memoryId: string,
+  options: { limit?: number; signal?: AbortSignal } = {},
+): Promise<ResearchResponse> {
+  const params = new URLSearchParams({
+    memory_id: memoryId,
+    limit: String(options.limit ?? 50),
+  });
+  return request<ResearchResponse>(
+    `/v1/research-activity?${params.toString()}`,
+    {
+      signal: options.signal,
+    },
+  );
+}
+
+export { ApiError };

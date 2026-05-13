@@ -1,20 +1,39 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict
 from uuid import UUID
 
+from backend.application._frozen_policy import frozen_policy
+from backend.application.clustering import SANDBOX_AGENT_ID
 from backend.domain.models import Outcome, Solution, utc_now
 
+# v6 caps. See docs/confidence-changelog.md ## v6 for the rationale.
+BASELINE_CONFIDENCE = 0.3
+COLD_START_MIN_REPORTERS = 3
+COLD_START_FLOOR = 0.5
+SANDBOX_ONLY_CEILING = 0.6
 
+
+def external_reporter_ids(outcomes: list[Outcome], author_id: UUID) -> set[UUID]:
+    """Reporter IDs that count toward external corroboration.
+
+    Excludes the solution author (self-reports don't add diversity).
+    Shared across the confidence math, the candidate-promotion gate,
+    and the search-response provenance carrier — keeping them in sync
+    means a sandbox agent's status flip lands in all three at once.
+    """
+    return {o.reporter_id for o in outcomes if o.reporter_id != author_id}
+
+
+@frozen_policy("v6")
 def calculate_confidence(
     outcomes: list[Outcome],
     author_id: UUID,
+    *,
+    num_effective_reporters: int | None = None,
 ) -> float:
-    baseline = 0.3
-
     if not outcomes:
-        return baseline
+        return BASELINE_CONFIDENCE
 
     total = len(outcomes)
     now = utc_now()
@@ -25,24 +44,24 @@ def calculate_confidence(
 
     for outcome in outcomes:
         base_weight = 0.5 if outcome.reporter_id == author_id else 1.0
+        kind_multiplier = 2.0 if outcome.kind == "verified" else 1.0
         days_elapsed = (now - outcome.created_at).total_seconds() / 86400
         recency_factor = math.exp(-days_elapsed / 90.0)
         env_factor = outcome.weight
-        final_weight = base_weight * recency_factor * env_factor
+        final_weight = base_weight * kind_multiplier * recency_factor * env_factor
         final_weights.append(final_weight)
         success_values.append(1.0 if outcome.success else 0.0)
 
-    # Step 4: reporter diversity penalty.
-    # Count only external unique reporters (excluding author_id).  Self-reports
-    # do not increase reporter diversity, so a purely self-reported dataset has
-    # zero external unique reporters and its weights collapse to zero.
-    unique_ext_reporters = len(
-        {o.reporter_id for o in outcomes if o.reporter_id != author_id}
-    )
+    # Step 4: reporter diversity penalty. ``num_effective_reporters``
+    # (pre-computed from anti-Sybil clustering) wins when supplied;
+    # otherwise fall back to the naive unique external count.
+    if num_effective_reporters is not None:
+        unique_ext_reporters = num_effective_reporters
+    else:
+        unique_ext_reporters = len(external_reporter_ids(outcomes, author_id))
 
     if unique_ext_reporters == 0:
-        # No external corroboration: treat as no usable data, return baseline.
-        return baseline
+        return BASELINE_CONFIDENCE
 
     effective_count = unique_ext_reporters * math.log2(total + 1)
     if effective_count < total:
@@ -50,25 +69,43 @@ def calculate_confidence(
         final_weights = [w * scale for w in final_weights]
 
     # Step 5: weighted ratio with adaptive Bayesian prior P = P0 / total.
-    # The adaptive prior ensures a single aged outcome (tiny weight) is pulled
-    # strongly toward the baseline, while a batch of fresh outcomes is pulled
-    # only weakly.
+    # The adaptive prior pulls a single aged outcome (tiny weight) strongly
+    # toward baseline while leaving a batch of fresh outcomes mostly free.
     sum_w = sum(final_weights)
     sum_sv_w = sum(sv * w for sv, w in zip(success_values, final_weights, strict=False))
 
     if sum_w == 0.0:
-        return baseline
+        return BASELINE_CONFIDENCE
 
     prior_weight = 0.8 / total
-    confidence = (sum_sv_w + baseline * prior_weight) / (sum_w + prior_weight)
+    confidence = (sum_sv_w + BASELINE_CONFIDENCE * prior_weight) / (
+        sum_w + prior_weight
+    )
+
+    # v6 caps applied last so they can't be circumvented by feeding an
+    # inflated num_effective_reporters in. Both caps are upper bounds
+    # only — failure signals stay free to drive confidence below 0.5.
+    if unique_ext_reporters < COLD_START_MIN_REPORTERS:
+        confidence = min(confidence, COLD_START_FLOOR)
+
+    has_sandbox_verified = False
+    external_observed_corroboration = False
+    for o in outcomes:
+        if o.reporter_id == SANDBOX_AGENT_ID:
+            if o.kind == "verified":
+                has_sandbox_verified = True
+        elif o.reporter_id != author_id and o.kind == "observed" and o.success:
+            external_observed_corroboration = True
+        if has_sandbox_verified and external_observed_corroboration:
+            break
+    if has_sandbox_verified and not external_observed_corroboration:
+        confidence = min(confidence, SANDBOX_ONLY_CEILING)
 
     return max(0.0, min(1.0, confidence))
 
 
-# ---------------------------------------------------------------------------
 # Unified evaluation – single entry point for hill-climbing decisions.
 # Analogous to autoresearch's immutable prepare.py:evaluate_bpb().
-# ---------------------------------------------------------------------------
 
 _SPECIFICITY_MARKERS = ("```", "$ ", "sudo ", "pip ", "npm ", "apt ", "brew ")
 
@@ -113,21 +150,35 @@ def evaluate_improvement(
     proposed: Solution,
     evaluator_score: float | None = None,
     sandbox_score: float | None = None,
+    *,
+    problem_has_error_signature: bool = False,
+    sandbox_available: bool = False,
 ) -> tuple[bool, str]:
     """Single decision function: should proposed replace existing?
 
     Like autoresearch's ``new_val_bpb < old_val_bpb`` but multi-factor.
-    Encapsulates content regression, content bloat, cold-start heuristics,
-    strict hill-climbing, and simplification reward.
+    When ``problem_has_error_signature`` and ``sandbox_available`` are both
+    true and ``sandbox_score`` is supplied, the sandbox verdict is
+    decisive — pass accepts, fail rejects, tie (0.5 < score < 1.0) routes
+    through the Karpathy simplicity rule. Otherwise the legacy tree runs:
+    content regression, content bloat, cold-start heuristics, strict
+    hill-climbing, and simplification reward.
 
     Args:
         evaluator_score: Optional LLM A/B comparison result (0.0-1.0, >0.5
             means proposed is better).  Used during cold-start as a proxy
             for autoresearch's deterministic ``prepare.py`` measurement.
-        sandbox_score: Optional sandbox execution result (0.0-1.0, >0.5
-            means proposed ran successfully while existing did not, or
-            proposed otherwise outperformed).  Used during cold-start
-            between the evaluator and the content heuristic.
+        sandbox_score: Optional sandbox execution result (0.0-1.0).
+            Semantics vary by flag combination — see below.
+        problem_has_error_signature: True when the parent problem has an
+            ``error_signature`` that makes reproduction codifiable.
+        sandbox_available: True when a non-Noop SandboxProvider is
+            configured AND circuit breaker / gates permit a real run.
+
+    sandbox_score encoding (set by the orchestrator in service.py):
+        - 0.0: both solutions fail, or proposed fails while existing passes
+        - 0.6: tie (both pass) — defers to simplicity rule
+        - 1.0: proposed passes while existing fails
 
     Returns ``(accepted, reason_code)`` for auditability.
 
@@ -136,6 +187,20 @@ def evaluate_improvement(
     """
     new_steps = len(proposed.steps) if proposed.steps else 0
     old_steps = len(existing.steps) if existing.steps else 0
+
+    # 0. Sandbox-primary dispatch: decisive when error_signature + sandbox.
+    if problem_has_error_signature and sandbox_available and sandbox_score is not None:
+        if sandbox_score >= 0.99:
+            return True, "sandbox_verified_pass"
+        if sandbox_score <= 0.5:
+            return False, "sandbox_verified_fail"
+        # Tie: both passed. Fall through to simplicity rule with tied reason.
+        if (
+            len(proposed.content) < len(existing.content) * 0.8
+            and new_steps >= old_steps
+        ):
+            return True, "sandbox_tied_simplification"
+        return False, "sandbox_tied_no_improvement"
 
     # 1. Content regression: <50% length without extra steps
     if is_content_regression(existing, proposed):
@@ -193,61 +258,4 @@ def evaluate_improvement(
     return False, "no_improvement"
 
 
-# ---------------------------------------------------------------------------
 # Environment-aware scoring
-# ---------------------------------------------------------------------------
-
-
-def normalize_environment(env: dict | None) -> str:
-    """Produce a stable, hashable key from a free-form environment dict.
-
-    Keys are sorted alphabetically; values are lowercased and joined with
-    underscores.  Returns ``"_unknown"`` for *None* or empty dicts so callers
-    always get a non-empty string suitable as a dict key or cache component.
-    """
-    if not env:
-        return "_unknown"
-    parts: list[str] = []
-    for key in sorted(env):
-        val = str(env[key]).strip().lower()
-        if val:
-            parts.append(val)
-    return "_".join(parts) if parts else "_unknown"
-
-
-def calculate_environment_scores(
-    outcomes: list[Outcome],
-    author_id: UUID,
-    global_confidence: float | None = None,
-) -> dict[str, float]:
-    """Compute per-environment confidence scores.
-
-    Groups outcomes by their normalized environment key, then runs
-    :func:`calculate_confidence` independently for each group.  The
-    ``_global`` key always holds the ungrouped (all-outcomes) score so
-    existing consumers see no change.
-
-    Pass *global_confidence* to avoid recomputing the ungrouped score
-    when the caller already has it.
-    """
-
-    scores: dict[str, float] = {}
-
-    scores["_global"] = (
-        global_confidence
-        if global_confidence is not None
-        else calculate_confidence(outcomes, author_id)
-    )
-
-    # Group outcomes by normalized environment.
-    env_groups: dict[str, list[Outcome]] = defaultdict(list)
-    for outcome in outcomes:
-        key = normalize_environment(outcome.environment)
-        env_groups[key].append(outcome)
-
-    for env_key, group in env_groups.items():
-        if env_key == "_unknown":
-            continue
-        scores[env_key] = calculate_confidence(group, author_id)
-
-    return scores

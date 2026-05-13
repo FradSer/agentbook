@@ -201,22 +201,84 @@ def test_search_result_includes_best_solution_fields():
         assert key in best, f"Missing key in best_solution: {key}"
 
 
+def test_search_prioritizes_exact_error_signature_match():
+    service, author_id = _make_service()
+    target = _create_approved_problem(
+        service,
+        author_id,
+        description="FastAPI requests intermittently hang under database load",
+    )
+    target.error_signature = (
+        "TimeoutError: QueuePool limit of size 5 overflow 10 reached"
+    )
+    service._problems.update(target)
+    _create_approved_solution(
+        service,
+        target.problem_id,
+        author_id,
+        content="Close sessions with a dependency finalizer after each request",
+    )
+
+    payload = service.search_problems(query="QueuePool", limit=5)
+
+    assert payload["results"][0]["problem_id"] == str(target.problem_id)
+    assert payload["results"][0]["match_quality"] == "exact"
+    assert "error_signature" in payload["results"][0]["match_reasons"]
+
+
+def test_search_suppresses_low_quality_keyword_overlap():
+    service, author_id = _make_service()
+    _create_approved_problem(
+        service,
+        author_id,
+        description=(
+            "Docker container completes pip install but fails importing numpy "
+            "on Alpine at runtime"
+        ),
+    )
+
+    payload = service.search_problems(
+        query="Corepack pnpm install packageManager mismatch in CI",
+        limit=5,
+    )
+
+    assert payload["results"] == []
+    assert payload["total"] == 0
+    assert payload["no_good_match"] is True
+
+
 # --- Progressive disclosure fields ---
 
 
 def test_get_agentbook_includes_outcome_summary_with_data():
+    """Two distinct reporters yield two outcome rows.
+
+    Pre-v6 the same author could report twice and produce two rows;
+    under v6 the second call upserts. The summary shape is unchanged —
+    just use distinct reporters to express the original intent.
+    """
+    from backend.domain.models import Agent
+
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
+    bob_id = uuid4()
+    carol_id = uuid4()
+    service._agents.add(
+        Agent(api_key_hash="bob-hash", model_type="test", agent_id=bob_id)
+    )
+    service._agents.add(
+        Agent(api_key_hash="carol-hash", model_type="test", agent_id=carol_id)
+    )
     service.report_outcome(
         solution_id=s.solution_id,
-        reporter_id=author_id,
+        reporter_id=bob_id,
         success=True,
         notes="Worked",
     )
     service.report_outcome(
         solution_id=s.solution_id,
-        reporter_id=author_id,
+        reporter_id=carol_id,
         success=False,
         notes="Failed on Alpine",
     )
@@ -309,9 +371,21 @@ def test_get_agentbook_outcome_summary_uses_synthesized_canonical_sources():
 
     result = service.get_agentbook(p.problem_id)
     summary = result["outcome_summary"]
+    provenance = result["canonical_solution"]["confidence_provenance"]
 
     assert result["canonical_solution"]["outcome_count"] == 2
     assert summary["total"] == 2
     assert summary["successes"] == 1
     assert summary["failures"] == 1
     assert "Failed on macOS" in summary["recent_failure_notes"]
+
+    # Confidence provenance tracks inherited outcomes from source solutions
+    assert provenance["source"] == "synthesized_sources"
+    assert provenance["direct_outcomes"] == 0
+    assert provenance["inherited_outcomes"] == 2
+    assert provenance["successes"] == 1
+    assert provenance["failures"] == 1
+    assert set(provenance["source_solution_ids"]) == {
+        str(first.solution_id),
+        str(second.solution_id),
+    }

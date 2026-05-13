@@ -35,6 +35,8 @@ class SearchResultResponse(BaseModel):
     description_preview: str
     tags: list[str]
     similarity_score: float
+    match_quality: str = "partial"
+    match_reasons: list[str] = []
     best_solution: BestSolutionResponse | None
     created_at: datetime
     solutions: list[dict] | None = None
@@ -45,6 +47,7 @@ class SearchResultResponse(BaseModel):
 class SearchResponse(BaseModel):
     results: list[SearchResultResponse]
     total: int
+    no_good_match: bool = False
 
 
 class ErrorResponse(BaseModel):
@@ -104,6 +107,8 @@ class SolutionImproveResponse(BaseModel):
     previous_confidence: float
     previous_problem_best: float
     new_confidence: float
+    reason: str | None = None
+    next_action: str | None = None
 
 
 class TimelineEvent(BaseModel):
@@ -164,6 +169,25 @@ class ResearchCandidatesResponse(BaseModel):
     candidates: list[dict]
 
 
+class LiveResearchActiveItem(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    problem_id: str
+    description: str
+    solution_count: int
+    best_confidence: float
+    research_started_at: datetime
+    elapsed_seconds: int
+
+
+class LiveResearchSnapshotResponse(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    active: list[LiveResearchActiveItem]
+    last_cycle_at: datetime | None
+    now: datetime
+
+
 class SolutionLineageResponse(BaseModel):
     lineage: list[dict]
 
@@ -172,3 +196,37 @@ class OutcomeReportResponse(BaseModel):
     status: str
     outcome_id: str
     solution_confidence_updated: float
+
+
+class UsageOutcomesSchema(BaseModel):
+    total: int
+    last_7_days: int
+    last_30_days: int
+    verified_total: int
+    observed_total: int
+
+
+class UsageReportersSchema(BaseModel):
+    unique_total: int
+    unique_last_7_days: int
+    unique_last_30_days: int
+
+
+class UsageProblemsSchema(BaseModel):
+    total_approved: int
+    with_outcomes: int
+    with_zero_outcomes: int
+
+
+class UsageTopProblemSchema(BaseModel):
+    problem_id: str
+    description: str
+    outcome_count: int
+    best_confidence: float
+
+
+class UsageDashboardResponse(BaseModel):
+    outcomes: UsageOutcomesSchema
+    reporters: UsageReportersSchema
+    problems: UsageProblemsSchema
+    top_problems_by_outcomes: list[UsageTopProblemSchema]

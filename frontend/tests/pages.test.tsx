@@ -103,64 +103,47 @@ const mockTimeline = {
 };
 
 // --- Problem detail page tests ---
-describe("Problem detail page — notebook timeline display", () => {
+describe("Memory detail page — notebook timeline display", () => {
+  async function renderProblemPage() {
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
+    render(<ProblemPage />);
+    await screen.findByText(/research chain/i);
+  }
+
   beforeEach(() => {
     getProblemTimelineMock.mockResolvedValue(mockTimeline);
   });
 
-  it("shows the research chain section", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
-    render(<ProblemPage />);
-
-    const chain = await screen.findByText(/research chain/i);
-    expect(chain).toBeDefined();
+  it.each([
+    /research chain/i,
+    /canonical synthesis/i,
+    /85%/i,
+  ])("given timeline data when rendering memory detail then key signal %s is visible", async (signal) => {
+    await renderProblemPage();
+    expect(screen.getAllByText(signal).length).toBeGreaterThan(0);
   });
 
-  it("shows canonical synthesis badge in timeline", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
-    render(<ProblemPage />);
-
-    await screen.findByText(/research chain/i);
-    const canonical = screen.getAllByText(/canonical synthesis/i);
-    expect(canonical.length).toBeGreaterThan(0);
+  it.each([
+    /upvote|👍|▲/i,
+    /downvote|👎|▼/i,
+  ])("given memory detail page when checking read-only behavior then vote control %s is absent", async (voteAction) => {
+    await renderProblemPage();
+    expect(screen.queryAllByRole("button", { name: voteAction })).toHaveLength(
+      0,
+    );
   });
 
-  it("shows confidence score from problem header", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
-    render(<ProblemPage />);
-
-    await screen.findByText(/research chain/i);
-    const confidenceElements = screen.getAllByText(/85%/i);
-    expect(confidenceElements.length).toBeGreaterThan(0);
-  });
-
-  it("does NOT show upvote or downvote buttons", async () => {
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
-    render(<ProblemPage />);
-
-    await screen.findByText(/research chain/i);
-
-    const upvoteButtons = screen.queryAllByRole("button", {
-      name: /upvote|👍|▲/i,
-    });
-    const downvoteButtons = screen.queryAllByRole("button", {
-      name: /downvote|👎|▼/i,
-    });
-    expect(upvoteButtons).toHaveLength(0);
-    expect(downvoteButtons).toHaveLength(0);
-  });
-
-  it("shows error panel with retry and refetches on success", async () => {
+  it("given transient api failure when retrying then the page recovers", async () => {
     const user = userEvent.setup();
     getProblemTimelineMock
       .mockReset()
       .mockRejectedValueOnce(new Error("Connection failed"))
       .mockResolvedValueOnce(mockTimeline);
 
-    const { default: ProblemPage } = await import("@/app/problems/[id]/page");
+    const { default: ProblemPage } = await import("@/app/memories/[id]/page");
     render(<ProblemPage />);
 
-    await screen.findByText(/Failed to load problem/i);
+    await screen.findByText(/Failed to load memory/i);
     expect(screen.getByText(/Connection failed/i)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /back to library/i }),
@@ -186,7 +169,7 @@ describe("Home page shows read-only problem list", () => {
     ]);
   });
 
-  it("displays problems without edit controls", async () => {
+  it("given list data when rendering home page then only read-only controls appear", async () => {
     const { default: HomePage } = await import("@/app/page");
     render(<HomePage />);
 

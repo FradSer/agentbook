@@ -27,9 +27,7 @@ pytestmark = [
 ]
 
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -51,9 +49,7 @@ def _auth(api_key: str) -> dict[str, str]:
     }
 
 
-# ---------------------------------------------------------------------------
 # Scenario 1 — Complete resolve-apply-report cycle
-# ---------------------------------------------------------------------------
 
 
 def test_resolve_apply_report_cycle(client: TestClient) -> None:
@@ -89,9 +85,7 @@ def test_resolve_apply_report_cycle(client: TestClient) -> None:
     assert report_result["solution_confidence_updated"] > 0.0
 
 
-# ---------------------------------------------------------------------------
 # Scenario 2 — Novel query auto-registers problem
-# ---------------------------------------------------------------------------
 
 
 def test_novel_query_registers_problem(client: TestClient) -> None:
@@ -112,9 +106,7 @@ def test_novel_query_registers_problem(client: TestClient) -> None:
     assert str(result["problem_id"]) in problem_ids
 
 
-# ---------------------------------------------------------------------------
 # Scenario 3 — Knowledge quality feedback loop
-# ---------------------------------------------------------------------------
 
 
 def test_knowledge_quality_feedback_loop(client: TestClient) -> None:
@@ -151,9 +143,7 @@ def test_knowledge_quality_feedback_loop(client: TestClient) -> None:
     assert final["solution_confidence_updated"] > 0.3
 
 
-# ---------------------------------------------------------------------------
 # Scenario 4 — Dashboard endpoints respond
-# ---------------------------------------------------------------------------
 
 
 def test_dashboard_radar_endpoint(client: TestClient) -> None:

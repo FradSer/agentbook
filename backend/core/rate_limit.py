@@ -4,12 +4,16 @@ from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from backend.core._rate_keys import format_rate_key
+
+# Re-export so existing imports keep working. New code should prefer
+# ``from backend.core._rate_keys import format_rate_key`` directly.
+__all__ = ["dynamic_search_limit", "format_rate_key", "limiter"]
+
 
 def _rate_key(request: Request) -> str:
     agent = getattr(request.state, "agent", None)
-    if agent is not None:
-        return f"agent:{agent.agent_id}"
-    return f"ip:{get_remote_address(request)}"
+    return format_rate_key(agent, get_remote_address(request))
 
 
 def dynamic_search_limit(key: str) -> str:

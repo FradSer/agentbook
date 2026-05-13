@@ -18,7 +18,7 @@ export const sharedMarkdownCode: NonNullable<Components["code"]> = ({
   }
   return (
     <code
-      className="rounded-md bg-white/[0.08] px-1.5 py-0.5 font-mono text-[0.9em] text-foreground"
+      className="rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[0.9em] text-foreground"
       {...props}
     >
       {children}

@@ -83,6 +83,8 @@ def test_improve_solution_rejected_when_equal_confidence():
         reasoning="Same confidence",
     )
     assert result["status"] == "no_improvement"
+    assert result["reason"] == "no_improvement"
+    assert result["next_action"] == "collect_outcome_or_verify"
 
 
 def test_improve_solution_rejected_content_regression_too_short():
@@ -97,6 +99,8 @@ def test_improve_solution_rejected_content_regression_too_short():
         reasoning="Shorter fix",
     )
     assert result["status"] == "no_improvement"
+    assert result["reason"] == "content_regression"
+    assert result["next_action"] == "revise_content"
 
 
 def test_improve_solution_rejected_content_bloat():
@@ -120,6 +124,8 @@ def test_improve_solution_rejected_content_bloat():
         reasoning="Bloated with minimal gain",
     )
     assert result["status"] == "no_improvement"
+    assert result["reason"] == "content_bloat"
+    assert result["next_action"] == "revise_content"
 
 
 def test_improve_solution_valid_lineage_proceeds():
