@@ -20,6 +20,8 @@ silently lost), then installs the UniqueConstraint. Going forward
 
 from __future__ import annotations
 
+from sqlalchemy import text
+
 from alembic import op
 
 revision = "p1q2r3s4t5u6"
@@ -39,7 +41,7 @@ def upgrade() -> None:
     # Skipping the no-op rewrite on solo rows keeps WAL bounded to the
     # actual duplicates instead of the entire outcomes table.
     bind.execute(
-        _sa_text(
+        text(
             """
             WITH ranked AS (
                 SELECT
@@ -67,7 +69,7 @@ def upgrade() -> None:
         )
     )
     bind.execute(
-        _sa_text(
+        text(
             """
             DELETE FROM outcomes
             WHERE outcome_id IN (
@@ -100,10 +102,3 @@ def downgrade() -> None:
         "outcomes",
         type_="unique",
     )
-
-
-def _sa_text(sql: str):
-    """Lazy import so the module loads without sqlalchemy at parse time."""
-    from sqlalchemy import text
-
-    return text(sql)

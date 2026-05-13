@@ -12,12 +12,14 @@ from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
-    from backend.domain.search import SearchMode
+    from backend.domain.search import SearchDiagnostics, SearchMode
 
 from backend.application.clustering import detect_clusters
 from backend.application.confidence import (
+    BASELINE_CONFIDENCE,
     calculate_confidence,
     evaluate_improvement,
+    external_reporter_ids,
     is_content_regression,
 )
 from backend.application.errors import (
@@ -107,26 +109,42 @@ def _increment_outcome_counters(solution: Solution, success: bool) -> None:
         solution.failure_count += 1
 
 
+def _recompute_outcome_counters(solution: Solution, outcomes: list[Outcome]) -> None:
+    """Re-derive counters from the canonical outcomes list.
+
+    Used after upsert so a re-report that flips ``success`` cannot
+    leave ``success_count`` / ``failure_count`` stale relative to the
+    persisted rows.
+    """
+    solution.outcome_count = len(outcomes)
+    solution.success_count = sum(1 for o in outcomes if o.success)
+    solution.failure_count = solution.outcome_count - solution.success_count
+
+
+# Tolerance for the seed-override heuristic — wide enough to absorb
+# float noise around the baseline default, narrow enough to flag a demo
+# value written directly into the column.
+_SEED_OVERRIDE_TOLERANCE = 0.05
+
+
 def _provenance_from_outcomes(solution: Solution, outcomes: list[Outcome]) -> dict:
     """Snapshot the inputs that produced ``solution.confidence``.
 
-    Distinguishes a real Bayesian estimate from a seed value or a
-    single observation. ``has_seed_override`` is True iff the
-    persisted confidence diverges from baseline despite zero outcomes
-    — the only realistic shape demo / migration data takes; recomputing
-    the full Bayesian on the read path was the alternative and
-    multiplied search latency.
+    ``has_seed_override`` is True iff the persisted confidence diverges
+    from the baseline default despite zero outcomes — the only
+    realistic shape demo or migration data takes. Recomputing the full
+    Bayesian for every read row was the alternative and multiplied
+    search latency.
     """
-    unique_reporters = len(
-        {o.reporter_id for o in outcomes if o.reporter_id != solution.author_id}
-    )
-    verified_n = sum(1 for o in outcomes if o.kind == "verified")
-    has_seed_override = not outcomes and abs(solution.confidence - 0.3) > 0.05
     return {
         "outcomes_n": len(outcomes),
-        "unique_reporters": unique_reporters,
-        "verified_n": verified_n,
-        "has_seed_override": has_seed_override,
+        "unique_reporters": len(external_reporter_ids(outcomes, solution.author_id)),
+        "verified_n": sum(1 for o in outcomes if o.kind == "verified"),
+        "has_seed_override": (
+            not outcomes
+            and abs(solution.confidence - BASELINE_CONFIDENCE)
+            > _SEED_OVERRIDE_TOLERANCE
+        ),
     }
 
 
@@ -383,6 +401,8 @@ class AgentbookService:
             ``in_memory_scan``  — InMemory backend (DEMO_MODE / no DB)
             ``no_match``        — every retrieval path returned empty
         """
+        from dataclasses import replace as dataclass_replace
+
         from backend.domain.search import SearchDiagnostics
 
         search_text = self._compose_search_text(query=query, error_log=error_log)
@@ -407,11 +427,12 @@ class AgentbookService:
             ):
                 rows_by_id[row["problem_id"]] = row
 
-        # Pass raw_score=0.0 so the vector / RRF leg below decides ranking.
-        # Quality tier still derives from token analysis inside
-        # ``_classify_match_quality`` regardless of raw_score.
-        for problem in self._exact_error_signature_candidates(search_text):
+        # raw_score=0.0 so the vector / RRF leg decides ranking; quality
+        # tier still derives from token analysis in _classify_match_quality.
+        signature_candidates = self._exact_error_signature_candidates(search_text)
+        for problem in signature_candidates:
             add_candidate(problem, 0.0)
+        signature_used = bool(signature_candidates)
 
         diagnostics = SearchDiagnostics(
             backend="unavailable",
@@ -437,14 +458,9 @@ class AgentbookService:
                 semantic_fallback_dense_hits += 1
 
         if semantic_fallback_dense_hits:
-            # find_similar_scored is the dense-only fallback — fold its
-            # contribution back into the diagnostics so the mode
-            # classifier sees a non-zero dense leg.
-            diagnostics = SearchDiagnostics(
-                backend=diagnostics.backend,
-                pgvector_available=diagnostics.pgvector_available,
+            diagnostics = dataclass_replace(
+                diagnostics,
                 dense_hits=diagnostics.dense_hits + semantic_fallback_dense_hits,
-                sparse_hits=diagnostics.sparse_hits,
             )
 
         if not rows_by_id:
@@ -477,6 +493,11 @@ class AgentbookService:
         )
         rows = rows[: max(limit, 0)]
 
+        # Provenance enrichment runs *after* truncation so per-row
+        # outcome lookups scale with response size, not the unfiltered
+        # candidate pool (~50× before truncation).
+        self._attach_search_provenance(rows)
+
         if include:
             for row in rows:
                 self._enrich_search_row(row, include)
@@ -484,6 +505,7 @@ class AgentbookService:
         search_mode = self._classify_search_mode(
             diagnostics=diagnostics,
             keyword_fallback_used=keyword_fallback_used,
+            signature_used=signature_used,
             rows=rows,
         )
         return rows, search_mode
@@ -491,17 +513,19 @@ class AgentbookService:
     @staticmethod
     def _classify_search_mode(
         *,
-        diagnostics,
+        diagnostics: SearchDiagnostics,
         keyword_fallback_used: bool,
+        signature_used: bool,
         rows: list[dict],
     ) -> SearchMode:
         """Map low-level retrieval signals into the user-facing label.
 
-        The precedence is documented above ``_search_problems`` — keep
-        them aligned. ``in_memory_scan`` wins regardless of which leg
-        served the row because that backend is an architectural fact
-        the operator needs to see; the dense/sparse split inside it is
-        secondary.
+        Precedence (matches the docstring on _search_problems):
+        no_match → in_memory_scan → keyword_fallback → hybrid →
+        vector_only → lexical_only → signature_match. ``in_memory_scan``
+        wins over leg-flavoured labels because it's an architectural
+        fact the operator needs to see; the dense/sparse split inside
+        it is secondary.
         """
         if not rows:
             return "no_match"
@@ -515,11 +539,9 @@ class AgentbookService:
             return "vector_only"
         if diagnostics.sparse_hits > 0:
             return "lexical_only"
-        # Rows came from the exact-error-signature path — neither hybrid
-        # leg fired but we still surfaced a row from a deterministic
-        # lookup. Label it lexical-flavoured so the agent treats it as
-        # signature-matched rather than an embedding hit.
-        return "lexical_only"
+        if signature_used:
+            return "signature_match"
+        return "no_match"
 
     def _row_from_problem(
         self,
@@ -1183,20 +1205,44 @@ class AgentbookService:
         }
 
     def _pick_best_solution(self, problem_id: UUID, full: bool = False) -> dict | None:
+        """Best-solution row excluding ``confidence_provenance``.
+
+        Provenance is filled in by ``_attach_search_provenance`` after
+        the candidate list is truncated to ``limit`` so the per-row
+        ``list_by_solution`` cost scales with the response size, not
+        the unfiltered candidate pool.
+        """
         solutions = self._solutions.list_by_problem(problem_id)
         approved = [s for s in solutions if s.review_status == "approved"]
         if not approved:
             return None
         best = max(approved, key=lambda s: s.confidence)
         content_preview = best.content if full else best.content[:200]
-        outcomes = self._outcomes.list_by_solution(best.solution_id)
         return {
             "solution_id": str(best.solution_id),
+            "_solution_obj": best,  # popped during enrichment
             "confidence": best.confidence,
             "content_preview": content_preview,
             "outcome_count": best.outcome_count,
-            "confidence_provenance": _provenance_from_outcomes(best, outcomes),
         }
+
+    def _attach_search_provenance(self, rows: list[dict]) -> None:
+        """Fill in ``best_solution.confidence_inputs`` per surfaced row.
+
+        Distinct field name from the lineage-shaped ``confidence_provenance``
+        on the ``get_agentbook`` view: the search payload exposes the
+        raw outcome counts that fed the Bayesian estimate, the agentbook
+        view exposes which sibling solutions contributed via inheritance.
+        """
+        for row in rows:
+            best = row.get("best_solution")
+            if not best:
+                continue
+            solution = best.pop("_solution_obj", None)
+            if solution is None:
+                continue
+            outcomes = self._outcomes.list_by_solution(solution.solution_id)
+            best["confidence_inputs"] = _provenance_from_outcomes(solution, outcomes)
 
     # --- Problem/Solution/Outcome methods ---
 
@@ -1362,22 +1408,14 @@ class AgentbookService:
         now = datetime.now(tz=UTC)
         since = now - timedelta(hours=_RATE_WINDOW_HOURS)
         if self._outcomes.count_by_reporter(reporter_id, since=since) >= _RATE_LIMIT:
-            # Wait until the oldest in-window outcome ages out of the
-            # bucket. Without this hint clients fall back to the 60s
-            # default and immediately retrip a 1-hour bucket.
-            in_window = [
-                o
-                for o in self._outcomes.list_by_reporter(reporter_id)
-                if o.created_at >= since
-            ]
-            oldest = min(in_window, key=lambda o: o.created_at)
-            retry_after = max(
-                1,
-                int(
-                    (
-                        oldest.created_at + timedelta(hours=_RATE_WINDOW_HOURS) - now
-                    ).total_seconds()
-                ),
+            oldest = self._outcomes.oldest_created_at_by_reporter(
+                reporter_id, since=since
+            )
+            window = timedelta(hours=_RATE_WINDOW_HOURS)
+            retry_after = (
+                max(1, int((oldest + window - now).total_seconds()))
+                if oldest is not None
+                else int(window.total_seconds())
             )
             raise RateLimitError(
                 f"Rate limit exceeded: max {_RATE_LIMIT} outcomes per "
@@ -1390,12 +1428,7 @@ class AgentbookService:
             "verified" if reporter_id == SANDBOX_AGENT_ID else "observed"
         )
 
-        # Upsert by (solution_id, reporter_id): the OutcomeRepository
-        # enforces uniqueness on that pair so the same agent cannot
-        # vote twice and inflate the Bayesian estimate. A re-report
-        # refreshes the recency factor and lets the caller flip
-        # success/notes, but it does not multiply.
-        outcome, inserted = self._outcomes.upsert(
+        outcome, _inserted = self._outcomes.upsert(
             Outcome(
                 solution_id=solution_id,
                 reporter_id=reporter_id,
@@ -1407,10 +1440,19 @@ class AgentbookService:
                 weight=weight,
             )
         )
-        if inserted:
-            _increment_outcome_counters(solution, success)
 
         all_outcomes = self._outcomes.list_by_solution(solution_id)
+        previous_counters = (
+            solution.outcome_count,
+            solution.success_count,
+            solution.failure_count,
+        )
+        previous_confidence = solution.confidence
+        previous_promotion = solution.promotion_status
+        # Derive counters from ground truth — a re-report that flips
+        # success would otherwise drift the cached counts (the inserted
+        # path increments, the update path silently kept stale totals).
+        _recompute_outcome_counters(solution, all_outcomes)
         num_effective = _count_effective_reporters(
             all_outcomes, self._agents, solution.author_id
         )
@@ -1428,11 +1470,7 @@ class AgentbookService:
         ):
             parent = self._solutions.get(solution.parent_solution_id)
             if parent is not None:
-                ext_reporters = {
-                    o.reporter_id
-                    for o in all_outcomes
-                    if o.reporter_id != solution.author_id
-                }
+                ext_reporters = external_reporter_ids(all_outcomes, solution.author_id)
                 if ext_reporters and new_confidence >= parent.confidence:
                     # Confirmed improvement — promote and supersede parent
                     solution.promotion_status = "promoted"
@@ -1452,7 +1490,21 @@ class AgentbookService:
                     solution.promotion_status = "demoted"
                     solution.canonical_id = solution.parent_solution_id
 
-        self._solutions.update(solution)
+        # Skip the write when the row would be byte-identical — a
+        # repeat report with the same success value re-derives the
+        # same counters/confidence and the merge would be a full-row
+        # no-op UPSERT.
+        current_counters = (
+            solution.outcome_count,
+            solution.success_count,
+            solution.failure_count,
+        )
+        if (
+            solution.confidence != previous_confidence
+            or solution.promotion_status != previous_promotion
+            or current_counters != previous_counters
+        ):
+            self._solutions.update(solution)
 
         problem = self._problems.get(solution.problem_id)
         if problem is not None and new_confidence > problem.best_confidence:
@@ -2691,6 +2743,15 @@ class AgentbookService:
 
     def get_health_counters(self) -> dict[str, int]:
         return dict(self._health_counters)
+
+    def get_retrieval_status(self) -> tuple[str, bool]:
+        """Pass-through to ``ProblemRepository.retrieval_status``.
+
+        Lets the health endpoint surface backend identity + pgvector
+        availability without reaching across the application layer
+        into a private repository attribute.
+        """
+        return self._problems.retrieval_status()
 
     def get_failed_approaches(
         self, problem_id: UUID, stall_threshold: int, limit: int = 5

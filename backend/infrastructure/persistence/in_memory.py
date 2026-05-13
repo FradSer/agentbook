@@ -333,6 +333,16 @@ class InMemoryOutcomeRepository:
             if o.reporter_id == reporter_id and o.created_at >= since
         )
 
+    def oldest_created_at_by_reporter(
+        self, reporter_id: UUID, since: datetime
+    ) -> datetime | None:
+        in_window = (
+            o.created_at
+            for o in self._outcomes
+            if o.reporter_id == reporter_id and o.created_at >= since
+        )
+        return min(in_window, default=None)
+
     def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.reporter_id == reporter_id]
 

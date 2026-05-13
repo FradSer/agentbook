@@ -21,7 +21,7 @@ def get_health_metrics(
     sandbox_pass_rate_24h, verified_count_24h = _sandbox_pass_rate(service)
     # Surfaces the Railway pgvector-outage failure mode that otherwise
     # only manifests as silently degraded search quality.
-    backend, pgvector_available = service._problems.retrieval_status()
+    backend, pgvector_available = service.get_retrieval_status()
     return {
         "sandbox_pass_rate_24h": sandbox_pass_rate_24h,
         "verified_outcome_count_24h": verified_count_24h,

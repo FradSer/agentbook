@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
@@ -205,6 +205,7 @@ def _orm_from_outcome(outcome: Outcome) -> OutcomeORM:
 class SQLAlchemyProblemRepository:
     def __init__(self, session_factory: SessionFactory) -> None:
         self._session_factory = session_factory
+        self._retrieval_status_cache: tuple[str, bool] | None = None
 
     def add(self, problem: Problem) -> None:
         with self._session_factory() as session:
@@ -327,13 +328,26 @@ class SQLAlchemyProblemRepository:
         return results
 
     def retrieval_status(self) -> tuple[str, bool]:
-        """Report backend + pgvector availability without a search round-trip.
+        """Report ``(backend, pgvector_available)`` without a search round-trip.
 
-        ``Vector is None`` means the pgvector Python adapter is not
-        installed; in that case the dense leg is permanently dark
-        regardless of what the database itself supports. Otherwise we
-        confirm pgvector is loaded server-side via ``pg_extension``.
+        Memoised after the first successful resolution: pgvector install
+        state is process-lifetime stable (the extension is installed at
+        boot or it isn't), so a single ``pg_extension`` probe is enough.
+        ``Vector is None`` short-circuits to "adapter unavailable"
+        because the dense leg is permanently dark even if the server
+        has the extension loaded.
         """
+        if self._retrieval_status_cache is not None:
+            return self._retrieval_status_cache
+        result = self._probe_retrieval_status()
+        # Only memoise terminal answers — a transient connection error
+        # leaves it None so the next health-poll re-probes.
+        if result is not None:
+            self._retrieval_status_cache = result
+            return result
+        return ("postgres", False)
+
+    def _probe_retrieval_status(self) -> tuple[str, bool] | None:
         if Vector is None:
             return ("postgres", False)
         with self._session_factory() as session:
@@ -341,16 +355,11 @@ class SQLAlchemyProblemRepository:
                 return ("unavailable", False)
             try:
                 installed = session.execute(
-                    select(func.count())
-                    .select_from(func.pg_extension())
-                    .where(func.text("extname = 'vector'"))
-                ).scalar_one()
-                return ("postgres", bool(installed))
+                    text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
+                ).scalar()
+                return ("postgres", installed is not None)
             except (ProgrammingError, OperationalError):
-                # pg_extension introspection is the canonical path; if it
-                # itself fails, the connection is too sick to call pgvector
-                # available regardless of adapter presence.
-                return ("postgres", False)
+                return None
 
     def find_hybrid_with_diagnostics(
         self,
@@ -780,6 +789,17 @@ class SQLAlchemyOutcomeRepository:
                 .where(OutcomeORM.created_at >= since)
             )
             return session.execute(stmt).scalar_one()
+
+    def oldest_created_at_by_reporter(
+        self, reporter_id: UUID, since: datetime
+    ) -> datetime | None:
+        with self._session_factory() as session:
+            stmt = (
+                select(func.min(OutcomeORM.created_at))
+                .where(OutcomeORM.reporter_id == str(reporter_id))
+                .where(OutcomeORM.created_at >= since)
+            )
+            return session.execute(stmt).scalar()
 
     def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]:
         with self._session_factory() as session:

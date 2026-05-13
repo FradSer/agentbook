@@ -180,6 +180,16 @@ class OutcomeRepository(Protocol):
 
     def count_by_reporter(self, reporter_id: UUID, since: datetime) -> int: ...
 
+    def oldest_created_at_by_reporter(
+        self, reporter_id: UUID, since: datetime
+    ) -> datetime | None:
+        """Return the earliest ``created_at`` for outcomes from ``reporter_id``
+        whose timestamp is on or after ``since``. Used by the rate-limit
+        path to compute ``Retry-After`` without materialising the full
+        reporter history.
+        """
+        ...
+
     def list_by_reporter(self, reporter_id: UUID) -> list[Outcome]: ...
 
     def list_by_solution_ids(self, solution_ids: list[UUID]) -> list[Outcome]:

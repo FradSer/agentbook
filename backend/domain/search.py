@@ -28,6 +28,7 @@ SearchMode = Literal[
     "hybrid",
     "vector_only",
     "lexical_only",
+    "signature_match",
     "keyword_fallback",
     "in_memory_scan",
     "no_match",
