@@ -178,9 +178,11 @@ def test_given_many_successful_outcomes_when_improving_again_then_second_iterati
     assert result1["status"] == "improved"
     s2_id = result1["solution_id"]
 
-    # 5 external successes push confidence above 0.5
-    reporter = _add_external_reporter(service)
+    # 5 distinct external successes push confidence above the v6
+    # cold-start floor (0.5). Re-using one reporter would upsert into
+    # a single row and cap the score at the floor.
     for _ in range(5):
+        reporter = _add_external_reporter(service)
         service.report_outcome(reporter_id=reporter, solution_id=s2_id, success=True)
 
     s2 = service._solutions.get(s2_id)

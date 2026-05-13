@@ -8,6 +8,14 @@ from shared.config import SharedSettings
 
 logger = logging.getLogger(__name__)
 
+# SSE stream timing knobs (live-research banner). Module-level so operators
+# can tune via reload without re-deploying every worker; matches the pattern
+# used by `backend.core.sse_concurrency` for its concurrency caps.
+POLL_INTERVAL_SECONDS: float = 2.0
+HEARTBEAT_INTERVAL_SECONDS: float = 25.0
+HARD_TIMEOUT_SECONDS: int = 15 * 60
+LAST_CYCLE_CACHE_TTL_SECONDS: float = 10.0
+
 
 class Settings(SharedSettings):
     """Backend API configuration extending shared settings."""
@@ -19,11 +27,44 @@ class Settings(SharedSettings):
 
     # Security
     api_key_prefix: str = "ak_"
-    secret_key: str = "change-me"
+    # ``secret_key`` was deleted in 2026-05 — the field had no consumers
+    # (no cookie/JWT/CSRF signing) and the production-validate check on
+    # it was decorative security. If a future feature needs a signing
+    # secret, re-introduce it alongside the actual signing path so the
+    # validation has bite. ``conftest.py``'s historical save/restore was
+    # removed in the same change.
 
-    # OpenRouter embeddings (api_key inherited from SharedSettings)
+    # OpenRouter embeddings (api_key inherited from SharedSettings).
+    # Kept as a fallback after Voyage in the resolver chain.
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
-    embedding_dimension: int = 1536
+    # Vector dimension shared by both embedding providers (Voyage v3-large at
+    # output_dimension=1024 and the Fallback / OpenRouter paths). Lowered from
+    # 1536 (text-embedding-3-small native) so that Voyage's Matryoshka
+    # truncation lines up with the IVFFlat / HNSW column type.
+    embedding_dimension: int = 1024
+
+    # Voyage AI commercial models. ``voyage-3-large`` is the engineering-text
+    # tuned embedder; ``rerank-2.5-lite`` is the latency-optimised cross
+    # encoder (full ``rerank-2.5`` is reserved for the offline Reviewer pass
+    # in a future Phase 4). Voyage rerank caps at 100 requests/minute per
+    # account so the in-process token bucket in
+    # ``backend/infrastructure/reranking/voyage.py`` mirrors that limit.
+    voyage_embedding_model: str = "voyage-3-large"
+    voyage_rerank_model: str = "rerank-2.5-lite"
+
+    # Search reranking configuration. ``rerank_top_k`` is the candidate pool
+    # size handed to the reranker before final truncation to ``limit``.
+    # ``rerank_enabled`` lets operators kill-switch the reranker without
+    # redeploy if Voyage has an outage.
+    rerank_enabled: bool = True
+    rerank_top_k: int = 30
+
+    # Embedding column cutover flag. ``v1`` reads/writes the legacy
+    # ``problems.embedding`` column (1536-dim). ``v2`` switches to
+    # ``problems.embedding_v2`` (1024-dim, populated by
+    # ``backend/scripts/reembed_corpus.py``). Operators flip this only after
+    # the backfill reports >99% coverage on the new column.
+    embedding_version: str = "v1"
 
     # LLM Evaluator (optional — A/B comparison for cold-start signal)
     evaluator_enabled: bool = False
@@ -71,9 +112,31 @@ def validate_production_settings(settings: Settings) -> None:
         ValueError: If production settings are invalid
     """
     if not settings.debug:
-        if not settings.secret_key or settings.secret_key == "change-me":
+        # CORS '*' + allow_credentials=True is a CSRF surface waiting to be
+        # mis-configured. Browsers reject the literal '*' + credentials combo
+        # by spec, but `CORS_ALLOW_ORIGINS=https://attacker.com,...` lets
+        # any listed origin through with credentials. Refuse to boot.
+        if settings.cors_allow_origins.strip() == "*":
             raise ValueError(
-                "SECRET_KEY must be set to a non-default value in production mode."
+                "CORS_ALLOW_ORIGINS='*' is not allowed in production mode "
+                "because the app sends credentialed responses. Set "
+                "CORS_ALLOW_ORIGINS to an explicit comma-separated origin list."
+            )
+        # Embedding dimension must match the active column. The legacy
+        # ``problems.embedding`` column is vector(1536) (per the init
+        # migration) while ``problems.embedding_v2`` is vector(1024). When
+        # ``EMBEDDING_VERSION=v1`` writes target the 1536-dim column;
+        # Voyage v3-large outputs 1024 and pgvector rejects the dim
+        # mismatch on commit. Refuse to boot in this exact configuration —
+        # the operator must run ``backend/scripts/reembed_corpus.py`` and
+        # flip ``EMBEDDING_VERSION=v2`` before going live with Voyage.
+        if settings.voyage_api_key and settings.embedding_version == "v1":
+            raise ValueError(
+                "VOYAGE_API_KEY is set but EMBEDDING_VERSION='v1' (legacy "
+                "1536-dim column). Voyage outputs 1024-dim vectors and "
+                "writes will fail on commit. Run backend/scripts/"
+                "reembed_corpus.py to backfill embedding_v2 then set "
+                "EMBEDDING_VERSION=v2."
             )
 
 

@@ -14,7 +14,11 @@ from mcp import types
 from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
-from backend.core.mcp_rate_limit import mcp_rate_key, pick_mcp_search_limiter
+from backend.core.mcp_rate_limit import (
+    mcp_rate_key,
+    mcp_verify_limiter,
+    pick_mcp_search_limiter,
+)
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
@@ -373,10 +377,16 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="verify",
         description=(
-            "Enqueue a sandbox run to verify whether a solution resolves "
-            "its parent problem. Produces a verified outcome attributed to "
-            "the sandbox agent once the run completes. Authenticated only; "
-            "rate-limited per-agent."
+            "Run a sandboxed reproduction of a solution. Synchronous and "
+            "blocking — the call waits for the sandbox to finish before "
+            "returning, so latency is dominated by Docker pull + script "
+            "execution time (typically multi-second, sometimes >30s). "
+            "Currently only Python single-file solutions are evaluable; "
+            "shell, Node, Rust, etc. fall through and return without a "
+            "verdict. Each successful call costs one sandbox-budget unit "
+            "(global cap 20/hour per agent) and is additionally throttled "
+            "to 5 calls per minute per agent in the dispatcher. "
+            "Authenticated agents only."
         ),
         inputSchema={
             "type": "object",
@@ -406,7 +416,8 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
         agent = _current_agent_ctx.get(None)
         remote_addr = _current_remote_addr_ctx.get(None)
         search_limiter = pick_mcp_search_limiter(agent)
-        if not search_limiter.hit(mcp_rate_key(agent, remote_addr)):
+        rate_key = mcp_rate_key(agent, remote_addr)
+        if not search_limiter.hit(rate_key):
             return _json_response(
                 {
                     "error": "rate_limit_exceeded",
@@ -414,6 +425,7 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                         f"MCP search is limited to {search_limiter.max_calls} "
                         "requests per minute."
                     ),
+                    "retry_after_seconds": search_limiter.retry_after(rate_key),
                 }
             )
         search_response = service.search_problems(
@@ -450,6 +462,23 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                 {
                     "error": "invalid_input",
                     "detail": "solution_id is not a valid UUID",
+                }
+            )
+        # Per-agent verify budget is independent of the sandbox slot
+        # pool — without it, a single agent can monopolise every slot
+        # and starve other callers. Keyed via the canonical formatter
+        # so a multi-worker deployment sharing one key gets one shared
+        # bucket; that's intentional, see the tool description.
+        verify_key = mcp_rate_key(agent, None)
+        if not mcp_verify_limiter.hit(verify_key):
+            return _json_response(
+                {
+                    "error": "rate_limit_exceeded",
+                    "detail": (
+                        f"verify is limited to {mcp_verify_limiter.max_calls} "
+                        "calls per minute per agent."
+                    ),
+                    "retry_after_seconds": mcp_verify_limiter.retry_after(verify_key),
                 }
             )
         try:

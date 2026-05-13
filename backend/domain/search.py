@@ -6,13 +6,50 @@ require score normalization across heterogeneous retrievers.
 
 Reference: Cormack, Clarke, Buettcher (2009) — "Reciprocal Rank Fusion
 outperforms Condorcet and individual Rank Learning Methods".
+
+The ``SearchDiagnostics`` carrier travels alongside hybrid results so
+the application layer can derive a ``search_mode`` label for the
+response. Without it the historical failure mode — pgvector silently
+unavailable on Railway, dense leg returns ``[]``, the in-process
+keyword scan recovers a row, calling agents see no signal that quality
+just regressed — would still be invisible.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Literal
 from uuid import UUID
 
 from backend.domain.models import Problem
+
+SearchBackend = Literal["postgres", "memory", "unavailable"]
+SearchMode = Literal[
+    "hybrid",
+    "vector_only",
+    "lexical_only",
+    "signature_match",
+    "keyword_fallback",
+    "in_memory_scan",
+    "no_match",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class SearchDiagnostics:
+    """How a hybrid retrieval call actually executed.
+
+    ``backend`` distinguishes the SQL-backed repository (``"postgres"``)
+    from the test/DEMO_MODE in-process one (``"memory"``). When the
+    SQL repo cannot reach pgvector at all (extension missing, dialect
+    mismatch) ``backend`` is ``"unavailable"`` so the service can
+    classify the response as a degraded mode.
+    """
+
+    backend: SearchBackend
+    pgvector_available: bool
+    dense_hits: int
+    sparse_hits: int
 
 
 def rrf_fuse(

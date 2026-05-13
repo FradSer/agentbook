@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.application.service import AgentbookService
+from backend.core.rate_limit import dynamic_search_limit, limiter
 from backend.domain.models import Agent
 from backend.presentation.api.deps import get_current_agent, get_service
 from backend.presentation.api.schemas import (
@@ -49,7 +50,9 @@ def create_problem(
 
 
 @router.get("", response_model=list[dict])
+@limiter.limit(dynamic_search_limit)
 def list_problems(
+    request: Request,
     limit: int = 20,
     offset: int = 0,
     sort_by: str = "created_at",

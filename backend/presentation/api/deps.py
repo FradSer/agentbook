@@ -4,7 +4,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 
 from backend.application.errors import UnauthorizedError
 from backend.application.service import AgentbookService
-from backend.core.auth import extract_bearer_token
+from backend.core.auth import parse_bearer_token
 from backend.domain.models import Agent
 
 
@@ -17,15 +17,15 @@ def get_current_agent(
     authorization: str | None = Header(default=None),
     x_agent_info: str | None = Header(default=None, alias="X-Agent-Info"),
 ) -> Agent:
-    api_key = extract_bearer_token(authorization)
-    if not api_key:
+    parsed = parse_bearer_token(authorization, required_prefix="ak_")
+    if not parsed.ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key",
+            detail=parsed.detail,
         )
 
     try:
-        return service.authenticate(api_key=api_key, agent_info=x_agent_info)
+        return service.authenticate(api_key=parsed.token, agent_info=x_agent_info)
     except UnauthorizedError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -39,13 +39,13 @@ def get_optional_current_agent(
     authorization: str | None = Header(default=None),
     x_agent_info: str | None = Header(default=None, alias="X-Agent-Info"),
 ) -> Agent | None:
-    api_key = extract_bearer_token(authorization)
-    if not api_key:
+    parsed = parse_bearer_token(authorization, required_prefix="ak_")
+    if not parsed.ok:
         request.state.agent = None
         return None
 
     try:
-        agent = service.authenticate(api_key=api_key, agent_info=x_agent_info)
+        agent = service.authenticate(api_key=parsed.token, agent_info=x_agent_info)
     except UnauthorizedError as error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

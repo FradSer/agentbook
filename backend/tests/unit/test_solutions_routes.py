@@ -112,11 +112,19 @@ def test_given_outcome_endpoint_when_authorization_is_missing_then_response_is_u
 
 
 def test_given_outcome_endpoint_rate_limit_budget_when_exceeded_then_response_is_throttled():
+    """Reporter budget is 10 distinct (solution, reporter) outcomes per hour.
+
+    Under v6 the same reporter cannot pile multiple outcomes onto a
+    single solution — that's an upsert and consumes no budget. The
+    limit guards the actual threat: one reporter fanning out across
+    many solutions in a short window. We seed 11 solutions and
+    confirm the 11th distinct vote is throttled.
+    """
     client, service, _, author_id, reporter_key = _make_client()
-    _, solution = _seed_problem_and_solution(service, author_id)
+    solutions = [_seed_problem_and_solution(service, author_id)[1] for _ in range(11)]
     headers = _bearer(reporter_key)
 
-    for _ in range(10):
+    for solution in solutions[:10]:
         ok = client.post(
             f"/v1/solutions/{solution.solution_id}/outcomes",
             json={"success": True},
@@ -125,7 +133,7 @@ def test_given_outcome_endpoint_rate_limit_budget_when_exceeded_then_response_is
         assert ok.status_code == 201, ok.text
 
     limited = client.post(
-        f"/v1/solutions/{solution.solution_id}/outcomes",
+        f"/v1/solutions/{solutions[10].solution_id}/outcomes",
         json={"success": True},
         headers=headers,
     )

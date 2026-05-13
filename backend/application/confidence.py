@@ -4,20 +4,36 @@ import math
 from uuid import UUID
 
 from backend.application._frozen_policy import frozen_policy
+from backend.application.clustering import SANDBOX_AGENT_ID
 from backend.domain.models import Outcome, Solution, utc_now
 
+# v6 caps. See docs/confidence-changelog.md ## v6 for the rationale.
+BASELINE_CONFIDENCE = 0.3
+COLD_START_MIN_REPORTERS = 3
+COLD_START_FLOOR = 0.5
+SANDBOX_ONLY_CEILING = 0.6
 
-@frozen_policy("v5")
+
+def external_reporter_ids(outcomes: list[Outcome], author_id: UUID) -> set[UUID]:
+    """Reporter IDs that count toward external corroboration.
+
+    Excludes the solution author (self-reports don't add diversity).
+    Shared across the confidence math, the candidate-promotion gate,
+    and the search-response provenance carrier — keeping them in sync
+    means a sandbox agent's status flip lands in all three at once.
+    """
+    return {o.reporter_id for o in outcomes if o.reporter_id != author_id}
+
+
+@frozen_policy("v6")
 def calculate_confidence(
     outcomes: list[Outcome],
     author_id: UUID,
     *,
     num_effective_reporters: int | None = None,
 ) -> float:
-    baseline = 0.3
-
     if not outcomes:
-        return baseline
+        return BASELINE_CONFIDENCE
 
     total = len(outcomes)
     now = utc_now()
@@ -36,22 +52,16 @@ def calculate_confidence(
         final_weights.append(final_weight)
         success_values.append(1.0 if outcome.success else 0.0)
 
-    # Step 4: reporter diversity penalty.
-    # Count only external unique reporters (excluding author_id).  Self-reports
-    # do not increase reporter diversity, so a purely self-reported dataset has
-    # zero external unique reporters and its weights collapse to zero.
-    # When num_effective_reporters is supplied (pre-computed from anti-Sybil
-    # clustering), use it directly; otherwise fall back to naive unique count.
+    # Step 4: reporter diversity penalty. ``num_effective_reporters``
+    # (pre-computed from anti-Sybil clustering) wins when supplied;
+    # otherwise fall back to the naive unique external count.
     if num_effective_reporters is not None:
         unique_ext_reporters = num_effective_reporters
     else:
-        unique_ext_reporters = len(
-            {o.reporter_id for o in outcomes if o.reporter_id != author_id}
-        )
+        unique_ext_reporters = len(external_reporter_ids(outcomes, author_id))
 
     if unique_ext_reporters == 0:
-        # No external corroboration: treat as no usable data, return baseline.
-        return baseline
+        return BASELINE_CONFIDENCE
 
     effective_count = unique_ext_reporters * math.log2(total + 1)
     if effective_count < total:
@@ -59,17 +69,37 @@ def calculate_confidence(
         final_weights = [w * scale for w in final_weights]
 
     # Step 5: weighted ratio with adaptive Bayesian prior P = P0 / total.
-    # The adaptive prior ensures a single aged outcome (tiny weight) is pulled
-    # strongly toward the baseline, while a batch of fresh outcomes is pulled
-    # only weakly.
+    # The adaptive prior pulls a single aged outcome (tiny weight) strongly
+    # toward baseline while leaving a batch of fresh outcomes mostly free.
     sum_w = sum(final_weights)
     sum_sv_w = sum(sv * w for sv, w in zip(success_values, final_weights, strict=False))
 
     if sum_w == 0.0:
-        return baseline
+        return BASELINE_CONFIDENCE
 
     prior_weight = 0.8 / total
-    confidence = (sum_sv_w + baseline * prior_weight) / (sum_w + prior_weight)
+    confidence = (sum_sv_w + BASELINE_CONFIDENCE * prior_weight) / (
+        sum_w + prior_weight
+    )
+
+    # v6 caps applied last so they can't be circumvented by feeding an
+    # inflated num_effective_reporters in. Both caps are upper bounds
+    # only — failure signals stay free to drive confidence below 0.5.
+    if unique_ext_reporters < COLD_START_MIN_REPORTERS:
+        confidence = min(confidence, COLD_START_FLOOR)
+
+    has_sandbox_verified = False
+    external_observed_corroboration = False
+    for o in outcomes:
+        if o.reporter_id == SANDBOX_AGENT_ID:
+            if o.kind == "verified":
+                has_sandbox_verified = True
+        elif o.reporter_id != author_id and o.kind == "observed" and o.success:
+            external_observed_corroboration = True
+        if has_sandbox_verified and external_observed_corroboration:
+            break
+    if has_sandbox_verified and not external_observed_corroboration:
+        confidence = min(confidence, SANDBOX_ONLY_CEILING)
 
     return max(0.0, min(1.0, confidence))
 

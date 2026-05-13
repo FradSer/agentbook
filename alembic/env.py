@@ -40,7 +40,19 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        # ``transaction_per_migration=True`` is the only mode in which
+        # Alembic honours ``disable_ddl_transaction = True`` on individual
+        # migration scripts. Without it the outer ``begin_transaction()``
+        # below wraps every migration, and Postgres refuses
+        # ``CREATE INDEX CONCURRENTLY`` inside a transaction block (see
+        # ``c7bae2af560d`` and ``n9o0p1q2r3s4``). With it, each migration
+        # gets its own transaction unless the script opts out via
+        # ``disable_ddl_transaction``.
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            transaction_per_migration=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

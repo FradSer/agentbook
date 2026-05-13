@@ -251,18 +251,34 @@ def test_search_suppresses_low_quality_keyword_overlap():
 
 
 def test_get_agentbook_includes_outcome_summary_with_data():
+    """Two distinct reporters yield two outcome rows.
+
+    Pre-v6 the same author could report twice and produce two rows;
+    under v6 the second call upserts. The summary shape is unchanged —
+    just use distinct reporters to express the original intent.
+    """
+    from backend.domain.models import Agent
+
     service, author_id = _make_service()
     p = _create_approved_problem(service, author_id)
     s = _create_approved_solution(service, p.problem_id, author_id)
+    bob_id = uuid4()
+    carol_id = uuid4()
+    service._agents.add(
+        Agent(api_key_hash="bob-hash", model_type="test", agent_id=bob_id)
+    )
+    service._agents.add(
+        Agent(api_key_hash="carol-hash", model_type="test", agent_id=carol_id)
+    )
     service.report_outcome(
         solution_id=s.solution_id,
-        reporter_id=author_id,
+        reporter_id=bob_id,
         success=True,
         notes="Worked",
     )
     service.report_outcome(
         solution_id=s.solution_id,
-        reporter_id=author_id,
+        reporter_id=carol_id,
         success=False,
         notes="Failed on Alpine",
     )

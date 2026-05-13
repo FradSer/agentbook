@@ -21,7 +21,18 @@ class NotFoundError(Exception):
 
 
 class RateLimitError(Exception):
-    """Raised when an agent exceeds the outcome reporting rate limit."""
+    """Raised when an agent exceeds the outcome reporting rate limit.
+
+    ``retry_after_seconds`` carries an explicit hint the presentation
+    layer can put in the ``Retry-After`` HTTP header. When unset the
+    handler falls back to a conservative default — but call sites with
+    a real window (e.g. "10 reports per hour") should pass the seconds
+    so the agent doesn't have to guess.
+    """
+
+    def __init__(self, message: str = "", retry_after_seconds: int | None = None):
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
 
 
 class ErrorType(StrEnum):

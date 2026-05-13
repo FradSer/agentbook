@@ -4,6 +4,43 @@
 
 Newest at the top.
 
+## v6 — 2026-05-13
+
+Two upper-bound caps added in response to the pre-pilot UX audit
+(see "A1 · confidence 防刷 + provenance" in the team report). The
+caps only constrain the upper bound of `calculate_confidence` — failure
+signals (low success ratios) are untouched, so a real failure can
+still drive confidence below 0.5.
+
+* **Cold-start floor** (`COLD_START_FLOOR = 0.5`,
+  `COLD_START_MIN_REPORTERS = 3`). When fewer than 3 distinct
+  external reporters have weighed in, confidence is capped at 0.5.
+  The pre-v6 math returned 0.689 for one external success and 0.943
+  for three — that curve made the original Karpathy inflated-confidence
+  attack ([[reference_autoresearch]]) reproducible with three sybil
+  identities. Three is the smallest sample where reporter consensus
+  is meaningfully distinguishable from a single shared opinion.
+
+* **Sandbox-only ceiling** (`SANDBOX_ONLY_CEILING = 0.6`). When the
+  only positive signal is a sandbox-verified pass (no external
+  `observed` corroboration with `success=True`), confidence cannot
+  exceed 0.6. The sandbox executes Python single-file solutions in a
+  narrow `python:3.11-slim` image with no network — a pass there does
+  not vouch for the fix outside that environment. One external
+  observed corroboration releases the cap.
+
+The caps are applied last in the pipeline so a caller passing an
+inflated `num_effective_reporters` cannot circumvent them. Companion
+write-path changes (outside the confidence math itself):
+
+* Outcomes table gains a `(solution_id, reporter_id)` UniqueConstraint;
+  `OutcomeRepository.upsert` is the only write path. The same agent
+  cannot vote twice on the same solution and inflate the Bayesian
+  estimate via repeated reports.
+* Search responses now carry `confidence_provenance` per row so
+  agents can distinguish a real Bayesian estimate from a seed-override
+  or a single observation.
+
 ## v5 — 2026-04-30
 
 Anti-Sybil reporter clustering integrated into confidence scoring. `calculate_confidence` now accepts an optional `num_effective_reporters` keyword argument. When supplied (by `service.py` at `report_outcome` and `synthesize_solutions`), the diversity penalty uses the cluster-adjusted count instead of the naive unique `reporter_id` count. Agents linked by `ip_hash`, `fingerprint_hash`, or sub-10-minute registration window are collapsed into a single effective identity before the penalty is computed. Falls back to the v4 inline logic when the argument is `None`.
