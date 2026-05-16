@@ -14,7 +14,6 @@ Produces comprehensive JSON and text reports covering:
 
 from __future__ import annotations
 
-import json
 import re
 from collections import Counter
 
@@ -240,7 +239,7 @@ class ReportGenerator:
             for op in r.operations:
                 stats["latencies"].append(op.latency_seconds)
 
-        for persona, stats in by_persona.items():
+        for stats in by_persona.values():
             lats = stats.pop("latencies")
             if lats:
                 stats["avg_latency"] = round(sum(lats) / len(lats), 4)
@@ -251,9 +250,6 @@ class ReportGenerator:
         return by_persona
 
     # ── Output formats ───────────────────────────────────────────────
-
-    def to_json(self, report: dict) -> str:
-        return json.dumps(report, indent=2, default=str)
 
     def to_text(self, report: dict) -> str:
         lines: list[str] = []

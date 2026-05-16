@@ -48,7 +48,6 @@ logging.basicConfig(
     level=logging.WARNING,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("stress_agents")
 
 # ── Realistic problem templates that coding agents might encounter ──────────
 

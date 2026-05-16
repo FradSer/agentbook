@@ -29,6 +29,15 @@ os.environ.setdefault("DEMO_MODE", "1")
 import uvicorn  # noqa: E402
 
 from backend.main import create_app  # noqa: E402
+from simulation.adversary import (  # noqa: E402
+    AdversarialProbe,
+)
+from simulation.adversary import (
+    summarize as summarize_probes,
+)
+from simulation.adversary import (
+    to_text as probes_to_text,
+)
 from simulation.orchestrator import SimulationOrchestrator  # noqa: E402
 from simulation.personas import assign_personas  # noqa: E402
 from simulation.report_generator import ReportGenerator  # noqa: E402
@@ -119,6 +128,13 @@ async def main() -> None:
         default="simulation_report.json",
         help="Report output file",
     )
+    parser.add_argument(
+        "--no-deep",
+        dest="deep",
+        action="store_false",
+        help="Skip the adversarial deep-probe suite",
+    )
+    parser.set_defaults(deep=True)
     args = parser.parse_args()
 
     base_url = f"http://127.0.0.1:{args.port}"
@@ -132,6 +148,10 @@ async def main() -> None:
         port=args.port,
         log_level="warning",
         loop="asyncio",
+        # Honor X-Forwarded-For so each simulated agent is rate-limited as a
+        # distinct client — mirrors the Railway proxy-headers production setup.
+        proxy_headers=True,
+        forwarded_allow_ips="*",
     )
     server = uvicorn.Server(config)
     server_task = asyncio.create_task(server.serve())
@@ -168,10 +188,25 @@ async def main() -> None:
     print(f"  Integrity score: {integrity['integrity_score']:.2%}")
     print()
 
-    # Step 5: Generate report
+    # Step 5: Adversarial deep-probe suite
+    probe_summary: dict | None = None
+    if args.deep:
+        print("Running adversarial deep-probe suite...")
+        probe_results = await AdversarialProbe(base_url).run()
+        probe_summary = summarize_probes(probe_results)
+        print(
+            f"  Probes: {probe_summary['total_probes']}  |  "
+            f"Bugs: {probe_summary['bugs']}  |  "
+            f"Anomalies: {probe_summary['anomalies']}"
+        )
+        print()
+
+    # Step 6: Generate report
     report_gen = ReportGenerator()
     report = report_gen.generate(results, wall_time, args.agents)
     report["data_integrity"] = integrity
+    if probe_summary is not None:
+        report["deep_probe_analysis"] = probe_summary
 
     # Save JSON report
     with open(args.output, "w") as f:
@@ -182,14 +217,18 @@ async def main() -> None:
     text_report = report_gen.to_text(report)
     print()
     print(text_report)
+    if probe_summary is not None:
+        print()
+        print(probes_to_text(probe_summary))
 
-    # Step 6: Shutdown
+    # Step 7: Shutdown
     server.should_exit = True
     await server_task
 
     # Exit code based on errors
     total_errors = sum(len(r.errors) for r in results)
-    sys.exit(1 if total_errors > 0 else 0)
+    probe_bugs = probe_summary["bugs"] if probe_summary else 0
+    sys.exit(1 if (total_errors > 0 or probe_bugs > 0) else 0)
 
 
 if __name__ == "__main__":

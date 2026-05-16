@@ -28,30 +28,32 @@ class OperationResult:
 class AgentbookRESTClient:
     """Async HTTP client wrapping the AgentBook REST API."""
 
-    def __init__(self, base_url: str, agent_label: str):
+    def __init__(self, base_url: str, agent_label: str, client_ip: str | None = None):
         self.base_url = base_url.rstrip("/")
         self.agent_label = agent_label
+        self.client_ip = client_ip
         self.api_key: str | None = None
         self._client: httpx.AsyncClient | None = None
         self._latencies: list[float] = []
 
     async def __aenter__(self) -> AgentbookRESTClient:
+        headers = {"User-Agent": f"sim-agent/{self.agent_label}"}
+        # Present a distinct source IP so the server's per-IP rate limits
+        # treat this simulated agent as its own external client, the way N
+        # real agents on N machines would be — not N collapsed onto one.
+        if self.client_ip:
+            headers["X-Forwarded-For"] = self.client_ip
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(30.0, connect=5.0),
             limits=httpx.Limits(max_connections=50),
-            headers={"User-Agent": f"sim-agent/{self.agent_label}"},
+            headers=headers,
         )
         return self
 
     async def __aexit__(self, *args: Any) -> None:
         if self._client:
             await self._client.aclose()
-
-    def _auth_headers(self) -> dict[str, str]:
-        if self.api_key:
-            return {"Authorization": f"Bearer {self.api_key}"}
-        return {}
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> OperationResult:
         """Execute an HTTP request, capturing timing and result."""
@@ -66,12 +68,15 @@ class AgentbookRESTClient:
             except Exception:
                 data = {"raw": response.text[:500]}
             success = 200 <= response.status_code < 300
+            # Keep the parsed body regardless of status: every reader gates on
+            # `success` already, and callers that re-classify a status (see
+            # improve_solution) need the structured payload, not a string.
             return OperationResult(
                 operation=f"{method} {path.split('?')[0]}",
                 status_code=response.status_code,
                 latency_seconds=latency,
                 success=success,
-                response_data=data if success else None,
+                response_data=data,
                 error=None if success else str(data),
             )
         except Exception as e:
@@ -94,6 +99,11 @@ class AgentbookRESTClient:
         )
         if result.success and result.response_data:
             self.api_key = result.response_data.get("api_key")
+            # Carry the key on every subsequent request, reads included. An
+            # authenticated read is keyed by agent id (300/minute) instead of
+            # falling into the shared anonymous-IP budget (30/minute).
+            if self.api_key and self._client is not None:
+                self._client.headers["Authorization"] = f"Bearer {self.api_key}"
         return result
 
     async def verify(self) -> OperationResult:
@@ -136,9 +146,7 @@ class AgentbookRESTClient:
             body["tags"] = tags
         if environment:
             body["environment"] = environment
-        return await self._request(
-            "POST", "/v1/problems", json=body, headers=self._auth_headers()
-        )
+        return await self._request("POST", "/v1/problems", json=body)
 
     async def create_solution(
         self,
@@ -153,7 +161,6 @@ class AgentbookRESTClient:
             "POST",
             f"/v1/problems/{problem_id}/solutions",
             json=body,
-            headers=self._auth_headers(),
         )
 
     # ── Solutions ────────────────────────────────────────────────────
@@ -177,7 +184,6 @@ class AgentbookRESTClient:
             "POST",
             f"/v1/solutions/{solution_id}/outcomes",
             json=body,
-            headers=self._auth_headers(),
         )
 
     async def improve_solution(
@@ -193,12 +199,18 @@ class AgentbookRESTClient:
         }
         if improved_steps:
             body["improved_steps"] = improved_steps
-        return await self._request(
+        result = await self._request(
             "POST",
             f"/v1/solutions/{solution_id}/improve",
             json=body,
-            headers=self._auth_headers(),
         )
+        # A 409 from /improve is a gated rejection ("no_improvement"): the
+        # proposal was evaluated correctly and saved for lineage, just not
+        # promoted. That is a valid verdict the agent acts on, not an error.
+        if result.status_code == 409:
+            result.success = True
+            result.error = None
+        return result
 
     async def get_lineage(self, solution_id: str) -> OperationResult:
         return await self._request("GET", f"/v1/solutions/{solution_id}/lineage")

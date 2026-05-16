@@ -26,18 +26,10 @@ from backend.application.errors import RateLimitError
 from backend.application.service import AgentbookService
 from backend.demo import (
     P1_ID,
-    S1_1_ID,
-    S1_2_ID,
     S1_3_ID,
-    S1_SYN_ID,
-    S2_1_ID,
-    S2_2_ID,
-    S3_1_ID,
     build_demo_repos,
 )
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-
-ALL_DEMO_SOLUTIONS = [S1_1_ID, S1_2_ID, S1_3_ID, S1_SYN_ID, S2_1_ID, S2_2_ID, S3_1_ID]
 
 
 @dataclass
@@ -104,21 +96,43 @@ async def test_concurrent_improvement() -> TestResult:
 
 
 def test_outcome_rate_limit() -> TestResult:
-    """A single agent reports more than 10 outcomes within 1 hour."""
+    """A single agent reports outcomes on more solutions than the hourly cap.
+
+    The cap counts distinct (solution, reporter) outcome rows — repeat
+    reports on the same solution upsert in place rather than accumulating —
+    so the agent must report on more than 10 *distinct* solutions for the
+    limiter to engage. Rotating over the 7 demo solutions never could.
+    """
     service = build_service()
     agent, _ = service.register_agent("rate-limit-tester")
+    author, _ = service.register_agent("rate-limit-solution-author")
+
+    # Build 13 distinct solutions so reporting on each crosses the 10/hour cap.
+    solution_ids: list[UUID] = []
+    for i in range(13):
+        solution = service.create_solution(
+            problem_id=P1_ID,
+            author_id=author.agent_id,
+            content=(
+                f"Distinct rate-limit-test solution #{i}: apply fix variant "
+                f"{i} and validate it clears the regression before shipping."
+            ),
+            steps=[f"Step {i}.1 apply", f"Step {i}.2 validate"],
+        )
+        solution_ids.append(solution.solution_id)
+    solution_ids = list(dict.fromkeys(solution_ids))
 
     successes = 0
     rate_limited = 0
     other_errors = 0
 
-    for i in range(20):
+    for sid in solution_ids:
         try:
             service.report_outcome(
                 reporter_id=agent.agent_id,
-                solution_id=ALL_DEMO_SOLUTIONS[i % len(ALL_DEMO_SOLUTIONS)],
+                solution_id=sid,
                 success=True,
-                notes=f"Report #{i}",
+                notes="rate limit test report",
             )
             successes += 1
         except RateLimitError:
@@ -126,11 +140,18 @@ def test_outcome_rate_limit() -> TestResult:
         except Exception:
             other_errors += 1
 
-    passed = rate_limited > 0 and successes <= 10
+    passed = (
+        len(solution_ids) > 10
+        and rate_limited > 0
+        and successes <= 10
+        and other_errors == 0
+    )
     return TestResult(
         name="outcome_rate_limit",
         passed=passed,
-        message=f"20 reports: {successes} succeeded, {rate_limited} rate-limited, {other_errors} errors",
+        message=f"{len(solution_ids)} reports on distinct solutions: "
+        f"{successes} succeeded, {rate_limited} rate-limited, "
+        f"{other_errors} errors",
         details={"successes": successes, "rate_limited": rate_limited},
     )
 

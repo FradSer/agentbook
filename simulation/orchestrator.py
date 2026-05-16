@@ -63,12 +63,9 @@ class SimulationOrchestrator:
         self.personas = personas
         self.max_concurrency = max_concurrency
         self.results: list[AgentSimulationResult] = []
-        self.start_time: float = 0
-        self.end_time: float = 0
 
     async def run_simulation(self) -> list[AgentSimulationResult]:
         """Execute the full simulation with all agents concurrently."""
-        self.start_time = time.monotonic()
         semaphore = asyncio.Semaphore(self.max_concurrency)
 
         tasks = [
@@ -76,7 +73,6 @@ class SimulationOrchestrator:
             for idx, persona in enumerate(self.personas)
         ]
         self.results = await asyncio.gather(*tasks)
-        self.end_time = time.monotonic()
         return self.results
 
     async def _run_agent_workflow(
@@ -87,6 +83,10 @@ class SimulationOrchestrator:
     ) -> AgentSimulationResult:
         """Execute a single agent's full workflow based on its persona."""
         agent_label = f"agent-{idx:03d}"
+        # Each simulated agent stands in for a distinct external client, so
+        # give it a stable synthetic source IP. Per-IP rate limits then behave
+        # as they would for N agents on N machines.
+        client_ip = f"10.0.{(idx // 254) % 256}.{(idx % 254) + 1}"
         result = AgentSimulationResult(
             agent_id=agent_label,
             persona_name=persona.name,
@@ -95,23 +95,24 @@ class SimulationOrchestrator:
         start = time.monotonic()
 
         async with semaphore:
-            async with AgentbookRESTClient(self.base_url, agent_label) as client:
+            async with AgentbookRESTClient(
+                self.base_url, agent_label, client_ip
+            ) as client:
                 # Phase 1: Register
                 reg = await client.register(persona.model_type)
                 result.operations.append(reg)
                 if reg.status_code == 429:
                     result.rate_limit_hits += 1
-                if not reg.success and reg.status_code != 429:
-                    result.errors.append(
-                        {
-                            "phase": "register",
-                            "error": reg.error,
-                            "status_code": reg.status_code,
-                        }
-                    )
-                    result.total_time = time.monotonic() - start
-                    return result
                 await self._jitter(persona)
+
+                # Without credentials, an agent can still use the public read
+                # surface — exercise that, then finish.
+                if not reg.success:
+                    await self._read_only_workflow(client, persona, result)
+                    result.total_time = time.monotonic() - start
+                    result.latency_stats = client.get_latency_stats()
+                    self._collect_errors(result)
+                    return result
 
                 # Phase 2: Verify auth
                 verify = await client.verify()
@@ -153,7 +154,7 @@ class SimulationOrchestrator:
                 # Phase 6: Create problems (persona-driven)
                 if random.random() < persona.create_problem_prob:
                     num_new = random.randint(*persona.num_problems_to_create)
-                    for i in range(num_new):
+                    for _ in range(num_new):
                         prob = generate_problem(None, idx)
                         cr = await client.create_problem(**prob)
                         result.operations.append(cr)
@@ -256,21 +257,45 @@ class SimulationOrchestrator:
 
             result.total_time = time.monotonic() - start
             result.latency_stats = client.get_latency_stats()
-
-            # Collect non-rate-limit errors
-            for op in result.operations:
-                if not op.success and op.status_code != 429 and op.error:
-                    result.errors.append(
-                        {
-                            "phase": op.operation,
-                            "error": op.error,
-                            "status_code": op.status_code,
-                        }
-                    )
+            self._collect_errors(result)
 
         return result
 
     # ── Helpers ──────────────────────────────────────────────────────
+
+    async def _read_only_workflow(
+        self,
+        client: AgentbookRESTClient,
+        persona: AgentPersona,
+        result: AgentSimulationResult,
+    ) -> None:
+        """Public read surface for an agent that holds no credentials."""
+        for q in random.sample(SEARCH_QUERIES, min(3, len(SEARCH_QUERIES))):
+            sr = await client.search(q, limit=random.randint(3, 10))
+            result.operations.append(sr)
+            if sr.status_code == 429:
+                result.rate_limit_hits += 1
+            await self._jitter(persona)
+        lp = await client.list_problems(limit=10)
+        result.operations.append(lp)
+        await self._jitter(persona)
+        for pid in self._extract_problem_ids(result.operations)[:3]:
+            detail = await client.get_problem(pid)
+            result.operations.append(detail)
+            await self._jitter(persona)
+
+    @staticmethod
+    def _collect_errors(result: AgentSimulationResult) -> None:
+        """Record non-rate-limit failures as errors."""
+        for op in result.operations:
+            if not op.success and op.status_code != 429 and op.error:
+                result.errors.append(
+                    {
+                        "phase": op.operation,
+                        "error": op.error,
+                        "status_code": op.status_code,
+                    }
+                )
 
     @staticmethod
     async def _jitter(persona: AgentPersona) -> None:

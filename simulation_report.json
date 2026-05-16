@@ -1,116 +1,88 @@
 {
   "simulation_summary": {
-    "num_agents": 10,
-    "wall_time_seconds": 9.98,
-    "total_operations": 168,
-    "total_problems_created": 9,
-    "total_solutions_created": 10,
-    "total_outcomes_reported": 19,
+    "num_agents": 25,
+    "wall_time_seconds": 19.51,
+    "total_operations": 483,
+    "total_problems_created": 17,
+    "total_solutions_created": 22,
+    "total_outcomes_reported": 33,
     "total_errors": 0,
-    "total_rate_limit_hits": 28,
+    "total_rate_limit_hits": 0,
     "error_rate": 0.0,
-    "throughput_ops_per_second": 16.83
+    "throughput_ops_per_second": 24.75
   },
   "per_agent_metrics": [
     {
       "agent_id": "agent-000",
-      "persona": "searcher",
-      "model_type": "anthropic/claude-sonnet-4.6",
-      "total_operations": 16,
+      "persona": "explorer",
+      "model_type": "meta/llama-4-maverick",
+      "total_operations": 19,
       "operations_by_type": {
         "POST /v1/auth/register": 1,
         "POST /v1/auth/verify": 2,
-        "GET /v1/search": 9,
-        "POST /v1/solutions/{id}/outcomes": 1,
-        "GET /v1/dashboard/radar": 1,
-        "GET /v1/dashboard/metrics": 1,
-        "GET /v1/dashboard/usage": 1
+        "GET /v1/search": 7,
+        "GET /v1/problems/{id}": 4,
+        "GET /v1/problems/{id}/timeline": 3,
+        "POST /v1/solutions/{id}/outcomes": 2
       },
       "problems_created": 0,
       "solutions_created": 0,
-      "outcomes_reported": 1,
-      "rate_limit_hits": 5,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
       "errors": 0,
-      "total_time_seconds": 5.01,
+      "total_time_seconds": 7.57,
       "latency_stats": {
-        "min": 0.0027,
-        "max": 0.0587,
-        "avg": 0.0082,
-        "p50": 0.0046,
-        "p95": 0.0587,
-        "p99": 0.0587
+        "min": 0.0018,
+        "max": 0.0451,
+        "avg": 0.006,
+        "p50": 0.0031,
+        "p95": 0.0451,
+        "p99": 0.0451
       }
     },
     {
       "agent_id": "agent-001",
-      "persona": "reporter",
-      "model_type": "google/gemini-3-pro",
-      "total_operations": 12,
-      "operations_by_type": {
-        "POST /v1/auth/register": 1,
-        "POST /v1/auth/verify": 2,
-        "GET /v1/search": 4,
-        "GET /v1/problems": 1,
-        "GET /v1/problems/{id}": 1,
-        "POST /v1/solutions/{id}/outcomes": 3
-      },
-      "problems_created": 0,
-      "solutions_created": 0,
-      "outcomes_reported": 3,
-      "rate_limit_hits": 0,
-      "errors": 0,
-      "total_time_seconds": 1.8,
-      "latency_stats": {
-        "min": 0.0033,
-        "max": 0.0517,
-        "avg": 0.0084,
-        "p50": 0.0044,
-        "p95": 0.0517,
-        "p99": 0.0517
-      }
-    },
-    {
-      "agent_id": "agent-002",
-      "persona": "reporter",
-      "model_type": "google/gemini-3-pro",
-      "total_operations": 12,
-      "operations_by_type": {
-        "POST /v1/auth/register": 1,
-        "POST /v1/auth/verify": 2,
-        "GET /v1/search": 4,
-        "GET /v1/problems/{id}": 1,
-        "GET /v1/problems/{id}/timeline": 1,
-        "POST /v1/solutions/{id}/outcomes": 3
-      },
-      "problems_created": 0,
-      "solutions_created": 0,
-      "outcomes_reported": 3,
-      "rate_limit_hits": 0,
-      "errors": 0,
-      "total_time_seconds": 2.4,
-      "latency_stats": {
-        "min": 0.003,
-        "max": 0.0455,
-        "avg": 0.0078,
-        "p50": 0.0041,
-        "p95": 0.0455,
-        "p99": 0.0455
-      }
-    },
-    {
-      "agent_id": "agent-003",
       "persona": "explorer",
       "model_type": "meta/llama-4-maverick",
-      "total_operations": 25,
+      "total_operations": 22,
       "operations_by_type": {
         "POST /v1/auth/register": 1,
         "POST /v1/auth/verify": 2,
         "GET /v1/search": 7,
         "GET /v1/problems": 1,
         "GET /v1/problems/{id}": 5,
-        "GET /v1/problems/{id}/timeline": 3,
+        "GET /v1/problems/{id}/timeline": 5,
+        "POST /v1/solutions/{id}/outcomes": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 10.0,
+      "latency_stats": {
+        "min": 0.0017,
+        "max": 0.0419,
+        "avg": 0.0059,
+        "p50": 0.0039,
+        "p95": 0.0082,
+        "p99": 0.0419
+      }
+    },
+    {
+      "agent_id": "agent-002",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 17,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 1,
+        "GET /v1/problems/{id}/timeline": 1,
         "POST /v1/problems": 1,
-        "POST /v1/solutions/{id}/outcomes": 1,
+        "POST /v1/solutions/{id}/outcomes": 2,
         "GET /v1/dashboard/radar": 1,
         "GET /v1/dashboard/metrics": 1,
         "GET /v1/dashboard/usage": 1,
@@ -118,57 +90,56 @@
       },
       "problems_created": 1,
       "solutions_created": 0,
-      "outcomes_reported": 1,
-      "rate_limit_hits": 5,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
       "errors": 0,
-      "total_time_seconds": 9.96,
+      "total_time_seconds": 3.2,
       "latency_stats": {
-        "min": 0.0028,
-        "max": 0.0399,
-        "avg": 0.0065,
-        "p50": 0.0049,
-        "p95": 0.011,
-        "p99": 0.0399
+        "min": 0.0022,
+        "max": 0.0383,
+        "avg": 0.006,
+        "p50": 0.0041,
+        "p95": 0.0383,
+        "p99": 0.0383
+      }
+    },
+    {
+      "agent_id": "agent-003",
+      "persona": "contributor",
+      "model_type": "openai/gpt-5.4",
+      "total_operations": 20,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 3,
+        "POST /v1/problems": 4,
+        "POST /v1/problems/{id}/solutions": 9,
+        "POST /v1/solutions/{id}/improve": 1
+      },
+      "problems_created": 4,
+      "solutions_created": 9,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 8.9,
+      "latency_stats": {
+        "min": 0.0021,
+        "max": 0.0344,
+        "avg": 0.0056,
+        "p50": 0.0038,
+        "p95": 0.0344,
+        "p99": 0.0344
       }
     },
     {
       "agent_id": "agent-004",
-      "persona": "balanced",
-      "model_type": "anthropic/claude-opus-4.7",
-      "total_operations": 16,
-      "operations_by_type": {
-        "POST /v1/auth/register": 1,
-        "POST /v1/auth/verify": 2,
-        "GET /v1/search": 6,
-        "POST /v1/problems": 2,
-        "POST /v1/problems/{id}/solutions": 2,
-        "POST /v1/solutions/{id}/outcomes": 3
-      },
-      "problems_created": 2,
-      "solutions_created": 2,
-      "outcomes_reported": 3,
-      "rate_limit_hits": 3,
-      "errors": 0,
-      "total_time_seconds": 4.94,
-      "latency_stats": {
-        "min": 0.0029,
-        "max": 0.0351,
-        "avg": 0.0064,
-        "p50": 0.0048,
-        "p95": 0.0351,
-        "p99": 0.0351
-      }
-    },
-    {
-      "agent_id": "agent-005",
       "persona": "searcher",
       "model_type": "anthropic/claude-sonnet-4.6",
-      "total_operations": 24,
+      "total_operations": 23,
       "operations_by_type": {
         "POST /v1/auth/register": 1,
         "POST /v1/auth/verify": 2,
         "GET /v1/search": 9,
-        "GET /v1/problems": 1,
         "GET /v1/problems/{id}": 4,
         "GET /v1/problems/{id}/timeline": 4,
         "GET /v1/dashboard/radar": 1,
@@ -178,58 +149,119 @@
       "problems_created": 0,
       "solutions_created": 0,
       "outcomes_reported": 0,
-      "rate_limit_hits": 4,
+      "rate_limit_hits": 0,
       "errors": 0,
-      "total_time_seconds": 6.11,
+      "total_time_seconds": 6.68,
       "latency_stats": {
-        "min": 0.0025,
-        "max": 0.0305,
-        "avg": 0.0055,
-        "p50": 0.0039,
-        "p95": 0.0121,
-        "p99": 0.0305
+        "min": 0.0015,
+        "max": 0.032,
+        "avg": 0.0051,
+        "p50": 0.0034,
+        "p95": 0.0088,
+        "p99": 0.032
+      }
+    },
+    {
+      "agent_id": "agent-005",
+      "persona": "searcher",
+      "model_type": "anthropic/claude-sonnet-4.6",
+      "total_operations": 23,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 9,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 5
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 7.0,
+      "latency_stats": {
+        "min": 0.002,
+        "max": 0.0281,
+        "avg": 0.0048,
+        "p50": 0.0034,
+        "p95": 0.0078,
+        "p99": 0.0281
       }
     },
     {
       "agent_id": "agent-006",
-      "persona": "contributor",
-      "model_type": "openai/gpt-5.4",
-      "total_operations": 18,
-      "operations_by_type": {
-        "POST /v1/auth/register": 1,
-        "POST /v1/auth/verify": 2,
-        "GET /v1/search": 3,
-        "POST /v1/problems": 2,
-        "POST /v1/problems/{id}/solutions": 5,
-        "POST /v1/solutions/{id}/outcomes": 4,
-        "GET /v1/solutions/{id}/lineage": 1
-      },
-      "problems_created": 2,
-      "solutions_created": 5,
-      "outcomes_reported": 4,
-      "rate_limit_hits": 2,
-      "errors": 0,
-      "total_time_seconds": 9.15,
-      "latency_stats": {
-        "min": 0.0028,
-        "max": 0.0258,
-        "avg": 0.0067,
-        "p50": 0.0053,
-        "p95": 0.0258,
-        "p99": 0.0258
-      }
-    },
-    {
-      "agent_id": "agent-007",
       "persona": "explorer",
       "model_type": "meta/llama-4-maverick",
-      "total_operations": 16,
+      "total_operations": 23,
       "operations_by_type": {
         "POST /v1/auth/register": 1,
         "POST /v1/auth/verify": 2,
         "GET /v1/search": 7,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 4,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 9.56,
+      "latency_stats": {
+        "min": 0.0015,
+        "max": 0.0236,
+        "avg": 0.0048,
+        "p50": 0.0039,
+        "p95": 0.0105,
+        "p99": 0.0236
+      }
+    },
+    {
+      "agent_id": "agent-007",
+      "persona": "balanced",
+      "model_type": "anthropic/claude-opus-4.7",
+      "total_operations": 15,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 6,
         "GET /v1/problems/{id}": 1,
-        "GET /v1/problems/{id}/timeline": 1,
+        "POST /v1/solutions/{id}/outcomes": 2,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 4.7,
+      "latency_stats": {
+        "min": 0.0018,
+        "max": 0.0206,
+        "avg": 0.0045,
+        "p50": 0.003,
+        "p95": 0.0206,
+        "p99": 0.0206
+      }
+    },
+    {
+      "agent_id": "agent-008",
+      "persona": "explorer",
+      "model_type": "meta/llama-4-maverick",
+      "total_operations": 23,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 7,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3,
         "POST /v1/solutions/{id}/outcomes": 1,
         "GET /v1/dashboard/radar": 1,
         "GET /v1/dashboard/metrics": 1,
@@ -238,290 +270,658 @@
       "problems_created": 0,
       "solutions_created": 0,
       "outcomes_reported": 1,
-      "rate_limit_hits": 5,
+      "rate_limit_hits": 0,
       "errors": 0,
-      "total_time_seconds": 6.27,
+      "total_time_seconds": 9.87,
       "latency_stats": {
-        "min": 0.0026,
-        "max": 0.0217,
-        "avg": 0.0049,
-        "p50": 0.0038,
-        "p95": 0.0217,
-        "p99": 0.0217
+        "min": 0.0016,
+        "max": 0.0156,
+        "avg": 0.0039,
+        "p50": 0.0033,
+        "p95": 0.0076,
+        "p99": 0.0156
       }
     },
     {
-      "agent_id": "agent-008",
+      "agent_id": "agent-009",
       "persona": "balanced",
       "model_type": "anthropic/claude-opus-4.7",
-      "total_operations": 13,
+      "total_operations": 17,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 6,
+        "GET /v1/problems/{id}": 3,
+        "GET /v1/problems/{id}/timeline": 1,
+        "POST /v1/problems": 1,
+        "POST /v1/problems/{id}/solutions": 1,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "GET /v1/solutions/{id}/lineage": 1
+      },
+      "problems_created": 1,
+      "solutions_created": 1,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 5.24,
+      "latency_stats": {
+        "min": 0.0019,
+        "max": 0.0129,
+        "avg": 0.0044,
+        "p50": 0.0035,
+        "p95": 0.0129,
+        "p99": 0.0129
+      }
+    },
+    {
+      "agent_id": "agent-010",
+      "persona": "contributor",
+      "model_type": "openai/gpt-5.4",
+      "total_operations": 9,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 3,
+        "GET /v1/problems/{id}": 1,
+        "POST /v1/solutions/{id}/outcomes": 2
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 7.29,
+      "latency_stats": {
+        "min": 0.0026,
+        "max": 0.0052,
+        "avg": 0.0035,
+        "p50": 0.0036,
+        "p95": 0.0052,
+        "p99": 0.0052
+      }
+    },
+    {
+      "agent_id": "agent-011",
+      "persona": "contributor",
+      "model_type": "openai/gpt-5.4",
+      "total_operations": 19,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 3,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 2,
+        "POST /v1/problems": 4,
+        "POST /v1/problems/{id}/solutions": 4,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "POST /v1/solutions/{id}/improve": 1
+      },
+      "problems_created": 4,
+      "solutions_created": 4,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 14.6,
+      "latency_stats": {
+        "min": 0.0022,
+        "max": 0.0361,
+        "avg": 0.0066,
+        "p50": 0.0038,
+        "p95": 0.0361,
+        "p99": 0.0361
+      }
+    },
+    {
+      "agent_id": "agent-012",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 18,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems/{id}": 4,
+        "GET /v1/problems/{id}/timeline": 2,
+        "POST /v1/solutions/{id}/outcomes": 2,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 8.39,
+      "latency_stats": {
+        "min": 0.0021,
+        "max": 0.0064,
+        "avg": 0.0043,
+        "p50": 0.0045,
+        "p95": 0.0064,
+        "p99": 0.0064
+      }
+    },
+    {
+      "agent_id": "agent-013",
+      "persona": "contributor",
+      "model_type": "openai/gpt-5.4",
+      "total_operations": 10,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 3,
+        "POST /v1/problems": 2,
+        "POST /v1/solutions/{id}/outcomes": 2
+      },
+      "problems_created": 2,
+      "solutions_created": 0,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 11.64,
+      "latency_stats": {
+        "min": 0.002,
+        "max": 0.0115,
+        "avg": 0.0048,
+        "p50": 0.0031,
+        "p95": 0.0115,
+        "p99": 0.0115
+      }
+    },
+    {
+      "agent_id": "agent-014",
+      "persona": "balanced",
+      "model_type": "anthropic/claude-opus-4.7",
+      "total_operations": 19,
       "operations_by_type": {
         "POST /v1/auth/register": 1,
         "POST /v1/auth/verify": 2,
         "GET /v1/search": 6,
         "GET /v1/problems": 1,
-        "GET /v1/problems/{id}": 1,
-        "GET /v1/problems/{id}/timeline": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3,
         "POST /v1/solutions/{id}/outcomes": 1
       },
       "problems_created": 0,
       "solutions_created": 0,
       "outcomes_reported": 1,
-      "rate_limit_hits": 2,
+      "rate_limit_hits": 0,
       "errors": 0,
-      "total_time_seconds": 4.29,
+      "total_time_seconds": 12.44,
       "latency_stats": {
         "min": 0.0018,
-        "max": 0.0171,
-        "avg": 0.0052,
-        "p50": 0.0039,
-        "p95": 0.0171,
-        "p99": 0.0171
+        "max": 0.0113,
+        "avg": 0.0048,
+        "p50": 0.0037,
+        "p95": 0.0113,
+        "p99": 0.0113
       }
     },
     {
-      "agent_id": "agent-009",
+      "agent_id": "agent-015",
+      "persona": "searcher",
+      "model_type": "anthropic/claude-sonnet-4.6",
+      "total_operations": 24,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 9,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 4,
+        "POST /v1/solutions/{id}/outcomes": 2
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 13.8,
+      "latency_stats": {
+        "min": 0.0017,
+        "max": 0.0092,
+        "avg": 0.0046,
+        "p50": 0.0042,
+        "p95": 0.0091,
+        "p99": 0.0092
+      }
+    },
+    {
+      "agent_id": "agent-016",
       "persona": "contributor",
       "model_type": "openai/gpt-5.4",
-      "total_operations": 16,
+      "total_operations": 22,
       "operations_by_type": {
         "POST /v1/auth/register": 1,
         "POST /v1/auth/verify": 2,
         "GET /v1/search": 3,
+        "GET /v1/problems/{id}": 1,
         "POST /v1/problems": 4,
-        "POST /v1/problems/{id}/solutions": 3,
-        "POST /v1/solutions/{id}/outcomes": 2,
-        "GET /v1/research-activity": 1
+        "POST /v1/problems/{id}/solutions": 7,
+        "POST /v1/solutions/{id}/outcomes": 4
       },
       "problems_created": 4,
-      "solutions_created": 3,
-      "outcomes_reported": 2,
-      "rate_limit_hits": 2,
+      "solutions_created": 7,
+      "outcomes_reported": 4,
+      "rate_limit_hits": 0,
       "errors": 0,
-      "total_time_seconds": 7.86,
+      "total_time_seconds": 17.75,
       "latency_stats": {
         "min": 0.0026,
-        "max": 0.0125,
+        "max": 0.011,
+        "avg": 0.0053,
+        "p50": 0.0042,
+        "p95": 0.0093,
+        "p99": 0.011
+      }
+    },
+    {
+      "agent_id": "agent-017",
+      "persona": "searcher",
+      "model_type": "anthropic/claude-sonnet-4.6",
+      "total_operations": 21,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 9,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 15.23,
+      "latency_stats": {
+        "min": 0.0019,
+        "max": 0.0211,
         "avg": 0.006,
-        "p50": 0.005,
+        "p50": 0.0052,
+        "p95": 0.0112,
+        "p99": 0.0211
+      }
+    },
+    {
+      "agent_id": "agent-018",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 16,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems/{id}": 4,
+        "GET /v1/problems/{id}/timeline": 2,
+        "POST /v1/solutions/{id}/outcomes": 3
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 3,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 11.38,
+      "latency_stats": {
+        "min": 0.0018,
+        "max": 0.0085,
+        "avg": 0.0051,
+        "p50": 0.0055,
+        "p95": 0.0085,
+        "p99": 0.0085
+      }
+    },
+    {
+      "agent_id": "agent-019",
+      "persona": "searcher",
+      "model_type": "anthropic/claude-sonnet-4.6",
+      "total_operations": 22,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 9,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 4
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 16.16,
+      "latency_stats": {
+        "min": 0.0019,
+        "max": 0.0119,
+        "avg": 0.005,
+        "p50": 0.0046,
+        "p95": 0.01,
+        "p99": 0.0119
+      }
+    },
+    {
+      "agent_id": "agent-020",
+      "persona": "balanced",
+      "model_type": "anthropic/claude-opus-4.7",
+      "total_operations": 25,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 6,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3,
+        "POST /v1/problems": 1,
+        "POST /v1/problems/{id}/solutions": 1,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "GET /v1/solutions/{id}/lineage": 1,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 1,
+      "solutions_created": 1,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 18.33,
+      "latency_stats": {
+        "min": 0.0021,
+        "max": 0.0087,
+        "avg": 0.0042,
+        "p50": 0.0035,
+        "p95": 0.0086,
+        "p99": 0.0087
+      }
+    },
+    {
+      "agent_id": "agent-021",
+      "persona": "balanced",
+      "model_type": "anthropic/claude-opus-4.7",
+      "total_operations": 21,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 6,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 2,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 16.82,
+      "latency_stats": {
+        "min": 0.0021,
+        "max": 0.0078,
+        "avg": 0.0045,
+        "p50": 0.0041,
+        "p95": 0.0077,
+        "p99": 0.0078
+      }
+    },
+    {
+      "agent_id": "agent-022",
+      "persona": "explorer",
+      "model_type": "meta/llama-4-maverick",
+      "total_operations": 22,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 7,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 19.47,
+      "latency_stats": {
+        "min": 0.0019,
+        "max": 0.0095,
+        "avg": 0.0043,
+        "p50": 0.0035,
+        "p95": 0.0081,
+        "p99": 0.0095
+      }
+    },
+    {
+      "agent_id": "agent-023",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 18,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3,
+        "POST /v1/solutions/{id}/outcomes": 2
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 14.5,
+      "latency_stats": {
+        "min": 0.0021,
+        "max": 0.0125,
+        "avg": 0.0041,
+        "p50": 0.0033,
         "p95": 0.0125,
         "p99": 0.0125
+      }
+    },
+    {
+      "agent_id": "agent-024",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 15,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems/{id}": 4,
+        "GET /v1/problems/{id}/timeline": 1,
+        "POST /v1/solutions/{id}/outcomes": 3
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 3,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 15.23,
+      "latency_stats": {
+        "min": 0.0017,
+        "max": 0.0101,
+        "avg": 0.0046,
+        "p50": 0.0036,
+        "p95": 0.0101,
+        "p99": 0.0101
       }
     }
   ],
   "system_level_metrics": {
-    "total_operations": 168,
-    "throughput_ops_per_second": 16.83,
+    "total_operations": 483,
+    "throughput_ops_per_second": 24.75,
     "latency_percentiles": {
-      "p50": 0.0043,
-      "p90": 0.0094,
-      "p95": 0.0171,
-      "p99": 0.0517,
-      "min": 0.0018,
-      "max": 0.0587,
-      "avg": 0.0065
+      "p50": 0.0037,
+      "p90": 0.0078,
+      "p95": 0.0093,
+      "p99": 0.0344,
+      "min": 0.0015,
+      "max": 0.0451,
+      "avg": 0.0049
     },
-    "success_rate": 0.8333
+    "success_rate": 1.0
   },
   "rate_limiting_analysis": {
-    "total_rate_limit_hits": 28,
-    "affected_agents": 8,
-    "rate_limited_operations": [
-      {
-        "agent_id": "agent-000",
-        "operation": "GET /v1/search",
-        "latency": 0.0094
-      },
-      {
-        "agent_id": "agent-000",
-        "operation": "GET /v1/search",
-        "latency": 0.0027
-      },
-      {
-        "agent_id": "agent-000",
-        "operation": "GET /v1/search",
-        "latency": 0.004
-      },
-      {
-        "agent_id": "agent-000",
-        "operation": "GET /v1/search",
-        "latency": 0.0052
-      },
-      {
-        "agent_id": "agent-000",
-        "operation": "GET /v1/search",
-        "latency": 0.0058
-      },
-      {
-        "agent_id": "agent-003",
-        "operation": "GET /v1/search",
-        "latency": 0.0041
-      },
-      {
-        "agent_id": "agent-003",
-        "operation": "GET /v1/search",
-        "latency": 0.0029
-      },
-      {
-        "agent_id": "agent-003",
-        "operation": "GET /v1/search",
-        "latency": 0.0076
-      },
-      {
-        "agent_id": "agent-003",
-        "operation": "GET /v1/search",
-        "latency": 0.0085
-      },
-      {
-        "agent_id": "agent-003",
-        "operation": "GET /v1/search",
-        "latency": 0.0041
-      },
-      {
-        "agent_id": "agent-004",
-        "operation": "GET /v1/search",
-        "latency": 0.0029
-      },
-      {
-        "agent_id": "agent-004",
-        "operation": "GET /v1/search",
-        "latency": 0.0051
-      },
-      {
-        "agent_id": "agent-004",
-        "operation": "GET /v1/search",
-        "latency": 0.0041
-      },
-      {
-        "agent_id": "agent-005",
-        "operation": "GET /v1/search",
-        "latency": 0.0043
-      },
-      {
-        "agent_id": "agent-005",
-        "operation": "GET /v1/search",
-        "latency": 0.0031
-      },
-      {
-        "agent_id": "agent-005",
-        "operation": "GET /v1/search",
-        "latency": 0.0026
-      },
-      {
-        "agent_id": "agent-005",
-        "operation": "GET /v1/search",
-        "latency": 0.0062
-      },
-      {
-        "agent_id": "agent-006",
-        "operation": "GET /v1/search",
-        "latency": 0.0046
-      },
-      {
-        "agent_id": "agent-006",
-        "operation": "GET /v1/search",
-        "latency": 0.0083
-      },
-      {
-        "agent_id": "agent-007",
-        "operation": "GET /v1/search",
-        "latency": 0.0031
-      }
-    ],
-    "by_endpoint": {
-      "GET /v1/search": 28
-    }
+    "total_rate_limit_hits": 0,
+    "affected_agents": 0,
+    "rate_limited_operations": [],
+    "by_endpoint": {}
   },
   "confidence_evolution": {
-    "total_confidence_updates": 19,
+    "total_confidence_updates": 33,
     "values": [
       {
         "agent_id": "agent-000",
-        "confidence": 0.17581002442791135
-      },
-      {
-        "agent_id": "agent-001",
-        "confidence": 0.9193107500349413
-      },
-      {
-        "agent_id": "agent-001",
-        "confidence": 0.25676605016070003
-      },
-      {
-        "agent_id": "agent-001",
-        "confidence": 0.2602086112414457
-      },
-      {
-        "agent_id": "agent-002",
-        "confidence": 0.487587167865733
-      },
-      {
-        "agent_id": "agent-002",
-        "confidence": 0.7622049837046101
-      },
-      {
-        "agent_id": "agent-002",
         "confidence": 0.5
       },
       {
-        "agent_id": "agent-003",
-        "confidence": 0.7654359830009213
+        "agent_id": "agent-000",
+        "confidence": 0.4974179476065977
       },
       {
-        "agent_id": "agent-004",
-        "confidence": 0.3
+        "agent_id": "agent-001",
+        "confidence": 0.6106212003003545
       },
       {
-        "agent_id": "agent-004",
-        "confidence": 0.74000593878721
+        "agent_id": "agent-002",
+        "confidence": 0.39344152563291546
       },
       {
-        "agent_id": "agent-004",
-        "confidence": 0.6984648917277321
-      },
-      {
-        "agent_id": "agent-006",
-        "confidence": 0.3
-      },
-      {
-        "agent_id": "agent-006",
-        "confidence": 0.3
-      },
-      {
-        "agent_id": "agent-006",
-        "confidence": 0.3
-      },
-      {
-        "agent_id": "agent-006",
-        "confidence": 0.6488778555216513
+        "agent_id": "agent-002",
+        "confidence": 0.9485544278610839
       },
       {
         "agent_id": "agent-007",
-        "confidence": 0.37239466547715644
+        "confidence": 0.5597304533367463
+      },
+      {
+        "agent_id": "agent-007",
+        "confidence": 0.9191557412222865
       },
       {
         "agent_id": "agent-008",
-        "confidence": 0.5820801892595998
+        "confidence": 0.48757055804362653
       },
       {
         "agent_id": "agent-009",
+        "confidence": 0.2563081656449742
+      },
+      {
+        "agent_id": "agent-010",
+        "confidence": 0.6483976316384227
+      },
+      {
+        "agent_id": "agent-010",
+        "confidence": 0.44067950890340657
+      },
+      {
+        "agent_id": "agent-011",
+        "confidence": 0.5855888448452127
+      },
+      {
+        "agent_id": "agent-012",
+        "confidence": 0.5406016723830904
+      },
+      {
+        "agent_id": "agent-012",
+        "confidence": 0.2597495245106872
+      },
+      {
+        "agent_id": "agent-013",
+        "confidence": 0.6623163183249754
+      },
+      {
+        "agent_id": "agent-013",
+        "confidence": 0.38454922913691136
+      },
+      {
+        "agent_id": "agent-014",
+        "confidence": 0.48758436366882707
+      },
+      {
+        "agent_id": "agent-015",
+        "confidence": 0.43557633944320123
+      },
+      {
+        "agent_id": "agent-015",
+        "confidence": 0.6114381936545635
+      },
+      {
+        "agent_id": "agent-016",
         "confidence": 0.3
       },
       {
-        "agent_id": "agent-009",
-        "confidence": 0.8319130719421928
+        "agent_id": "agent-016",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-016",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-016",
+        "confidence": 0.6649967927388146
+      },
+      {
+        "agent_id": "agent-018",
+        "confidence": 0.6979344234537009
+      },
+      {
+        "agent_id": "agent-018",
+        "confidence": 0.5955405962101975
+      },
+      {
+        "agent_id": "agent-018",
+        "confidence": 0.5505348335744512
+      },
+      {
+        "agent_id": "agent-020",
+        "confidence": 0.6124746987574954
+      },
+      {
+        "agent_id": "agent-021",
+        "confidence": 0.6233979604688886
+      },
+      {
+        "agent_id": "agent-023",
+        "confidence": 0.6621504202502858
+      },
+      {
+        "agent_id": "agent-023",
+        "confidence": 0.5356687373338725
+      },
+      {
+        "agent_id": "agent-024",
+        "confidence": 0.570166410959174
+      },
+      {
+        "agent_id": "agent-024",
+        "confidence": 0.5246973492908681
+      },
+      {
+        "agent_id": "agent-024",
+        "confidence": 0.6881895011858353
       }
     ],
-    "min_confidence": 0.17581002442791135,
-    "max_confidence": 0.9193107500349413
+    "min_confidence": 0.2563081656449742,
+    "max_confidence": 0.9485544278610839
   },
   "concurrency_analysis": {
-    "min_agent_time": 1.8,
-    "max_agent_time": 9.96,
-    "avg_agent_time": 5.78,
-    "wall_clock": 9.98,
-    "sequential_sum": 57.8,
-    "speedup_vs_sequential": 5.8,
+    "min_agent_time": 3.2,
+    "max_agent_time": 19.47,
+    "avg_agent_time": 11.43,
+    "wall_clock": 19.51,
+    "sequential_sum": 285.76,
+    "speedup_vs_sequential": 14.6,
     "concurrency_efficiency": 1.0
   },
   "error_report": {
@@ -531,85 +931,622 @@
     "sample_errors": []
   },
   "operation_breakdown": {
-    "GET /v1/search": 58,
-    "POST /v1/auth/verify": 20,
-    "POST /v1/solutions/{id}/outcomes": 19,
-    "GET /v1/problems/{id}": 13,
-    "POST /v1/auth/register": 10,
-    "GET /v1/problems/{id}/timeline": 10,
-    "POST /v1/problems/{id}/solutions": 10,
-    "POST /v1/problems": 9,
-    "GET /v1/dashboard/radar": 4,
-    "GET /v1/dashboard/metrics": 4,
-    "GET /v1/dashboard/usage": 4,
-    "GET /v1/problems": 4,
-    "GET /v1/research-activity": 2,
-    "GET /v1/solutions/{id}/lineage": 1
+    "GET /v1/search": 145,
+    "GET /v1/problems/{id}": 89,
+    "GET /v1/problems/{id}/timeline": 56,
+    "POST /v1/auth/verify": 50,
+    "POST /v1/solutions/{id}/outcomes": 33,
+    "POST /v1/auth/register": 25,
+    "POST /v1/problems/{id}/solutions": 22,
+    "POST /v1/problems": 17,
+    "GET /v1/problems": 14,
+    "GET /v1/dashboard/radar": 9,
+    "GET /v1/dashboard/metrics": 9,
+    "GET /v1/dashboard/usage": 9,
+    "POST /v1/solutions/{id}/improve": 2,
+    "GET /v1/solutions/{id}/lineage": 2,
+    "GET /v1/research-activity": 1
   },
   "persona_comparison": {
-    "searcher": {
-      "agents": 2,
-      "total_ops": 40,
+    "explorer": {
+      "agents": 5,
+      "total_ops": 109,
       "total_errors": 0,
       "total_problems": 0,
       "total_solutions": 0,
-      "total_outcomes": 1,
-      "total_rate_limits": 9,
-      "avg_latency": 0.0066,
-      "ops_per_agent": 20.0
+      "total_outcomes": 4,
+      "total_rate_limits": 0,
+      "avg_latency": 0.0049,
+      "ops_per_agent": 21.8
     },
     "reporter": {
-      "agents": 2,
-      "total_ops": 24,
-      "total_errors": 0,
-      "total_problems": 0,
-      "total_solutions": 0,
-      "total_outcomes": 6,
-      "total_rate_limits": 0,
-      "avg_latency": 0.0081,
-      "ops_per_agent": 12.0
-    },
-    "explorer": {
-      "agents": 2,
-      "total_ops": 41,
+      "agents": 5,
+      "total_ops": 84,
       "total_errors": 0,
       "total_problems": 1,
       "total_solutions": 0,
+      "total_outcomes": 12,
+      "total_rate_limits": 0,
+      "avg_latency": 0.0048,
+      "ops_per_agent": 16.8
+    },
+    "contributor": {
+      "agents": 5,
+      "total_ops": 80,
+      "total_errors": 0,
+      "total_problems": 14,
+      "total_solutions": 20,
+      "total_outcomes": 9,
+      "total_rate_limits": 0,
+      "avg_latency": 0.0054,
+      "ops_per_agent": 16.0
+    },
+    "searcher": {
+      "agents": 5,
+      "total_ops": 113,
+      "total_errors": 0,
+      "total_problems": 0,
+      "total_solutions": 0,
       "total_outcomes": 2,
-      "total_rate_limits": 10,
-      "avg_latency": 0.0059,
-      "ops_per_agent": 20.5
+      "total_rate_limits": 0,
+      "avg_latency": 0.0051,
+      "ops_per_agent": 22.6
     },
     "balanced": {
-      "agents": 2,
-      "total_ops": 29,
+      "agents": 5,
+      "total_ops": 97,
       "total_errors": 0,
       "total_problems": 2,
       "total_solutions": 2,
-      "total_outcomes": 4,
-      "total_rate_limits": 5,
-      "avg_latency": 0.0059,
-      "ops_per_agent": 14.5
-    },
-    "contributor": {
-      "agents": 2,
-      "total_ops": 34,
-      "total_errors": 0,
-      "total_problems": 6,
-      "total_solutions": 8,
       "total_outcomes": 6,
-      "total_rate_limits": 4,
-      "avg_latency": 0.0064,
-      "ops_per_agent": 17.0
+      "total_rate_limits": 0,
+      "avg_latency": 0.0045,
+      "ops_per_agent": 19.4
     }
   },
   "data_integrity": {
-    "problems_created": 9,
-    "problems_retrievable": 9,
+    "problems_created": 17,
+    "problems_retrievable": 17,
     "problems_missing": 0,
-    "solutions_created": 10,
-    "solutions_retrievable": 10,
+    "solutions_created": 22,
+    "solutions_retrievable": 22,
     "solutions_missing": 0,
     "integrity_score": 1.0
+  },
+  "deep_probe_analysis": {
+    "total_probes": 60,
+    "passed": 60,
+    "anomalies": 0,
+    "bugs": 0,
+    "by_category": {
+      "input_validation": {
+        "pass": 17,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "valid_baseline": {
+        "pass": 3,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "resource_resolution": {
+        "pass": 8,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "auth": {
+        "pass": 7,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "injection_content": {
+        "pass": 7,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "http_semantics": {
+        "pass": 5,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "parameter_validation": {
+        "pass": 6,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "concurrency": {
+        "pass": 4,
+        "anomaly": 0,
+        "bug": 0
+      },
+      "rate_limit_behavior": {
+        "pass": 3,
+        "anomaly": 0,
+        "bug": 0
+      }
+    },
+    "findings": [],
+    "all_probes": [
+      {
+        "name": "desc_too_short",
+        "category": "input_validation",
+        "request": "POST /v1/problems",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "desc_missing",
+        "category": "input_validation",
+        "request": "POST /v1/problems",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "desc_wrong_type",
+        "category": "input_validation",
+        "request": "POST /v1/problems",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "desc_too_long",
+        "category": "input_validation",
+        "request": "POST /v1/problems",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "tags_too_many",
+        "category": "input_validation",
+        "request": "POST /v1/problems",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "solution_content_too_short",
+        "category": "input_validation",
+        "request": "POST /v1/problems/22222222-0000-0000-0000-000000000001/solutions",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "solution_steps_too_many",
+        "category": "input_validation",
+        "request": "POST /v1/problems/22222222-0000-0000-0000-000000000001/solutions",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "outcome_success_missing",
+        "category": "input_validation",
+        "request": "POST /v1/solutions/33333333-0000-0000-1111-000000000001/outcomes",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "outcome_success_non_bool",
+        "category": "input_validation",
+        "request": "POST /v1/solutions/33333333-0000-0000-1111-000000000001/outcomes",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "improve_content_too_short",
+        "category": "input_validation",
+        "request": "POST /v1/solutions/33333333-0000-0000-1111-000000000001/improve",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_q_missing",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_q_empty",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_q_whitespace",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_limit_zero",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_limit_over_max",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_limit_non_numeric",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_format_invalid",
+        "category": "input_validation",
+        "request": "GET /v1/search",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "create_problem_valid",
+        "category": "valid_baseline",
+        "request": "POST /v1/problems",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_valid",
+        "category": "valid_baseline",
+        "request": "GET /v1/search",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "report_outcome_valid",
+        "category": "valid_baseline",
+        "request": "POST /v1/solutions/{id}/outcomes",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "get_problem_bad_uuid",
+        "category": "resource_resolution",
+        "request": "GET /v1/problems/not-a-uuid",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "get_problem_ghost_uuid",
+        "category": "resource_resolution",
+        "request": "GET /v1/problems/{ghost}",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "get_timeline_ghost_uuid",
+        "category": "resource_resolution",
+        "request": "GET /v1/problems/{ghost}/timeline",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "get_lineage_bad_uuid",
+        "category": "resource_resolution",
+        "request": "GET /v1/solutions/not-a-uuid/lineage",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "get_lineage_ghost_uuid",
+        "category": "resource_resolution",
+        "request": "GET /v1/solutions/{ghost}/lineage",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "create_solution_ghost_problem",
+        "category": "resource_resolution",
+        "request": "POST /v1/problems/{ghost}/solutions",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "report_outcome_ghost_solution",
+        "category": "resource_resolution",
+        "request": "POST /v1/solutions/{ghost}/outcomes",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "improve_ghost_solution",
+        "category": "resource_resolution",
+        "request": "POST /v1/solutions/{ghost}/improve",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "write_no_auth",
+        "category": "auth",
+        "request": "POST /v1/problems",
+        "status_code": 401,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "write_garbage_token",
+        "category": "auth",
+        "request": "POST /v1/problems",
+        "status_code": 401,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "write_wrong_prefix",
+        "category": "auth",
+        "request": "POST /v1/problems",
+        "status_code": 401,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "write_non_bearer_scheme",
+        "category": "auth",
+        "request": "POST /v1/problems",
+        "status_code": 401,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "write_scheme_only",
+        "category": "auth",
+        "request": "POST /v1/problems",
+        "status_code": 401,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "verify_garbage_key",
+        "category": "auth",
+        "request": "POST /v1/auth/verify",
+        "status_code": 401,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "verify_empty_key",
+        "category": "auth",
+        "request": "POST /v1/auth/verify",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_sql_injection",
+        "category": "injection_content",
+        "request": "GET /v1/search",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_template_injection",
+        "category": "injection_content",
+        "request": "GET /v1/search",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_huge_query",
+        "category": "injection_content",
+        "request": "GET /v1/search",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "create_problem_script_tag",
+        "category": "injection_content",
+        "request": "POST /v1/problems",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "create_problem_null_bytes",
+        "category": "injection_content",
+        "request": "POST /v1/problems",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "create_problem_unicode",
+        "category": "injection_content",
+        "request": "POST /v1/problems",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "path_traversal_problem_id",
+        "category": "injection_content",
+        "request": "GET /v1/problems/{traversal}",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "get_on_post_route",
+        "category": "http_semantics",
+        "request": "GET /v1/problems/22222222-0000-0000-0000-000000000001/solutions",
+        "status_code": 405,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "post_on_get_route",
+        "category": "http_semantics",
+        "request": "POST /v1/search",
+        "status_code": 405,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "delete_unsupported",
+        "category": "http_semantics",
+        "request": "DELETE /v1/problems/22222222-0000-0000-0000-000000000001",
+        "status_code": 405,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "unknown_route",
+        "category": "http_semantics",
+        "request": "GET /v1/this-route-does-not-exist",
+        "status_code": 404,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "malformed_json_body",
+        "category": "http_semantics",
+        "request": "POST /v1/auth/register",
+        "status_code": 422,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "list_sort_by_garbage",
+        "category": "parameter_validation",
+        "request": "GET /v1/problems",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "list_order_garbage",
+        "category": "parameter_validation",
+        "request": "GET /v1/problems",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "list_limit_negative",
+        "category": "parameter_validation",
+        "request": "GET /v1/problems",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "list_limit_zero",
+        "category": "parameter_validation",
+        "request": "GET /v1/problems",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "list_offset_negative",
+        "category": "parameter_validation",
+        "request": "GET /v1/problems",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "list_limit_huge",
+        "category": "parameter_validation",
+        "request": "GET /v1/problems",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "concurrent_outcome_reports",
+        "category": "concurrency",
+        "request": "POST /v1/solutions/{id}/outcomes x12 parallel",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": "codes={201: 12}"
+      },
+      {
+        "name": "concurrent_improvements",
+        "category": "concurrency",
+        "request": "POST /v1/solutions/{id}/improve x8 parallel",
+        "status_code": 409,
+        "verdict": "pass",
+        "detail": "codes={409: 8}"
+      },
+      {
+        "name": "concurrent_identical_creates",
+        "category": "concurrency",
+        "request": "POST /v1/problems x10 parallel (identical body)",
+        "status_code": 201,
+        "verdict": "pass",
+        "detail": "codes={201: 10}"
+      },
+      {
+        "name": "post_race_readback",
+        "category": "concurrency",
+        "request": "GET /v1/problems/{id}",
+        "status_code": 200,
+        "verdict": "pass",
+        "detail": ""
+      },
+      {
+        "name": "search_rate_limit_enforced",
+        "category": "rate_limit_behavior",
+        "request": "GET /v1/search x330",
+        "status_code": 429,
+        "verdict": "pass",
+        "detail": "300 ok then 30 throttled (300/min enforced)"
+      },
+      {
+        "name": "register_rate_limit_enforced",
+        "category": "rate_limit_behavior",
+        "request": "POST /v1/auth/register x13",
+        "status_code": 429,
+        "verdict": "pass",
+        "detail": "10 created then 3 throttled (10/hour enforced)"
+      },
+      {
+        "name": "outcome_rate_limit_enforced",
+        "category": "rate_limit_behavior",
+        "request": "POST /v1/solutions/{id}/outcomes x13",
+        "status_code": 429,
+        "verdict": "pass",
+        "detail": "10 reported then 3 throttled (10/hour enforced)"
+      }
+    ]
   }
 }

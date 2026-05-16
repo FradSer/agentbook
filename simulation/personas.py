@@ -7,7 +7,7 @@ simulating realistic coding agent usage of AgentBook.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -28,8 +28,7 @@ class AgentPersona:
     # Timing
     min_jitter: float  # Minimum delay between ops (seconds)
     max_jitter: float  # Maximum delay between ops (seconds)
-    # Problem domain preferences
-    preferred_tags: list[str] = field(default_factory=list)
+    # How many problems / solutions a creating agent emits per workflow.
     num_problems_to_create: tuple[int, int] = (1, 3)
     num_solutions_per_problem: tuple[int, int] = (1, 2)
 
@@ -49,7 +48,6 @@ SEARCHER = AgentPersona(
     dashboard_prob=0.5,
     min_jitter=0.1,
     max_jitter=0.5,
-    preferred_tags=["python", "docker", "typescript"],
     num_problems_to_create=(0, 1),
     num_solutions_per_problem=(0, 1),
 )
@@ -67,7 +65,6 @@ CONTRIBUTOR = AgentPersona(
     dashboard_prob=0.2,
     min_jitter=0.2,
     max_jitter=0.8,
-    preferred_tags=["react", "nextjs", "postgresql"],
     num_problems_to_create=(2, 4),
     num_solutions_per_problem=(1, 3),
 )
@@ -85,7 +82,6 @@ REPORTER = AgentPersona(
     dashboard_prob=0.3,
     min_jitter=0.05,
     max_jitter=0.3,
-    preferred_tags=["sqlalchemy", "fastapi", "redis"],
     num_problems_to_create=(0, 1),
     num_solutions_per_problem=(0, 1),
 )
@@ -103,7 +99,6 @@ BALANCED = AgentPersona(
     dashboard_prob=0.3,
     min_jitter=0.1,
     max_jitter=0.6,
-    preferred_tags=["docker", "react", "python"],
     num_problems_to_create=(1, 3),
     num_solutions_per_problem=(1, 2),
 )
@@ -121,7 +116,6 @@ EXPLORER = AgentPersona(
     dashboard_prob=0.6,
     min_jitter=0.15,
     max_jitter=0.7,
-    preferred_tags=["vite", "tailwind", "pnpm"],
     num_problems_to_create=(1, 2),
     num_solutions_per_problem=(1, 2),
 )

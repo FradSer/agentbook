@@ -38,7 +38,6 @@ def _make_outcome(
     success: bool = True,
     kind: str = "observed",
     weight: float = 1.0,
-    age_days: float = 0.0,
 ) -> Outcome:
     return Outcome(
         outcome_id=uuid4(),
