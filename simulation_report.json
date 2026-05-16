@@ -1,0 +1,615 @@
+{
+  "simulation_summary": {
+    "num_agents": 10,
+    "wall_time_seconds": 9.98,
+    "total_operations": 168,
+    "total_problems_created": 9,
+    "total_solutions_created": 10,
+    "total_outcomes_reported": 19,
+    "total_errors": 0,
+    "total_rate_limit_hits": 28,
+    "error_rate": 0.0,
+    "throughput_ops_per_second": 16.83
+  },
+  "per_agent_metrics": [
+    {
+      "agent_id": "agent-000",
+      "persona": "searcher",
+      "model_type": "anthropic/claude-sonnet-4.6",
+      "total_operations": 16,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 9,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 5,
+      "errors": 0,
+      "total_time_seconds": 5.01,
+      "latency_stats": {
+        "min": 0.0027,
+        "max": 0.0587,
+        "avg": 0.0082,
+        "p50": 0.0046,
+        "p95": 0.0587,
+        "p99": 0.0587
+      }
+    },
+    {
+      "agent_id": "agent-001",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 12,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 1,
+        "POST /v1/solutions/{id}/outcomes": 3
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 3,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 1.8,
+      "latency_stats": {
+        "min": 0.0033,
+        "max": 0.0517,
+        "avg": 0.0084,
+        "p50": 0.0044,
+        "p95": 0.0517,
+        "p99": 0.0517
+      }
+    },
+    {
+      "agent_id": "agent-002",
+      "persona": "reporter",
+      "model_type": "google/gemini-3-pro",
+      "total_operations": 12,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 4,
+        "GET /v1/problems/{id}": 1,
+        "GET /v1/problems/{id}/timeline": 1,
+        "POST /v1/solutions/{id}/outcomes": 3
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 3,
+      "rate_limit_hits": 0,
+      "errors": 0,
+      "total_time_seconds": 2.4,
+      "latency_stats": {
+        "min": 0.003,
+        "max": 0.0455,
+        "avg": 0.0078,
+        "p50": 0.0041,
+        "p95": 0.0455,
+        "p99": 0.0455
+      }
+    },
+    {
+      "agent_id": "agent-003",
+      "persona": "explorer",
+      "model_type": "meta/llama-4-maverick",
+      "total_operations": 25,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 7,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 5,
+        "GET /v1/problems/{id}/timeline": 3,
+        "POST /v1/problems": 1,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1,
+        "GET /v1/research-activity": 1
+      },
+      "problems_created": 1,
+      "solutions_created": 0,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 5,
+      "errors": 0,
+      "total_time_seconds": 9.96,
+      "latency_stats": {
+        "min": 0.0028,
+        "max": 0.0399,
+        "avg": 0.0065,
+        "p50": 0.0049,
+        "p95": 0.011,
+        "p99": 0.0399
+      }
+    },
+    {
+      "agent_id": "agent-004",
+      "persona": "balanced",
+      "model_type": "anthropic/claude-opus-4.7",
+      "total_operations": 16,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 6,
+        "POST /v1/problems": 2,
+        "POST /v1/problems/{id}/solutions": 2,
+        "POST /v1/solutions/{id}/outcomes": 3
+      },
+      "problems_created": 2,
+      "solutions_created": 2,
+      "outcomes_reported": 3,
+      "rate_limit_hits": 3,
+      "errors": 0,
+      "total_time_seconds": 4.94,
+      "latency_stats": {
+        "min": 0.0029,
+        "max": 0.0351,
+        "avg": 0.0064,
+        "p50": 0.0048,
+        "p95": 0.0351,
+        "p99": 0.0351
+      }
+    },
+    {
+      "agent_id": "agent-005",
+      "persona": "searcher",
+      "model_type": "anthropic/claude-sonnet-4.6",
+      "total_operations": 24,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 9,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 4,
+        "GET /v1/problems/{id}/timeline": 4,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 0,
+      "rate_limit_hits": 4,
+      "errors": 0,
+      "total_time_seconds": 6.11,
+      "latency_stats": {
+        "min": 0.0025,
+        "max": 0.0305,
+        "avg": 0.0055,
+        "p50": 0.0039,
+        "p95": 0.0121,
+        "p99": 0.0305
+      }
+    },
+    {
+      "agent_id": "agent-006",
+      "persona": "contributor",
+      "model_type": "openai/gpt-5.4",
+      "total_operations": 18,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 3,
+        "POST /v1/problems": 2,
+        "POST /v1/problems/{id}/solutions": 5,
+        "POST /v1/solutions/{id}/outcomes": 4,
+        "GET /v1/solutions/{id}/lineage": 1
+      },
+      "problems_created": 2,
+      "solutions_created": 5,
+      "outcomes_reported": 4,
+      "rate_limit_hits": 2,
+      "errors": 0,
+      "total_time_seconds": 9.15,
+      "latency_stats": {
+        "min": 0.0028,
+        "max": 0.0258,
+        "avg": 0.0067,
+        "p50": 0.0053,
+        "p95": 0.0258,
+        "p99": 0.0258
+      }
+    },
+    {
+      "agent_id": "agent-007",
+      "persona": "explorer",
+      "model_type": "meta/llama-4-maverick",
+      "total_operations": 16,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 7,
+        "GET /v1/problems/{id}": 1,
+        "GET /v1/problems/{id}/timeline": 1,
+        "POST /v1/solutions/{id}/outcomes": 1,
+        "GET /v1/dashboard/radar": 1,
+        "GET /v1/dashboard/metrics": 1,
+        "GET /v1/dashboard/usage": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 5,
+      "errors": 0,
+      "total_time_seconds": 6.27,
+      "latency_stats": {
+        "min": 0.0026,
+        "max": 0.0217,
+        "avg": 0.0049,
+        "p50": 0.0038,
+        "p95": 0.0217,
+        "p99": 0.0217
+      }
+    },
+    {
+      "agent_id": "agent-008",
+      "persona": "balanced",
+      "model_type": "anthropic/claude-opus-4.7",
+      "total_operations": 13,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 6,
+        "GET /v1/problems": 1,
+        "GET /v1/problems/{id}": 1,
+        "GET /v1/problems/{id}/timeline": 1,
+        "POST /v1/solutions/{id}/outcomes": 1
+      },
+      "problems_created": 0,
+      "solutions_created": 0,
+      "outcomes_reported": 1,
+      "rate_limit_hits": 2,
+      "errors": 0,
+      "total_time_seconds": 4.29,
+      "latency_stats": {
+        "min": 0.0018,
+        "max": 0.0171,
+        "avg": 0.0052,
+        "p50": 0.0039,
+        "p95": 0.0171,
+        "p99": 0.0171
+      }
+    },
+    {
+      "agent_id": "agent-009",
+      "persona": "contributor",
+      "model_type": "openai/gpt-5.4",
+      "total_operations": 16,
+      "operations_by_type": {
+        "POST /v1/auth/register": 1,
+        "POST /v1/auth/verify": 2,
+        "GET /v1/search": 3,
+        "POST /v1/problems": 4,
+        "POST /v1/problems/{id}/solutions": 3,
+        "POST /v1/solutions/{id}/outcomes": 2,
+        "GET /v1/research-activity": 1
+      },
+      "problems_created": 4,
+      "solutions_created": 3,
+      "outcomes_reported": 2,
+      "rate_limit_hits": 2,
+      "errors": 0,
+      "total_time_seconds": 7.86,
+      "latency_stats": {
+        "min": 0.0026,
+        "max": 0.0125,
+        "avg": 0.006,
+        "p50": 0.005,
+        "p95": 0.0125,
+        "p99": 0.0125
+      }
+    }
+  ],
+  "system_level_metrics": {
+    "total_operations": 168,
+    "throughput_ops_per_second": 16.83,
+    "latency_percentiles": {
+      "p50": 0.0043,
+      "p90": 0.0094,
+      "p95": 0.0171,
+      "p99": 0.0517,
+      "min": 0.0018,
+      "max": 0.0587,
+      "avg": 0.0065
+    },
+    "success_rate": 0.8333
+  },
+  "rate_limiting_analysis": {
+    "total_rate_limit_hits": 28,
+    "affected_agents": 8,
+    "rate_limited_operations": [
+      {
+        "agent_id": "agent-000",
+        "operation": "GET /v1/search",
+        "latency": 0.0094
+      },
+      {
+        "agent_id": "agent-000",
+        "operation": "GET /v1/search",
+        "latency": 0.0027
+      },
+      {
+        "agent_id": "agent-000",
+        "operation": "GET /v1/search",
+        "latency": 0.004
+      },
+      {
+        "agent_id": "agent-000",
+        "operation": "GET /v1/search",
+        "latency": 0.0052
+      },
+      {
+        "agent_id": "agent-000",
+        "operation": "GET /v1/search",
+        "latency": 0.0058
+      },
+      {
+        "agent_id": "agent-003",
+        "operation": "GET /v1/search",
+        "latency": 0.0041
+      },
+      {
+        "agent_id": "agent-003",
+        "operation": "GET /v1/search",
+        "latency": 0.0029
+      },
+      {
+        "agent_id": "agent-003",
+        "operation": "GET /v1/search",
+        "latency": 0.0076
+      },
+      {
+        "agent_id": "agent-003",
+        "operation": "GET /v1/search",
+        "latency": 0.0085
+      },
+      {
+        "agent_id": "agent-003",
+        "operation": "GET /v1/search",
+        "latency": 0.0041
+      },
+      {
+        "agent_id": "agent-004",
+        "operation": "GET /v1/search",
+        "latency": 0.0029
+      },
+      {
+        "agent_id": "agent-004",
+        "operation": "GET /v1/search",
+        "latency": 0.0051
+      },
+      {
+        "agent_id": "agent-004",
+        "operation": "GET /v1/search",
+        "latency": 0.0041
+      },
+      {
+        "agent_id": "agent-005",
+        "operation": "GET /v1/search",
+        "latency": 0.0043
+      },
+      {
+        "agent_id": "agent-005",
+        "operation": "GET /v1/search",
+        "latency": 0.0031
+      },
+      {
+        "agent_id": "agent-005",
+        "operation": "GET /v1/search",
+        "latency": 0.0026
+      },
+      {
+        "agent_id": "agent-005",
+        "operation": "GET /v1/search",
+        "latency": 0.0062
+      },
+      {
+        "agent_id": "agent-006",
+        "operation": "GET /v1/search",
+        "latency": 0.0046
+      },
+      {
+        "agent_id": "agent-006",
+        "operation": "GET /v1/search",
+        "latency": 0.0083
+      },
+      {
+        "agent_id": "agent-007",
+        "operation": "GET /v1/search",
+        "latency": 0.0031
+      }
+    ],
+    "by_endpoint": {
+      "GET /v1/search": 28
+    }
+  },
+  "confidence_evolution": {
+    "total_confidence_updates": 19,
+    "values": [
+      {
+        "agent_id": "agent-000",
+        "confidence": 0.17581002442791135
+      },
+      {
+        "agent_id": "agent-001",
+        "confidence": 0.9193107500349413
+      },
+      {
+        "agent_id": "agent-001",
+        "confidence": 0.25676605016070003
+      },
+      {
+        "agent_id": "agent-001",
+        "confidence": 0.2602086112414457
+      },
+      {
+        "agent_id": "agent-002",
+        "confidence": 0.487587167865733
+      },
+      {
+        "agent_id": "agent-002",
+        "confidence": 0.7622049837046101
+      },
+      {
+        "agent_id": "agent-002",
+        "confidence": 0.5
+      },
+      {
+        "agent_id": "agent-003",
+        "confidence": 0.7654359830009213
+      },
+      {
+        "agent_id": "agent-004",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-004",
+        "confidence": 0.74000593878721
+      },
+      {
+        "agent_id": "agent-004",
+        "confidence": 0.6984648917277321
+      },
+      {
+        "agent_id": "agent-006",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-006",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-006",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-006",
+        "confidence": 0.6488778555216513
+      },
+      {
+        "agent_id": "agent-007",
+        "confidence": 0.37239466547715644
+      },
+      {
+        "agent_id": "agent-008",
+        "confidence": 0.5820801892595998
+      },
+      {
+        "agent_id": "agent-009",
+        "confidence": 0.3
+      },
+      {
+        "agent_id": "agent-009",
+        "confidence": 0.8319130719421928
+      }
+    ],
+    "min_confidence": 0.17581002442791135,
+    "max_confidence": 0.9193107500349413
+  },
+  "concurrency_analysis": {
+    "min_agent_time": 1.8,
+    "max_agent_time": 9.96,
+    "avg_agent_time": 5.78,
+    "wall_clock": 9.98,
+    "sequential_sum": 57.8,
+    "speedup_vs_sequential": 5.8,
+    "concurrency_efficiency": 1.0
+  },
+  "error_report": {
+    "total_errors": 0,
+    "errors_by_message": {},
+    "errors_by_agent": {},
+    "sample_errors": []
+  },
+  "operation_breakdown": {
+    "GET /v1/search": 58,
+    "POST /v1/auth/verify": 20,
+    "POST /v1/solutions/{id}/outcomes": 19,
+    "GET /v1/problems/{id}": 13,
+    "POST /v1/auth/register": 10,
+    "GET /v1/problems/{id}/timeline": 10,
+    "POST /v1/problems/{id}/solutions": 10,
+    "POST /v1/problems": 9,
+    "GET /v1/dashboard/radar": 4,
+    "GET /v1/dashboard/metrics": 4,
+    "GET /v1/dashboard/usage": 4,
+    "GET /v1/problems": 4,
+    "GET /v1/research-activity": 2,
+    "GET /v1/solutions/{id}/lineage": 1
+  },
+  "persona_comparison": {
+    "searcher": {
+      "agents": 2,
+      "total_ops": 40,
+      "total_errors": 0,
+      "total_problems": 0,
+      "total_solutions": 0,
+      "total_outcomes": 1,
+      "total_rate_limits": 9,
+      "avg_latency": 0.0066,
+      "ops_per_agent": 20.0
+    },
+    "reporter": {
+      "agents": 2,
+      "total_ops": 24,
+      "total_errors": 0,
+      "total_problems": 0,
+      "total_solutions": 0,
+      "total_outcomes": 6,
+      "total_rate_limits": 0,
+      "avg_latency": 0.0081,
+      "ops_per_agent": 12.0
+    },
+    "explorer": {
+      "agents": 2,
+      "total_ops": 41,
+      "total_errors": 0,
+      "total_problems": 1,
+      "total_solutions": 0,
+      "total_outcomes": 2,
+      "total_rate_limits": 10,
+      "avg_latency": 0.0059,
+      "ops_per_agent": 20.5
+    },
+    "balanced": {
+      "agents": 2,
+      "total_ops": 29,
+      "total_errors": 0,
+      "total_problems": 2,
+      "total_solutions": 2,
+      "total_outcomes": 4,
+      "total_rate_limits": 5,
+      "avg_latency": 0.0059,
+      "ops_per_agent": 14.5
+    },
+    "contributor": {
+      "agents": 2,
+      "total_ops": 34,
+      "total_errors": 0,
+      "total_problems": 6,
+      "total_solutions": 8,
+      "total_outcomes": 6,
+      "total_rate_limits": 4,
+      "avg_latency": 0.0064,
+      "ops_per_agent": 17.0
+    }
+  },
+  "data_integrity": {
+    "problems_created": 9,
+    "problems_retrievable": 9,
+    "problems_missing": 0,
+    "solutions_created": 10,
+    "solutions_retrievable": 10,
+    "solutions_missing": 0,
+    "integrity_score": 1.0
+  }
+}
