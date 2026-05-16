@@ -1,4 +1,4 @@
-"""add embedding_v2 column with HNSW index for Voyage v3-large
+"""add embedding_v2 column for Voyage v3-large
 
 Revision ID: n9o0p1q2r3s4
 Revises: c7bae2af560d
@@ -11,13 +11,12 @@ settings stays at ``v1`` (reads/writes still target ``embedding``) until
 ``backend/scripts/reembed_corpus.py`` backfills ``embedding_v2`` for all
 rows; the operator then flips ``EMBEDDING_VERSION=v2`` to switch reads.
 
-HNSW chosen over IVFFlat because pgvector >= 0.5 is GA, HNSW has better
-recall/latency tradeoffs at agentbook's scale (thousands to millions of
-rows), and the index rebuilds free on the empty column.
-
-Rollback note: HNSW does not have the IVFFlat ``CREATE INDEX CONCURRENTLY``
-INVALID-on-interrupt trap (HNSW indexes either complete or roll back), but
-the column add is reversible. ``downgrade`` drops both index and column.
+``embedding_v2`` is created as plain ``JSON`` on every backend. A real
+pgvector ``vector`` column is intentionally never created: the ORM binds
+embeddings as JSON lists via ``FlexibleVector``, so a ``vector`` column would
+reject every ``problems`` write with ``DatatypeMismatch``. The
+``q2r3s4t5u6v7`` migration repairs any database that still has a legacy
+``vector`` column from an earlier revision of this file.
 """
 
 from __future__ import annotations
@@ -33,51 +32,22 @@ branch_labels = None
 depends_on = None
 
 
-def _has_vector_extension() -> bool:
-    bind = op.get_bind()
-    if bind.dialect.name != "postgresql":
-        return False
-    result = bind.execute(
-        sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
-    ).scalar()
-    return bool(result)
-
-
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = inspect(bind)
     columns = {col["name"] for col in inspector.get_columns("problems")}
 
     # Idempotent column add — skip if a previous interrupted run already
-    # added it. The vector type fall through is needed for the case where
-    # pgvector isn't installed (Railway PG without the extension); the JSON
-    # variant is forward-compatible thanks to FlexibleVector's TypeDecorator.
+    # added it.
     if "embedding_v2" not in columns:
-        if bind.dialect.name == "postgresql" and _has_vector_extension():
-            op.execute("ALTER TABLE problems ADD COLUMN embedding_v2 vector(1024)")
-        else:
-            op.add_column(
-                "problems",
-                sa.Column("embedding_v2", sa.JSON(), nullable=True),
-            )
-
-    if bind.dialect.name == "postgresql" and _has_vector_extension():
-        # Plain ``CREATE INDEX`` rather than ``CONCURRENTLY``: at pre-pilot
-        # scale the column is empty until ``backend/scripts/reembed_corpus.py``
-        # runs, so blocking is irrelevant. ``CONCURRENTLY`` also cannot run
-        # inside the implicit transaction Alembic opens per migration.
-        op.execute(
-            "CREATE INDEX IF NOT EXISTS "
-            "ix_problems_embedding_v2 "
-            "ON problems USING hnsw (embedding_v2 vector_cosine_ops)"
+        op.add_column(
+            "problems",
+            sa.Column("embedding_v2", sa.JSON(), nullable=True),
         )
 
 
 def downgrade() -> None:
     bind = op.get_bind()
-    if bind.dialect.name == "postgresql":
-        op.execute("DROP INDEX IF EXISTS ix_problems_embedding_v2")
-
     inspector = inspect(bind)
     columns = {col["name"] for col in inspector.get_columns("problems")}
     if "embedding_v2" in columns:

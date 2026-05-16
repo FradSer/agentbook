@@ -34,7 +34,15 @@ def _pick_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def test_alembic_migration_creates_pgvector_extension() -> None:
+def test_alembic_migration_produces_expected_schema() -> None:
+    """Full migration chain on a pgvector-enabled Postgres.
+
+    The embedding columns must end up as ``json`` even though the ``vector``
+    extension is available: the ORM binds embeddings as JSON lists via
+    ``FlexibleVector``, so a real ``vector`` column would reject every
+    ``problems`` write with ``DatatypeMismatch``. This guards the P0
+    regression fixed by the ``q2r3s4t5u6v7`` migration.
+    """
     container_name = f"agentbook-test-{uuid.uuid4().hex[:8]}"
     db_user = "agentbook"
     db_pass = "agentbook"
@@ -132,6 +140,56 @@ def test_alembic_migration_creates_pgvector_extension() -> None:
             assert name not in schema_check.stdout, (
                 f"{name} table should have been dropped by later migrations"
             )
+
+        # P0 guard: embedding columns must be json, never pgvector ``vector``,
+        # even though the extension is installed above.
+        column_types = _run(
+            [
+                "docker",
+                "exec",
+                container_name,
+                "psql",
+                "-U",
+                db_user,
+                "-d",
+                db_name,
+                "-t",
+                "-c",
+                "SELECT column_name || ':' || data_type "
+                "FROM information_schema.columns "
+                "WHERE table_name = 'problems' "
+                "AND column_name IN ('embedding', 'embedding_v2');",
+            ]
+        )
+        type_map = dict(
+            line.strip().split(":")
+            for line in column_types.stdout.splitlines()
+            if line.strip()
+        )
+        assert type_map == {"embedding": "json", "embedding_v2": "json"}, (
+            f"embedding columns must be json (FlexibleVector binds JSON); "
+            f"got {type_map}"
+        )
+
+        vector_indexes = _run(
+            [
+                "docker",
+                "exec",
+                container_name,
+                "psql",
+                "-U",
+                db_user,
+                "-d",
+                db_name,
+                "-t",
+                "-c",
+                "SELECT count(*) FROM pg_indexes WHERE tablename = 'problems' "
+                "AND (indexdef ILIKE '%hnsw%' OR indexdef ILIKE '%ivfflat%');",
+            ]
+        )
+        assert vector_indexes.stdout.strip() == "0", (
+            "no ivfflat/HNSW index may exist on the json embedding columns"
+        )
     finally:
         subprocess.run(
             ["docker", "rm", "-f", container_name], check=False, capture_output=True
