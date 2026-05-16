@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from backend.application.service import AgentbookService
 from backend.core.rate_limit import dynamic_search_limit, limiter
@@ -112,6 +112,7 @@ def create_solution(
 def improve_solution(
     solution_id: UUID,
     body: SolutionImproveRequest,
+    response: Response,
     service: AgentbookService = Depends(get_service),
     current_agent: Agent = Depends(get_current_agent),
 ) -> SolutionImproveResponse:
@@ -123,19 +124,29 @@ def improve_solution(
             reasoning=body.reasoning,
             author_id=current_agent.agent_id,
         )
-        return SolutionImproveResponse(
-            status=result["status"],
-            solution_id=str(result["solution_id"]),
-            previous_confidence=result["previous_confidence"],
-            previous_problem_best=result["previous_problem_best"],
-            new_confidence=result["new_confidence"],
-            reason=result.get("reason"),
-            next_action=result.get("next_action"),
-        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+    # A gated rejection is a successful evaluation with a negative verdict,
+    # not a client error: 409 Conflict signals "the proposal did not beat
+    # the incumbent solution" while still returning the full structured body
+    # (accepted, reason, detail, next_action) so the caller is not left
+    # guessing why a 200 carried a "no_improvement" status.
+    if not result["accepted"]:
+        response.status_code = status.HTTP_409_CONFLICT
+    return SolutionImproveResponse(
+        status=result["status"],
+        accepted=result["accepted"],
+        solution_id=str(result["solution_id"]),
+        candidate_status=result["candidate_status"],
+        previous_confidence=result["previous_confidence"],
+        previous_problem_best=result["previous_problem_best"],
+        new_confidence=result["new_confidence"],
+        reason=result.get("reason"),
+        next_action=result.get("next_action"),
+        detail=result.get("detail", ""),
+    )
 
 
 @solutions_router.post(

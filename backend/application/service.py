@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 from backend.application.clustering import detect_clusters
 from backend.application.confidence import (
     BASELINE_CONFIDENCE,
+    COLD_START_FLOOR,
+    COLD_START_MIN_REPORTERS,
     calculate_confidence,
     evaluate_improvement,
     external_reporter_ids,
@@ -69,6 +71,11 @@ logger = logging.getLogger(__name__)
 _SEARCH_CACHE_MAXSIZE = 256
 _SEARCH_CACHE_TTL_SECONDS = 300.0
 _MIN_SEARCH_RELEVANCE = 0.25
+# Match-quality tiers a caller should treat as a real hit. ``partial`` /
+# ``poor`` rows are still returned (the caller may want to skim them) but
+# they do not clear ``no_good_match`` — a low-similarity, wrong-bug result
+# must not read to an agent as "the memory layer answered your question".
+_GOOD_MATCH_TIERS = frozenset({"exact", "strong"})
 
 # Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
@@ -200,6 +207,80 @@ def _improvement_next_action(reason: str, accepted: bool) -> str:
     if reason == "sandbox_verified_fail":
         return "reproduce_and_fix"
     return "collect_outcome_or_verify"
+
+
+def _confidence_explainer(
+    *,
+    new_confidence: float,
+    previous_confidence: float,
+    external_reporters: int,
+    capped: bool,
+    outcome_success: bool,
+) -> str:
+    """Human-readable reason the confidence landed where it did.
+
+    A bare ``solution_confidence_updated`` number moves counterintuitively
+    in two documented cases: a first external *failure* lifting the score
+    off the baseline (author self-reports do not count), and a third
+    straight success not moving it at all (the cold-start cap). This note
+    names the cause so a reporting agent is not misled by the number.
+    """
+    if external_reporters == 0:
+        return (
+            "No external reporter has confirmed this solution yet, so "
+            f"confidence holds at the {BASELINE_CONFIDENCE} baseline — the "
+            "author's own outcome reports never move it."
+        )
+    delta = new_confidence - previous_confidence
+    if previous_confidence == BASELINE_CONFIDENCE and not outcome_success and delta > 0:
+        return (
+            "This is the first outcome from an external reporter. Before it "
+            f"the score sat at the {BASELINE_CONFIDENCE} baseline (author "
+            "self-reports never count), so even this failure report moves "
+            "the number as the Bayesian estimate starts from real "
+            "corroboration."
+        )
+    if capped:
+        return (
+            f"Confidence is held at the {COLD_START_FLOOR} cold-start cap: "
+            f"{external_reporters} of {COLD_START_MIN_REPORTERS} distinct "
+            f"external reporters so far. It can rise above {COLD_START_FLOOR} "
+            f"once {COLD_START_MIN_REPORTERS} external reporters confirm it."
+        )
+    if abs(delta) < 1e-9:
+        return (
+            "Confidence is unchanged: this outcome matched the existing "
+            "Bayesian estimate."
+        )
+    direction = "rose" if delta > 0 else "fell"
+    return (
+        f"Confidence {direction} {previous_confidence:.3f} -> "
+        f"{new_confidence:.3f}, weighting {external_reporters} external "
+        "reporter(s) against the Bayesian prior."
+    )
+
+
+def _improvement_detail(
+    *, accepted: bool, reason: str, candidate_id: UUID, parent_id: UUID
+) -> str:
+    """Explain what happened to the solution row created from a proposal.
+
+    Spells out the demoted-candidate lifecycle so a caller does not treat
+    the returned ``solution_id`` as a live, promotable solution.
+    """
+    if accepted:
+        return (
+            f"Proposal accepted as candidate solution {candidate_id}. It is "
+            "pending outcome reports: once external reporters confirm it at "
+            "or above the parent's confidence it supersedes the parent."
+        )
+    return (
+        f"Proposal not promoted ({reason}). It was saved as solution "
+        f"{candidate_id} linked to parent {parent_id} for lineage, is not "
+        "shown in the public solution history, and is not eligible for "
+        "re-promotion. Submit a simpler or higher-confidence revision, or "
+        "collect outcome reports on the parent solution instead."
+    )
 
 
 def _count_effective_reporters(
@@ -371,7 +452,9 @@ class AgentbookService:
         payload = {
             "results": rows,
             "total": len(rows),
-            "no_good_match": len(rows) == 0,
+            "no_good_match": not any(
+                row.get("match_quality") in _GOOD_MATCH_TIERS for row in rows
+            ),
             "search_mode": search_mode,
         }
         self._search_cache.set(cache_key, payload)
@@ -1169,7 +1252,12 @@ class AgentbookService:
             "canonical_solution": canonical,
             "solution_history": history,
             "best_confidence": problem.best_confidence,
-            "solution_count": problem.solution_count,
+            # Count only the validated solutions actually presented here
+            # (canonical + solution_history). The stored ``problem
+            # .solution_count`` also tallies demoted improve-candidates,
+            # which this view deliberately hides — surfacing the raw count
+            # made the trace response self-contradictory.
+            "solution_count": len(visible_solutions),
             "has_canonical": problem.canonical_solution_id is not None,
             "outcome_summary": outcome_summary,
             "research_summary": research_summary,
@@ -1511,10 +1599,29 @@ class AgentbookService:
             problem.best_confidence = new_confidence
             self._problems.update(problem)
 
+        confidence_capped_by = (
+            "cold_start_floor"
+            if (
+                num_effective < COLD_START_MIN_REPORTERS
+                and new_confidence >= COLD_START_FLOOR
+            )
+            else None
+        )
         return {
             "status": "reported",
             "outcome_id": str(outcome.outcome_id),
             "solution_confidence_updated": new_confidence,
+            "confidence_delta": round(new_confidence - previous_confidence, 6),
+            "external_reporters": num_effective,
+            "external_reporters_for_full_confidence": COLD_START_MIN_REPORTERS,
+            "confidence_capped_by": confidence_capped_by,
+            "confidence_note": _confidence_explainer(
+                new_confidence=new_confidence,
+                previous_confidence=previous_confidence,
+                external_reporters=num_effective,
+                capped=confidence_capped_by is not None,
+                outcome_success=success,
+            ),
         }
 
     def inspect_resource(
@@ -2095,12 +2202,20 @@ class AgentbookService:
 
         return {
             "status": status,
+            "accepted": accepted,
             "solution_id": new_solution.solution_id,
+            "candidate_status": new_solution.promotion_status,
             "previous_confidence": existing.confidence,
             "previous_problem_best": previous_best,
             "new_confidence": new_confidence,
             "reason": reason,
             "next_action": _improvement_next_action(reason, accepted),
+            "detail": _improvement_detail(
+                accepted=accepted,
+                reason=reason,
+                candidate_id=new_solution.solution_id,
+                parent_id=solution_id,
+            ),
         }
 
     def _ensure_synthetic_agent(self, agent_id: UUID, label: str) -> None:

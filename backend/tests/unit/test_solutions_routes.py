@@ -181,7 +181,7 @@ def test_given_improve_endpoint_when_authorization_is_missing_then_response_is_u
     assert response.status_code == 401
 
 
-def test_given_rejected_improvement_when_posting_then_response_includes_guidance():
+def test_given_rejected_improvement_when_posting_then_response_is_conflict_with_guidance():
     client, service, author_key, author_id, _ = _make_client()
     _, solution = _seed_problem_and_solution(service, author_id)
     solution.confidence = 0.5
@@ -197,10 +197,17 @@ def test_given_rejected_improvement_when_posting_then_response_includes_guidance
         headers=_bearer(author_key),
     )
 
-    assert response.status_code == 200, response.text
+    # A gated rejection is a successful evaluation with a negative verdict:
+    # 409 lets a caller branch on the status code without parsing the body,
+    # while the body still carries the full structured guidance.
+    assert response.status_code == 409, response.text
     body = response.json()
     assert body["status"] == "no_improvement"
+    assert body["accepted"] is False
+    assert body["candidate_status"] == "demoted"
     assert body["reason"] == "content_regression"
+    assert body["detail"], "rejection must explain the demoted-candidate lifecycle"
+    assert body["next_action"] == "revise_content"
     assert body["next_action"] == "revise_content"
 
 

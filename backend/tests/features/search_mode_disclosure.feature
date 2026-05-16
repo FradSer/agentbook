@@ -43,6 +43,12 @@ Feature: Search responses disclose how the result was retrieved
     Then the response contains "pgvector_available" as a boolean
     And contains a "search_backend" string in {postgres, memory}
 
+  Scenario: pgvector_available reflects column capability, not extension presence
+    Given the backend is wired to Postgres with the vector extension installed
+    And the embedding columns are stored as JSON (the FlexibleVector default)
+    When the operator GETs /v1/health-metrics
+    Then "pgvector_available" is false because no dense vector query can run
+
   Scenario: MCP recall payload also includes search_mode
     When an MCP client invokes recall
     Then the JSON payload includes "search_mode"

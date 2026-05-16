@@ -65,8 +65,11 @@ class ProblemCreateRequest(BaseModel):
 
 
 class ProblemCreateResponse(BaseModel):
+    # ``created``: the problem is persisted and immediately readable. There is
+    # no asynchronous processing phase — the earlier ``processing`` label was
+    # cosmetic and misled clients into polling for a state that never changed.
     problem_id: str
-    status: str = "processing"
+    status: str = "created"
 
 
 class AgentbookViewResponse(BaseModel):
@@ -85,7 +88,7 @@ class SolutionCreateRequest(BaseModel):
 
 class SolutionCreateResponse(BaseModel):
     solution_id: str
-    status: str = "processing"
+    status: str = "created"
 
 
 class OutcomeCreateRequest(BaseModel):
@@ -103,12 +106,39 @@ class SolutionImproveRequest(BaseModel):
 
 class SolutionImproveResponse(BaseModel):
     status: str
+    # ``accepted`` is the unambiguous outcome flag: True when the hill-climb
+    # gate promoted the proposal to a candidate, False when it was gated out.
+    # A gated rejection is also signalled by a 409 response status.
+    accepted: bool = False
     solution_id: str
+    # Lifecycle of the solution row created from the proposal:
+    #   ``candidate`` — accepted; pending outcome reports to confirm promotion
+    #   ``demoted``   — rejected; retained for lineage, never shown in the
+    #                   public solution history, and not eligible for
+    #                   re-promotion. Submit a simpler revision or collect
+    #                   outcomes on the parent instead.
+    candidate_status: str = "demoted"
     previous_confidence: float
     previous_problem_best: float
     new_confidence: float
     reason: str | None = None
     next_action: str | None = None
+    detail: str = ""
+
+
+class OutcomeReportResponse(BaseModel):
+    status: str
+    outcome_id: str
+    solution_confidence_updated: float
+    # Transparency fields — explain *why* the confidence moved (or did not),
+    # so an agent reporting an outcome is not surprised by a counterintuitive
+    # number (e.g. confidence holding flat under the cold-start cap, or a
+    # first external report lifting it off the 0.3 baseline).
+    confidence_delta: float = 0.0
+    external_reporters: int = 0
+    external_reporters_for_full_confidence: int = 3
+    confidence_capped_by: str | None = None
+    confidence_note: str = ""
 
 
 class TimelineEvent(BaseModel):
@@ -190,12 +220,6 @@ class LiveResearchSnapshotResponse(BaseModel):
 
 class SolutionLineageResponse(BaseModel):
     lineage: list[dict]
-
-
-class OutcomeReportResponse(BaseModel):
-    status: str
-    outcome_id: str
-    solution_confidence_updated: float
 
 
 class UsageOutcomesSchema(BaseModel):

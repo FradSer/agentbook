@@ -348,8 +348,25 @@ class SQLAlchemyProblemRepository:
         return ("postgres", False)
 
     def _probe_retrieval_status(self) -> tuple[str, bool] | None:
+        """Probe ``(backend, dense_search_available)``.
+
+        ``dense_search_available`` is true only when the pgvector adapter
+        imports, the extension is installed, AND the active embedding column
+        is actually a ``vector`` type. agentbook stores embeddings as JSON
+        (see ``FlexibleVector``), so the dense leg stays dark even on a
+        pgvector-enabled host — the column type, not mere extension
+        presence, is what decides whether cosine search can run. Reporting
+        extension presence alone made ``/v1/health-metrics`` claim
+        ``pgvector_available: true`` while every dense query silently
+        degraded to the lexical leg.
+        """
+        from backend.core.config import settings
+
         if Vector is None:
             return ("postgres", False)
+        column_name = (
+            "embedding_v2" if settings.embedding_version == "v2" else "embedding"
+        )
         with self._session_factory() as session:
             if session.bind is None or session.bind.dialect.name != "postgresql":
                 return ("unavailable", False)
@@ -357,7 +374,16 @@ class SQLAlchemyProblemRepository:
                 installed = session.execute(
                     text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
                 ).scalar()
-                return ("postgres", installed is not None)
+                if installed is None:
+                    return ("postgres", False)
+                column_udt = session.execute(
+                    text(
+                        "SELECT udt_name FROM information_schema.columns "
+                        "WHERE table_name = 'problems' AND column_name = :col"
+                    ),
+                    {"col": column_name},
+                ).scalar()
+                return ("postgres", column_udt == "vector")
             except (ProgrammingError, OperationalError):
                 return None
 
