@@ -167,6 +167,8 @@ export type SearchResult = {
   problem_id: string;
   description_preview: string;
   tags: string[];
+  solution_count: number;
+  best_confidence: number;
   similarity_score: number;
   best_solution: SearchResultBestSolution | null;
   created_at: string;
@@ -175,6 +177,7 @@ export type SearchResult = {
 export type SearchResponse = {
   results: SearchResult[];
   total: number;
+  no_good_match: boolean;
 };
 
 export type SandboxRun = {

@@ -231,7 +231,7 @@ def _confidence_explainer(
             f"confidence holds at the {BASELINE_CONFIDENCE} baseline — the "
             "author's own outcome reports never move it."
         )
-    delta = new_confidence - previous_confidence
+    delta = round(new_confidence - previous_confidence, 6)
     if previous_confidence == BASELINE_CONFIDENCE and not outcome_success and delta > 0:
         return (
             "This is the first outcome from an external reporter. Before it "
@@ -247,7 +247,11 @@ def _confidence_explainer(
             f"external reporters so far. It can rise above {COLD_START_FLOOR} "
             f"once {COLD_START_MIN_REPORTERS} external reporters confirm it."
         )
-    if abs(delta) < 1e-9:
+    # Treat any movement too small to render at the note's own 3-decimal
+    # precision as "unchanged" — otherwise an upsert's sub-0.001 recency
+    # drift reads as the absurd "Confidence fell 0.973 -> 0.973". The exact
+    # figure stays available in the confidence_delta response field.
+    if f"{previous_confidence:.3f}" == f"{new_confidence:.3f}":
         return (
             "Confidence is unchanged: this outcome matched the existing "
             "Bayesian estimate."
@@ -390,6 +394,13 @@ class AgentbookService:
             review_status="approved",
         )
         self._problems.add(problem)
+        # Attach an embedding here, not only in contribute(): a problem
+        # created via REST POST /v1/problems with no embedding is invisible
+        # to semantic search and to find_similar() de-duplication.
+        embedding = self._safe_embed(description, input_type="document")
+        if embedding is not None:
+            problem.embedding = embedding
+            self._problems.update(problem)
         return problem
 
     def create_solution(
@@ -420,6 +431,10 @@ class AgentbookService:
         self._solutions.add(solution)
         problem.solution_count += 1
         problem.last_activity_at = utc_now()
+        # A freshly contributed solution sits at the baseline confidence;
+        # raise the problem's high-water mark so best_confidence is not
+        # stuck at 0.0 until the first outcome report arrives.
+        problem.best_confidence = max(problem.best_confidence, solution.confidence)
         self._problems.update(problem)
         return solution
 
@@ -639,7 +654,7 @@ class AgentbookService:
         return {
             "problem_id": str(problem.problem_id),
             "description": problem.description,
-            "tags": problem.tags,
+            "tags": problem.tags or [],
             "best_confidence": problem.best_confidence,
             "solution_count": problem.solution_count,
             "similarity_score": relevance_score,
@@ -1028,9 +1043,12 @@ class AgentbookService:
             return
         s = self._solutions.get(content_id)
         if s is not None:
+            was_visible = _is_visible_solution(s)
             self._solutions.delete(content_id)
             prob = self._problems.get(s.problem_id)
-            if prob is not None:
+            # solution_count counts only visible solutions — decrement when
+            # the purged row was one (candidates/demoted were never tallied).
+            if prob is not None and was_visible:
                 prob.solution_count = max(0, prob.solution_count - 1)
                 self._problems.update(prob)
             return
@@ -1083,7 +1101,7 @@ class AgentbookService:
                         "solution_count": p.solution_count,
                         "review_status": p.review_status,
                         "has_canonical": p.canonical_solution_id is not None,
-                        "tags": p.tags,
+                        "tags": p.tags or [],
                         "error_signature": p.error_signature,
                         "environment": p.environment,
                         "created_at": p.created_at.isoformat(),
@@ -1100,7 +1118,7 @@ class AgentbookService:
                         "solution_count": p.solution_count,
                         "review_status": p.review_status or "pending",
                         "has_canonical": p.canonical_solution_id is not None,
-                        "tags": p.tags,
+                        "tags": p.tags or [],
                         "error_signature": p.error_signature,
                         "environment": p.environment,
                         "created_at": p.created_at.isoformat(),
@@ -1115,12 +1133,9 @@ class AgentbookService:
             raise NotFoundError(f"Problem {problem_id} not found")
 
         all_solutions = self._solutions.list_by_problem(problem_id)
-        # Exclude candidates from public view; show only validated (promoted/legacy) solutions
-        visible_solutions = [
-            s
-            for s in all_solutions
-            if s.review_status == "approved" and s.promotion_status != "candidate"
-        ]
+        # Exclude unconfirmed candidates and rejected (demoted) proposals from
+        # the public view; show only validated (base/promoted) solutions.
+        visible_solutions = [s for s in all_solutions if _is_visible_solution(s)]
 
         agent_ids: set[UUID] = {problem.author_id}
         for s in visible_solutions:
@@ -1152,6 +1167,7 @@ class AgentbookService:
                 "parent_solution_id": str(canonical_sol.parent_solution_id)
                 if canonical_sol.parent_solution_id
                 else None,
+                "promotion_status": canonical_sol.promotion_status,
                 "created_at": canonical_sol.created_at.isoformat(),
             }
 
@@ -1170,6 +1186,7 @@ class AgentbookService:
                 "parent_solution_id": str(s.parent_solution_id)
                 if s.parent_solution_id
                 else None,
+                "promotion_status": s.promotion_status,
                 "created_at": s.created_at.isoformat(),
                 "review_status": s.review_status,
             }
@@ -1244,7 +1261,7 @@ class AgentbookService:
         return {
             "problem_id": str(problem.problem_id),
             "description": problem.description,
-            "tags": problem.tags,
+            "tags": problem.tags or [],
             "error_signature": problem.error_signature,
             "environment": problem.environment,
             "created_at": problem.created_at.isoformat(),
@@ -1439,7 +1456,8 @@ class AgentbookService:
                 "solution_id": str(solution_id) if solution_id is not None else None,
             }
 
-        # Create new problem via create_problem (runs gate check internally)
+        # Create new problem via create_problem (runs gate check internally
+        # and attaches the description embedding).
         new_problem = self.create_problem(
             author_id=author_id,
             description=description,
@@ -1448,13 +1466,18 @@ class AgentbookService:
             tags=tags,
         )
 
-        embedding = self._safe_embed(description, input_type="document")
         existing_similar: list[Problem] = []
-        if embedding is not None:
-            existing_similar = self._problems.find_similar(embedding, threshold=0.9)
-            if embedding is not None:
-                new_problem.embedding = embedding
-                self._problems.update(new_problem)
+        if new_problem.embedding is not None:
+            # create_problem already stored the embedding, so find_similar
+            # now returns new_problem itself — drop it before reporting
+            # the remainder as pre-existing duplicates.
+            existing_similar = [
+                p
+                for p in self._problems.find_similar(
+                    new_problem.embedding, threshold=0.9
+                )
+                if p.problem_id != new_problem.problem_id
+            ]
 
         solution_id = None
         if solution_content is not None:
@@ -1595,9 +1618,21 @@ class AgentbookService:
             self._solutions.update(solution)
 
         problem = self._problems.get(solution.problem_id)
-        if problem is not None and new_confidence > problem.best_confidence:
-            problem.best_confidence = new_confidence
-            self._problems.update(problem)
+        if problem is not None:
+            problem_dirty = False
+            if new_confidence > problem.best_confidence:
+                problem.best_confidence = new_confidence
+                problem_dirty = True
+            # A candidate that just promoted becomes a visible solution —
+            # bring solution_count in line with the agentbook view.
+            if (
+                previous_promotion == "candidate"
+                and solution.promotion_status == "promoted"
+            ):
+                problem.solution_count += 1
+                problem_dirty = True
+            if problem_dirty:
+                self._problems.update(problem)
 
         confidence_capped_by = (
             "cold_start_floor"
@@ -1611,7 +1646,9 @@ class AgentbookService:
             "status": "reported",
             "outcome_id": str(outcome.outcome_id),
             "solution_confidence_updated": new_confidence,
-            "confidence_delta": round(new_confidence - previous_confidence, 6),
+            # `or 0.0` collapses negative zero: round() of a tiny negative
+            # recency drift yields -0.0, which JSON serializes as "-0.0".
+            "confidence_delta": round(new_confidence - previous_confidence, 6) or 0.0,
             "external_reporters": num_effective,
             "external_reporters_for_full_confidence": COLD_START_MIN_REPORTERS,
             "confidence_capped_by": confidence_capped_by,
@@ -1632,16 +1669,24 @@ class AgentbookService:
         problem = self._problems.get(resource_id)
         if problem is not None:
             effective = include if include is not None else ["solutions", "similar"]
-            sols = (
-                self._solutions.list_by_problem(problem.problem_id)
-                if "solutions" in effective
-                else []
-            )
+            # Mirror the public visibility filter used by get_agentbook():
+            # unreviewed and improve-candidate/demoted solutions stay out of
+            # trace, so MCP trace and REST GET /v1/problems/{id} agree.
+            visible_sols = [
+                s
+                for s in self._solutions.list_by_problem(problem.problem_id)
+                if _is_visible_solution(s)
+            ]
+            sols = visible_sols if "solutions" in effective else []
             agent_ids: set[UUID] = {problem.author_id}
             for s in sols:
                 agent_ids.add(s.author_id)
             pmap = self._agent_models_map(agent_ids)
             pdata = _problem_to_dict(problem)
+            # Report the count of solutions trace actually exposes, not the
+            # raw stored counter — otherwise data.solution_count can
+            # contradict the solutions list and the REST detail endpoint.
+            pdata["solution_count"] = len(visible_sols)
             pdata["llm_model"] = self._display_llm(pmap, problem.author_id, None)
             result: dict = {"type": "problem", "data": pdata}
             if "solutions" in effective:
@@ -1687,6 +1732,11 @@ class AgentbookService:
                         d = _problem_to_dict(p)
                         d["llm_model"] = self._display_llm(smap, p.author_id, None)
                         result["similar"].append(d)
+                else:
+                    # Neither the knowledge graph nor an embedding is
+                    # available — return an explicit empty list so callers
+                    # can tell "no similar problems" from "key omitted".
+                    result["similar"] = []
             return result
 
         solution = self._solutions.get(resource_id)
@@ -2087,6 +2137,15 @@ class AgentbookService:
         if existing is None:
             raise NotFoundError(f"Solution {solution_id} not found")
 
+        # A demoted solution is a rejected dead end — improving it would spawn
+        # a new candidate off a branch the gate already turned down. Direct
+        # the caller to the parent instead (matches the demotion message).
+        if existing.promotion_status == "demoted":
+            raise ValueError(
+                "cannot improve a demoted solution: improve its parent or "
+                "collect outcome reports on the parent instead"
+            )
+
         # Quality gate — content regression bypasses the gate (evaluate_improvement
         # will reject it with reason "content_regression" instead of raising).
         gate_result = check_spam(
@@ -2117,6 +2176,11 @@ class AgentbookService:
             content=improved_content,
             steps=improved_steps or [],
             parent_solution_id=solution_id,
+            # Mirror create_solution(): a gate-passing proposal is approved.
+            # Without this an accepted candidate is later invisible to the
+            # get_agentbook review_status=="approved" filter even once
+            # outcome reports promote it.
+            review_status="approved",
             llm_model=resolved_llm,
         )
         self._solutions.add(new_solution)
@@ -2160,8 +2224,9 @@ class AgentbookService:
         if accepted:
             new_solution.promotion_status = "candidate"
             self._solutions.update(new_solution)
-            problem.solution_count += 1
-            self._problems.update(problem)
+            # solution_count tracks visible solutions only — a pending
+            # candidate is not one yet; report_outcome bumps the count if
+            # and when the candidate is promoted.
             status = "improved"
 
             # Record the pre-computed evaluator score as outcome, or run fresh
@@ -2183,8 +2248,8 @@ class AgentbookService:
             new_solution.canonical_id = solution_id
             new_solution.promotion_status = "demoted"
             self._solutions.update(new_solution)
-            problem.solution_count += 1
-            self._problems.update(problem)
+            # A demoted proposal is never a visible solution — leave
+            # solution_count untouched.
             status = "no_improvement"
 
         if self._research_cycles is not None:
@@ -3010,7 +3075,7 @@ class AgentbookService:
                 "author_id": str(problem.author_id),
                 "llm_model": self._display_llm(models, problem.author_id, None),
                 "description": problem.description,
-                "tags": problem.tags,
+                "tags": problem.tags or [],
                 "error_signature": problem.error_signature,
             }
         )
@@ -3112,7 +3177,7 @@ class AgentbookService:
                 "author_id": str(problem.author_id),
                 "llm_model": self._display_llm(models, problem.author_id, None),
                 "description": problem.description,
-                "tags": problem.tags,
+                "tags": problem.tags or [],
                 "error_signature": problem.error_signature,
                 "best_confidence": problem.best_confidence,
                 "solution_count": problem.solution_count,
@@ -3139,16 +3204,32 @@ def _is_being_researched(
     return age < timeout_seconds
 
 
+def _is_visible_solution(s: Solution) -> bool:
+    """A solution that belongs in the public agentbook view.
+
+    Approved by the quality gate, and neither an unconfirmed improve
+    proposal (``candidate``) nor a rejected one (``demoted``). Shared by
+    get_agentbook(), inspect_resource() and the solution_count bookkeeping
+    so every surface agrees on what counts as a real solution.
+    """
+    return s.review_status == "approved" and s.promotion_status not in (
+        "candidate",
+        "demoted",
+    )
+
+
 def _problem_to_dict(p: Problem) -> dict:
     return {
         "problem_id": p.problem_id,
         "author_id": p.author_id,
         "description": p.description,
         "error_signature": p.error_signature,
-        "tags": p.tags,
+        "tags": p.tags or [],
         "best_confidence": p.best_confidence,
         "solution_count": p.solution_count,
         "created_at": p.created_at,
+        "canonical_solution_id": p.canonical_solution_id,
+        "has_canonical": p.canonical_solution_id is not None,
     }
 
 
@@ -3164,6 +3245,8 @@ def _solution_to_dict(s: Solution, author_model: str | None = None) -> dict:
         "failure_count": s.failure_count,
         "canonical_id": s.canonical_id,
         "parent_solution_id": s.parent_solution_id,
+        "promotion_status": s.promotion_status,
+        "review_status": s.review_status,
         "created_at": s.created_at,
         "llm_model": s.llm_model or author_model,
     }

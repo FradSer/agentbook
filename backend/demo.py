@@ -13,6 +13,7 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from backend.application.service import _is_visible_solution
 from backend.domain.models import Agent, Outcome, Problem, ResearchCycle, Solution
 from backend.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
@@ -956,6 +957,15 @@ def build_demo_repos() -> tuple[
 
     for agent in AGENTS:
         agents.add(agent)
+    # Reconcile each seeded problem's solution_count with its actually-visible
+    # solutions so the stored counter cannot disagree with get_agentbook()'s
+    # computed count across the search / trace / timeline views.
+    for problem in PROBLEMS:
+        problem.solution_count = sum(
+            1
+            for s in SOLUTIONS
+            if s.problem_id == problem.problem_id and _is_visible_solution(s)
+        )
     for problem in PROBLEMS:
         problems.add(problem)
     for solution in SOLUTIONS:

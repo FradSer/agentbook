@@ -34,6 +34,8 @@ class SearchResultResponse(BaseModel):
     problem_id: str
     description_preview: str
     tags: list[str]
+    solution_count: int = 0
+    best_confidence: float = 0.0
     similarity_score: float
     match_quality: str = "partial"
     match_reasons: list[str] = []
@@ -58,10 +60,10 @@ JSONDict = dict[str, Any]
 
 
 class ProblemCreateRequest(BaseModel):
-    description: str = Field(..., min_length=20)
-    error_signature: str | None = None
+    description: str = Field(..., min_length=20, max_length=10000)
+    error_signature: str | None = Field(default=None, max_length=4000)
     environment: dict | None = None
-    tags: list[str] | None = None
+    tags: list[str] | None = Field(default=None, max_length=20)
 
 
 class ProblemCreateResponse(BaseModel):
@@ -75,15 +77,28 @@ class ProblemCreateResponse(BaseModel):
 class AgentbookViewResponse(BaseModel):
     problem_id: str
     description: str
+    # tags / error_signature / environment / created_at are returned by the
+    # service's get_agentbook() and are present on the list endpoint and MCP
+    # trace — declaring them here keeps the detail endpoint from silently
+    # discarding them via response_model filtering.
+    tags: list[str] = []
+    error_signature: str | None = None
+    environment: dict | None = None
+    created_at: datetime | None = None
+    author_llm_model: str | None = None
     canonical_solution: dict | None = None
     solution_history: list[dict] = []
     best_confidence: float = 0.0
     solution_count: int = 0
+    has_canonical: bool = False
+    outcome_summary: dict = {}
+    research_summary: dict = {}
+    is_being_researched: bool = False
 
 
 class SolutionCreateRequest(BaseModel):
-    content: str = Field(..., min_length=10)
-    steps: list[str] | None = None
+    content: str = Field(..., min_length=10, max_length=20000)
+    steps: list[str] | None = Field(default=None, max_length=50)
 
 
 class SolutionCreateResponse(BaseModel):
@@ -99,8 +114,8 @@ class OutcomeCreateRequest(BaseModel):
 
 
 class SolutionImproveRequest(BaseModel):
-    improved_content: str = Field(..., min_length=10)
-    improved_steps: list[str] | None = None
+    improved_content: str = Field(..., min_length=10, max_length=20000)
+    improved_steps: list[str] | None = Field(default=None, max_length=50)
     reasoning: str = ""
 
 
@@ -142,6 +157,12 @@ class OutcomeReportResponse(BaseModel):
 
 
 class TimelineEvent(BaseModel):
+    # Timeline events are heterogeneous (problem_created, solution_proposed /
+    # solution_improved, outcome_reported, research_skipped, ...) and each
+    # carries its own field set. extra="allow" stops response_model from
+    # stripping every event down to the bare 2-field envelope.
+    model_config = {"extra": "allow"}
+
     event_type: str
     created_at: str
 
@@ -149,18 +170,32 @@ class TimelineEvent(BaseModel):
 class ProblemTimelineProblem(BaseModel):
     problem_id: str
     author_id: str
+    llm_model: str | None = None
     description: str
+    tags: list[str] = []
+    error_signature: str | None = None
     best_confidence: float
     solution_count: int
     created_at: str
     updated_at: str
     has_canonical: bool
+    canonical_solution_id: str | None = None
+    is_being_researched: bool = False
 
 
 class BookSolutionPayload(BaseModel):
     solution_id: str
+    author_id: str
     content: str
+    steps: list[str] = []
     confidence: float
+    promotion_status: str | None = None
+    outcome_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+    llm_model: str | None = None
+    created_at: str
+    is_synthesized: bool = False
 
 
 class ProblemTimelineResponse(BaseModel):

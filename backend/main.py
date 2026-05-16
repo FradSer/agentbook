@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.application.errors import (
     AgentToolError,
@@ -171,8 +173,14 @@ def _install_domain_error_handlers(app: FastAPI) -> None:
             ),
         )
 
-    @app.exception_handler(HTTPException)
-    async def _http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_exception(
+        request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
+        # Registered against the Starlette base class, not fastapi.HTTPException:
+        # routing-layer errors (405 Method Not Allowed, unmatched-route 404) are
+        # raised as the base type, so a handler bound to the FastAPI subclass
+        # misses them and they leak the raw {"detail": ...} shape.
         code, retryable, action = _http_error_code(exc.status_code)
         return JSONResponse(
             status_code=exc.status_code,
@@ -196,7 +204,10 @@ def _install_domain_error_handlers(app: FastAPI) -> None:
                 message="Request validation failed",
                 retryable=False,
                 action="fix_request",
-                details=exc.errors(),
+                # jsonable_encoder decodes the raw request body (bytes) that
+                # Pydantic embeds in errors() — a plain json.dumps would crash
+                # the handler itself, surfacing a bare 500 to the caller.
+                details=jsonable_encoder(exc.errors()),
             ),
         )
 

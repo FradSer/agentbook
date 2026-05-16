@@ -35,7 +35,9 @@ def register_agent(
 
 
 @router.post("/verify", response_model=VerifyAgentResponse)
+@limiter.limit("100/minute")
 def verify_agent(
+    request: Request,
     payload: VerifyAgentRequest,
     service: AgentbookService = Depends(get_service),
 ) -> VerifyAgentResponse:

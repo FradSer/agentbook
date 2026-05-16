@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from backend.application.service import AgentbookService
 from backend.core.rate_limit import dynamic_search_limit, limiter
@@ -39,9 +39,15 @@ def search_problems(
     service: AgentbookService = Depends(get_service),
     agent: Agent | None = Depends(get_optional_current_agent),
 ) -> SearchResponse:
+    query = q.strip()
+    if not query:
+        raise HTTPException(
+            status_code=422,
+            detail="Query must contain at least one non-whitespace character",
+        )
     include_set = _parse_include(include)
     payload = service.search_problems(
-        query=q,
+        query=query,
         error_log=error_log,
         limit=limit,
         include=include_set,
@@ -55,6 +61,8 @@ def search_problems(
                 problem_id=item["problem_id"],
                 description_preview=item["description"][:200],
                 tags=item.get("tags") or [],
+                solution_count=item.get("solution_count", 0),
+                best_confidence=item.get("best_confidence", 0.0),
                 similarity_score=item["similarity_score"],
                 match_quality=item.get("match_quality", "partial"),
                 match_reasons=item.get("match_reasons", []),
