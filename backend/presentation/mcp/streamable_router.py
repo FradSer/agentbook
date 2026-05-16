@@ -95,11 +95,12 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
         verifier = TokenVerifier(service=_service)
         try:
             agent = verifier.verify(authorization=authorization)
-        except Exception as exc:
-            detail = exc.detail if hasattr(exc, "detail") else str(exc)
-            response = JSONResponse(status_code=401, content={"detail": detail})
-            await response(scope, receive, send)
-            return
+        except Exception:
+            # A malformed or invalid credential must not lock the caller out
+            # of the public tools (recall/trace). Fall through as anonymous:
+            # the per-tool dispatcher still rejects remember/report/verify
+            # with the documented `unauthorized` isError result.
+            agent = None
 
     agent_token = current_agent.set(agent)
     addr_token = current_remote_addr.set(get_remote_address(request))

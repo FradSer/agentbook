@@ -29,6 +29,21 @@ def _json_response(data: dict) -> list[dict]:
     return [{"type": "text", "text": json.dumps(data, default=str)}]
 
 
+def _clamp_recall_limit(raw: Any) -> int:
+    """Coerce the caller-supplied ``limit`` into recall's advertised 1-20 range.
+
+    MCP recall is invoked by LLM agents that may pass 0, a negative, or an
+    arbitrarily large value; clamping keeps the tool usable instead of
+    returning an empty or unbounded result set. A non-integer falls back to
+    the default.
+    """
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return 5
+    return max(1, min(value, 20))
+
+
 def _call_tool_result(data: dict, *, is_error: bool = False) -> types.CallToolResult:
     text = json.dumps(data, default=str)
     return types.CallToolResult(
@@ -102,7 +117,7 @@ async def handle_contribute(
             return _json_response(result)
         except NotFoundError:
             return _json_response({"error": "not_found"})
-        except ValueError as exc:
+        except (ValueError, TypeError) as exc:
             return _json_response({"error": "invalid_input", "detail": str(exc)})
 
     description = arguments.get("description")
@@ -137,22 +152,40 @@ async def handle_report(
         )
     try:
         solution_id = UUID(raw_id)
-    except ValueError:
+    except (ValueError, TypeError):
         return _json_response(
             {"error": "invalid_input", "detail": "solution_id is not a valid UUID"}
+        )
+    # ``success`` drives the Bayesian confidence math — a missing or
+    # non-boolean value must be rejected explicitly rather than coerced,
+    # otherwise a malformed call silently records a failure outcome.
+    if "success" not in arguments:
+        return _json_response(
+            {"error": "invalid_input", "detail": "success is required"}
+        )
+    success = arguments["success"]
+    if not isinstance(success, bool):
+        return _json_response(
+            {"error": "invalid_input", "detail": "success must be a boolean"}
         )
     try:
         result = service.report_outcome(
             reporter_id=agent_id,
             solution_id=solution_id,
-            success=arguments.get("success", False),
+            success=success,
             environment=arguments.get("environment"),
             notes=arguments.get("notes"),
             time_saved_seconds=arguments.get("time_saved_seconds"),
         )
         return _json_response(result)
-    except RateLimitError:
-        return _json_response({"error": "rate_limit_exceeded"})
+    except RateLimitError as exc:
+        payload: dict[str, Any] = {
+            "error": "rate_limit_exceeded",
+            "detail": str(exc) or "Outcome reporting rate limit exceeded.",
+        }
+        if exc.retry_after_seconds is not None:
+            payload["retry_after_seconds"] = exc.retry_after_seconds
+        return _json_response(payload)
     except NotFoundError:
         return _json_response({"error": "not_found"})
 
@@ -168,7 +201,7 @@ async def handle_inspect(
 
     try:
         target_id = UUID(raw_id)
-    except ValueError:
+    except (ValueError, TypeError):
         return _json_response(
             {"error": "invalid_input", "detail": "id is not a valid UUID"}
         )
@@ -413,6 +446,11 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
     service = server._service
 
     if name == "recall":
+        raw_query = arguments.get("query")
+        if not isinstance(raw_query, str) or not raw_query.strip():
+            return _json_response(
+                {"error": "invalid_input", "detail": "query is required"}
+            )
         agent = _current_agent_ctx.get(None)
         remote_addr = _current_remote_addr_ctx.get(None)
         search_limiter = pick_mcp_search_limiter(agent)
@@ -429,9 +467,9 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                 }
             )
         search_response = service.search_problems(
-            query=arguments.get("query", ""),
+            query=raw_query,
             error_log=arguments.get("error_log"),
-            limit=arguments.get("limit", 5),
+            limit=_clamp_recall_limit(arguments.get("limit", 5)),
         )
         return _json_response(search_response)
 
@@ -457,7 +495,7 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
             )
         try:
             solution_id = UUID(solution_id_raw)
-        except ValueError:
+        except (ValueError, TypeError):
             return _json_response(
                 {
                     "error": "invalid_input",
@@ -499,7 +537,12 @@ def register_tools(server: Server) -> None:
     async def list_tools() -> list[types.Tool]:
         return TOOL_DEFINITIONS
 
-    @server.call_tool()
+    # validate_input=False: the MCP SDK's own schema validator emits a
+    # plain-text isError result that bypasses _as_structured_tool_result,
+    # violating the documented structuredContent error contract. The
+    # dispatcher owns required-field and type validation instead, so every
+    # error response stays in the structured shape.
+    @server.call_tool(validate_input=False)
     async def _dispatch(name: str, arguments: dict) -> types.CallToolResult:
         result = await dispatch_tool(server, name, arguments)
         return _as_structured_tool_result(result)

@@ -485,7 +485,7 @@ class SimulatedAgent:
             # 5. Create 1-3 new problems
             num_new_problems = random.randint(1, 3)
             new_problem_ids = []
-            for i in range(num_new_problems):
+            for _ in range(num_new_problems):
                 pid = self.create_problem()
                 if pid:
                     new_problem_ids.append(pid)

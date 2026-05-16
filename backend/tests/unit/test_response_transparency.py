@@ -149,6 +149,34 @@ def test_first_external_failure_off_baseline_is_explained() -> None:
     assert "first outcome from an external reporter" in result["confidence_note"]
 
 
+def test_confidence_note_reads_unchanged_for_sub_display_movement() -> None:
+    """A movement too small to render at the note's 3-decimal precision must
+    read as 'unchanged' — not the absurd 'Confidence fell 0.973 -> 0.973'
+    (an upsert's recency drift produces exactly such a sub-0.001 move)."""
+    from backend.application.service import _confidence_explainer
+
+    for new in (0.973001, 0.972999):
+        note = _confidence_explainer(
+            new_confidence=new,
+            previous_confidence=0.973,
+            external_reporters=5,
+            capped=False,
+            outcome_success=True,
+        )
+        assert "unchanged" in note
+        assert "->" not in note
+
+    # a genuine, display-visible move still reports directionally
+    moved = _confidence_explainer(
+        new_confidence=0.919,
+        previous_confidence=0.610,
+        external_reporters=3,
+        capped=False,
+        outcome_success=True,
+    )
+    assert "rose" in moved and "0.610 -> 0.919" in moved
+
+
 # --- improve: explicit accept/reject + lifecycle ----------------------------
 
 
@@ -251,8 +279,9 @@ def test_get_agentbook_solution_count_excludes_demoted_candidates() -> None:
     service.report_outcome(
         reporter_id=author_id, solution_id=solution.solution_id, success=True
     )
-    # A rejected improvement adds a demoted candidate row + bumps the stored
-    # problem.solution_count, but it is hidden from solution_history.
+    # A rejected improvement adds a demoted candidate row, but a demoted
+    # proposal is never a visible solution — it must not inflate
+    # solution_count on either the agentbook view or the stored problem.
     service.improve_solution(
         solution_id=solution.solution_id,
         improved_content="Install build-base and python3-dev then pip install numpy",
@@ -262,7 +291,7 @@ def test_get_agentbook_solution_count_excludes_demoted_candidates() -> None:
     view = service.get_agentbook(problem.problem_id)
 
     assert view["solution_count"] == len(view["solution_history"]) == 1
-    assert service._problems.get(problem.problem_id).solution_count == 2
+    assert service._problems.get(problem.problem_id).solution_count == 1
 
 
 # --- create responses: accurate status label --------------------------------
