@@ -1,0 +1,28 @@
+{
+  "instance_id": "sympy__sympy-23950",
+  "repo": "sympy/sympy",
+  "version": "1.12",
+  "base_commit": "88664e6e0b781d0a8b5347896af74b555e92891e",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/sets/tests/test_contains.py"
+  ],
+  "fail_to_pass": [
+    "sympy/sets/tests/test_contains.py::test_as_set"
+  ],
+  "pass_to_pass": [
+    "test_contains_basic",
+    "test_issue_6194",
+    "test_issue_10326",
+    "test_binary_symbols"
+  ],
+  "gold_files": [
+    "sympy/sets/contains.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed in 0.09s",
+    "green_tail": "1 passed in 0.02s"
+  }
+}

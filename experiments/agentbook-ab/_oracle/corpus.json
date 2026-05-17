@@ -1,0 +1,607 @@
+[
+  {
+    "instance_id": "sympy__sympy-21379",
+    "description": "Calling subs() on a sympy expression that contains a hyperbolic function (sinh/cosh/exp) whose argument holds a Piecewise raises an unexpected PolynomialError 'Piecewise generators do not make sense'. Happens after casting int atoms to float; the bare expression evaluates fine.",
+    "error_signature": "PolynomialError: Piecewise generators do not make sense",
+    "tags": [
+      "sympy",
+      "subs",
+      "Piecewise",
+      "PolynomialError",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in Mod.eval in sympy/core/mod.py, not in the hyperbolic functions. During subs(), assumption queries (is_real / is_positive) on the hyperbolic function reach Mod.eval, which extracts a gcd of its operands with `G = gcd(p, q)`. When p or q carries a Piecewise, sympy's polynomial gcd raises PolynomialError, and that exception propagates all the way out of subs(). Fix: in Mod.eval, wrap the gcd extraction block (the `G = gcd(p, q)` / `gcd_terms` lines) in try/except PolynomialError, and on PolynomialError fall back to `G = S.One` so evaluation continues without the gcd simplification.",
+      "steps": [
+        "Open sympy/core/mod.py, find Mod.eval -> doit, locate `G = gcd(p, q)`",
+        "Import PolynomialError from sympy.polys.polyerrors",
+        "Wrap the `G = gcd(p, q)` and gcd_terms reassignment in try/except PolynomialError",
+        "In the except branch set G = S.One and skip the gcd_terms step"
+      ]
+    },
+    "bad": {
+      "content": "Root cause is in the hyperbolic functions in sympy/functions/elementary/hyperbolic.py. Their _eval_is_real / _eval_is_positive / _eval_is_nonnegative call as_real_imag(), and for a Piecewise argument the imaginary part itself becomes a Piecewise-containing expression; the subsequent modulo test (im % pi).is_zero is what blows up. Fix: in sinh/cosh/tanh, guard each of those _eval_is_* methods so that when the computed imaginary/real part contains a Piecewise they return None (unknown) instead of running the modulo test.",
+      "steps": [
+        "Open sympy/functions/elementary/hyperbolic.py",
+        "In sinh/cosh/tanh _eval_is_real, _eval_is_positive, _eval_is_nonnegative, detect a Piecewise in the imaginary part",
+        "Return None from those methods when a Piecewise is present"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "description": "imageset(...).intersect(Reals) returns an incorrect set: an element that is NOT in the original ImageSet tests as `in` after intersecting with Reals (e.g. `2 in S1` is False but `2 in S1.intersect(Reals)` is True). is_subset(Reals) / membership for an ImageSet with a complex-valued Lambda is wrong.",
+    "error_signature": "imageset intersect Reals wrong membership; is_subset(Reals) incorrect",
+    "tags": [
+      "sympy",
+      "sets",
+      "imageset",
+      "intersection",
+      "Reals",
+      "is_subset"
+    ],
+    "good": {
+      "content": "Root cause is in intersection_sets for (ImageSet, Reals) in sympy/sets/handlers/intersection.py. The branch that keeps only values making the imaginary part vanish used a fragile `solve_linear` over `Mul.make_args(im)` plus `base_set -= FiniteSet(xis)`, which mishandles the real-part constraint and the denominator exclusion. Fix: add a `_solution_union(exprs, sym)` helper that solves each factor for `sym` and returns a Union of FiniteSet (linear solution) or ConditionSet (otherwise); then constrain with `base_set &= _solution_union(Mul.make_args(numer(im)), n)` for the imaginary-part-zero condition and `base_set -= _solution_union(denoms(f), n)` for the denominators. Import `numer` from sympy.simplify.radsimp.",
+      "steps": [
+        "Open sympy/sets/handlers/intersection.py, the ImageSet vs Reals intersection_sets",
+        "Import numer from sympy.simplify.radsimp",
+        "Add a _solution_union(exprs, sym) helper returning a Union of FiniteSet/ConditionSet",
+        "Replace the `base_set -= FiniteSet(...)` logic with `base_set &= _solution_union(Mul.make_args(numer(im)), n)`",
+        "Replace the denominator loop with `base_set -= _solution_union(denoms(f), n)`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause is that the imaginary part `im` is not fully expanded before it is solved, so solve_linear misses roots. Fix: in the ImageSet vs Reals intersection, run `im = expand_complex(im)` and `im = simplify(im)` before solving, and change `base_set -= FiniteSet(xis)` to instead subtract a ConditionSet built directly from `Eq(im, 0)`. That makes the membership test consistent.",
+      "steps": [
+        "Expand and simplify the imaginary part `im` before solving",
+        "Subtract ConditionSet(n, Eq(im, 0)) from base_set instead of a FiniteSet"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "description": "A nested fraction comes out as a wrong expression because of missing parentheses: `\\frac{\\frac{a^3+b}{c}}{\\frac{1}{c^2}}` is rendered as `((a**3 + b)/c)/1/(c**2)` instead of `((a**3 + b)/c)/(1/(c**2))`. The denominator of a quotient is not parenthesised when it is itself a power.",
+    "error_signature": "str printer missing parentheses around a Pow base that is itself a Pow",
+    "tags": [
+      "sympy",
+      "printing",
+      "str",
+      "Pow",
+      "parentheses",
+      "Mul"
+    ],
+    "good": {
+      "content": "Root cause is in the str printer, StrPrinter._print_Mul in sympy/printing/str.py (function `apow`/`pow_paren` handling) -- NOT in the LaTeX parser. When a factor is a negative power whose base is itself a Pow (a power of a power), the printer fails to wrap the base in parentheses because the guard only checks `isinstance(item.base, Mul)`. Fix: widen that isinstance check to `isinstance(item.base, (Mul, Pow))` so a Pow base is parenthesised too.",
+      "steps": [
+        "Open sympy/printing/str.py, find StrPrinter._print_Mul and the pow_paren block",
+        "Locate the condition `isinstance(item.base, Mul)`",
+        "Change it to `isinstance(item.base, (Mul, Pow))`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause is in the LaTeX parser: convert_frac() in sympy/parsing/latex/_parse_latex_antlr.py has a special case `if expr_top == 1: return inverse_denom` that returns the denominator unwrapped, so a `\\frac{1}{c^2}` used as an outer denominator loses its grouping. Fix: remove that special case and always return `sympy.Mul(expr_top, inverse_denom, evaluate=False)` so every fraction has consistent structure.",
+      "steps": [
+        "Open sympy/parsing/latex/_parse_latex_antlr.py, find convert_frac()",
+        "Delete the `if expr_top == 1: return inverse_denom` branch",
+        "Always return Mul(expr_top, inverse_denom, evaluate=False)"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "description": "LaTeX output from the second-quantization module renders incorrectly: a creation/annihilation operator raised to a power produces a double superscript like `b^\\dagger_{0}^{2}`, which Jupyter/LaTeX cannot render. It should be braced as `{b^\\dagger_{0}}^{2}`.",
+    "error_signature": "secondquant LaTeX double superscript b^\\dagger_{0}^{2} invalid",
+    "tags": [
+      "sympy",
+      "secondquant",
+      "latex",
+      "printing",
+      "superscript"
+    ],
+    "good": {
+      "content": "Root cause: the `_latex` methods in sympy/physics/secondquant.py return superscript strings that are not wrapped in braces, so when such a string becomes the base of a power you get an invalid double superscript. The fix is tiny -- wrap each returned LaTeX string in curly braces in three `_latex` methods: the index/operator class method `\"%s^{%s}_{%s}\"` -> `\"{%s^{%s}_{%s}}\"`, CreateBoson `\"b^\\\\dagger_{%s}\"` -> `\"{b^\\\\dagger_{%s}}\"`, and CreateFermion `\"a^\\\\dagger_{%s}\"` -> `\"{a^\\\\dagger_{%s}}\"`. Do not rewrite anything else.",
+      "steps": [
+        "Open sympy/physics/secondquant.py",
+        "Find the three _latex methods returning superscript strings (the index class, CreateBoson, CreateFermion)",
+        "Wrap each returned string in an extra pair of curly braces { }",
+        "Change nothing else in the file"
+      ]
+    },
+    "bad": {
+      "content": "Root cause is in how powers of these operators are printed: the LaTeX printer's _print_Pow does not brace the base when the base is a second-quantization operator. Fix: in sympy/printing/latex.py add dedicated `_print_CreateBoson` / `_print_CreateFermion` handlers (and adjust _print_Pow) so the operator base is wrapped in \\left( \\right) before the exponent is applied.",
+      "steps": [
+        "Open sympy/printing/latex.py",
+        "Add _print_CreateBoson and _print_CreateFermion methods",
+        "Adjust _print_Pow to parenthesise second-quantization operator bases"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "description": "hermite_normal_form() incorrectly removes a row: for a matrix with more rows than columns it falsely identifies the matrix as rank-deficient and returns fewer rows/columns than expected (e.g. a 3x2 input comes back 3x1).",
+    "error_signature": "hermite_normal_form drops a row; false rank-deficient; returns fewer rows",
+    "tags": [
+      "sympy",
+      "matrices",
+      "hermite_normal_form",
+      "HNF",
+      "normalforms"
+    ],
+    "good": {
+      "content": "Root cause is in `_hermite_normal_form` in sympy/polys/matrices/normalforms.py. It only processes `rows = min(m, n)` rows (loop `range(m - 1, m - 1 - rows, -1)`). When m > n that skips the top rows and silently discards columns, which looks like rank deficiency. Fix: drop the `rows = min(m, n)` cap and iterate over EVERY row -- `for i in range(m - 1, -1, -1)` -- and add an early `break` at the top of the loop when `k == 0` (all n pivots already placed).",
+      "steps": [
+        "Open sympy/polys/matrices/normalforms.py, find _hermite_normal_form",
+        "Remove `rows = min(m, n)` and the `m - 1 - rows` loop bound",
+        "Loop `for i in range(m - 1, -1, -1)` over all rows",
+        "At the start of the loop body, `if k == 0: break`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: when a processed row cannot place a pivot in its assigned column the algorithm unconditionally increments the column pointer k, so a column is lost on the last iteration. Fix: distinguish two cases when no pivot can be placed -- if the row is completely zero, increment k as before; if the row has non-zero entries elsewhere, only increment k when there are still more rows to process, otherwise keep the column.",
+      "steps": [
+        "In _hermite_normal_form, find where k is incremented after a failed pivot",
+        "If the row is all-zero, increment k as before",
+        "If the row has non-zero entries, only increment k when more rows remain"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "description": "itermonomials() with the optional min_degrees argument returns incomplete monomials: requesting total degree min=max=3 over three variables yields only x1**3, x2**3, x3**3 and omits valid mixed monomials like x1*x2**2 or x1*x2*x3.",
+    "error_signature": "itermonomials min_degrees returns incomplete / missing monomials",
+    "tags": [
+      "sympy",
+      "polys",
+      "monomials",
+      "itermonomials",
+      "min_degrees"
+    ],
+    "good": {
+      "content": "Root cause is in `itermonomials` in sympy/polys/monomials.py. When min_degrees and max_degrees are integers, the filter checks `max(powers.values()) >= min_degree` -- the largest exponent of a SINGLE variable -- instead of the TOTAL degree. A monomial like x1*x2**2 has max exponent 2 and is wrongly dropped. Fix: change both occurrences (commutative and non-commutative branches) from `max(powers.values()) >= min_degree` to `sum(powers.values()) >= min_degree`.",
+      "steps": [
+        "Open sympy/polys/monomials.py, find itermonomials",
+        "Locate both `if max(powers.values()) >= min_degree:` lines",
+        "Change `max(...)` to `sum(...)` in both"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: itermonomials only generates candidate monomials with combinations_with_replacement of length max_degree, so it never builds monomials whose total degree differs from max_degree. Fix: loop the combination length from min_degree to max_degree and union all the generated monomial sets before filtering.",
+      "steps": [
+        "In itermonomials, wrap the generation in a loop over combination length from min_degree to max_degree",
+        "Union the monomial sets produced for each length"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "description": "PythonCodePrinter / pycode() cannot generate Python code for the Min and Max functions: pycode(Min(a, b)) emits '# Not supported in Python: Min' instead of min(a, b).",
+    "error_signature": "PythonCodePrinter Not supported in Python: Min / Max",
+    "tags": [
+      "sympy",
+      "printing",
+      "pycode",
+      "PythonCodePrinter",
+      "Min",
+      "Max"
+    ],
+    "good": {
+      "content": "Root cause: Min and Max are simply absent from the `_known_functions` mapping used by PythonCodePrinter in sympy/printing/pycode.py. Fix: add `'Min': 'min'` and `'Max': 'max'` to the `_known_functions` dict -- they map directly onto Python builtins, so no custom printer method is needed.",
+      "steps": [
+        "Open sympy/printing/pycode.py",
+        "Find the `_known_functions` dict",
+        "Add 'Min': 'min' and 'Max': 'max' entries"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: PythonCodePrinter lacks _print_Min/_print_Max methods. Fix: add those two methods to PythonCodePrinter, and to stay correct for symbolic arguments emit a nested conditional rather than the builtin, e.g. _print_Min returns `(a if a <= b else b)` folded over the args.",
+      "steps": [
+        "Add _print_Min and _print_Max methods to PythonCodePrinter",
+        "Emit a nested ternary conditional (a if a <= b else b) over the arguments"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "description": "symbols() with an extra layer of parentheses ignores the cls argument: `symbols(('q:2', 'u:2'), cls=Function)` returns Symbol instances instead of Function/UndefinedFunction. Passing a tuple/list of symbol-strings drops cls.",
+    "error_signature": "symbols() with tuple input ignores cls argument, returns Symbol not Function",
+    "tags": [
+      "sympy",
+      "symbols",
+      "Function",
+      "core",
+      "symbol"
+    ],
+    "good": {
+      "content": "Root cause is in `symbols()` in sympy/core/symbol.py. When `names` is an iterable (tuple/list/set), symbols() recurses per element with `symbols(name, **args)`. But `cls` is a keyword-only parameter, so it is NOT part of `**args`, and the recursive call silently defaults cls back to Symbol. Fix: forward cls explicitly in that recursive call -- `result.append(symbols(name, cls=cls, **args))`.",
+      "steps": [
+        "Open sympy/core/symbol.py, find symbols() and the iterable branch",
+        "Locate the recursive call `symbols(name, **args)`",
+        "Change it to `symbols(name, cls=cls, **args)`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the iterable branch of symbols() delegates to the internal `literal()` helper, which always coerces a name into a Symbol. Fix: change `literal()` so it instantiates the requested class -- have it accept and honour cls when turning a string into a symbol object.",
+      "steps": [
+        "Find the inner literal() helper inside symbols()",
+        "Make literal() accept cls and build cls(name) instead of Symbol(name)"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "description": "Contains.as_set() returns the Contains object itself instead of a set. Because Contains is a boolean, downstream code fails -- e.g. Piecewise((6, Contains(x, Reals)), (7, True)) raises AttributeError: 'Contains' object has no attribute 'as_relational'.",
+    "error_signature": "Contains.as_set returns Contains; 'Contains' object has no attribute 'as_relational'",
+    "tags": [
+      "sympy",
+      "sets",
+      "Contains",
+      "as_set",
+      "Piecewise"
+    ],
+    "good": {
+      "content": "Root cause: `Contains.as_set()` in sympy/sets/contains.py does not return a set (it raises NotImplementedError / returns self). Contains(x, S) asserts membership in S, so the set of values satisfying it is exactly S, which is stored in self.args[1]. Fix: make `as_set` simply `return self.args[1]`.",
+      "steps": [
+        "Open sympy/sets/contains.py, find the as_set method",
+        "Replace its body with `return self.args[1]`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: Contains is a Boolean and must never be coerced into a set at all -- as_set() is the wrong thing to call. The real fix is in Piecewise: make Piecewise.__new__ detect Boolean conditions and call as_relational() on them directly instead of going through as_set(). Leave Contains.as_set as-is.",
+      "steps": [
+        "Open sympy/functions/elementary/piecewise.py",
+        "In Piecewise.__new__, detect Boolean conditions",
+        "Call cond.as_relational(...) directly and skip as_set() for them"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "description": "collect_factor_and_dimension / SI._collect_factor_and_dimension raises a spurious ValueError when adding quantities whose dimensions are equivalent but written differently (e.g. acceleration*time added to velocity) -- it reports a dimension mismatch for physically equal dimensions.",
+    "error_signature": "collect_factor_and_dimension ValueError on equivalent dimensions in addition",
+    "tags": [
+      "sympy",
+      "physics",
+      "units",
+      "dimension",
+      "unitsystem"
+    ],
+    "good": {
+      "content": "Root cause is in `_collect_factor_and_dimension` in sympy/physics/units/unitsystem.py. When summing an Add it compares dimensions with `dim != addend_dim` -- plain object inequality -- which is False-positive for dimensions that are equivalent but expressed differently (acceleration*time vs velocity). Fix: replace `if dim != addend_dim:` with `if not self.get_dimension_system().equivalent_dims(dim, addend_dim):`.",
+      "steps": [
+        "Open sympy/physics/units/unitsystem.py, find _collect_factor_and_dimension",
+        "Locate the Add branch check `if dim != addend_dim:`",
+        "Change it to `if not self.get_dimension_system().equivalent_dims(dim, addend_dim):`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the dimension comparison is fine; the real problem is that set_quantity_dimension stores the dimension exactly as given, so acceleration*time and velocity end up stored as different objects. Fix: in set_quantity_dimension, always normalise the incoming dimension to its base dependencies before storing it, so equivalent dimensions become identical.",
+      "steps": [
+        "Open the units quantity / dimension system code",
+        "In set_quantity_dimension, normalise the dimension via get_dimensional_dependencies before storing",
+        "Store the normalised dimension"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "description": "Mod(3*i, 2) with an integer symbol i is left unevaluated; it should reduce to Mod(i, 2). Integer coefficients inside the dividend product are not reduced modulo q.",
+    "error_signature": "sympy Mod(3*i, 2) not simplified / unchanged",
+    "tags": [
+      "sympy",
+      "Mod",
+      "core",
+      "simplification"
+    ],
+    "good": {
+      "content": "Root cause is in Mod.eval (sympy/core/mod.py), the branch that handles a Mul dividend. Integer factors of the product are only reduced modulo q when the product already contains Mod terms; for a plain product like 3*i nothing is reduced. Fix: in the Mul branch, when q is an Integer other than 1, reduce every integer factor in the non-Mod term list modulo q (i % q), then rebuild p = Mul(*(non_mod_l + mod_l)) before the rest of the evaluation runs.",
+      "steps": [
+        "Open sympy/core/mod.py, find Mod.eval -> doit, the Mul handling block",
+        "When q.is_Integer and q is not S.One, map each integer factor in non_mod_l to (factor % q)",
+        "Rebuild p = Mul(*(non_mod_l + mod_l)) so the reduced coefficient is used"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: Mod relies on Mul to apply the modulus, but Mul has no Mod hook, so Mod(3*i, 2) is never distributed. Fix: add an _eval_Mod method on the Mul class that distributes the modulus across factors and reduces integer coefficients, so 3*i knows how to reduce itself under Mod.",
+      "steps": [
+        "Add an _eval_Mod(self, q) method to the Mul class",
+        "Distribute the modulus over the factors and reduce integer coefficients there"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "description": "nthroot_mod misses the root x = 0 when a % p == 0: x**n = a (mod p) with a divisible by p has x = 0 as a root, but nthroot_mod does not return it. It also raises NotImplementedError for composite modulus.",
+    "error_signature": "nthroot_mod misses x=0 root when a % p == 0",
+    "tags": [
+      "sympy",
+      "ntheory",
+      "nthroot_mod",
+      "residue"
+    ],
+    "good": {
+      "content": "Root cause is in nthroot_mod (sympy/ntheory/residue_ntheory.py): it never handles the case a % p == 0, for which x = 0 is a root, and it bails out for composite p. Fix: in nthroot_mod, after the n == 2 shortcut, add `if not isprime(p): return _nthroot_mod_composite(a, n, p)` and `if a % p == 0: return [0]`, before the is_nthpow_residue check. Add a _nthroot_mod_composite helper that factors the modulus, solves each prime-power component, and recombines the solutions with CRT.",
+      "steps": [
+        "Open sympy/ntheory/residue_ntheory.py, find nthroot_mod",
+        "Add `if a % p == 0: return [0]` before the (p-1) % n branch",
+        "Add a _nthroot_mod_composite(a, n, m) helper for composite modulus and dispatch to it when p is not prime"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the missing root surfaces inside the helper _nthroot_mod1, where s \u2261 0 (mod p) makes discrete_log(p, 0, h) fail because no power of a primitive root is 0. Fix: guard _nthroot_mod1 at its start with `if s % p == 0: return [0] if all_roots else 0` so the zero root is returned before the discrete-log step.",
+      "steps": [
+        "Open _nthroot_mod1 in sympy/ntheory/residue_ntheory.py",
+        "At the top of the function, detect s % p == 0",
+        "Return [0] (or 0) from _nthroot_mod1 in that case"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "description": "sqf_list output is inconsistent: square-free factors that share the same multiplicity are returned as separate factors instead of being combined into one. E.g. (x-2)**3 * (x-3)**3 comes back as two degree-3 factors rather than one.",
+    "error_signature": "sqf_list inconsistent: separate factors with equal multiplicity not combined",
+    "tags": [
+      "sympy",
+      "polys",
+      "sqf_list",
+      "factor"
+    ],
+    "good": {
+      "content": "Root cause is in _symbolic_factor_list (sympy/polys/polytools.py): for the square-free method it returns one entry per factor without merging factors that share an exponent. Fix: after the factor list is assembled, when method == 'sqf', group factors by exponent and multiply together everything sharing each exponent -- factors = [(reduce(mul, (f for f, e in factors if e == k)), k) for k in {e for _, e in factors}]. (Also drop the branch that flattens nested Mul args separately, so grouping is consistent.)",
+      "steps": [
+        "Open sympy/polys/polytools.py, find _symbolic_factor_list",
+        "After building `factors`, if method == 'sqf', group by exponent",
+        "Multiply all factors sharing each exponent into a single (product, exponent) entry"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the factors are correct but _sorted_factors only sorts them and never merges equal-multiplicity neighbours. Fix: change _sorted_factors so that, after sorting, it walks the sorted list and combines any adjacent factors that have the same exponent into one product.",
+      "steps": [
+        "Open sympy/polys/polytools.py, find _sorted_factors",
+        "After sorting, merge adjacent factors with equal exponent by multiplying them"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "description": "subs() on a ConditionSet (with an ImageSet base) behaves wrongly: substituting a value that makes the condition true produces an invalid set, because the substituted value is used as the bound variable.",
+    "error_signature": "ConditionSet subs produces wrong set / invalid bound variable",
+    "tags": [
+      "sympy",
+      "sets",
+      "ConditionSet",
+      "subs",
+      "ImageSet"
+    ],
+    "good": {
+      "content": "Root cause is in ConditionSet._eval_subs (sympy/sets/conditionset.py): when the substituted condition becomes S.true it returns ConditionSet(new, Contains(new, base), base), using the substituted value `new` as the bound variable -- invalid when `new` is not a Symbol. Fix: remove that `cond is S.true` special case entirely; always return self.func(self.sym, cond, base) and let ConditionSet.__new__ do the simplification consistently (assumptions on sym are intentionally ignored, matching __new__).",
+      "steps": [
+        "Open sympy/sets/conditionset.py, find ConditionSet._eval_subs",
+        "Delete the `if cond is S.true: return ConditionSet(new, Contains(new, base), base)` branch",
+        "Always return self.func(self.sym, cond, base)"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the `cond is S.true` branch builds a ConditionSet with a non-Symbol bound variable. Fix: keep the branch but guard it -- if isinstance(new, Symbol) return ConditionSet(new, Contains(new, base), base), else return base (the condition is always true so the result is just the base set).",
+      "steps": [
+        "In ConditionSet._eval_subs, keep the cond is S.true branch",
+        "Wrap it: if new is a Symbol build the ConditionSet, otherwise return base"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "description": "Poly.clear_denoms() on a complicated constant poly that is mathematically zero returns a poly that prints like the zero poly but behaves inconsistently -- is_zero is False, and terms_gcd()/primitive() crash. The DMP representation has an unstripped leading zero.",
+    "error_signature": "clear_denoms returns unstripped DMP; is_zero inconsistent; ZeroDivisionError",
+    "tags": [
+      "sympy",
+      "polys",
+      "clear_denoms",
+      "domains",
+      "EX"
+    ],
+    "good": {
+      "content": "Root cause is in the ExpressionDomain element in sympy/polys/domains/expressiondomain.py: its __bool__ uses `f.ex != 0`, which for a symbolic expression that is mathematically zero but not structurally the literal 0 returns True. clear_denoms() then keeps that 'zero-but-truthy' coefficient and the DMP is left unstripped. Fix: change the element's __bool__ to `return not f.ex.is_zero`.",
+      "steps": [
+        "Open sympy/polys/domains/expressiondomain.py",
+        "Find the __bool__ method of the domain element class",
+        "Change `return f.ex != 0` to `return not f.ex.is_zero`"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: dup_clear_denoms / dmp_clear_denoms leave a leading zero in the DMP after multiplying the polynomial by the common denominator factor. Fix: in those functions in sympy/polys/densetools.py, call dup_strip / dmp_strip on the result of dup_mul_ground / dmp_mul_ground so the leading zero is removed.",
+      "steps": [
+        "Open sympy/polys/densetools.py, find dup_clear_denoms and dmp_clear_denoms",
+        "After the mul_ground call, strip leading zeros with dup_strip / dmp_strip"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "description": "is_subset gives wrong results: a ProductSet that equals a FiniteSet reports is_subset as None instead of True, and Eq(productset, finiteset).simplify() crashes.",
+    "error_signature": "is_subset wrong for ProductSet vs FiniteSet; Eq(set,set).simplify crashes",
+    "tags": [
+      "sympy",
+      "sets",
+      "is_subset",
+      "ProductSet",
+      "relational"
+    ],
+    "good": {
+      "content": "Two root causes. (1) ProductSet.is_subset(FiniteSet) returns None because no is_subset_sets handler is registered for that type pair. (2) Relational._eval_simplify subtracts / calls .equals() on operands that may be Sets (not Expr), which crashes. Fix: (1) register `@dispatch(ProductSet, FiniteSet)` is_subset_sets in sympy/sets/handlers/issubset.py returning fuzzy_and(b_fs.contains(x) for x in a_ps); (2) in sympy/core/relational.py _eval_simplify (both Relational and Equality), return the relation unchanged when lhs or rhs is not an Expr.",
+      "steps": [
+        "Add a @dispatch(ProductSet, FiniteSet) is_subset_sets handler in sympy/sets/handlers/issubset.py",
+        "Have it return fuzzy_and(b_fs.contains(x) for x in a_ps)",
+        "In sympy/core/relational.py _eval_simplify, bail out (return r) when lhs/rhs is not an Expr"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: ProductSet has no _eval_is_subset method, so is_subset() returns None; and Eq.simplify() calls .equals() on Set objects that lack it. Fix: add a ProductSet._eval_is_subset(self, other) method that checks every element is contained in other, and wrap the .equals() call in Eq._eval_simplify in a try/except AttributeError.",
+      "steps": [
+        "Add ProductSet._eval_is_subset that iterates elements and checks containment",
+        "Wrap the .equals() call in Equality._eval_simplify with try/except AttributeError"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "description": "Pretty-printed unicode output does not format trailing digits as subscripts when the symbol name is a Greek letter: t0 renders as t-subscript-0 but a Greek-named symbol like omega0 renders as 'omega0' with no subscript.",
+    "error_signature": "pprint unicode no subscript on Greek-letter symbol names",
+    "tags": [
+      "sympy",
+      "printing",
+      "pretty",
+      "unicode",
+      "subscript"
+    ],
+    "good": {
+      "content": "Root cause is the regex in sympy/printing/conventions.py: split_super_sub detects a name ending in digits with `_name_with_digits_p = re.compile(r'^([a-zA-Z]+)([0-9]+)$')`. The class [a-zA-Z] is ASCII-only, so a Greek-letter name is not matched and its digits are not turned into a subscript. Fix: make the letter class Unicode-aware -- `re.compile(r'^([^\\W\\d_]+)(\\d+)$', re.U)`.",
+      "steps": [
+        "Open sympy/printing/conventions.py",
+        "Find the _name_with_digits_p regex",
+        "Replace it with re.compile(r'^([^\\W\\d_]+)(\\d+)$', re.U) so any unicode letter matches"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the _name_with_digits_p regex only allows ASCII letters. Fix: extend the character class to also include the Greek alphabet ranges explicitly -- re.compile(r'^([a-zA-Z\u03b1-\u03c9\u0391-\u03a9]+)([0-9]+)$') -- so Greek letters are recognised.",
+      "steps": [
+        "Open sympy/printing/conventions.py",
+        "Edit the _name_with_digits_p character class to add the Greek ranges \u03b1-\u03c9 and \u0391-\u03a9"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15345",
+    "description": "mathematica_code(Max(x, 2)) returns 'Max(2, x)' -- invalid Mathematica syntax -- instead of 'Max[x, 2]' with square brackets.",
+    "error_signature": "mathematica_code wrong output for Max/Min: parentheses not brackets",
+    "tags": [
+      "sympy",
+      "printing",
+      "mathematica",
+      "Max",
+      "Min"
+    ],
+    "good": {
+      "content": "Root cause: the Mathematica code printer (sympy/printing/mathematica.py) has no entry for Max/Min, so they are not routed through the bracketed function printer and come out as 'Max(2, x)'. Fix: add 'Max' and 'Min' to the printer's known_functions table, AND add `_print_MinMaxBase = _print_Function` to the printer class so Max/Min (which are MinMaxBase instances) dispatch to the _print_Function method that emits 'Max[...]'.",
+      "steps": [
+        "Open sympy/printing/mathematica.py",
+        "Add 'Max' and 'Min' entries to the known_functions table",
+        "Add `_print_MinMaxBase = _print_Function` to the MCodePrinter class"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: Max/Min just need to be registered as known Mathematica functions. Fix: add 'Max' and 'Min' to the known_functions table in sympy/printing/mathematica.py -- that single table entry is sufficient for the printer to emit the bracketed form.",
+      "steps": [
+        "Open sympy/printing/mathematica.py",
+        "Add 'Max' and 'Min' to the known_functions table"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "description": "factor(..., extension=True) drops a factor: factoring expand((x-1)*(y-1)) over an extension returns only part of the factorization, losing the (y-1) factor.",
+    "error_signature": "factor with extension drops a factor",
+    "tags": [
+      "sympy",
+      "polys",
+      "factor",
+      "extension",
+      "factortools"
+    ],
+    "good": {
+      "content": "Root cause is in dmp_ext_factor (sympy/polys/factortools.py): the square-free norm is computed from `f`, the square-free PART of the polynomial, instead of `F`, the original polynomial. Computing the norm from the square-free part loses multiplicity information and drops a factor. Fix: compute the norm from the original polynomial -- change `s, g, r = dmp_sqf_norm(f, u, K)` to `dmp_sqf_norm(F, u, K)`.",
+      "steps": [
+        "Open sympy/polys/factortools.py, find dmp_ext_factor",
+        "Locate `s, g, r = dmp_sqf_norm(f, u, K)`",
+        "Change the first argument from f to F"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: when the norm is irreducible over the base field, dmp_ext_factor mishandles the single-factor case. Fix: when dmp_factor_list_include returns a single factor, set `factors = [f]` (the square-free part) and pass that to the trial-division lift, treating the polynomial as essentially irreducible.",
+      "steps": [
+        "In dmp_ext_factor, detect when the factored norm has length 1",
+        "Set factors = [f] in that case before the trial-division step"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "description": "srepr does not print dict and set correctly: srepr([x, y]) gives '[Symbol('x'), Symbol('y')]' but srepr({x, y}) / srepr a dict prints the bare str form without the Symbol(...) repr.",
+    "error_signature": "srepr wrong for dict and set; missing Symbol repr",
+    "tags": [
+      "sympy",
+      "printing",
+      "srepr",
+      "repr",
+      "ReprPrinter"
+    ],
+    "good": {
+      "content": "Root cause: ReprPrinter (sympy/printing/repr.py) defines _print_list and _print_tuple but has no _print_dict or _print_set, so dicts and sets fall through to the str() fallback and lose the Symbol(...) repr. Fix: add a _print_dict method (repr each key and value with self.doprint) and a _print_set method (use self.reprify, returning 'set()' for the empty set).",
+      "steps": [
+        "Open sympy/printing/repr.py, find ReprPrinter",
+        "Add _print_dict that reprs each key: value pair via self.doprint",
+        "Add _print_set that uses self.reprify and handles the empty set"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: srepr delegates container printing to the StrPrinter fallback. Fix: in the srepr() function itself, pre-process the argument -- recursively walk any dict or set and replace each element with its srepr string before handing it to the printer.",
+      "steps": [
+        "Open the srepr() function",
+        "Recursively walk dict/set arguments",
+        "Replace each element with srepr(element) before printing"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "description": "partitions() in sympy.utilities.iterables reuses the same output dictionary every iteration, so list(partitions(n)) gives N references to the final partition instead of N distinct partitions.",
+    "error_signature": "partitions() reuses output dict; list(partitions()) wrong",
+    "tags": [
+      "sympy",
+      "utilities",
+      "iterables",
+      "partitions"
+    ],
+    "good": {
+      "content": "Root cause: partitions() in sympy/utilities/iterables.py yields the same dict object `ms` on every iteration (a deliberate speed hack), so collecting them all aliases one dict. Fix: yield a copy at each yield site -- `yield ms.copy()` and, in the size=True branch, `yield sum(ms.values()), ms.copy()`. (Also remove the docstring note that documented the reuse.)",
+      "steps": [
+        "Open sympy/utilities/iterables.py, find partitions()",
+        "At every yield, yield ms.copy() instead of ms",
+        "Update the docstring that described the reuse behaviour"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: the dict reuse is intentional and fine during iteration; only list() collapses the partitions. Fix: leave the speed-critical size=True branch untouched and only copy in the size=False branch -- yield dict(ms.items()) when size is False.",
+      "steps": [
+        "In partitions(), copy the dict only at the size=False yield",
+        "Leave the size=True yield reusing ms for speed"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "description": "S(0.0) == S.false returns True while S.false == S(0.0) returns False -- the equality comparison is asymmetric and inconsistent.",
+    "error_signature": "S(0.0) == S.false returns True; asymmetric equality",
+    "tags": [
+      "sympy",
+      "core",
+      "numbers",
+      "Float",
+      "Boolean"
+    ],
+    "good": {
+      "content": "Root cause is the order of checks in Float.__eq__ (sympy/core/numbers.py): the block `if not self: return not other` runs BEFORE the `isinstance(other, Boolean): return False` check, so comparing Float(0.0) to S.false takes the falsy path and returns `not S.false` == True. Fix: move the `if not self: return not other` block to AFTER the Boolean check (and after the mpf comparison) so a Float never compares equal to a Boolean.",
+      "steps": [
+        "Open sympy/core/numbers.py, find Float.__eq__",
+        "Remove the early `if not self: return not other` block",
+        "Re-insert it after the isinstance(other, Boolean) check and the mpf comparison"
+      ]
+    },
+    "bad": {
+      "content": "Root cause: S(0.0) == S.false returning True is actually semantically correct -- 0.0 is falsy and false is falsy. The real inconsistency is that S.false == S(0.0) returns False. Fix: make BooleanFalse.__eq__ recognise falsy numbers -- have it return True when compared to a number equal to 0 -- so both directions agree on True.",
+      "steps": [
+        "Open the BooleanFalse / BooleanAtom __eq__",
+        "Return True when the other operand is a number equal to zero"
+      ]
+    }
+  }
+]

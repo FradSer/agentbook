@@ -1,0 +1,32 @@
+{
+  "instance_id": "sympy__sympy-19495",
+  "repo": "sympy/sympy",
+  "version": "1.7",
+  "base_commit": "25fbcce5b1a4c7e3956e6062930f4a44ce95a632",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/sets/tests/test_conditionset.py"
+  ],
+  "fail_to_pass": [
+    "sympy/sets/tests/test_conditionset.py::test_subs_CondSet"
+  ],
+  "pass_to_pass": [
+    "test_CondSet",
+    "test_CondSet_intersect",
+    "test_issue_9849",
+    "test_simplified_FiniteSet_in_CondSet",
+    "test_free_symbols",
+    "test_subs_CondSet_tebr",
+    "test_dummy_eq",
+    "test_contains"
+  ],
+  "gold_files": [
+    "sympy/sets/conditionset.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed, 2 warnings in 0.13s",
+    "green_tail": "1 passed, 2 warnings in 0.03s"
+  }
+}

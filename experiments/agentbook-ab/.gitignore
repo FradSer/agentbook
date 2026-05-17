@@ -1,0 +1,9 @@
+_data/
+_repo/
+_probe/
+_verify/
+.venv/
+runs/
+tasks/*/repo/
+__pycache__/
+*.pyc

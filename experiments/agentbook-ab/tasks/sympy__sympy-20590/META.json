@@ -1,0 +1,45 @@
+{
+  "instance_id": "sympy__sympy-20590",
+  "repo": "sympy/sympy",
+  "version": "1.7",
+  "base_commit": "cffd4e0f86fefd4802349a9f9b19ed70934ea354",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/core/tests/test_basic.py"
+  ],
+  "fail_to_pass": [
+    "sympy/core/tests/test_basic.py::test_immutable"
+  ],
+  "pass_to_pass": [
+    "test__aresame",
+    "test_structure",
+    "test_equality",
+    "test_matches_basic",
+    "test_has",
+    "test_subs",
+    "test_subs_with_unicode_symbols",
+    "test_atoms",
+    "test_free_symbols_empty",
+    "test_doit",
+    "test_S",
+    "test_xreplace",
+    "test_preorder_traversal",
+    "test_sorted_args",
+    "test_call",
+    "test_rewrite",
+    "test_literal_evalf_is_number_is_zero_is_comparable",
+    "test_as_Basic",
+    "test_atomic",
+    "test_as_dummy",
+    "test_canonical_variables"
+  ],
+  "gold_files": [
+    "sympy/core/_print_helpers.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed, 2 warnings in 0.06s",
+    "green_tail": "1 passed, 2 warnings in 0.01s"
+  }
+}

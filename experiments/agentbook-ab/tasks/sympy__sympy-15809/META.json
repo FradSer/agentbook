@@ -1,0 +1,34 @@
+{
+  "instance_id": "sympy__sympy-15809",
+  "repo": "sympy/sympy",
+  "version": "1.4",
+  "base_commit": "28d913d3cead6c5646307ffa6540b21d65059dfd",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/functions/elementary/tests/test_miscellaneous.py"
+  ],
+  "fail_to_pass": [
+    "sympy/functions/elementary/tests/test_miscellaneous.py::test_Min",
+    "sympy/functions/elementary/tests/test_miscellaneous.py::test_Max"
+  ],
+  "pass_to_pass": [
+    "test_minmax_assumptions",
+    "test_issue_8413",
+    "test_root",
+    "test_real_root",
+    "test_rewrite_MaxMin_as_Heaviside",
+    "test_rewrite_MaxMin_as_Piecewise",
+    "test_issue_11099",
+    "test_issue_12638",
+    "test_instantiation_evaluation",
+    "test_rewrite_as_Abs"
+  ],
+  "gold_files": [
+    "sympy/functions/elementary/miscellaneous.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green (2 warnings, 2 errors in 0.03s)"
+  }
+}

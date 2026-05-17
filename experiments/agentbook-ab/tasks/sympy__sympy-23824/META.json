@@ -1,0 +1,26 @@
+{
+  "instance_id": "sympy__sympy-23824",
+  "repo": "sympy/sympy",
+  "version": "1.12",
+  "base_commit": "39de9a2698ad4bb90681c0fdb70b30a78233145f",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/physics/hep/tests/test_gamma_matrices.py"
+  ],
+  "fail_to_pass": [
+    "sympy/physics/hep/tests/test_gamma_matrices.py::test_kahane_simplify1"
+  ],
+  "pass_to_pass": [
+    "test_kahane_algorithm",
+    "test_gamma_matrix_class"
+  ],
+  "gold_files": [
+    "sympy/physics/hep/gamma_matrices.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed in 0.25s",
+    "green_tail": "1 passed in 0.11s"
+  }
+}

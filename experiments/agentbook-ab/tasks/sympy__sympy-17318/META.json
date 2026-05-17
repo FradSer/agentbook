@@ -1,0 +1,34 @@
+{
+  "instance_id": "sympy__sympy-17318",
+  "repo": "sympy/sympy",
+  "version": "1.5",
+  "base_commit": "d4e0231b08147337745dcf601e62de7eefe2fb2d",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/simplify/tests/test_sqrtdenest.py"
+  ],
+  "fail_to_pass": [
+    "sympy/simplify/tests/test_sqrtdenest.py::test_issue_12420"
+  ],
+  "pass_to_pass": [
+    "test_sqrtdenest",
+    "test_sqrtdenest2",
+    "test_sqrtdenest_rec",
+    "test_issue_6241",
+    "test_sqrtdenest3",
+    "test_sqrtdenest4",
+    "test_sqrt_symbolic_denest",
+    "test_issue_5857",
+    "test_subsets",
+    "test_issue_5653"
+  ],
+  "gold_files": [
+    "sympy/simplify/radsimp.py",
+    "sympy/simplify/sqrtdenest.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green (2 warnings, 1 error in 0.03s)"
+  }
+}

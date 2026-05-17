@@ -1,0 +1,25 @@
+{
+  "instance_id": "sympy__sympy-24443",
+  "repo": "sympy/sympy",
+  "version": "1.12",
+  "base_commit": "809c53c077485ca48a206cee78340389cb83b7f1",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/combinatorics/tests/test_homomorphisms.py"
+  ],
+  "fail_to_pass": [
+    "sympy/combinatorics/tests/test_homomorphisms.py::test_homomorphism"
+  ],
+  "pass_to_pass": [
+    "test_isomorphisms"
+  ],
+  "gold_files": [
+    "sympy/combinatorics/homomorphisms.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed in 0.19s",
+    "green_tail": "1 passed in 0.11s"
+  }
+}

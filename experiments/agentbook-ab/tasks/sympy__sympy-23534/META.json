@@ -1,0 +1,35 @@
+{
+  "instance_id": "sympy__sympy-23534",
+  "repo": "sympy/sympy",
+  "version": "1.11",
+  "base_commit": "832c24fec1046eaa544a4cab4c69e3af3e651759",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/core/tests/test_symbol.py"
+  ],
+  "fail_to_pass": [
+    "sympy/core/tests/test_symbol.py::test_symbols"
+  ],
+  "pass_to_pass": [
+    "test_Str",
+    "test_Symbol",
+    "test_Dummy",
+    "test_Dummy_force_dummy_index",
+    "test_lt_gt",
+    "test_no_len",
+    "test_ineq_unequal",
+    "test_Wild_properties",
+    "test_symbols_become_functions_issue_3539",
+    "test_unicode",
+    "test_uniquely_named_symbol_and_Symbol"
+  ],
+  "gold_files": [
+    "sympy/core/symbol.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed in 0.09s",
+    "green_tail": "1 passed in 0.01s"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "instance_id": "sympy__sympy-17655",
+  "repo": "sympy/sympy",
+  "version": "1.5",
+  "base_commit": "f5e965947af2410ded92cfad987aaf45262ea434",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/geometry/tests/test_point.py"
+  ],
+  "fail_to_pass": [
+    "sympy/geometry/tests/test_point.py::test_point",
+    "sympy/geometry/tests/test_point.py::test_point3D"
+  ],
+  "pass_to_pass": [
+    "test_Point2D",
+    "test_issue_9214",
+    "test_issue_11617",
+    "test_transform",
+    "test_concyclic_doctest_bug",
+    "test_arguments",
+    "test_unit",
+    "test_dot",
+    "test__normalize_dimension"
+  ],
+  "gold_files": [
+    "sympy/geometry/point.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green (2 warnings, 2 errors in 0.03s)"
+  }
+}

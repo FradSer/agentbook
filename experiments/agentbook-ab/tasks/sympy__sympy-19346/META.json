@@ -1,0 +1,64 @@
+{
+  "instance_id": "sympy__sympy-19346",
+  "repo": "sympy/sympy",
+  "version": "1.7",
+  "base_commit": "94fb720696f5f5d12bad8bc813699fd696afd2fb",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/printing/tests/test_repr.py"
+  ],
+  "fail_to_pass": [
+    "sympy/printing/tests/test_repr.py::test_dict"
+  ],
+  "pass_to_pass": [
+    "test_printmethod",
+    "test_more_than_255_args_issue_10259",
+    "test_Function",
+    "test_Geometry",
+    "test_Singletons",
+    "test_Integer",
+    "test_list",
+    "test_Matrix",
+    "test_empty_Matrix",
+    "test_Rational",
+    "test_Float",
+    "test_Symbol",
+    "test_Symbol_two_assumptions",
+    "test_Symbol_no_special_commutative_treatment",
+    "test_Wild",
+    "test_Dummy",
+    "test_Dummy_assumption",
+    "test_Dummy_from_Symbol",
+    "test_tuple",
+    "test_WildFunction",
+    "test_settins",
+    "test_AlgebraicNumber",
+    "test_PolyRing",
+    "test_FracField",
+    "test_PolyElement",
+    "test_FracElement",
+    "test_FractionField",
+    "test_PolynomialRingBase",
+    "test_DMP",
+    "test_FiniteExtension",
+    "test_ExtensionElement",
+    "test_BooleanAtom",
+    "test_Integers",
+    "test_Naturals",
+    "test_Naturals0",
+    "test_Reals",
+    "test_matrix_expressions",
+    "test_Cycle",
+    "test_Permutation",
+    "test_diffgeom"
+  ],
+  "gold_files": [
+    "sympy/printing/repr.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed, 2 warnings in 0.09s",
+    "green_tail": "1 passed, 2 warnings in 0.02s"
+  }
+}

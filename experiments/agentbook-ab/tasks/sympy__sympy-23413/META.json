@@ -1,0 +1,27 @@
+{
+  "instance_id": "sympy__sympy-23413",
+  "repo": "sympy/sympy",
+  "version": "1.11",
+  "base_commit": "10de1a18a0efac0b19b611e40c928250dda688bf",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/matrices/tests/test_normalforms.py",
+    "sympy/polys/matrices/tests/test_normalforms.py"
+  ],
+  "fail_to_pass": [
+    "sympy/matrices/tests/test_normalforms.py::test_hermite_normal"
+  ],
+  "pass_to_pass": [
+    "test_smith_normal",
+    "test_smith_normal_deprecated"
+  ],
+  "gold_files": [
+    "sympy/polys/matrices/normalforms.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed in 0.04s",
+    "green_tail": "1 passed in 0.01s"
+  }
+}

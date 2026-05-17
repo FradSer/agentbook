@@ -1,0 +1,36 @@
+{
+  "instance_id": "sympy__sympy-19783",
+  "repo": "sympy/sympy",
+  "version": "1.7",
+  "base_commit": "586a43201d0357e92e8c93548d69a9f42bf548f4",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/physics/quantum/tests/test_dagger.py",
+    "sympy/physics/quantum/tests/test_operator.py"
+  ],
+  "fail_to_pass": [
+    "sympy/physics/quantum/tests/test_dagger.py::test_dagger_mul",
+    "sympy/physics/quantum/tests/test_operator.py::test_identity"
+  ],
+  "pass_to_pass": [
+    "test_scalars",
+    "test_matrix",
+    "test_eval_adjoint",
+    "test_operator",
+    "test_operator_inv",
+    "test_hermitian",
+    "test_unitary",
+    "test_outer_product",
+    "test_operator_dagger"
+  ],
+  "gold_files": [
+    "sympy/physics/quantum/dagger.py",
+    "sympy/physics/quantum/operator.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "2 failed, 2 warnings in 0.24s",
+    "green_tail": "2 passed, 2 warnings in 0.09s"
+  }
+}

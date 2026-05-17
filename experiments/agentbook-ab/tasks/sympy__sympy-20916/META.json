@@ -1,0 +1,26 @@
+{
+  "instance_id": "sympy__sympy-20916",
+  "repo": "sympy/sympy",
+  "version": "1.8",
+  "base_commit": "82298df6a51491bfaad0c6d1980e7e3ca808ae93",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/printing/tests/test_conventions.py",
+    "sympy/testing/quality_unicode.py"
+  ],
+  "fail_to_pass": [
+    "sympy/printing/tests/test_conventions.py::test_super_sub"
+  ],
+  "pass_to_pass": [
+    "test_requires_partial"
+  ],
+  "gold_files": [
+    "sympy/printing/conventions.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "1 failed, 2 warnings in 0.05s",
+    "green_tail": "1 passed, 2 warnings in 0.00s"
+  }
+}
