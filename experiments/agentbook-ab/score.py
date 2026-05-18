@@ -62,6 +62,12 @@ def score_run(meta: dict, arm: str) -> dict:
     run_repo = RUNS / f"{iid}__{arm}" / "repo"
     test_files = meta["test_files"]
 
+    # 0. restore working tree to committed HEAD so prior scoring runs cannot
+    #    leak test_patch (or any other) edits into this one. The committed
+    #    state is exactly what we want to grade against.
+    sh(["git", "reset", "--hard", "HEAD"], cwd=run_repo)
+    sh(["git", "clean", "-fd"], cwd=run_repo)
+
     # 1. restore every test file from pristine base
     for tf in test_files:
         src = base_repo / tf
@@ -84,25 +90,28 @@ def score_run(meta: dict, arm: str) -> dict:
             "summary": f"test_patch apply failed: {ap.stderr.strip()[:200]}",
         }
 
-    # 3. run FAIL_TO_PASS
-    r = sh(
-        [
-            str(VENV_PY),
-            "-m",
-            "pytest",
-            *meta["fail_to_pass"],
-            "-q",
-            "--no-header",
-            "-p",
-            "no:cacheprovider",
-        ],
-        cwd=run_repo,
-    )
-    tail = (r.stdout.strip().splitlines() or [""])[-1]
+    # 3. run FAIL_TO_PASS (a hung test from a bad fix counts as FAIL)
+    cmd = [
+        str(VENV_PY),
+        "-m",
+        "pytest",
+        *meta["fail_to_pass"],
+        "-q",
+        "--no-header",
+        "-p",
+        "no:cacheprovider",
+    ]
+    try:
+        r = sh(cmd, cwd=run_repo, timeout=180)
+        passed = r.returncode == 0
+        tail = (r.stdout.strip().splitlines() or [""])[-1]
+    except subprocess.TimeoutExpired:
+        passed = False
+        tail = "TIMEOUT (>180s) -- treated as FAIL"
     return {
         "instance_id": iid,
         "arm": arm,
-        "tests_pass": r.returncode == 0,
+        "tests_pass": passed,
         "diff_lines": diff_lines(base_repo, run_repo, set(test_files)),
         "summary": tail,
     }
