@@ -8,3 +8,18 @@ runs.*/
 tasks/*/repo/
 __pycache__/
 *.pyc
+
+# Generated per experiment run (see cleanup_experiment.py)
+prompts.json
+prompts.*.json
+short_prompts.json
+cells*.json
+results*.json
+recall_simulation.json
+*_results.json
+*_batch_results.json
+rerun_results.json
+_oracle/corpus.simulated.json
+_oracle/seed_state_*.json
+tasks/manifest.*.json
+!tasks/manifest.json

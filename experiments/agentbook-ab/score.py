@@ -118,9 +118,47 @@ def score_run(meta: dict, arm: str) -> dict:
 
 
 def main() -> None:
-    arms = [a for a in (sys.argv[1:] or DEFAULT_ARMS) if (RUNS).exists()]
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Score A/B runs against FAIL_TO_PASS tests")
+    ap.add_argument(
+        "arms",
+        nargs="*",
+        default=list(DEFAULT_ARMS),
+        help=f"Arms to score (default: {' '.join(DEFAULT_ARMS)})",
+    )
+    ap.add_argument(
+        "--manifest",
+        type=Path,
+        default=TASKS / "manifest.json",
+        help="Task manifest (default: tasks/manifest.json; try manifest.hard.json)",
+    )
+    ap.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="Results JSON (default: results.json, or results.hard.json if manifest is hard)",
+    )
+    args = ap.parse_args()
+    out_path = args.output
+    if out_path is None:
+        manifest_name = args.manifest.resolve().name
+        if manifest_name.startswith("manifest.hard"):
+            out_path = ROOT / "results.hard.json"
+        elif manifest_name.startswith("manifest.complex"):
+            out_path = ROOT / "results.complex.json"
+        elif manifest_name.startswith("manifest.responsible"):
+            out_path = ROOT / "results.responsible.json"
+        elif "eval-v2" in manifest_name or manifest_name.startswith("manifest.eval"):
+            out_path = ROOT / "results.eval-v2.json"
+        elif manifest_name.startswith("manifest.full"):
+            out_path = ROOT / "results.full.json"
+        else:
+            out_path = ROOT / "results.json"
+    arms = [a for a in args.arms if (RUNS).exists()]
     arms = [a for a in arms if any(RUNS.glob(f"*__{a}"))]
-    manifest = json.loads((TASKS / "manifest.json").read_text())
+    manifest = json.loads(args.manifest.read_text())
     metas = {
         e["instance_id"]: json.loads(
             (TASKS / e["instance_id"] / "META.json").read_text()
@@ -134,7 +172,7 @@ def main() -> None:
             if (RUNS / f"{iid}__{arm}").is_dir():
                 print(f"scoring {iid} [{arm}] ...", flush=True)
                 results.append(score_run(meta, arm))
-    (ROOT / "results.json").write_text(json.dumps(results, indent=2) + "\n")
+    out_path.write_text(json.dumps(results, indent=2) + "\n")
 
     by = {(r["instance_id"], r["arm"]): r for r in results}
     print(f"\n{'instance':30s}" + "".join(f"{a:>14s}" for a in arms))
@@ -156,7 +194,7 @@ def main() -> None:
     for arm in arms:
         p, t = agg[arm]
         print(f"  {arm:10s} pass@1 = {p}/{t}")
-    print(f"\nresults -> {ROOT / 'results.json'}")
+    print(f"\nresults -> {out_path}")
 
 
 if __name__ == "__main__":

@@ -210,6 +210,16 @@ def red_verify(task_dir: Path, test_patch: str, gold: str, nodes: list[str]) -> 
 
 
 def main() -> None:
+    import argparse
+
+    ap = argparse.ArgumentParser(description="RED-verify SWE-bench Verified tasks")
+    ap.add_argument(
+        "--rebuild-unverified",
+        action="store_true",
+        help="Re-run RED verify for tasks whose META.json has verified=false",
+    )
+    args = ap.parse_args()
+
     rows = load_rows()
     repo_summary = ", ".join(
         f"{r} ({len([x for x in rows if x['repo'] == r])})" for r in REPOS
@@ -241,6 +251,9 @@ def main() -> None:
                     }
                 )
                 print(f"[{i}/{len(rows)}] {iid} ... KEEP (already verified)")
+                continue
+            if not args.rebuild_unverified:
+                print(f"[{i}/{len(rows)}] {iid} ... SKIP (unverified, use --rebuild-unverified)")
                 continue
         task_dir.mkdir(exist_ok=True)
         print(

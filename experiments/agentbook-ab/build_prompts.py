@@ -21,6 +21,7 @@ TASKS = ROOT / "tasks"
 ORACLE = ROOT / "_oracle"
 MANIFEST = TASKS / "manifest.json"
 CORPUS = ORACLE / "corpus.json"
+CORPUS_SIMULATED = ORACLE / "corpus.simulated.json"
 
 CONTROL_PROMPT = """You are a coding agent tasked with fixing a bug in a Python project.
 
@@ -138,15 +139,22 @@ def derive_good_from_gold(iid: str, bug_text: str) -> dict:
         if line.startswith("+") and not line.startswith("+++"):
             adds.append(line[1:].strip())
 
-    change_summary = ", ".join(adds[:10]) if adds else "minimal source change"
+    change_summary = "; ".join(adds[:6]) if adds else "minimal source change"
     file_list = ", ".join(files)
+    func_hint = ""
+    for line in gold.splitlines():
+        if line.startswith("@@") and "def " in line:
+            m = re.search(r"def (\w+)", line)
+            if m:
+                func_hint = f" in `{m.group(1)}()`"
+                break
 
     return {
         "description": bug_text.split("\n\n")[0][:300],
         "content": (
-            f"Root cause is in {file_list}. The bug is caused by incorrect "
-            f"logic in the affected function/class. The fix involves: {change_summary}. "
-            f"Apply these changes to the listed files."
+            f"Root cause is in {file_list}{func_hint}. The verified fix is: "
+            f"{change_summary}. Apply only this change in the listed file(s); "
+            f"do not refactor unrelated modules."
         ),
         "steps": [
             f"Open {files[0]}" if files else "Find the relevant source file",
@@ -156,44 +164,119 @@ def derive_good_from_gold(iid: str, bug_text: str) -> dict:
     }
 
 
+# Wrong sibling modules for adversarial bad hints (same package, wrong file).
+_WRONG_SIBLING: dict[str, str] = {
+    "mod.py": "mul.py",
+    "add.py": "mul.py",
+    "mul.py": "add.py",
+    "fu.py": "trigsimp.py",
+    "latex.py": "str.py",
+    "str.py": "pretty.py",
+    "codegen.py": "autowrap.py",
+    "diophantine.py": "solvers.py",
+    "sqrtdenest.py": "radsimp.py",
+    "matexpr.py": "matrices.py",
+    "point.py": "entity.py",
+    "relational.py": "solvers.py",
+    "miscellaneous.py": "trigonometric.py",
+    "mathml.py": "pretty.py",
+    "assumptions.py": "facts.py",
+}
+
+
+def pick_wrong_file(gold_files: list[str], iid: str) -> str:
+    """Pick a plausible but incorrect file for the bad-arm hint."""
+    import random
+
+    random.seed(iid + ":badfile")
+    if not gold_files:
+        return "sympy/core/basic.py"
+    primary = gold_files[0]
+    parent, fname = primary.rsplit("/", 1)
+    sibling = _WRONG_SIBLING.get(fname)
+    if sibling:
+        return f"{parent}/{sibling}"
+    if len(gold_files) > 1:
+        return gold_files[1]
+    return f"{parent}/basic.py"
+
+
 def derive_bad_from_bug(iid: str, bug_text: str, meta: dict) -> dict:
     """Generate a plausible wrong diagnosis for tasks not in corpus."""
-    gold_path = ORACLE / iid / "gold.patch"
     files = meta.get("gold_files", [])
+    wrong_file = pick_wrong_file(files, iid)
 
-    # Common plausible wrong diagnoses for Python/Sympy bugs
     wrong_patterns = [
-        "incorrect type coercion in the input validation layer",
-        "missing import that causes a symbol resolution failure",
-        "wrong default parameter value in the constructor",
-        "string formatting issue in the display/print layer",
-        "incorrect caching of computed values in the property accessor",
+        "the evaluation short-circuits before the real branch runs",
+        "an assumption query returns None when it should be False",
+        "a postprocessor rewrites the expression to the wrong type",
+        "the printer omits grouping for nested operators",
+        "a helper returns a scalar zero instead of a typed zero object",
     ]
 
     import random
 
-    random.seed(iid)  # deterministic per task
+    random.seed(iid)
     wrong = random.choice(wrong_patterns)
 
     return {
         "description": bug_text.split("\n\n")[0][:300],
         "content": (
-            f"Root cause is in {files[0] if files else 'the main module'}. "
-            f"The bug is caused by {wrong}. "
-            f"Fix: add an explicit type check before the computation and "
-            f"handle the edge case by converting the input to the expected type."
+            f"Root cause is in {wrong_file} (not elsewhere). "
+            f"The bug is caused because {wrong}. "
+            f"Fix: change the logic in {wrong_file} — add an early return or "
+            f"rewrite the affected method so inputs are normalized before the "
+            f"main computation. This is the established fix for this symptom class."
         ),
         "steps": [
-            f"Open {files[0]}" if files else "Find the source file",
-            "Add type checking before the computation",
-            "Handle the edge case with explicit conversion",
+            f"Open {wrong_file}",
+            "Find the method that handles this code path",
+            "Apply the normalization / early-return fix described above",
         ],
     }
 
 
 def main() -> None:
-    manifest = json.loads(MANIFEST.read_text())
-    corpus = json.loads(CORPUS.read_text())
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Build per-cell prompts for the A/B")
+    ap.add_argument(
+        "--manifest",
+        type=Path,
+        default=MANIFEST,
+        help="Task manifest (default: tasks/manifest.json)",
+    )
+    ap.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=ROOT / "prompts.json",
+        help="Output prompts JSON",
+    )
+    ap.add_argument(
+        "--corpus",
+        type=Path,
+        default=None,
+        help="Corpus JSON (default: corpus.simulated.json if present else corpus.json)",
+    )
+    ap.add_argument(
+        "--good-mode",
+        choices=("simulated", "hand-only", "hand-then-simulated"),
+        default="hand-then-simulated",
+        help="Corpus policy for good/bad hints",
+    )
+    args = ap.parse_args()
+
+    manifest = json.loads(args.manifest.read_text())
+    if args.corpus is not None:
+        corpus_path = args.corpus
+    elif args.good_mode == "hand-only":
+        corpus_path = CORPUS
+    elif args.good_mode == "simulated":
+        corpus_path = CORPUS_SIMULATED
+    else:
+        corpus_path = CORPUS_SIMULATED if CORPUS_SIMULATED.exists() else CORPUS
+    corpus = json.loads(corpus_path.read_text())
     corpus_map = {e["instance_id"]: e for e in corpus}
 
     prompts = {}
@@ -262,8 +345,8 @@ def main() -> None:
             "repo_path": str((ROOT / "runs" / f"{iid}__bad" / "repo").resolve()),
         }
 
-    (ROOT / "prompts.json").write_text(json.dumps(prompts, indent=2) + "\n")
-    print(f"Built {len(prompts)} prompts -> {ROOT / 'prompts.json'}")
+    args.output.write_text(json.dumps(prompts, indent=2) + "\n")
+    print(f"Built {len(prompts)} prompts -> {args.output} (corpus={corpus_path.name})")
     # Print summary
     arms = {"control": 0, "good": 0, "bad": 0}
     for k, v in prompts.items():

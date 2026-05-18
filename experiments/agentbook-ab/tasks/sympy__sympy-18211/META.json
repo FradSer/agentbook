@@ -69,9 +69,10 @@
   "gold_files": [
     "sympy/core/relational.py"
   ],
-  "verified": false,
+  "verified": true,
   "verdict": {
-    "ok": false,
-    "reason": "gold did not turn F2P green (2 warnings, 1 error in 0.04s)"
+    "ok": true,
+    "red_tail": "1 failed, 2 warnings in 0.63s",
+    "green_tail": "1 passed, 2 warnings in 0.22s"
   }
 }

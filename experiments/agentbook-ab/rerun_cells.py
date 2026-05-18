@@ -31,10 +31,26 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--from-file", required=True)
     ap.add_argument("--delay", type=int, default=5)
+    ap.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Max cells to run (0 = all)",
+    )
+    ap.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Skip first N cells in the list",
+    )
     args = ap.parse_args()
 
     cells = json.loads(Path(args.from_file).read_text())
     cells = [(iid, arm) for iid, arm in cells]
+    if args.offset:
+        cells = cells[args.offset :]
+    if args.limit:
+        cells = cells[: args.limit]
     api_key = RAC.load_env()
     print(f"re-running {len(cells)} cells via OpenRouter Haiku 4.5\n", flush=True)
     results = []

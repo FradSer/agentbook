@@ -30,16 +30,106 @@
     "difficulty": "15 min - 1 hour"
   },
   {
+    "instance_id": "sympy__sympy-15809",
+    "repo": "sympy/sympy",
+    "version": "1.4",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "repo": "sympy/sympy",
+    "version": "1.4",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "repo": "sympy/sympy",
+    "version": "1.4",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "1-4 hours"
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "1-4 hours"
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "<15 min fix"
+  },
+  {
     "instance_id": "sympy__sympy-18199",
     "repo": "sympy/sympy",
     "version": "1.6",
     "difficulty": "1-4 hours"
   },
   {
+    "instance_id": "sympy__sympy-18211",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
     "instance_id": "sympy__sympy-18698",
     "repo": "sympy/sympy",
     "version": "1.6",
     "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
   },
   {
     "instance_id": "sympy__sympy-19040",

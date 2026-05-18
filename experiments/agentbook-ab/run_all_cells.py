@@ -34,7 +34,8 @@ TASKS = ROOT / "tasks"
 ORACLE = ROOT / "_oracle"
 RUNS = ROOT / "runs"
 MANIFEST = TASKS / "manifest.json"
-CORPUS = ORACLE / "corpus.json"
+_CORPUS_SIM = ORACLE / "corpus.simulated.json"
+CORPUS = _CORPUS_SIM if _CORPUS_SIM.exists() else ORACLE / "corpus.json"
 PROMPTS_FILE = ROOT / "prompts.json"
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
@@ -209,7 +210,8 @@ The root cause appears to be an incorrect type coercion in the input validation.
 Fix: add explicit type checking before the computation in {files[0] if files else "the main module"}.
 """
 
-    prompt = f"""You are a coding agent fixing a bug in a Python project (sympy).
+    project = meta.get("repo", "sympy/sympy").split("/")[-1]
+    prompt = f"""You are a coding agent fixing a bug in a Python project ({project}).
 
 ## Bug Description
 
@@ -337,13 +339,16 @@ def run_cell(iid: str, arm: str, api_key: str) -> dict:
     meta = json.loads((TASKS / iid / "META.json").read_text())
 
     # Prepare run directory
-    run_repo = prepare_run_dir(iid, arm) / "repo"
+    run_repo = prepare_run_dir(iid, arm)
 
-    # Build prompt
-    prompt = build_prompt(iid, arm, meta, bug_text)
-
-    # Save prompt for debugging
-    (RUNS / f"{iid}__{arm}" / "prompt_used.md").write_text(prompt)
+    run_dir = RUNS / f"{iid}__{arm}"
+    prepared = run_dir / "prompt.md"
+    if prepared.exists():
+        prompt = prepared.read_text()
+    else:
+        prompt = build_prompt(iid, arm, meta, bug_text)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "prompt_used.md").write_text(prompt)
 
     # Call Haiku
     print(f"  Calling Haiku for {iid} [{arm}]...", flush=True)

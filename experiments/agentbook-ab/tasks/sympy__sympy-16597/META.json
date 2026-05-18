@@ -97,9 +97,10 @@
     "sympy/printing/tree.py",
     "sympy/tensor/indexed.py"
   ],
-  "verified": false,
+  "verified": true,
   "verdict": {
-    "ok": false,
-    "reason": "gold did not turn F2P green (2 warnings, 3 errors in 0.04s)"
+    "ok": true,
+    "red_tail": "3 failed, 7 warnings in 0.25s",
+    "green_tail": "3 passed, 2 warnings in 0.01s"
   }
 }
