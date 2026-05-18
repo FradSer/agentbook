@@ -1,0 +1,48 @@
+{
+  "instance_id": "sympy__sympy-12419",
+  "repo": "sympy/sympy",
+  "version": "1.0",
+  "base_commit": "479939f8c65c8c2908bbedc959549a257a7c0b0b",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/matrices/expressions/tests/test_matexpr.py"
+  ],
+  "fail_to_pass": [
+    "sympy/matrices/expressions/tests/test_matexpr.py::test_Identity"
+  ],
+  "pass_to_pass": [
+    "test_shape",
+    "test_matexpr",
+    "test_subs",
+    "test_ZeroMatrix",
+    "test_ZeroMatrix_doit",
+    "test_Identity_doit",
+    "test_addition",
+    "test_multiplication",
+    "test_MatPow",
+    "test_MatrixSymbol",
+    "test_dense_conversion",
+    "test_free_symbols",
+    "test_zero_matmul",
+    "test_matadd_simplify",
+    "test_matmul_simplify",
+    "test_invariants",
+    "test_indexing",
+    "test_single_indexing",
+    "test_MatrixElement_commutative",
+    "test_MatrixSymbol_determinant",
+    "test_MatrixElement_diff",
+    "test_MatrixElement_doit",
+    "test_identity_powers",
+    "test_Zero_power",
+    "test_matrixelement_diff"
+  ],
+  "gold_files": [
+    "sympy/matrices/expressions/matexpr.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green ()"
+  }
+}

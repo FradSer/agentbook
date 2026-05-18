@@ -1,0 +1,27 @@
+{
+  "instance_id": "sympy__sympy-13852",
+  "repo": "sympy/sympy",
+  "version": "1.1",
+  "base_commit": "c935e1d106743efd5bf0705fbeedbd18fadff4dc",
+  "difficulty": "1-4 hours",
+  "test_files": [
+    "sympy/functions/special/tests/test_zeta_functions.py"
+  ],
+  "fail_to_pass": [
+    "sympy/functions/special/tests/test_zeta_functions.py::test_polylog_values"
+  ],
+  "pass_to_pass": [
+    "test_zeta_eval",
+    "test_dirichlet_eta_eval",
+    "test_stieltjes",
+    "test_stieltjes_evalf"
+  ],
+  "gold_files": [
+    "sympy/functions/special/zeta_functions.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green ()"
+  }
+}

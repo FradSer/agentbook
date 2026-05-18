@@ -1,9 +1,51 @@
 [
   {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "control",
+    "tests_pass": true,
+    "diff_lines": 546,
+    "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 548,
+    "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 549,
+    "summary": "FAILED sympy/printing/tests/test_pycode.py::test_MpmathPrinter - AssertionErr..."
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "arm": "control",
+    "tests_pass": true,
+    "diff_lines": 92,
+    "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 45,
+    "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 55,
+    "summary": "FAILED sympy/tensor/array/tests/test_immutable_ndim_array.py::test_ndim_array_initiation"
+  },
+  {
     "instance_id": "sympy__sympy-15345",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 48,
+    "diff_lines": 52,
     "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
   },
   {
@@ -28,11 +70,25 @@
     "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
   },
   {
+    "instance_id": "sympy__sympy-15349",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 119,
+    "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  },
+  {
+    "instance_id": "sympy__sympy-15349",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 119,
+    "summary": "FAILED sympy/algebras/tests/test_quaternion.py::test_quaternion_conversions"
+  },
+  {
     "instance_id": "sympy__sympy-15599",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 47,
-    "summary": "FAILED sympy/core/tests/test_arit.py::test_Mod - assert ((x - 3.3) % 1) == 0...."
+    "tests_pass": true,
+    "diff_lines": 50,
+    "summary": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
   },
   {
     "instance_id": "sympy__sympy-15599",
@@ -51,9 +107,9 @@
   {
     "instance_id": "sympy__sympy-18199",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 113,
-    "summary": "1 failed, 2 warnings in 0.85s"
+    "tests_pass": true,
+    "diff_lines": 156,
+    "summary": "1 passed, 2 warnings in 0.90s"
   },
   {
     "instance_id": "sympy__sympy-18199",
@@ -67,55 +123,55 @@
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 107,
-    "summary": "1 failed, 2 warnings in 0.88s"
+    "summary": "1 failed, 2 warnings in 0.89s"
   },
   {
     "instance_id": "sympy__sympy-18698",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 1001,
-    "summary": "1 failed, 2 warnings in 1.03s"
+    "tests_pass": true,
+    "diff_lines": 969,
+    "summary": "1 passed, 2 warnings in 1.02s"
   },
   {
     "instance_id": "sympy__sympy-18698",
     "arm": "good",
     "tests_pass": false,
     "diff_lines": 982,
-    "summary": "1 failed, 2 warnings in 1.03s"
+    "summary": "1 failed, 2 warnings in 1.10s"
   },
   {
     "instance_id": "sympy__sympy-18698",
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 983,
-    "summary": "1 failed, 2 warnings in 1.03s"
+    "summary": "1 failed, 2 warnings in 1.11s"
   },
   {
     "instance_id": "sympy__sympy-19040",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 350,
-    "summary": "1 passed, 2 warnings in 1.00s"
+    "diff_lines": 333,
+    "summary": "1 passed, 2 warnings in 1.06s"
   },
   {
     "instance_id": "sympy__sympy-19040",
     "arm": "good",
     "tests_pass": true,
     "diff_lines": 333,
-    "summary": "1 passed, 2 warnings in 1.00s"
+    "summary": "1 passed, 2 warnings in 1.05s"
   },
   {
     "instance_id": "sympy__sympy-19040",
     "arm": "bad",
     "tests_pass": true,
     "diff_lines": 415,
-    "summary": "1 passed, 2 warnings in 1.02s"
+    "summary": "1 passed, 2 warnings in 1.05s"
   },
   {
     "instance_id": "sympy__sympy-19346",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 150,
+    "diff_lines": 149,
     "summary": "1 passed, 2 warnings in 0.04s"
   },
   {
@@ -130,14 +186,14 @@
     "arm": "bad",
     "tests_pass": true,
     "diff_lines": 149,
-    "summary": "1 passed, 2 warnings in 0.03s"
+    "summary": "1 passed, 2 warnings in 0.04s"
   },
   {
     "instance_id": "sympy__sympy-19495",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 72,
-    "summary": "1 failed, 2 warnings in 0.09s"
+    "tests_pass": true,
+    "diff_lines": 68,
+    "summary": "1 passed, 2 warnings in 0.07s"
   },
   {
     "instance_id": "sympy__sympy-19495",
@@ -151,63 +207,105 @@
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 71,
-    "summary": "1 failed, 2 warnings in 0.08s"
+    "summary": "1 failed, 2 warnings in 0.10s"
   },
   {
     "instance_id": "sympy__sympy-19637",
     "arm": "control",
     "tests_pass": true,
+    "diff_lines": 140,
+    "summary": "1 passed, 2 warnings in 0.17s"
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "arm": "good",
+    "tests_pass": true,
     "diff_lines": 142,
-    "summary": "1 passed, 2 warnings in 0.16s"
+    "summary": "1 passed, 2 warnings in 0.20s"
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 141,
+    "summary": "1 failed, 2 warnings in 0.25s"
   },
   {
     "instance_id": "sympy__sympy-19783",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 178,
-    "summary": "2 passed, 2 warnings in 0.15s"
+    "diff_lines": 181,
+    "summary": "2 passed, 2 warnings in 0.16s"
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "good",
+    "tests_pass": false,
+    "diff_lines": 18,
+    "summary": "2 failed, 2 warnings in 0.19s"
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 12,
+    "summary": "2 failed, 2 warnings in 0.27s"
   },
   {
     "instance_id": "sympy__sympy-19954",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 741,
-    "summary": "1 passed, 2 warnings in 0.58s"
+    "diff_lines": 737,
+    "summary": "1 passed, 2 warnings in 0.59s"
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 744,
+    "summary": "1 passed, 2 warnings in 0.62s"
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 733,
+    "summary": "1 failed, 2 warnings in 0.20s"
   },
   {
     "instance_id": "sympy__sympy-20154",
     "arm": "control",
+    "tests_pass": true,
+    "diff_lines": 241,
+    "summary": "2 passed, 2 warnings in 0.15s"
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "good",
     "tests_pass": true,
     "diff_lines": 255,
     "summary": "2 passed, 2 warnings in 0.14s"
   },
   {
     "instance_id": "sympy__sympy-20154",
-    "arm": "good",
-    "tests_pass": true,
-    "diff_lines": 255,
-    "summary": "2 passed, 2 warnings in 0.13s"
-  },
-  {
-    "instance_id": "sympy__sympy-20154",
     "arm": "bad",
     "tests_pass": true,
     "diff_lines": 237,
-    "summary": "2 passed, 2 warnings in 0.13s"
+    "summary": "2 passed, 2 warnings in 0.14s"
   },
   {
     "instance_id": "sympy__sympy-20428",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 117,
-    "summary": "1 failed, 2 warnings in 1.09s"
+    "tests_pass": true,
+    "diff_lines": 85,
+    "summary": "1 passed, 2 warnings in 5.08s"
   },
   {
     "instance_id": "sympy__sympy-20428",
     "arm": "good",
     "tests_pass": true,
     "diff_lines": 85,
-    "summary": "1 passed, 2 warnings in 5.17s"
+    "summary": "1 passed, 2 warnings in 5.09s"
   },
   {
     "instance_id": "sympy__sympy-20428",
@@ -220,22 +318,22 @@
     "instance_id": "sympy__sympy-20438",
     "arm": "control",
     "tests_pass": false,
-    "diff_lines": 514,
-    "summary": "2 failed, 2 warnings in 0.52s"
+    "diff_lines": 502,
+    "summary": "2 failed, 2 warnings in 0.53s"
   },
   {
     "instance_id": "sympy__sympy-20438",
     "arm": "good",
     "tests_pass": false,
     "diff_lines": 278,
-    "summary": "2 failed, 2 warnings in 0.52s"
+    "summary": "2 failed, 2 warnings in 0.54s"
   },
   {
     "instance_id": "sympy__sympy-20438",
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 521,
-    "summary": "2 failed, 2 warnings in 0.52s"
+    "summary": "2 failed, 2 warnings in 0.53s"
   },
   {
     "instance_id": "sympy__sympy-20590",
@@ -245,18 +343,32 @@
     "summary": "1 passed, 2 warnings in 0.04s"
   },
   {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 10,
+    "summary": "1 passed, 2 warnings in 0.04s"
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 20,
+    "summary": "1 failed, 2 warnings in 0.08s"
+  },
+  {
     "instance_id": "sympy__sympy-20801",
     "arm": "control",
     "tests_pass": true,
     "diff_lines": 840,
-    "summary": "1 passed, 2 warnings in 0.47s"
+    "summary": "1 passed, 2 warnings in 0.48s"
   },
   {
     "instance_id": "sympy__sympy-20801",
     "arm": "good",
     "tests_pass": true,
     "diff_lines": 840,
-    "summary": "1 passed, 2 warnings in 0.47s"
+    "summary": "1 passed, 2 warnings in 0.48s"
   },
   {
     "instance_id": "sympy__sympy-20801",
@@ -268,9 +380,9 @@
   {
     "instance_id": "sympy__sympy-20916",
     "arm": "control",
-    "tests_pass": false,
+    "tests_pass": true,
     "diff_lines": 6,
-    "summary": "1 failed, 2 warnings in 0.05s"
+    "summary": "1 passed, 2 warnings in 0.03s"
   },
   {
     "instance_id": "sympy__sympy-20916",
@@ -289,51 +401,51 @@
   {
     "instance_id": "sympy__sympy-21379",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 491,
-    "summary": "1 failed, 2 warnings in 0.87s"
+    "tests_pass": true,
+    "diff_lines": 50,
+    "summary": "1 passed, 2 warnings in 0.70s"
   },
   {
     "instance_id": "sympy__sympy-21379",
     "arm": "good",
     "tests_pass": true,
     "diff_lines": 54,
-    "summary": "1 passed, 2 warnings in 0.70s"
+    "summary": "1 passed, 2 warnings in 0.71s"
   },
   {
     "instance_id": "sympy__sympy-21379",
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 476,
-    "summary": "1 failed, 2 warnings in 0.87s"
+    "summary": "1 failed, 2 warnings in 0.88s"
   },
   {
     "instance_id": "sympy__sympy-21596",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 161,
-    "summary": "1 failed, 2 warnings in 0.37s"
+    "tests_pass": true,
+    "diff_lines": 175,
+    "summary": "1 passed, 2 warnings in 0.43s"
   },
   {
     "instance_id": "sympy__sympy-21596",
     "arm": "good",
     "tests_pass": false,
     "diff_lines": 215,
-    "summary": "1 failed, 2 warnings in 0.38s"
+    "summary": "1 failed, 2 warnings in 0.39s"
   },
   {
     "instance_id": "sympy__sympy-21596",
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 156,
-    "summary": "1 failed, 2 warnings in 0.42s"
+    "summary": "1 failed, 2 warnings in 0.43s"
   },
   {
     "instance_id": "sympy__sympy-21612",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 298,
-    "summary": "1 failed, 2 warnings in 0.33s"
+    "tests_pass": true,
+    "diff_lines": 443,
+    "summary": "1 passed, 2 warnings in 0.30s"
   },
   {
     "instance_id": "sympy__sympy-21612",
@@ -353,8 +465,8 @@
     "instance_id": "sympy__sympy-21847",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 134,
-    "summary": "1 passed, 1 warning in 0.11s"
+    "diff_lines": 132,
+    "summary": "1 passed, 1 warning in 0.08s"
   },
   {
     "instance_id": "sympy__sympy-21847",
@@ -375,7 +487,7 @@
     "arm": "control",
     "tests_pass": false,
     "diff_lines": 408,
-    "summary": "1 failed, 5 passed, 1 warning in 0.34s"
+    "summary": "1 failed, 5 passed, 1 warning in 0.35s"
   },
   {
     "instance_id": "sympy__sympy-21930",
@@ -389,21 +501,49 @@
     "arm": "bad",
     "tests_pass": false,
     "diff_lines": 1597,
-    "summary": "5 failed, 1 passed, 1 warning in 0.42s"
+    "summary": "5 failed, 1 passed, 1 warning in 0.44s"
   },
   {
     "instance_id": "sympy__sympy-22456",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 852,
+    "diff_lines": 543,
     "summary": "1 passed in 0.11s"
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 543,
+    "summary": "1 passed in 0.15s"
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 534,
+    "summary": "1 passed in 0.16s"
   },
   {
     "instance_id": "sympy__sympy-22714",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 158,
+    "diff_lines": 159,
     "summary": "1 passed in 0.08s"
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 159,
+    "summary": "1 passed in 0.08s"
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 159,
+    "summary": "1 passed in 0.09s"
   },
   {
     "instance_id": "sympy__sympy-22914",
@@ -430,15 +570,29 @@
     "instance_id": "sympy__sympy-23262",
     "arm": "control",
     "tests_pass": true,
+    "diff_lines": 346,
+    "summary": "1 passed in 0.12s"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "good",
+    "tests_pass": true,
     "diff_lines": 348,
     "summary": "1 passed in 0.12s"
   },
   {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 346,
+    "summary": "1 passed in 0.13s"
+  },
+  {
     "instance_id": "sympy__sympy-23413",
     "arm": "control",
-    "tests_pass": false,
-    "diff_lines": 63,
-    "summary": "1 failed in 0.04s"
+    "tests_pass": true,
+    "diff_lines": 62,
+    "summary": "1 passed in 0.02s"
   },
   {
     "instance_id": "sympy__sympy-23413",
@@ -459,35 +613,49 @@
     "arm": "control",
     "tests_pass": true,
     "diff_lines": 180,
-    "summary": "1 passed in 0.05s"
+    "summary": "1 passed in 0.06s"
   },
   {
     "instance_id": "sympy__sympy-23534",
     "arm": "good",
     "tests_pass": true,
     "diff_lines": 180,
-    "summary": "1 passed in 0.05s"
+    "summary": "1 passed in 0.06s"
   },
   {
     "instance_id": "sympy__sympy-23534",
     "arm": "bad",
     "tests_pass": true,
     "diff_lines": 180,
-    "summary": "1 passed in 0.05s"
+    "summary": "1 passed in 0.06s"
   },
   {
     "instance_id": "sympy__sympy-23824",
     "arm": "control",
     "tests_pass": true,
     "diff_lines": 152,
-    "summary": "1 passed in 0.16s"
+    "summary": "1 passed in 0.17s"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 153,
+    "summary": "1 passed in 0.17s"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 152,
+    "summary": "1 passed in 0.24s"
   },
   {
     "instance_id": "sympy__sympy-23950",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 25,
-    "summary": "1 passed in 0.03s"
+    "diff_lines": 20,
+    "summary": "1 passed in 0.05s"
   },
   {
     "instance_id": "sympy__sympy-23950",
@@ -507,15 +675,29 @@
     "instance_id": "sympy__sympy-24066",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 76,
+    "diff_lines": 75,
     "summary": "1 passed in 0.16s"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 75,
+    "summary": "1 passed in 0.16s"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 74,
+    "summary": "1 failed in 0.25s"
   },
   {
     "instance_id": "sympy__sympy-24213",
     "arm": "control",
     "tests_pass": true,
     "diff_lines": 72,
-    "summary": "1 passed in 0.15s"
+    "summary": "1 passed in 0.16s"
   },
   {
     "instance_id": "sympy__sympy-24213",
@@ -535,28 +717,84 @@
     "instance_id": "sympy__sympy-24443",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 175,
+    "diff_lines": 215,
+    "summary": "1 passed in 0.14s"
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 215,
     "summary": "1 passed in 0.13s"
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 191,
+    "summary": "1 passed in 0.17s"
   },
   {
     "instance_id": "sympy__sympy-24539",
     "arm": "control",
     "tests_pass": true,
     "diff_lines": 312,
-    "summary": "1 passed in 0.26s"
+    "summary": "1 passed in 0.27s"
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 314,
+    "summary": "1 passed in 0.28s"
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "arm": "bad",
+    "tests_pass": false,
+    "diff_lines": 317,
+    "summary": "1 failed in 0.34s"
   },
   {
     "instance_id": "sympy__sympy-24562",
     "arm": "control",
+    "tests_pass": false,
+    "diff_lines": 830,
+    "summary": "1 failed in 0.64s"
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "good",
     "tests_pass": true,
     "diff_lines": 824,
-    "summary": "1 passed in 0.54s"
+    "summary": "1 passed in 0.57s"
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 822,
+    "summary": "1 passed in 0.56s"
   },
   {
     "instance_id": "sympy__sympy-24661",
     "arm": "control",
     "tests_pass": true,
-    "diff_lines": 767,
+    "diff_lines": 794,
+    "summary": "1 passed in 0.03s"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "good",
+    "tests_pass": true,
+    "diff_lines": 775,
+    "summary": "1 passed in 0.03s"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "bad",
+    "tests_pass": true,
+    "diff_lines": 760,
     "summary": "1 passed in 0.03s"
   }
 ]

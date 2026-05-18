@@ -1,0 +1,38 @@
+{
+  "instance_id": "sympy__sympy-14976",
+  "repo": "sympy/sympy",
+  "version": "1.2",
+  "base_commit": "9cbea134220b0b951587e11b63e2c832c7246cbc",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/printing/tests/test_pycode.py",
+    "sympy/solvers/tests/test_numeric.py"
+  ],
+  "fail_to_pass": [
+    "sympy/printing/tests/test_pycode.py::test_MpmathPrinter"
+  ],
+  "pass_to_pass": [
+    "test_PythonCodePrinter",
+    "test_NumPyPrinter",
+    "test_SciPyPrinter",
+    "test_pycode_reserved_words",
+    "test_printmethod",
+    "test_codegen_ast_nodes",
+    "test_nsolve_denominator",
+    "test_nsolve",
+    "test_issue_6408",
+    "test_increased_dps",
+    "test_nsolve_precision",
+    "test_nsolve_complex",
+    "test_nsolve_dict_kwarg"
+  ],
+  "gold_files": [
+    "sympy/printing/pycode.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "FAILED sympy/printing/tests/test_pycode.py::test_MpmathPrinter - AssertionErr...",
+    "green_tail": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  }
+}

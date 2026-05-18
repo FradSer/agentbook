@@ -1,0 +1,38 @@
+{
+  "instance_id": "sympy__sympy-15017",
+  "repo": "sympy/sympy",
+  "version": "1.2",
+  "base_commit": "6810dee426943c1a2fe85b5002dd0d4cf2246a05",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/tensor/array/tests/test_immutable_ndim_array.py"
+  ],
+  "fail_to_pass": [
+    "sympy/tensor/array/tests/test_immutable_ndim_array.py::test_ndim_array_initiation"
+  ],
+  "pass_to_pass": [
+    "test_reshape",
+    "test_iterator",
+    "test_sparse",
+    "test_calculation",
+    "test_ndim_array_converting",
+    "test_converting_functions",
+    "test_equality",
+    "test_arithmetic",
+    "test_higher_dimenions",
+    "test_rebuild_immutable_arrays",
+    "test_slices",
+    "test_diff_and_applyfunc",
+    "test_op_priority",
+    "test_symbolic_indexing"
+  ],
+  "gold_files": [
+    "sympy/tensor/array/dense_ndim_array.py"
+  ],
+  "verified": true,
+  "verdict": {
+    "ok": true,
+    "red_tail": "FAILED sympy/tensor/array/tests/test_immutable_ndim_array.py::test_ndim_array_initiation",
+    "green_tail": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "instance_id": "sympy__sympy-12481",
+  "repo": "sympy/sympy",
+  "version": "1.0",
+  "base_commit": "c807dfe7569692cad24f02a08477b70c1679a4dd",
+  "difficulty": "<15 min fix",
+  "test_files": [
+    "sympy/combinatorics/tests/test_permutations.py"
+  ],
+  "fail_to_pass": [
+    "sympy/combinatorics/tests/test_permutations.py::test_args"
+  ],
+  "pass_to_pass": [
+    "test_Permutation",
+    "test_josephus",
+    "test_ranking",
+    "test_mul",
+    "test_Cycle",
+    "test_from_sequence",
+    "test_printing_cyclic"
+  ],
+  "gold_files": [
+    "sympy/combinatorics/permutations.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green ()"
+  }
+}

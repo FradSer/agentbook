@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 """Build the A/B benchmark: real SWE-bench Verified instances Haiku 4.5 may fail.
 
-The tasks are real sympy/sympy GitHub issues (no training-data shortcut) living
-in a large unfamiliar codebase, and -- as in real SWE-bench -- the grading test
-is never placed in the agent's workspace, so there is no test oracle to iterate
-against. This isolates the question the experiment exists to answer: does
-agentbook's recorded knowledge help a coding agent on tasks it genuinely cannot
-solve on its own?
+The tasks are real GitHub issues (no training-data shortcut) living in large
+unfamiliar codebases, and -- as in real SWE-bench -- the grading test is never
+placed in the agent's workspace, so there is no test oracle to iterate against.
+This isolates the question the experiment exists to answer: does agentbook's
+recorded knowledge help a coding agent on tasks it genuinely cannot solve on its
+own?
 
-Substrate: sympy/sympy at versions 1.9-1.12 -- modern enough to run from source
-under one Python 3.10 venv (mpmath + pytest), no Docker.
+Substrate: SWE-bench Verified instances across multiple Python repos, modern
+enough to run from source under one Python 3.10 venv, no Docker.
 
 For each instance:
-  tasks/<id>/repo/    sympy source at base_commit, as a fresh single-commit git
-                      repo (no upstream history -> no fix-commit leakage)
+  tasks/<id>/repo/    source at base_commit, as a fresh single-commit git repo
+                      (no upstream history -> no fix-commit leakage)
   tasks/<id>/BUG.md   the GitHub issue text (problem_statement) -- the symptom
   tasks/<id>/META.json
   _oracle/<id>/test.patch, gold.patch   never shown to the agent
@@ -35,13 +35,32 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "_data" / "verified.parquet"
-SYMPY = ROOT / "_repo" / "sympy"
+REPO_DIR = ROOT / "_repo"
 VENV_PY = ROOT / ".venv" / "bin" / "python"
 TASKS = ROOT / "tasks"
 ORACLE = ROOT / "_oracle"
 VERIFY = ROOT / "_verify"
-VERSIONS = {"1.4", "1.5", "1.6", "1.7", "1.8", "1.9", "1.10", "1.11", "1.12"}
 TIMEOUT = 600
+
+# Repos included in the benchmark, with their version filters.
+REPOS = {
+    "sympy/sympy": {
+        "versions": {
+            "1.0",
+            "1.1",
+            "1.2",
+            "1.4",
+            "1.5",
+            "1.6",
+            "1.7",
+            "1.8",
+            "1.9",
+            "1.10",
+            "1.11",
+            "1.12",
+        }
+    },
+}
 
 
 def sh(cmd, cwd=None, timeout=TIMEOUT, shell=False):
@@ -54,8 +73,14 @@ def load_rows() -> list[dict]:
     import pandas as pd
 
     df = pd.read_parquet(DATA)
-    df = df[(df["repo"] == "sympy/sympy") & (df["version"].isin(VERSIONS))]
-    return df.sort_values("instance_id").to_dict("records")
+    masks = []
+    for repo, cfg in REPOS.items():
+        masks.append((df["repo"] == repo) & (df["version"].isin(cfg["versions"])))
+    mask = masks[0]
+    for m in masks[1:]:
+        mask = mask | m
+    df = df[mask]
+    return df.sort_values(["repo", "instance_id"]).to_dict("records")
 
 
 def patched_files(patch: str) -> list[str]:
@@ -88,12 +113,18 @@ def resolve_nodes(
     return nodes
 
 
-def make_workspace(base_commit: str, dest: Path) -> None:
-    """Snapshot sympy at base_commit into `dest` as a fresh single-commit repo."""
+def repo_path(repo: str) -> Path:
+    """Local clone path for a given repo slug."""
+    return REPO_DIR / repo.split("/")[-1]
+
+
+def make_workspace(repo: str, base_commit: str, dest: Path) -> None:
+    """Snapshot repo at base_commit into `dest` as a fresh single-commit repo."""
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
-    r = sh(f"git -C {SYMPY} archive {base_commit} | tar -x -C {dest}", shell=True)
+    src = repo_path(repo)
+    r = sh(f"git -C {src} archive {base_commit} | tar -x -C {dest}", shell=True)
     if r.returncode != 0:
         raise RuntimeError(f"archive failed: {r.stderr}")
     sh(["git", "init", "-q"], cwd=dest)
@@ -125,7 +156,16 @@ def red_verify(task_dir: Path, test_patch: str, gold: str, nodes: list[str]) -> 
     """A task is well-formed iff F2P fails on base+test_patch and passes +gold."""
     if VERIFY.exists():
         shutil.rmtree(VERIFY)
-    shutil.copytree(task_dir / "repo", VERIFY)
+    # Copy source files only (skip .git to avoid object-store race conditions);
+    # re-init a fresh repo so git apply works cleanly.
+    shutil.copytree(
+        task_dir / "repo", VERIFY, ignore=shutil.ignore_patterns(".git", "__pycache__")
+    )
+    sh(["git", "init", "-q"], cwd=VERIFY)
+    sh(["git", "config", "user.email", "bench@local"], cwd=VERIFY)
+    sh(["git", "config", "user.name", "bench"], cwd=VERIFY)
+    sh(["git", "add", "-A"], cwd=VERIFY)
+    sh(["git", "commit", "-q", "-m", "base"], cwd=VERIFY)
     (VERIFY / "_t.patch").write_text(test_patch)
     ap_test = sh(["git", "apply", "_t.patch"], cwd=VERIFY)
     if ap_test.returncode != 0:
@@ -149,13 +189,17 @@ def red_verify(task_dir: Path, test_patch: str, gold: str, nodes: list[str]) -> 
 
 def main() -> None:
     rows = load_rows()
-    print(f"selected {len(rows)} sympy instances at versions {sorted(VERSIONS)}\n")
+    repo_summary = ", ".join(
+        f"{r} ({len([x for x in rows if x['repo'] == r])})" for r in REPOS
+    )
+    print(f"selected {len(rows)} instances across repos: {repo_summary}\n")
     TASKS.mkdir(exist_ok=True)
     ORACLE.mkdir(exist_ok=True)
 
     manifest = []
     for i, row in enumerate(rows, 1):
         iid = row["instance_id"]
+        repo = row["repo"]
         f2p = json.loads(row["FAIL_TO_PASS"])
         p2p = json.loads(row["PASS_TO_PASS"])
         tfiles = patched_files(row["test_patch"])
@@ -169,6 +213,7 @@ def main() -> None:
                 manifest.append(
                     {
                         "instance_id": iid,
+                        "repo": old["repo"],
                         "version": old["version"],
                         "difficulty": old["difficulty"],
                     }
@@ -177,12 +222,12 @@ def main() -> None:
                 continue
         task_dir.mkdir(exist_ok=True)
         print(
-            f"[{i}/{len(rows)}] {iid} (v{row['version']}, {row['difficulty']}) ... ",
+            f"[{i}/{len(rows)}] {iid} ({repo} v{row['version']}, {row['difficulty']}) ... ",
             end="",
             flush=True,
         )
         try:
-            make_workspace(row["base_commit"], task_dir / "repo")
+            make_workspace(repo, row["base_commit"], task_dir / "repo")
             nodes = resolve_nodes(task_dir / "repo", tfiles, f2p)
             odir = ORACLE / iid
             odir.mkdir(exist_ok=True)
@@ -192,9 +237,10 @@ def main() -> None:
         except Exception as exc:  # noqa: BLE001
             verdict = {"ok": False, "reason": f"{type(exc).__name__}: {exc}"}
 
+        repo_name = repo.split("/")[-1]
         (task_dir / "BUG.md").write_text(
             f"# {iid}\n\n{row['problem_statement']}\n\n"
-            "---\nFix the bug in the sympy source. Do not edit any test file.\n"
+            f"---\nFix the bug in the {repo_name} source. Do not edit any test file.\n"
         )
         meta = {
             "instance_id": iid,
@@ -214,6 +260,7 @@ def main() -> None:
             manifest.append(
                 {
                     "instance_id": iid,
+                    "repo": row["repo"],
                     "version": str(row["version"]),
                     "difficulty": row["difficulty"],
                 }
@@ -228,7 +275,10 @@ def main() -> None:
         f"\n{len(manifest)}/{len(rows)} tasks RED-verified -> {TASKS / 'manifest.json'}"
     )
     for e in manifest:
-        print(f"  {e['instance_id']:28s} v{e['version']:5s} {e['difficulty']}")
+        repo_short = e.get("repo", "").split("/")[-1]
+        print(
+            f"  {e['instance_id']:35s} [{repo_short:15s}] v{e['version']:5s} {e['difficulty']}"
+        )
 
 
 if __name__ == "__main__":

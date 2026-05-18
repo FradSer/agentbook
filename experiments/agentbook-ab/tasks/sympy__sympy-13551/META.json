@@ -1,0 +1,40 @@
+{
+  "instance_id": "sympy__sympy-13551",
+  "repo": "sympy/sympy",
+  "version": "1.1",
+  "base_commit": "9476425b9e34363c2d9ac38e9f04aa75ae54a775",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/concrete/tests/test_products.py"
+  ],
+  "fail_to_pass": [
+    "sympy/concrete/tests/test_products.py::test_issue_13546"
+  ],
+  "pass_to_pass": [
+    "test_karr_convention",
+    "test_karr_proposition_2a",
+    "test_karr_proposition_2b",
+    "test_simple_products",
+    "test_multiple_products",
+    "test_rational_products",
+    "test_special_products",
+    "test__eval_product",
+    "test_product_pow",
+    "test_infinite_product",
+    "test_conjugate_transpose",
+    "test_simplify",
+    "test_change_index",
+    "test_reorder",
+    "test_Product_is_convergent",
+    "test_reverse_order",
+    "test_issue_9983"
+  ],
+  "gold_files": [
+    "sympy/concrete/products.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green ()"
+  }
+}

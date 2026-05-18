@@ -1,0 +1,27 @@
+{
+  "instance_id": "sympy__sympy-13974",
+  "repo": "sympy/sympy",
+  "version": "1.1",
+  "base_commit": "84c125972ad535b2dfb245f8d311d347b45e5b8a",
+  "difficulty": "15 min - 1 hour",
+  "test_files": [
+    "sympy/physics/quantum/tests/test_tensorproduct.py"
+  ],
+  "fail_to_pass": [
+    "sympy/physics/quantum/tests/test_tensorproduct.py::test_tensor_product_simp"
+  ],
+  "pass_to_pass": [
+    "test_tensor_product_abstract",
+    "test_tensor_product_expand",
+    "test_tensor_product_commutator",
+    "test_issue_5923"
+  ],
+  "gold_files": [
+    "sympy/physics/quantum/tensorproduct.py"
+  ],
+  "verified": false,
+  "verdict": {
+    "ok": false,
+    "reason": "gold did not turn F2P green ()"
+  }
+}
