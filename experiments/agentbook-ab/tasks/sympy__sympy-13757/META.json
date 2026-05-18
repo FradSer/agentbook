@@ -9,7 +9,7 @@
     "sympy/polys/tests/test_polytools.py"
   ],
   "fail_to_pass": [
-    "sympy/core/tests/test_match.py::test_issue_13079"
+    "sympy/polys/tests/test_polytools.py::test_issue_13079"
   ],
   "pass_to_pass": [
     "test_symbol",

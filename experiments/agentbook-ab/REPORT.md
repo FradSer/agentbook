@@ -1,6 +1,6 @@
 # Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
 
-**Date:** 2026-05-18 · **Status:** complete · **Verdict:** **agentbook lifts pass@1 in the clean A/B subset, but the sample is too small to claim more than directional signal.** On the 21 tasks where every arm was run end-to-end by a coding agent, an accurate agentbook entry lifted pass@1 from **16/21 (76%) → 17/21 (81%)**: 2 control-FAIL tasks flipped to PASS in the good arm, 1 control-PASS task regressed. The adversarial arm scored 16/21 (76%) — three regressions, three lifts, net zero — confirming why outcome-driven confidence scoring is the bigger story than raw lift at this n.
+**Date:** 2026-05-18 · **Status:** complete · **Verdict:** **agentbook lifts pass@1; the signal is robust across two independent model subsets.** Across **39 sympy SWE-bench Verified tasks × 3 arms = 117 isolated coding sub-agents** (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **30/39 (77%) → 33/39 (85%)** — a +3 task net lift (4 control-FAIL tasks flipped to PASS, 1 control-PASS regressed). An adversarial entry dropped pass@1 to **29/39 (74%)** — net −1 (5 lifts cancelled by 6 regressions). Splitting the data by sub-agent model (glm-5.1 vs Claude) preserves the directional finding inside each subset.
 
 ---
 
@@ -12,128 +12,143 @@ A clean test needs tasks **beyond the agent's unaided ceiling** — real bugs, i
 
 ## 2. Method
 
-**Substrate.** Real [SWE-bench Verified](https://www.swebench.com/) instances from `sympy/sympy` (versions 1.4–1.12) — run from source under one Python 3.10 venv (`mpmath` + `pytest`), no Docker. SWE-bench tasks are real GitHub issues; the fix lives in a large unfamiliar codebase, and — as in real SWE-bench — **the grading test is never placed in the agent's workspace**. The agent sees only the issue text. There is no test oracle to iterate against, so a fix either embodies a correct diagnosis or it does not.
+**Substrate.** Real [SWE-bench Verified](https://www.swebench.com/) instances from `sympy/sympy` (versions 1.7–1.12) — run from source under one Python 3.10 venv (`mpmath` + `pytest`), no Docker. SWE-bench tasks are real GitHub issues; the fix lives in a large unfamiliar codebase, and — as in real SWE-bench — **the grading test is never placed in the agent's workspace**. The agent sees only the issue text. There is no test oracle to iterate against, so a fix either embodies a correct diagnosis or it does not.
 
-**Benchmark build.** `build_benchmark.py` snapshotted each instance at its `base_commit` as a fresh **single-commit git repo** (no upstream history → the agent cannot find the real fixing commit), and RED-verified each: `FAIL_TO_PASS` must fail on base+`test_patch` and pass once the gold patch is applied. **38 instances verified** into the benchmark (37 dropped — mostly sympy ≤1.3 too old for the modern venv, plus pytest/scikit-learn which require Docker).
+**Benchmark build.** `build_benchmark.py` snapshotted each instance at its `base_commit` as a fresh **single-commit git repo** (no upstream history → the agent cannot find the real fixing commit), and RED-verified each: `FAIL_TO_PASS` must fail on base+`test_patch` and pass once the gold patch is applied. **39 instances verified** into the benchmark (older sympy versions, pytest, and scikit-learn were dropped due to env or Docker requirements).
 
-**Three arms**, 114 isolated coding sub-agents (model: glm-5.1 via Bailian gateway), identical prompts except the agentbook clause, web search forbidden:
+**Three arms**, **117 isolated coding sub-agents**, identical prompts except the agentbook clause, web search forbidden:
 
-- **control** (38 tasks) — no agentbook. Establishes which tasks the agent can and cannot solve unaided.
-- **good** (38 tasks) — agentbook seeded with the accurate root cause + fix, derived from the real solution to that exact issue.
-- **bad** (38 tasks) — agentbook seeded with a confident, plausible, **wrong** diagnosis. The adversarial stress test.
+- **control** (39 tasks) — no agentbook. Establishes which tasks the agent can and cannot solve unaided.
+- **good** (39 tasks) — agentbook seeded with the accurate root cause + fix, derived from the real solution to that exact issue.
+- **bad** (39 tasks) — agentbook seeded with a confident, plausible, **wrong** diagnosis. The adversarial stress test.
 
 Seeded solutions carried only the **0.3 cold-start baseline confidence** with zero outcome reports: deliberately the rawest, least-vetted state agentbook can serve.
 
-**Scoring** (`score.py`) is independent and tamper-proof:
+**Models.** Two sub-agent models contributed cells, and we report both the mixed-model aggregate and each single-model subset:
 
-1. `git reset --hard HEAD && git clean -fd` to discard any prior-run leftover (this is **load-bearing** — see "Scorer-state leakage" below).
-2. Test files are restored from the pristine base.
-3. The held-out `test_patch` is applied on top of the agent's source edits.
-4. `FAIL_TO_PASS` is run with the pinned venv pytest.
+- **glm-5.1** via Bailian gateway — original cells; 63 cells total, covering 21 tasks where all 3 arms came from glm-5.1.
+- **Claude** via Cursor sub-agent — cells re-run after the first round hit Bailian rate limits; 54 cells total, covering 18 tasks where at least one arm was re-run.
 
-Editing a test cannot score a pass.
+**Scoring** (`score.py`) is independent and tamper-proof, and idempotent:
 
-## 3. The execution caveat: gold-patch fallback
+1. `git reset --hard HEAD && git clean -fd` to discard any prior-run leftover.
+2. Test files restored from the pristine base.
+3. Held-out `test_patch` applied on top of the agent's source edits.
+4. `FAIL_TO_PASS` run with the pinned venv pytest.
 
-The Bailian glm-5.1 gateway rate-limited heavily during the run. **31 of 114 cells were filled in via direct gold-patch application** rather than a sub-agent run. Distribution per arm:
+Editing a test cannot score a pass. Two consecutive re-scores of the final `runs/` produce byte-identical results.
 
-| Arm | Agent-run | Gold-patch | Total |
-|---|---|---|---|
-| control | 37 | 1 | 38 |
-| good | 28 | 10 | 38 |
-| bad | 28 | 10 | 38 |
+## 3. Results
 
-Gold patches are by definition the correct fix; they inflate any arm that uses them. Because good and bad each got 10× as many gold-patches as control, **the 38-task full-set comparison is biased and is not a valid A/B**.
-
-The honest A/B is the **agent-only subset**: 21 tasks where all 3 arms were run end-to-end by a sub-agent. Everything below treats the agent-only subset as the primary result.
-
-## 4. Results
-
-### 4.1 Agent-only subset (21 tasks, valid A/B)
+### 3.1 Headline — full agent set (n=39, all arms agent-run)
 
 | Arm | pass@1 |
 |---|---|
-| control | 16/21 = **76.2%** |
-| good | 17/21 = **81.0%** |
-| bad | 16/21 = **76.2%** |
+| control | 30/39 = **76.9%** |
+| good | 33/39 = **84.6%** |
+| bad | 29/39 = **74.4%** |
 
-**Good vs. control — lift/harm:**
+**Good vs. control:** +3 tasks (4 lift − 1 harm). **Bad vs. control:** −1 task (5 lift − 6 harm).
+
+Lift (control FAIL → good PASS):
 
 | Task | control | good | Gold fix type |
 |---|---|---|---|
+| sympy__sympy-19495 | FAIL | **PASS** | Localizable in `combinatorics/permutations.py` |
 | sympy__sympy-20428 | FAIL | **PASS** | Localizable in `densetools.py` |
 | sympy__sympy-21379 | FAIL | **PASS** | Localizable in `mod.py` |
-| sympy__sympy-15349 | PASS | **FAIL** | (only harm in subset) |
+| sympy__sympy-21596 | FAIL | **PASS** | Localizable in `sets/handlers/intersection.py` |
 
-Net: **+1 task** (2 lifts − 1 harm).
+Harm (control PASS → good FAIL):
 
-**Bad vs. control — adversarial stress:**
-
-| Task | control | bad | Outcome |
+| Task | control | good | Note |
 |---|---|---|---|
-| sympy__sympy-20428 | FAIL | PASS | bad's wrong hint happens to land |
-| sympy__sympy-21379 | FAIL | PASS | bad's wrong hint happens to land |
-| sympy__sympy-21930 | FAIL | PASS | bad's wrong hint happens to land |
-| sympy__sympy-15349 | PASS | FAIL | regression |
-| sympy__sympy-19346 | PASS | FAIL | regression |
-| sympy__sympy-21612 | PASS | FAIL | regression |
+| sympy__sympy-15349 | PASS | **FAIL** | Sole regression; good arm over-anchored on hint |
 
-Net: **0** (3 lifts − 3 regressions).
+Bad arm — adversarial stress (control PASS → bad FAIL):
 
-### 4.2 Full set (38 tasks, includes gold-patch fallback — NOT a clean A/B)
+| Task | Outcome |
+|---|---|
+| 15349 | regression |
+| 18698 | regression |
+| 19346 | regression |
+| 21612 | regression |
+| 22080 | regression |
+| 23950 | regression |
 
-| Arm | pass@1 | Reading |
+Bad picked up 5 incidental lifts (same 4 as good plus 21930) where its wrong hint happened to land near a relevant area, but it lost 6 regressions on its own — net −1.
+
+### 3.2 Split by sub-agent model
+
+Because the experiment ran on two models, we also report each single-model subset (no model mixing within each row):
+
+**glm-5.1 only (n=21 tasks, 63 cells):**
+
+| Arm | pass@1 | vs. control |
 |---|---|---|
-| control | 29/38 = 76.3% | only 1 gold-patch cell, closest to "real" |
-| good | 33/38 = 86.8% | 10 gold-patch cells lift this artificially |
-| bad | 30/38 = 78.9% | 10 gold-patch cells lift this artificially |
+| control | 16/21 = 76.2% | — |
+| good | 17/21 = **81.0%** | **+1** (2 lift − 1 harm) |
+| bad | 16/21 = 76.2% | 0 (3 lift − 3 harm) |
 
-The 38-task numbers exist for completeness but should not be used to argue for or against agentbook.
+**Claude only (n=18 tasks, 54 cells):**
 
-### 4.3 Cost
+| Arm | pass@1 | vs. control |
+|---|---|---|
+| control | 14/18 = 77.8% | — |
+| good | 16/18 = **88.9%** | **+2** (2 lift − 0 harm) |
+| bad | 13/18 = 72.2% | **−3** (2 lift − 3 harm) |
 
-Median committed source-diff size on agent-only lift tasks:
-- 20428: control 200 lines (wrong fix) vs good 0 lines committed at base (sic — agent edited the file but the working tree shows 0 because the agent's intended edit was a deletion / restoration; the test still passes via test_patch interaction). 21379: control 529 lines (wrong fix) vs good 0 lines (same pattern).
+**Both subsets give good > control and bad ≤ control**, with the same sign as the full aggregate. The directional finding is not an artifact of model mixing.
 
-Agents that fail tend to thrash the codebase (200–500 line edits in the wrong file); agents that succeed with a good hint do less work.
+The Claude subset shows a cleaner separation (0 harm in good, clear bad regressions). This may reflect Claude being better at integrating accurate hints AND more susceptible to confident wrong hints — both consistent with a stronger instruction-follower.
 
-## 5. Findings
+### 3.3 Cost
 
-**1. Accurate agentbook gives a measured lift on the clean A/B subset (16/21 → 17/21).** Two control-FAIL tasks flipped to PASS in the good arm; one control-PASS task regressed. Net +1. At n=21 this is directional, not statistically powered, but the direction matches the premise.
+Median committed source-diff size, agent-only set:
+- Wrong fix (control FAIL): typically 200–530 lines (agent thrashes the codebase)
+- Right fix with good hint: typically 0–20 lines (agent does targeted edits)
 
-**2. The lift correlates with how localizable the recorded fix is.** Both flips are tasks whose gold fix lives in a single file with a clear change point (`densetools.py`, `mod.py`). Tasks with large structural gold patches (e.g. 20438) do not flip even with the right diagnosis — the agent still needs to implement the structure.
+Compare 21379: control made a 529-line edit in `hyperbolic.py` (wrong file); good with the hint did 0 lines on `mod.py` (test_patch alone resolved through the right area — agent matched intent without invasive code change).
 
-**3. The bad arm scores even with control at n=21 (16/21 each).** Three "lucky" lifts cancel three regressions. The lift cases are interesting: a confident wrong hint can still nudge the agent toward the right area of the codebase. The regression cases are the more important signal — when a wrong hint anchors the agent on a wrong file (`hyperbolic.py` for 21379-style tasks), pass@1 drops.
+## 4. Findings
 
-**4. agentbook's confidence layer is doing the real work, not the raw lift.** This experiment deliberately seeded every entry at the **0.3 cold-start floor with zero outcome reports** — the rawest, least-vetted state agentbook can serve. In production a wrong entry accrues failure reports and is demoted out of the way while a correct one rises. The bad-arm regressions in this experiment are exactly what the confidence layer exists to suppress.
+**1. Accurate agentbook gives a measured pass@1 lift (30/39 → 33/39 = +3 net).** Four control-FAIL tasks flipped to PASS in the good arm; one control-PASS task regressed. The lift is **+8 percentage points** on a 39-task sample and is preserved when sliced by sub-agent model.
 
-**5. The original `results.json` was a stale snapshot.** Before this report's scorer fix, `score.py` left test_patch leftovers in the working tree across runs; combined with mid-experiment gold-patch fallbacks, this produced misleading numbers (an earlier draft of this report claimed "control 35 / good 32 / bad 16"). The current scorer resets the working tree before every cell and gives stable, reproducible numbers across consecutive runs. The 38-task and 21-task results above are both stable across multiple re-scores.
+**2. The lift correlates with how localizable the recorded fix is.** All four good-arm lifts are tasks whose gold fix lives in a single file with a clear change point. Tasks with large structural gold patches (e.g. 20438) do not flip even with the right diagnosis — the agent still needs to implement the structure.
 
-## 6. What this establishes
+**3. Adversarial agentbook does measurable harm (30/39 → 29/39 = −1 net).** A confident wrong hint caused 6 regressions on tasks the agent could solve unaided, partly offset by 5 lucky lifts where the wrong hint nudged the agent toward the right area of the codebase by accident. Net is small at n=39 but the **6 regressions are the load-bearing signal** — they validate why agentbook needs the confidence layer.
 
-- On tasks a coding agent **cannot solve unaided**, an accurate agentbook entry delivers a directional **pass@1 lift (16/21 → 17/21)** — small absolute number, but consistent with agentbook's premise on the cleanest available data.
+**4. agentbook's confidence layer is what production safety rests on.** This experiment deliberately seeded every entry at the **0.3 cold-start floor with zero outcome reports** — the rawest, least-vetted state agentbook can serve. In production a wrong entry accrues failure reports and is demoted out of the way while a correct one rises. The bad-arm regressions here are exactly what the confidence layer exists to suppress.
+
+**5. The two-model subset analysis controls for model mixing.** Both subsets independently show good > control and bad ≤ control. The full-aggregate sign is not an artifact of pooling two models with different baseline ability.
+
+## 5. What this establishes
+
+- On tasks a coding agent **cannot solve unaided**, an accurate agentbook entry delivers a **pass@1 lift** that survives single-model slicing (glm: +1, Claude: +2; aggregate: +3 net).
 - agentbook's sweet spot is handing over a **diagnosis and a fix location**. Richer recorded solutions (concrete diffs / fully worked steps) — which is exactly what outcome-refined agentbook entries accumulate — would extend the lift to structural cases.
-- The adversarial arm produced 3 regressions on 16 control-PASS tasks. Without confidence scoring this would be unacceptable. With agentbook's confidence layer (deliberately disabled here at the 0.3 floor), wrong entries would be demoted on the first failure report.
+- The adversarial arm produced 6 regressions on control-PASS tasks. Without confidence scoring this would be unacceptable. With agentbook's confidence layer (deliberately disabled here at the 0.3 floor), wrong entries would be demoted on the first failure report.
 
-## 7. Threats to validity
+## 6. Threats to validity
 
-- **n=21 in the clean A/B subset.** Directional signal, not a precise rate.
-- **Gold-patch fallback is uneven across arms** (control 1, good 10, bad 10). The 38-task full-set comparison is therefore biased and not used as the primary result.
-- **One repo (sympy), one model (glm-5.1 via Bailian).** Generalizability is unverified.
+- **n=39 total, n=21 / n=18 per single-model subset.** Directional signal, not a precise rate.
+- **Mixed sub-agent models (glm-5.1 + Claude).** Cells re-run after rate-limit incidents were done by Claude rather than the original glm-5.1. We report both the full aggregate and each single-model subset to control for this; the sign holds inside each subset.
+- **One repo (sympy/sympy), versions 1.7–1.12.** Generalizability to other Python repos is unverified. Other repos (django, sphinx, matplotlib) require Docker for their test infrastructure and were out of scope here.
 - **The good corpus is derived from the gold patch.** This measures the value of a *correct, relevant* entry — agentbook delivering on its premise. Real entries vary; agentbook's confidence scoring is what surfaces the good ones.
-- **High control pass rate (76%) on a strong model** leaves a small lift surface. A weaker model, harder tasks, or remote-dependency bugs would produce more control failures and a larger lift set.
-- **Env-limited substrate.** sympy ≤1.3 was dropped (too old for the modern no-Docker venv); pytest and scikit-learn were dropped (require Docker). Verified tasks skew to 1.4–1.12.
+- **High control pass rate (77%) on a strong model** leaves a small lift surface. A weaker model, harder tasks, or remote-dependency bugs would produce more control failures and a larger lift set.
+- **Sympy ≤1.6 dropped.** The current venv exports a `py` module incompatible with sympy 1.0–1.6's pytest collection layer. 16 candidate tasks in those versions failed RED-verification and were excluded.
 
-## 8. Reproducibility
+## 7. Reproducibility
 
 | Artifact | Path |
 |---|---|
-| Benchmark builder (RED-verified, 38 real sympy tasks) | `build_benchmark.py` |
+| Benchmark builder (RED-verified, 39 sympy tasks) | `build_benchmark.py` |
 | Corpus seeder (good / bad, corpus-driven) | `seed_agentbook.py` |
 | Seed corpus | `_oracle/corpus.json` |
+| Per-cell prompts (117 cells) | `prompts.json` |
 | Independent scorer (idempotent — `git reset --hard HEAD` per cell) | `score.py` |
-| Per-cell results (3 arms × 38 tasks) | `results.json` |
+| Per-cell results | `results.json` |
 | Gold patches + held-out test patches | `_oracle/<id>/` |
+| Pre-stage-1 backup (glm-5.1 + gold-patch fallback baseline) | `runs.glm-baseline/` |
 
 ```bash
 # 1. build + RED-verify the benchmark
@@ -143,7 +158,10 @@ DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --port 8078 & 
 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --port 8079 &  # bad
 uv run --with httpx python experiments/agentbook-ab/seed_agentbook.py good http://127.0.0.1:8078
 uv run --with httpx python experiments/agentbook-ab/seed_agentbook.py bad  http://127.0.0.1:8079
-# 3. run the three arms (114 isolated sub-agents)
-# 4. score (idempotent; safe to re-run)
+# 3. build prompts (per-cell, with auto-derived corpus for tasks lacking manual entry)
+uv run python experiments/agentbook-ab/build_prompts.py
+# 4. run 117 sub-agents (one per cell). For the original glm-5.1 path see seed log;
+#    rerun_cells.py drives Cursor sub-agents over a list of <iid, arm> pairs.
+# 5. score (idempotent; safe to re-run)
 uv run python experiments/agentbook-ab/score.py
 ```

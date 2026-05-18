@@ -10,7 +10,7 @@
   ],
   "fail_to_pass": [
     "sympy/simplify/tests/test_fu.py::test__TR56",
-    "sympy/simplify/tests/test_fu.py::test_issue_17137"
+    "sympy/simplify/tests/test_simplify.py::test_issue_17137"
   ],
   "pass_to_pass": [
     "test_TR1",
@@ -87,6 +87,6 @@
   "verified": false,
   "verdict": {
     "ok": false,
-    "reason": "gold did not turn F2P green (2 warnings in 0.01s)"
+    "reason": "gold did not turn F2P green (2 warnings, 1 error in 0.05s)"
   }
 }

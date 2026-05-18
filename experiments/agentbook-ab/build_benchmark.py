@@ -89,15 +89,34 @@ def patched_files(patch: str) -> list[str]:
 
 
 def resolve_nodes(
-    workspace: Path, test_files: list[str], names: list[str]
+    workspace: Path, test_files: list[str], names: list[str], test_patch: str = ""
 ) -> list[str]:
-    """Map each FAIL_TO_PASS name to a `path::name` pytest node id."""
+    """Map each FAIL_TO_PASS name to a `path::name` pytest node id.
+
+    Searches both the base workspace and the test_patch text, since some
+    FAIL_TO_PASS tests are NEW functions added by test_patch itself and won't
+    exist in base. For multi-file test_patch tasks this matters: a wrong
+    test_files[0] fallback yields a non-existent node and pytest errors.
+    """
+    # Parse test_patch to learn which test_file contains which `+def test_<name>` line.
+    patch_owner: dict[str, str] = {}
+    if test_patch:
+        current_file: str | None = None
+        for line in test_patch.splitlines():
+            if line.startswith("+++ b/"):
+                current_file = line[len("+++ b/") :]
+            elif current_file and re.match(r"^\+\s*def\s+(\w+)\b", line):
+                m = re.match(r"^\+\s*def\s+(\w+)\b", line)
+                if m:
+                    patch_owner.setdefault(m.group(1), current_file)
+
     nodes = []
     for name in names:
         if "::" in name:
             nodes.append(name)
             continue
         hit = None
+        # Prefer base-workspace match (existing test extended by test_patch).
         for tf in test_files:
             src = workspace / tf
             if src.exists() and re.search(
@@ -105,6 +124,9 @@ def resolve_nodes(
             ):
                 hit = tf
                 break
+        # Then test_patch additions (new tests).
+        if hit is None and name in patch_owner:
+            hit = patch_owner[name]
         nodes.append(
             f"{hit}::{name}"
             if hit
@@ -228,7 +250,7 @@ def main() -> None:
         )
         try:
             make_workspace(repo, row["base_commit"], task_dir / "repo")
-            nodes = resolve_nodes(task_dir / "repo", tfiles, f2p)
+            nodes = resolve_nodes(task_dir / "repo", tfiles, f2p, row["test_patch"])
             odir = ORACLE / iid
             odir.mkdir(exist_ok=True)
             (odir / "test.patch").write_text(row["test_patch"])
