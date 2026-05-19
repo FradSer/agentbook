@@ -3,7 +3,6 @@
 
   uv run python -m benchmark survey
   uv run python -m benchmark manifest eval-v2
-  uv run python -m benchmark simulate-corpus
   uv run python -m benchmark prompts --preset eval-v2
   uv run python -m benchmark prepare --prompts prompts.v2.json
   uv run python -m benchmark score --preset eval-v2
@@ -25,7 +24,7 @@ if str(EXP_ROOT) not in sys.path:
 
 from benchmark.datasets import print_survey  # noqa: E402
 from benchmark.manifest import filter_manifest, write_manifest  # noqa: E402
-from benchmark.paths import CORPUS_SIMULATED, DEFAULT_MANIFEST, EXP_ROOT as ROOT, RUNS  # noqa: E402
+from benchmark.paths import DEFAULT_MANIFEST, EXP_ROOT as ROOT, RUNS  # noqa: E402
 
 
 def _run_script(script: str, *args: str) -> None:
@@ -48,16 +47,6 @@ def cmd_manifest(args: argparse.Namespace) -> None:
             print(f"  {e['instance_id']}")
         if len(filtered) > 5:
             print(f"  ... +{len(filtered) - 5} more")
-
-
-def cmd_simulate_corpus(args: argparse.Namespace) -> None:
-    _run_script(
-        "simulate_corpus.py",
-        "--manifest",
-        str(args.manifest),
-        "-o",
-        str(args.output),
-    )
 
 
 def cmd_prompts(args: argparse.Namespace) -> None:
@@ -183,11 +172,6 @@ def main() -> None:
     m.add_argument("-o", "--output", type=Path)
     m.add_argument("--dry-run", action="store_true")
     m.set_defaults(func=cmd_manifest)
-
-    s = sub.add_parser("simulate-corpus", help="Build corpus.simulated.json")
-    s.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    s.add_argument("-o", "--output", type=Path, default=CORPUS_SIMULATED)
-    s.set_defaults(func=cmd_simulate_corpus)
 
     p = sub.add_parser("prompts", help="Build prompts JSON (requires --use-api)")
     p.add_argument("--preset", type=str, default="")

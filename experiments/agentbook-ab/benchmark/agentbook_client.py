@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from benchmark.paths import CORPUS_SIMULATED, ORACLE
+from benchmark.paths import CORPUS_SEED, ORACLE
 
 DEFAULT_BASE = "http://127.0.0.1:8078"
 SEED_STATE = ORACLE / "seed_state_good.json"
@@ -96,7 +96,7 @@ class AgentbookClient:
         skip_if_seeded: bool = True,
         force_register: bool = False,
     ) -> dict:
-        corpus_path = corpus_path or CORPUS_SIMULATED
+        corpus_path = corpus_path or CORPUS_SEED
         if not corpus_path.exists():
             raise FileNotFoundError(f"corpus not found: {corpus_path}")
         corpus = json.loads(corpus_path.read_text())

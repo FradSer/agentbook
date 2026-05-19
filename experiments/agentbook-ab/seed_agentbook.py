@@ -24,7 +24,7 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
 from benchmark.agentbook_client import AgentbookClient  # noqa: E402
-from benchmark.paths import CORPUS_SIMULATED, ORACLE  # noqa: E402
+from benchmark.paths import ORACLE  # noqa: E402
 
 CORPUS_SEED = ORACLE / "corpus.seed.json"
 
@@ -39,8 +39,8 @@ def main() -> None:
     ap.add_argument(
         "--corpus",
         type=Path,
-        default=CORPUS_SEED if CORPUS_SEED.exists() else CORPUS_SIMULATED,
-        help="Corpus JSON (default: corpus.seed.json or corpus.simulated.json)",
+        default=CORPUS_SEED,
+        help="Corpus JSON (default: corpus.seed.json from build_seed_corpus.py)",
     )
     ap.add_argument(
         "--force",
@@ -52,7 +52,7 @@ def main() -> None:
     if not args.corpus.exists():
         raise SystemExit(
             f"corpus missing: {args.corpus}\n"
-            "  uv run python experiments/agentbook-ab/simulate_corpus.py"
+            "  uv run python experiments/agentbook-ab/build_seed_corpus.py"
         )
 
     state_path = ORACLE / "seed_state_good.json"

@@ -25,5 +25,11 @@ recalls/
 prompts.api.json
 results.api.json
 cells_api.json
+cells_api_errors.json
+openrouter_batch.log
+openrouter_retry.log
+openrouter_run_results.json
+openrouter_retry_results.json
+results.openrouter.json
 tasks/manifest.*.json
 !tasks/manifest.json

@@ -1,0 +1,930 @@
+[
+  {
+    "instance_id": "sympy__sympy-14976",
+    "description": "lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precision results from `nsolve`, because the 232/3 isn't evaluated at full precision. Originally reported at https://github.com/sympy/sympy/pull/14971",
+    "error_signature": "lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precis",
+    "tags": [
+      "sympy",
+      "Mod",
+      "solve"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.printingcode, in `_print_Float()` (sympy/printing/pycode.py), not in unrelated modules. Symptom matches: lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precision results from `nsolve`, because the 232/3 isn't evaluated at full precision. \u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/printing/pycode.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    def _print_Rational(self, e):\n+        return '{0}({1})/{0}({2})'.format(\n+            self._module_format('mpmath.mpf'),\n+            e.p,\n+            e.q,\n+            )\n+\n```",
+      "steps": [
+        "Open sympy/printing/pycode.py and locate _print_Float",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "description": "`len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always returns zero for rank-0 arrays (scalars). I believe the correct value should be one, which is the number of elements of the iterator and the observed behaviour in numpy. In numpy we have the following: This was tested in sympy 1.2-rc1 running in Python 3.6.6 `len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always ret",
+    "error_signature": "`len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always r",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.tensor.array.dense_ndim_array, in `_new()` (sympy/tensor/array/dense_ndim_array.py), not in unrelated modules. Symptom matches: `len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always returns zero for rank-0 arrays (scalars). I believe the correct value should be o\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/tensor/array/dense_ndim_array.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        self._loop_size = functools.reduce(lambda x,y: x*y, shape, 1)\n```",
+      "steps": [
+        "Open sympy/tensor/array/dense_ndim_array.py and locate _new",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15345",
+    "description": "mathematica_code gives wrong output with Max If I run the code then I would expect the output `'Max[x,2]'` which is valid Mathematica code but instead I get `'Max(2, x)'` which is not valid Mathematica code.",
+    "error_signature": "mathematica_code gives wrong output with Max If I run the code then I would expe",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause: the Mathematica code printer (sympy/printing/mathematica.py) has no entry for Max/Min, so they are not routed through the bracketed function printer and come out as 'Max(2, x)'. Fix: add 'Max' and 'Min' to the printer's known_functions table, AND add `_print_MinMaxBase = _print_Function` to the printer class so Max/Min (which are MinMaxBase instances) dispatch to the _print_Function method that emits 'Max[...]'.",
+      "steps": [
+        "Open sympy/printing/mathematica.py",
+        "Add 'Max' and 'Min' entries to the known_functions table",
+        "Add `_print_MinMaxBase = _print_Function` to the MCodePrinter class"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15349",
+    "description": "Incorrect result with Quaterniont.to_rotation_matrix() https://github.com/sympy/sympy/blob/ab14b02dba5a7e3e4fb1e807fc8a954f1047a1a1/sympy/algebras/quaternion.py#L489 There appears to be an error in the `Quaternion.to_rotation_matrix()` output. The simplest example I created to illustrate the problem is as follows: One of the `sin(x)` functions should be negative. What was the reference of the original equations?",
+    "error_signature": "Incorrect result with Quaterniont.to_rotation_matrix() https://github.com/sympy/",
+    "tags": [
+      "sympy",
+      "Matrix"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.algebras.quaternion, in `to_rotation_matrix()` (sympy/algebras/quaternion.py), not in unrelated modules. Symptom matches: Incorrect result with Quaterniont.to_rotation_matrix() https://github.com/sympy/sympy/blob/ab14b02dba5a7e3e4fb1e807fc8a954f1047a1a1/sympy/algebras/quaternion.py\u2026 Fix: apply a minimal change along the lines of `m12 = 2*s*(q.c*q.d - q.b*q.a)` (see the patched module).\n\n**Verified fix locations:** sympy/algebras/quaternion.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        m12 = 2*s*(q.c*q.d - q.b*q.a)\n```",
+      "steps": [
+        "Open sympy/algebras/quaternion.py and locate to_rotation_matrix",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "description": "Mod(3*i, 2) unchanged `Mod(3*i, 2)` should reduce to `Mod(i, 2)` (as reported in [this post](https://stackoverflow.com/questions/53302669/sympify-does-not-simplify-remainder-as-expected)) and will do so with a change something like this: Returns correct result to Mod(3*i, 2). modified the mod.py to return correct answer to Mod(3*i, 2). added a test (All as suggested by @smichr ) Fixes #15493 Earlier ` sympify(3*k%2) ",
+    "error_signature": "Mod(3*i, 2) unchanged `Mod(3*i, 2)` should reduce to `Mod(i, 2)` (as reported in",
+    "tags": [
+      "sympy",
+      "Mod",
+      "diff"
+    ],
+    "good": {
+      "content": "Root cause is in Mod.eval (sympy/core/mod.py), the branch that handles a Mul dividend. Integer factors of the product are only reduced modulo q when the product already contains Mod terms; for a plain product like 3*i nothing is reduced. Fix: in the Mul branch, when q is an Integer other than 1, reduce every integer factor in the non-Mod term list modulo q (i % q), then rebuild p = Mul(*(non_mod_l + mod_l)) before the rest of the evaluation runs.",
+      "steps": [
+        "Open sympy/core/mod.py, find Mod.eval -> doit, the Mul handling block",
+        "When q.is_Integer and q is not S.One, map each integer factor in non_mod_l to (factor % q)",
+        "Rebuild p = Mul(*(non_mod_l + mod_l)) so the reduced coefficient is used"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "description": "Zero-argument Min() and Max() Right now `Min()` and `Max()` with no arguments raise `ValueError: The Max/Min functions must have arguments.`. It might be mathematically more convenient to have them return `oo` and `-oo`, respectively. See https://en.wikipedia.org/wiki/Empty_set#Extended_real_numbers for why these are valid answers mathematically.",
+    "error_signature": "ValueError: The Max/Min functions must have arguments",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.functions.elementary.miscellaneous, in `real_root()` (sympy/functions/elementary/miscellaneous.py), not in unrelated modules. Symptom matches: Zero-argument Min() and Max() Right now `Min()` and `Max()` with no arguments raise `ValueError: The Max/Min functions must have arguments.`. It might be mathem\u2026 Fix: apply the minimal source change in the patched module.",
+      "steps": [
+        "Open sympy/functions/elementary/miscellaneous.py and locate real_root",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "description": "is_zero is incorrect on complex integer `is_zero` should return `None` if it cannot decide, but should never give the wrong answer. However: This is causing errors in determining the rank of a matrix. See issue #15872 Fixing is_zero for complex numbers while Add References to other Issues or PRs #15873 Other comments: <!-- BEGIN RELEASE NOTES --> - core - Fix `is_zero` becoming `False` on some expressions with `Add`.",
+    "error_signature": "is_zero is incorrect on complex integer `is_zero` should return `None` if it can",
+    "tags": [
+      "sympy",
+      "Matrix"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.core.add, in `_eval_is_zero()` (sympy/core/add.py), not in unrelated modules. Symptom matches: is_zero is incorrect on complex integer `is_zero` should return `None` if it cannot decide, but should never give the wrong answer. However: This is causing err\u2026 Fix: return None from the assumption helper when the predicate cannot be decided, instead of running a fragile test.\n\n**Verified fix locations:** sympy/core/add.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        if len(nz) == 0 or len(nz) == len(self.args):\n```",
+      "steps": [
+        "Open sympy/core/add.py and locate _eval_is_zero",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "description": "A symbol ending with a number is made invisible when printing with MathML A variable with a number, such as x1, is made invisible when printing in a MathML format. `import sympy from sympy.printing.mathml import mathml x2, y, z = sympy.symbols('x2 y z') y = x2*z+x2**3 f = open('sympy_test.html', 'w') f.write('\\n') f.write('\\n') f.write('\\n') f.write('\\n') f.write(sympy.mathml(y, printer='presentation')+'\\n') f.write(",
+    "error_signature": "A symbol ending with a number is made invisible when printing with MathML A vari",
+    "tags": [
+      "sympy",
+      "printer"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.printing.mathml, in `_print_Sum()` (sympy/printing/mathml.py), not in unrelated modules. Symptom matches: A symbol ending with a number is made invisible when printing with MathML A variable with a number, such as x1, is made invisible when printing in a MathML form\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/printing/mathml.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+                x = mname\n+                x = self.dom.createElement('msub')\n+                x.appendChild(mname)\n+                x.appendChild(join(subs))\n+                x = self.dom.createElement('msup')\n+                x.appendChild(mname)\n+                x.appendChild(join(supers))\n+                x = self.dom.createElement('msubsup')\n+                x.appendChild(mname)\n+                x.appendChild(join(subs))\n+                x.appendChild(join(supers))\n+        # Set bold font?\n+        if style == 'bold':\n+            x.setAttribute('mathvariant', 'bold')\n```",
+      "steps": [
+        "Open sympy/printing/mathml.py and locate _print_Sum",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "description": "Posify ignores is_finite assmptions Posify removes a finite assumption from a symbol: I think that posify should preserve the finiteness assumption. Possibly other assumptions should be preserved as well (integer, rational, prime, even, odd...).",
+    "error_signature": "Posify ignores is_finite assmptions Posify removes a finite assumption from a sy",
+    "tags": [
+      "sympy",
+      "assumption"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.simplify.simplify, in `posify()` (sympy/simplify/simplify.py), not in unrelated modules. Symptom matches: Posify ignores is_finite assmptions Posify removes a finite assumption from a symbol: I think that posify should preserve the finiteness assumption. Possibly ot\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/simplify/simplify.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    reps = {s: Dummy(s.name, positive=True, **s.assumptions0)\n```",
+      "steps": [
+        "Open sympy/simplify/simplify.py and locate posify",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "description": "a.is_even does not imply a.is_finite I'm not sure what the right answer is here: I would expect that a number should be finite before it can be even.",
+    "error_signature": "a.is_even does not imply a.is_finite I'm not sure what the right answer is here:",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.assumptions.ask, in `get_known_facts()` (sympy/assumptions/ask.py), not in unrelated modules. Symptom matches: a.is_even does not imply a.is_finite I'm not sure what the right answer is here: I would expect that a number should be finite before it can be even.\u2026 Fix: widen an isinstance guard so nested types (e.g. Pow inside Mul) are parenthesised correctly.\n\n**Verified fix locations:** sympy/assumptions/ask.py, sympy/assumptions/ask_generated.py, sympy/core/assumptions.py, sympy/core/power.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        Implies(Q.irrational, Q.finite),\n+        Implies(Q.algebraic, Q.finite),\n+        Equivalent(Q.transcendental | Q.algebraic, Q.complex & Q.finite),\n+        Implies(Q.transcendental, Q.finite),\n+        Equivalent(Q.irrational | Q.rational, Q.real & Q.finite),\n+        Q.finite | ~Q.algebraic,\n+        Q.finite | ~Q.irrational,\n+        Q.finite | ~Q.rational,\n+        Q.finite | ~Q.transcendental,\n+        Q.algebraic | Q.transcendental | ~Q.complex | ~Q.finite,\n+        Q.composite | Q.prime | ~Q.integer | ~Q.positive,\n+        Q.irrational | Q.rational | ~Q.finite | ~Q.real\n+        Q.algebraic: set([Q.algebraic, Q.complex, Q.finite]),\n+        Q.finite, Q.hermitian, Q.integer, Q.rational, Q.real]),\n+        Q.integer: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n+        Q.hermitian, Q.integer, Q.rational, Q.real]),\n+        Q.irrational: set([Q.complex, Q.extended_real, Q.finite, Q.hermitian,\n+        Q.odd: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n+        Q.hermitian, Q.integer, Q.nonzero, Q.odd, Q.rational, Q.real]),\n+        Q.prime: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n+        Q.hermitian, Q.integer, Q.nonnegative, Q.nonzero, Q.positive,\n+        Q.prime, Q.rational, Q.real]),\n+        Q.rational: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n+        Q.hermitian, Q.rational, Q.real]),\n+        Q.transcendental: set([Q.complex, Q.finite, Q.transcendental]),\n+        Q.finite, Q.hermitian, Q.integer, Q.nonnegative,\n+        Q.nonpositive, Q.rational, Q.real, Q.zero]),\n+    'rational       ->  real & finite',\n+    'algebraic      ->  complex & finite',\n+    'transcendental ==  complex & !algebraic & finite',\n+    'irrational     ==  real & !rational & finite',\n+from .logic import fuzzy_bool, fuzzy_not, fuzzy_and\n+        # The evaluation of self.func below can be very expensive in the case\n+        # of integer**integer if the exponent is large.  We should try to exit\n+        # before that if possible:\n+        if (self.exp.is_integer and self.base.is_rational\n+                and fuzzy_not(fuzzy_and([self.exp.is_negative, self.base.is_zero]))):\n+            return True\n+    | finite: True\n+    | infinite: False\n... (4 more added lines)\n```",
+      "steps": [
+        "Open sympy/assumptions/ask.py and locate get_known_facts",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests",
+        "Also check sympy/assumptions/ask_generated.py only if the primary change does not resolve the failure"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "description": "PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some functions and save the code for further use. But the generated code for `Indexed` operation has some warnings which can be confirmed by following code; the output is We should add following method to `PythonCodePrinter`:",
+    "error_signature": "PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some fu",
+    "tags": [
+      "sympy",
+      "printer"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.printingcode, in `_print_Not()` (sympy/printing/pycode.py), not in unrelated modules. Symptom matches: PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some functions and save the code for further use. But the generated code for `Indexed` \u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/printing/pycode.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    def _print_Indexed(self, expr):\n+        base = expr.args[0]\n+        index = expr.args[1:]\n+        return \"{}[{}]\".format(str(base), \", \".join([self._print(ind) for ind in index]))\n+\n```",
+      "steps": [
+        "Open sympy/printing/pycode.py and locate _print_Not",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "description": "autowrap with cython backend fails when array arguments do not appear in wrapped expr When using the cython backend for autowrap, it appears that the code is not correctly generated when the function in question has array arguments that do not appear in the final expression. A minimal counterexample is: This should of course return `1.0` but instead fails with: A little inspection reveals that this is because the cor",
+    "error_signature": "TypeError: only size-1 arrays can be converted to Python scalars",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Matrix",
+      "codegen"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.utilities.codegen, in `routine()` (sympy/utilities/codegen.py), not in unrelated modules. Symptom matches: autowrap with cython backend fails when array arguments do not appear in wrapped expr When using the cython backend for autowrap, it appears that the code is no\u2026 Fix: wrap the failing block in try/except KeyError and use a safe fallback so evaluation continues instead of propagating the error.\n\n**Verified fix locations:** sympy/utilities/codegen.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+\n+        # helper to get dimensions for data for array-like args\n+        def dimensions(s):\n+            return [(S.Zero, dim - 1) for dim in s.shape]\n+\n+                metadata = {'dimensions': dimensions(array)}\n+                    if isinstance(symbol, (IndexedBase, MatrixSymbol)):\n+                        metadata = {'dimensions': dimensions(symbol)}\n+                    else:\n+                        metadata = {}\n+                    new_args.append(InputArgument(symbol, **metadata))\n```",
+      "steps": [
+        "Open sympy/utilities/codegen.py and locate routine",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "description": "Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.crypto contains an incorrect mapping of `\"----\": \"1\"` The correct mapping is `\".----\": \"1\"`.",
+    "error_signature": "Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.crypto.crypto, in `decipher_kid_rsa()` (sympy/crypto/crypto.py), not in unrelated modules. Symptom matches: Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.crypto contains an incorrect mapping of `\"----\": \"1\"` The correct mapping is `\".\u2026 Fix: apply a minimal change along the lines of `\"-----\": \"0\", \".----\": \"1\",` (see the patched module).\n\n**Verified fix locations:** sympy/crypto/crypto.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    \"-----\": \"0\", \".----\": \"1\",\n```",
+      "steps": [
+        "Open sympy/crypto/crypto.py and locate decipher_kid_rsa",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "description": "simplify(cos(x)**I): Invalid comparison of complex I (fu.py)",
+    "error_signature": "TypeError: Invalid comparison of complex I",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.simplify.fu, in `_f()` (sympy/simplify/fu.py), not in unrelated modules. Symptom matches: simplify(cos(x)**I): Invalid comparison of complex I (fu.py)\u2026 Fix: apply a minimal change along the lines of `if not rv.exp.is_real:` (see the patched module).\n\n**Verified fix locations:** sympy/simplify/fu.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        if not rv.exp.is_real:\n+            return rv\n```",
+      "steps": [
+        "Open sympy/simplify/fu.py and locate _f",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "description": "sqrtdenest raises IndexError If an expression cannot be denested it should be returned unchanged. IndexError fixed for sqrtdenest. Fixes #12420 Now if the expression can't be **denested**, it will be returned unchanged. Old Result: New Result:",
+    "error_signature": "IndexError: tuple index out of range",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.simplify.radsimp, in `handle()` (sympy/simplify/radsimp.py), not in unrelated modules. Symptom matches: sqrtdenest raises IndexError If an expression cannot be denested it should be returned unchanged. IndexError fixed for sqrtdenest. Fixes #12420 Now if the expre\u2026 Fix: fix the conditional branch so the correct code path runs for this input shape.\n\n**Verified fix locations:** sympy/simplify/radsimp.py, sympy/simplify/sqrtdenest.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    num and den are sum of terms whose squares are positive rationals.\n+    Split an expression with terms whose squares are positive rationals\n+    and a sum of terms with surds squared prime with g.\n+        sqargs = [x**2 for x in pargs]\n+        if all(sq.is_Rational and sq.is_positive for sq in sqargs):\n```",
+      "steps": [
+        "Open sympy/simplify/radsimp.py and locate handle",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests",
+        "Also check sympy/simplify/sqrtdenest.py only if the primary change does not resolve the failure"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "description": "Exception when multiplying BlockMatrix containing ZeroMatrix blocks When a block matrix with zero blocks is defined then block-multiplying it once seems to work fine: but block-multiplying twice throws an exception: This seems to be caused by the fact that the zeros in `b._blockmul(b)` are not `ZeroMatrix` but `Zero`: However, I don't understand SymPy internals well enough to find out why this happens. I use Python 3",
+    "error_signature": "AttributeError: 'Zero' object has no attribute 'cols'",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Matrix"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.matrices.expressions.matexpr, in `_postprocessor()` (sympy/matrices/expressions/matexpr.py), not in unrelated modules. Symptom matches: Exception when multiplying BlockMatrix containing ZeroMatrix blocks When a block matrix with zero blocks is defined then block-multiplying it once seems to work\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/matrices/expressions/matexpr.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        if mat_class == MatAdd:\n+            return mat_class(*matrices).doit(deep=False)\n```",
+      "steps": [
+        "Open sympy/matrices/expressions/matexpr.py and locate _postprocessor",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "description": "Unexpected exception when multiplying geometry.Point and number This line works fine But when I write the same this way it raises an exception The expected behaviour is, that both lines give the same result",
+    "error_signature": "GeometryError: Don't know how to add 2",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.geometry.point, in `__mul__()` (sympy/geometry/point.py), not in unrelated modules. Symptom matches: Unexpected exception when multiplying geometry.Point and number This line works fine But when I write the same this way it raises an exception The expected beha\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/geometry/point.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    def __rmul__(self, factor):\n+        \"\"\"Multiply a factor by point's coordinates.\"\"\"\n+        return self.__mul__(factor)\n+\n```",
+      "steps": [
+        "Open sympy/geometry/point.py and locate __mul__",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "description": "diophantine: incomplete results depending on syms order with permute=True diophantine: incomplete results depending on syms order with permute=True",
+    "error_signature": "diophantine: incomplete results depending on syms order with permute=True diopha",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.solvers.diophantine, in `diophantine()` (sympy/solvers/diophantine.py), not in unrelated modules. Symptom matches: diophantine: incomplete results depending on syms order with permute=True diophantine: incomplete results depending on syms order with permute=True\u2026 Fix: apply a minimal change along the lines of `for t in diophantine(eq, param, permute=permute)}` (see the patched module).\n\n**Verified fix locations:** sympy/solvers/diophantine.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+                            for t in diophantine(eq, param, permute=permute)}\n```",
+      "steps": [
+        "Open sympy/solvers/diophantine.py and locate diophantine",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "description": "nthroot_mod function misses one root of x = 0 mod p. When in the equation x**n = a mod p , when a % p == 0. Then x = 0 mod p is also a root of this equation. But right now `nthroot_mod` does not check for this condition. `nthroot_mod(17*17, 5 , 17)` has a root `0 mod 17`. But it does not return it.",
+    "error_signature": "nthroot_mod function misses one root of x = 0 mod p. When in the equation x**n =",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in nthroot_mod (sympy/ntheory/residue_ntheory.py): it never handles the case a % p == 0, for which x = 0 is a root, and it bails out for composite p. Fix: in nthroot_mod, after the n == 2 shortcut, add `if not isprime(p): return _nthroot_mod_composite(a, n, p)` and `if a % p == 0: return [0]`, before the is_nthpow_residue check. Add a _nthroot_mod_composite helper that factors the modulus, solves each prime-power component, and recombines the solutions with CRT.",
+      "steps": [
+        "Open sympy/ntheory/residue_ntheory.py, find nthroot_mod",
+        "Add `if a % p == 0: return [0]` before the (p-1) % n branch",
+        "Add a _nthroot_mod_composite(a, n, m) helper for composite modulus and dispatch to it when p is not prime"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "description": "`solveset` raises `NotImplementedError` instead of returning `ConditionSet` The problem is Here `solveset` raises `NotImplementedError` but probably a `ConditionSet` should be returned by `solveset` instead. The obvious result of `as_set()` here is _Originally posted by @oscarbenjamin in https://github.com/sympy/sympy/pull/17771_",
+    "error_signature": "NotImplementedError",
+    "tags": [
+      "sympy",
+      "solve"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.core.relational, in `__nonzero__()` (sympy/core/relational.py), not in unrelated modules. Symptom matches: `solveset` raises `NotImplementedError` instead of returning `ConditionSet` The problem is Here `solveset` raises `NotImplementedError` but probably a `Conditio\u2026 Fix: wrap the failing block in try/except NotImplementedError and use a safe fallback so evaluation continues instead of propagating the error.\n\n**Verified fix locations:** sympy/core/relational.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        from sympy.sets.conditionset import ConditionSet\n+        try:\n+            xset = solve_univariate_inequality(self, x, relational=False)\n+        except NotImplementedError:\n+            # solve_univariate_inequality raises NotImplementedError for\n+            # unsolvable equations/inequalities.\n+            xset = ConditionSet(x, self, S.Reals)\n+        return xset\n```",
+      "steps": [
+        "Open sympy/core/relational.py and locate __nonzero__",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "description": "sqf and sqf_list output is not consistant The example below is wrong in the sense that we should have (x*_2 - 5_x + 6, 3) and not 2 factors of multiplicity 3. whereas below is correct --- one factor of multiplicity 2",
+    "error_signature": "sqf and sqf_list output is not consistant The example below is wrong in the sens",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in _symbolic_factor_list (sympy/polys/polytools.py): for the square-free method it returns one entry per factor without merging factors that share an exponent. Fix: after the factor list is assembled, when method == 'sqf', group factors by exponent and multiply together everything sharing each exponent -- factors = [(reduce(mul, (f for f, e in factors if e == k)), k) for k in {e for _, e in factors}]. (Also drop the branch that flattens nested Mul args separately, so grouping is consistent.)",
+      "steps": [
+        "Open sympy/polys/polytools.py, find _symbolic_factor_list",
+        "After building `factors`, if method == 'sqf', group by exponent",
+        "Multiply all factors sharing each exponent into a single (product, exponent) entry"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "description": "Incorrect parenthesizing of Subs Here is an example. LaTeX printing of this gives: ![image](https://quicklatex.com/cache3/76/ql_9672fd7e62c909ff3d9ac8543c2e2576_l3.png) It would be better to be parenthesized to: ![image](https://quicklatex.com/cache3/bf/ql_936ffdb876e784206d4c54bb93d28dbf_l3.png)",
+    "error_signature": "Incorrect parenthesizing of Subs Here is an example. LaTeX printing of this give",
+    "tags": [
+      "sympy",
+      "subs",
+      "latex"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.printing.latex, in `_print_Subs()` (sympy/printing/latex.py), not in unrelated modules. Symptom matches: Incorrect parenthesizing of Subs Here is an example. LaTeX printing of this gives: ![image](https://quicklatex.com/cache3/76/ql_9672fd7e62c909ff3d9ac8543c2e2576\u2026 Fix: apply a minimal change along the lines of `return r'\\left. \\left(%s\\right) \\right|_{\\substack{ %s }}' % (latex_expr,` (see the patched module).\n\n**Verified fix locations:** sympy/printing/latex.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        return r'\\left. \\left(%s\\right) \\right|_{\\substack{ %s }}' % (latex_expr,\n```",
+      "steps": [
+        "Open sympy/printing/latex.py and locate _print_Subs",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "description": "Factor with extension=True drops a factor of y-1 I guess this related (or a duplicate of?) #5786 This is from stackoverflow: https://stackoverflow.com/questions/60682765/python-sympy-factoring-polynomial-over-complex-numbers Factor with extension=True drops a factor of y-1 <!-- Your title above should be a short description of what was changed. Do not include the issue number in the title. --> Factor with extension=T",
+    "error_signature": "Factor with extension=True drops a factor of y-1 I guess this related (or a dupl",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in dmp_ext_factor (sympy/polys/factortools.py): the square-free norm is computed from `f`, the square-free PART of the polynomial, instead of `F`, the original polynomial. Computing the norm from the square-free part loses multiplicity information and drops a factor. Fix: compute the norm from the original polynomial -- change `s, g, r = dmp_sqf_norm(f, u, K)` to `dmp_sqf_norm(F, u, K)`.",
+      "steps": [
+        "Open sympy/polys/factortools.py, find dmp_ext_factor",
+        "Locate `s, g, r = dmp_sqf_norm(f, u, K)`",
+        "Change the first argument from f to F"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "description": "srepr not printing dict and set properly `srepr` prints the element in `list` and `tuple` correctly. However, `srepr` prints the elements in `dict` and `set` wrong. Is this behavior intended? If it isn't, fixing it will be an easy job.",
+    "error_signature": "srepr not printing dict and set properly `srepr` prints the element in `list` an",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause: ReprPrinter (sympy/printing/repr.py) defines _print_list and _print_tuple but has no _print_dict or _print_set, so dicts and sets fall through to the str() fallback and lose the Symbol(...) repr. Fix: add a _print_dict method (repr each key and value with self.doprint) and a _print_set method (use self.reprify, returning 'set()' for the empty set).",
+      "steps": [
+        "Open sympy/printing/repr.py, find ReprPrinter",
+        "Add _print_dict that reprs each key: value pair via self.doprint",
+        "Add _print_set that uses self.reprify and handles the empty set"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "description": "Strange/wrong? behaviour of subs with ConditionSet / ImageSet I'm not sure what to think of the following: The first two outputs are completely as expected, but if I construct a similar ConditionSet with an ImageSet instead of a FiniteSet, a plain `subs` gives a strange result (`Out[75]`). It's as if the bound variable `x` of the ConditionSet were mistaken for a `y`. Only after having typed the above, I found issue #",
+    "error_signature": "Strange/wrong? behaviour of subs with ConditionSet / ImageSet I'm not sure what ",
+    "tags": [
+      "sympy",
+      "subs",
+      "imageset",
+      "solve"
+    ],
+    "good": {
+      "content": "Root cause is in ConditionSet._eval_subs (sympy/sets/conditionset.py): when the substituted condition becomes S.true it returns ConditionSet(new, Contains(new, base), base), using the substituted value `new` as the bound variable -- invalid when `new` is not a Symbol. Fix: remove that `cond is S.true` special case entirely; always return self.func(self.sym, cond, base) and let ConditionSet.__new__ do the simplification consistently (assumptions on sym are intentionally ignored, matching __new__).",
+      "steps": [
+        "Open sympy/sets/conditionset.py, find ConditionSet._eval_subs",
+        "Delete the `if cond is S.true: return ConditionSet(new, Contains(new, base), base)` branch",
+        "Always return self.func(self.sym, cond, base)"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "description": "kernS: 'kern' referenced before assignment from sympy.core.sympify import kernS text = \"(2*x)/(x-1)\" expr = kernS(text) // hit = kern in s // UnboundLocalError: local variable 'kern' referenced before assignment",
+    "error_signature": "UnboundLocalError: local variable 'kern' referenced before assignment",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.core.sympify, in `kernS()` (sympy/core/sympify.py), not in unrelated modules. Symptom matches: kernS: 'kern' referenced before assignment from sympy.core.sympify import kernS text = \"(2*x)/(x-1)\" expr = kernS(text) // hit = kern in s // UnboundLocalError:\u2026 Fix: apply a minimal change along the lines of `hit = kern in s` (see the patched module).\n\n**Verified fix locations:** sympy/core/sympify.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+            hit = kern in s\n+        else:\n+            hit = False\n```",
+      "steps": [
+        "Open sympy/core/sympify.py and locate kernS",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "description": "Dagger() * IdentityOperator() is not simplified As discussed on the mailing list the following does not work.",
+    "error_signature": "Dagger() * IdentityOperator() is not simplified As discussed on the mailing list",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.physics.quantum.dagger, in `__new__()` (sympy/physics/quantum/dagger.py), not in unrelated modules. Symptom matches: Dagger() * IdentityOperator() is not simplified As discussed on the mailing list the following does not work.\u2026 Fix: add the missing import and thread it through the handler that raises at runtime.\n\n**Verified fix locations:** sympy/physics/quantum/dagger.py, sympy/physics/quantum/operator.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+from sympy.core import Expr, Mul\n+    def __mul__(self, other):\n+        from sympy.physics.quantum import IdentityOperator\n+        if isinstance(other, IdentityOperator):\n+            return self\n+\n+        return Mul(self, other)\n+\n+        if isinstance(other, (Operator, Dagger)):\n```",
+      "steps": [
+        "Open sympy/physics/quantum/dagger.py and locate __new__",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests",
+        "Also check sympy/physics/quantum/operator.py only if the primary change does not resolve the failure"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "description": "sylow_subgroup() IndexError I use sympy 1.6.1, with numpy 1.18.5, scipy 1.4.1, under Python '3.8.5 (default, Aug 5 2020, 09:44:06) [MSC v.1916 64 bit (AMD64)]'. The code that I run as the following gives IndexError for sylow_subgroup(): from sympy.combinatorics import DihedralGroup, PermutationGroup, Permutation G = DihedralGroup(18) S2 = G.sylow_subgroup(p=2) Traceback (most recent call last): File \"<input>\", line 7",
+    "error_signature": "IndexError: list assignment index out of range",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.combinatorics.perm_groups, in `_number_blocks()` (sympy/combinatorics/perm_groups.py), not in unrelated modules. Symptom matches: sylow_subgroup() IndexError I use sympy 1.6.1, with numpy 1.18.5, scipy 1.4.1, under Python '3.8.5 (default, Aug 5 2020, 09:44:06) [MSC v.1916 64 bit (AMD64)]'.\u2026 Fix: apply a minimal change along the lines of `blocks_remove_mask = [False] * len(blocks)` (see the patched module).\n\n**Verified fix locations:** sympy/combinatorics/perm_groups.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+                blocks_remove_mask = [False] * len(blocks)\n+                        blocks_remove_mask[i] = True\n+                blocks = [b for i, b in enumerate(blocks) if not blocks_remove_mask[i]]\n+                num_blocks = [n for i, n in enumerate(num_blocks) if not blocks_remove_mask[i]]\n+                rep_blocks = [r for i, r in enumerate(rep_blocks) if not blocks_remove_mask[i]]\n```",
+      "steps": [
+        "Open sympy/combinatorics/perm_groups.py and locate _number_blocks",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "description": "partitions() reusing the output dictionaries The partitions() iterator in sympy.utilities.iterables reuses the output dictionaries. There is a caveat about it in the docstring. I'm wondering if it's really that important for it to do this. It shouldn't be that much of a performance loss to copy the dictionary before yielding it. This behavior is very confusing. It means that something as simple as list(partitions()) ",
+    "error_signature": "partitions() reusing the output dictionaries The partitions() iterator in sympy.",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause: partitions() in sympy/utilities/iterables.py yields the same dict object `ms` on every iteration (a deliberate speed hack), so collecting them all aliases one dict. Fix: yield a copy at each yield site -- `yield ms.copy()` and, in the size=True branch, `yield sum(ms.values()), ms.copy()`. (Also remove the docstring note that documented the reuse.)",
+      "steps": [
+        "Open sympy/utilities/iterables.py, find partitions()",
+        "At every yield, yield ms.copy() instead of ms",
+        "Update the docstring that described the reuse behaviour"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "description": "Result from clear_denoms() prints like zero poly but behaves wierdly (due to unstripped DMP) The was the immediate cause of the ZeroDivisionError in #17990. Calling `clear_denoms()` on a complicated constant poly that turns out to be zero: The result prints like the zero polynomial but behaves inconsistently: ~~There may be valid cases (at least with EX coefficients) where the two valued Poly.is_zero is False but as_",
+    "error_signature": "ZeroDivisionError",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in the ExpressionDomain element in sympy/polys/domains/expressiondomain.py: its __bool__ uses `f.ex != 0`, which for a symbolic expression that is mathematically zero but not structurally the literal 0 returns True. clear_denoms() then keeps that 'zero-but-truthy' coefficient and the DMP is left unstripped. Fix: change the element's __bool__ to `return not f.ex.is_zero`.",
+      "steps": [
+        "Open sympy/polys/domains/expressiondomain.py",
+        "Find the __bool__ method of the domain element class",
+        "Change `return f.ex != 0` to `return not f.ex.is_zero`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "description": "`is_subset` gives wrong results @sylee957 Current status on `master`, _Originally posted by @czgdp1807 in https://github.com/sympy/sympy/pull/16764#issuecomment-592606532_",
+    "error_signature": "AttributeError: 'Complement' object has no attribute 'equals'",
+    "tags": [
+      "sympy",
+      "subs",
+      "Mod",
+      "intersect"
+    ],
+    "good": {
+      "content": "Two root causes. (1) ProductSet.is_subset(FiniteSet) returns None because no is_subset_sets handler is registered for that type pair. (2) Relational._eval_simplify subtracts / calls .equals() on operands that may be Sets (not Expr), which crashes. Fix: (1) register `@dispatch(ProductSet, FiniteSet)` is_subset_sets in sympy/sets/handlers/issubset.py returning fuzzy_and(b_fs.contains(x) for x in a_ps); (2) in sympy/core/relational.py _eval_simplify (both Relational and Equality), return the relation unchanged when lhs or rhs is not an Expr.",
+      "steps": [
+        "Add a @dispatch(ProductSet, FiniteSet) is_subset_sets handler in sympy/sets/handlers/issubset.py",
+        "Have it return fuzzy_and(b_fs.contains(x) for x in a_ps)",
+        "In sympy/core/relational.py _eval_simplify, bail out (return r) when lhs/rhs is not an Expr"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "description": "Symbol instances have __dict__ since 1.7? In version 1.6.2 Symbol instances had no `__dict__` attribute This changes in 1.7 where `sympy.Symbol('s').__dict__` now exists (and returns an empty dict) I may misinterpret this, but given the purpose of `__slots__`, I assume this is a bug, introduced because some parent class accidentally stopped defining `__slots__`.",
+    "error_signature": "AttributeError: 'Symbol' object has no attribute '__dict__'",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.core._print_helpers (sympy/core/_print_helpers.py), not in unrelated modules. Symptom matches: Symbol instances have __dict__ since 1.7? In version 1.6.2 Symbol instances had no `__dict__` attribute This changes in 1.7 where `sympy.Symbol('s').__dict__` n\u2026 Fix: apply a minimal change along the lines of `# Since this class is used as a mixin we set empty slots. That means that` (see the patched module).\n\n**Verified fix locations:** sympy/core/_print_helpers.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    # Since this class is used as a mixin we set empty slots. That means that\n+    # instances of any subclasses that use slots will not need to have a\n+    # __dict__.\n+    __slots__ = ()\n+\n```",
+      "steps": [
+        "Open sympy/core/_print_helpers.py and locate the handler named in the traceback",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "description": "S(0.0) == S.false returns True This issue is related to those listed in #20033. As shown by @sayandip18, comparing `S.false` to `S(0.0)` returns 2 different results depending on the order in which they are compared: Based on the results of comparison to `S(0)`: I assume we would want `S(0.0) == S.false` to return True as well?",
+    "error_signature": "S(0.0) == S.false returns True This issue is related to those listed in #20033. ",
+    "tags": [
+      "sympy",
+      "diff"
+    ],
+    "good": {
+      "content": "Root cause is the order of checks in Float.__eq__ (sympy/core/numbers.py): the block `if not self: return not other` runs BEFORE the `isinstance(other, Boolean): return False` check, so comparing Float(0.0) to S.false takes the falsy path and returns `not S.false` == True. Fix: move the `if not self: return not other` block to AFTER the Boolean check (and after the mpf comparison) so a Float never compares equal to a Boolean.",
+      "steps": [
+        "Open sympy/core/numbers.py, find Float.__eq__",
+        "Remove the early `if not self: return not other` block",
+        "Re-insert it after the isinstance(other, Boolean) check and the mpf comparison"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "description": "pprint unicode does not format subscripts on Greek letters Good: [ -t\u2080\u22c5w\u2080 -t\u2081\u22c5w\u2080 -t\u2082\u22c5w\u2080] Bad: [ -t\u2080\u22c5\u03c90 -t\u2081\u22c5\u03c90 -t\u2082\u22c5\u03c90]",
+    "error_signature": "pprint unicode does not format subscripts on Greek letters Good: [ -t\u2080\u22c5w\u2080 -t\u2081\u22c5w\u2080",
+    "tags": [
+      "sympy",
+      "subs"
+    ],
+    "good": {
+      "content": "Root cause is the regex in sympy/printing/conventions.py: split_super_sub detects a name ending in digits with `_name_with_digits_p = re.compile(r'^([a-zA-Z]+)([0-9]+)$')`. The class [a-zA-Z] is ASCII-only, so a Greek-letter name is not matched and its digits are not turned into a subscript. Fix: make the letter class Unicode-aware -- `re.compile(r'^([^\\W\\d_]+)(\\d+)$', re.U)`.",
+      "steps": [
+        "Open sympy/printing/conventions.py",
+        "Find the _name_with_digits_p regex",
+        "Replace it with re.compile(r'^([^\\W\\d_]+)(\\d+)$', re.U) so any unicode letter matches"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "description": "Unexpected `PolynomialError` when using simple `subs()` for particular expressions I am seeing weird behavior with `subs` for particular expressions with hyperbolic sinusoids with piecewise arguments. When applying `subs`, I obtain an unexpected `PolynomialError`. For context, I was umbrella-applying a casting from int to float of all int atoms for a bunch of random expressions before using a tensorflow lambdify to a",
+    "error_signature": "PolynomialError: Piecewise generators do not make sense\"",
+    "tags": [
+      "sympy",
+      "subs",
+      "Piecewise",
+      "assumption"
+    ],
+    "good": {
+      "content": "Root cause is in Mod.eval in sympy/core/mod.py, not in the hyperbolic functions. During subs(), assumption queries (is_real / is_positive) on the hyperbolic function reach Mod.eval, which extracts a gcd of its operands with `G = gcd(p, q)`. When p or q carries a Piecewise, sympy's polynomial gcd raises PolynomialError, and that exception propagates all the way out of subs(). Fix: in Mod.eval, wrap the gcd extraction block (the `G = gcd(p, q)` / `gcd_terms` lines) in try/except PolynomialError, and on PolynomialError fall back to `G = S.One` so evaluation continues without the gcd simplification.",
+      "steps": [
+        "Open sympy/core/mod.py, find Mod.eval -> doit, locate `G = gcd(p, q)`",
+        "Import PolynomialError from sympy.polys.polyerrors",
+        "Wrap the `G = gcd(p, q)` and gcd_terms reassignment in try/except PolynomialError",
+        "In the except branch set G = S.One and skip the gcd_terms step"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "description": "bug in is_subset(Reals) Solving issue #19513 has given rise to another bug. Now: This output is incorrect. Correct output is:",
+    "error_signature": "bug in is_subset(Reals) Solving issue #19513 has given rise to another bug. Now:",
+    "tags": [
+      "sympy",
+      "subs",
+      "imageset",
+      "intersect"
+    ],
+    "good": {
+      "content": "Root cause is in intersection_sets for (ImageSet, Reals) in sympy/sets/handlers/intersection.py. The branch that keeps only values making the imaginary part vanish used a fragile `solve_linear` over `Mul.make_args(im)` plus `base_set -= FiniteSet(xis)`, which mishandles the real-part constraint and the denominator exclusion. Fix: add a `_solution_union(exprs, sym)` helper that solves each factor for `sym` and returns a Union of FiniteSet (linear solution) or ConditionSet (otherwise); then constrain with `base_set &= _solution_union(Mul.make_args(numer(im)), n)` for the imaginary-part-zero condition and `base_set -= _solution_union(denoms(f), n)` for the denominators. Import `numer` from sympy.simplify.radsimp.",
+      "steps": [
+        "Open sympy/sets/handlers/intersection.py, the ImageSet vs Reals intersection_sets",
+        "Import numer from sympy.simplify.radsimp",
+        "Add a _solution_union(exprs, sym) helper returning a Union of FiniteSet/ConditionSet",
+        "Replace the `base_set -= FiniteSet(...)` logic with `base_set &= _solution_union(Mul.make_args(numer(im)), n)`",
+        "Replace the denominator loop with `base_set -= _solution_union(denoms(f), n)`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "description": "Latex parsing of fractions yields wrong expression due to missing brackets Problematic latex expression: `\"\\\\frac{\\\\frac{a^3+b}{c}}{\\\\frac{1}{c^2}}\"` is parsed to: `((a**3 + b)/c)/1/(c**2)`. Expected is: `((a**3 + b)/c)/(1/(c**2))`. The missing brackets in the denominator result in a wrong expression. ## Tested on - 1.8 - 1.6.2 ## Reproduce:",
+    "error_signature": "Latex parsing of fractions yields wrong expression due to missing brackets Probl",
+    "tags": [
+      "sympy",
+      "latex",
+      "parse"
+    ],
+    "good": {
+      "content": "Root cause is in the str printer, StrPrinter._print_Mul in sympy/printing/str.py (function `apow`/`pow_paren` handling) -- NOT in the LaTeX parser. When a factor is a negative power whose base is itself a Pow (a power of a power), the printer fails to wrap the base in parentheses because the guard only checks `isinstance(item.base, Mul)`. Fix: widen that isinstance check to `isinstance(item.base, (Mul, Pow))` so a Pow base is parenthesised too.",
+      "steps": [
+        "Open sympy/printing/str.py, find StrPrinter._print_Mul and the pow_paren block",
+        "Locate the condition `isinstance(item.base, Mul)`",
+        "Change it to `isinstance(item.base, (Mul, Pow))`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "description": "itermonomials returns incorrect monomials when using min_degrees argument `itermonomials` returns incorrect monomials when using optional `min_degrees` argument For example, the following code introduces three symbolic variables and generates monomials with max and min degree of 3: The code returns `[x3**3, x2**3, x1**3]`, when it _should_ also return monomials such as `x1*x2**2, x2*x3**2, etc...` that also have tota",
+    "error_signature": "itermonomials returns incorrect monomials when using min_degrees argument `iterm",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in `itermonomials` in sympy/polys/monomials.py. When min_degrees and max_degrees are integers, the filter checks `max(powers.values()) >= min_degree` -- the largest exponent of a SINGLE variable -- instead of the TOTAL degree. A monomial like x1*x2**2 has max exponent 2 and is wrongly dropped. Fix: change both occurrences (commutative and non-commutative branches) from `max(powers.values()) >= min_degree` to `sum(powers.values()) >= min_degree`.",
+      "steps": [
+        "Open sympy/polys/monomials.py, find itermonomials",
+        "Locate both `if max(powers.values()) >= min_degree:` lines",
+        "Change `max(...)` to `sum(...)` in both"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "description": "Issues with Latex printing output in second quantization module There are Latex rendering problems within the \"secondquant\" module, as it does not correctly interpret double superscripts containing the \"dagger\" command within Jupyter Notebook. Let's see a minimal example So, it doesn't render correctly, and that's because the double superscript `\"b^\\dagger_{0}^{2}\"`. It should be correct by adding curly brackets `\"{b",
+    "error_signature": "Issues with Latex printing output in second quantization module There are Latex ",
+    "tags": [
+      "sympy",
+      "Mod",
+      "latex"
+    ],
+    "good": {
+      "content": "Root cause: the `_latex` methods in sympy/physics/secondquant.py return superscript strings that are not wrapped in braces, so when such a string becomes the base of a power you get an invalid double superscript. The fix is tiny -- wrap each returned LaTeX string in curly braces in three `_latex` methods: the index/operator class method `\"%s^{%s}_{%s}\"` -> `\"{%s^{%s}_{%s}}\"`, CreateBoson `\"b^\\\\dagger_{%s}\"` -> `\"{b^\\\\dagger_{%s}}\"`, and CreateFermion `\"a^\\\\dagger_{%s}\"` -> `\"{a^\\\\dagger_{%s}}\"`. Do not rewrite anything else.",
+      "steps": [
+        "Open sympy/physics/secondquant.py",
+        "Find the three _latex methods returning superscript strings (the index class, CreateBoson, CreateFermion)",
+        "Wrap each returned string in an extra pair of curly braces { }",
+        "Change nothing else in the file"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "description": "Mod function lambdify bug Description: When lambdifying any function of structure like `expr * Mod(a, b)` sympy moves the multiplier into the first argument of Mod, like `Mod(expr * a, b)`, WHEN we specify `modules=[]` This is an example from Sympy online shell",
+    "error_signature": "Mod function lambdify bug Description: When lambdifying any function of structur",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.printing.codeprinter, in `_print_Mul()` (sympy/printing/codeprinter.py), not in unrelated modules. Symptom matches: Mod function lambdify bug Description: When lambdifying any function of structure like `expr * Mod(a, b)` sympy moves the multiplier into the first argument of \u2026 Fix: add the missing import and thread it through the handler that raises at runtime.\n\n**Verified fix locations:** sympy/printing/codeprinter.py, sympy/printing/precedence.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+from sympy.printing.precedence import precedence, PRECEDENCE\n+        if len(a) == 1 and sign == \"-\":\n+            # Unary minus does not have a SymPy class, and hence there's no\n+            # precedence weight associated with it, Python's unary minus has\n+            # an operator precedence between multiplication and exponentiation,\n+            # so we use this to compute a weight.\n+            a_str = [self.parenthesize(a[0], 0.5*(PRECEDENCE[\"Pow\"]+PRECEDENCE[\"Mul\"]))]\n+        else:\n+            a_str = [self.parenthesize(x, prec) for x in a]\n+    \"Mod\": PRECEDENCE[\"Mul\"],\n```",
+      "steps": [
+        "Open sympy/printing/codeprinter.py and locate _print_Mul",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests",
+        "Also check sympy/printing/precedence.py only if the primary change does not resolve the failure"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "description": "Argument invariance of codegen.ast String Currently, the `codegen.ast` `String` class does not support argument invariance like: `expr.func(*expr.args) == expr`, but instead uses the invariance `expr.func(**expr.kwargs()) == expr`. The former should hold for any `Basic` subclass, which `String` is.",
+    "error_signature": "Argument invariance of codegen.ast String Currently, the `codegen.ast` `String` ",
+    "tags": [
+      "sympy",
+      "codegen"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.codegen.ast, in `kwargs()` (sympy/codegen/ast.py), not in unrelated modules. Symptom matches: Argument invariance of codegen.ast String Currently, the `codegen.ast` `String` class does not support argument invariance like: `expr.func(*expr.args) == expr`\u2026 Fix: add the missing import and thread it through the handler that raises at runtime.\n\n**Verified fix locations:** sympy/codegen/ast.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+from sympy.core.expr import Expr, Atom\n+class String(Atom, Token):\n+    def kwargs(self, exclude = (), apply = None):\n+        return {}\n+\n+    #to be removed when Atom is given a suitable func\n+    @property\n+    def func(self):\n+        return lambda: self\n```",
+      "steps": [
+        "Open sympy/codegen/ast.py and locate kwargs",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "description": "simpify gives `Imaginary coordinates are not permitted.` with evaluate(False) ## Issue `with evaluate(False)` crashes unexpectedly with `Point2D` ## Code ## Error However, it works without `with evaluate(False)`. Both of following commands work",
+    "error_signature": "ValueError: Imaginary coordinates are not permitted",
+    "tags": [
+      "sympy",
+      "Mod",
+      "parse"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.geometry.point, in `__new__()` (sympy/geometry/point.py), not in unrelated modules. Symptom matches: simpify gives `Imaginary coordinates are not permitted.` with evaluate(False) ## Issue `with evaluate(False)` crashes unexpectedly with `Point2D` ## Code ## Err\u2026 Fix: widen an isinstance guard so nested types (e.g. Pow inside Mul) are parenthesised correctly.\n\n**Verified fix locations:** sympy/geometry/point.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        if any(a.is_number and im(a).is_zero is False for a in coords):\n```",
+      "steps": [
+        "Open sympy/geometry/point.py and locate __new__",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "description": "PythonCodePrinter doesn't support Min and Max We can't generate python code for the sympy function Min and Max. For example: the output is: Similar to issue #16669, we should add following methods to PythonCodePrinter:",
+    "error_signature": "PythonCodePrinter doesn't support Min and Max We can't generate python code for ",
+    "tags": [
+      "sympy",
+      "printer"
+    ],
+    "good": {
+      "content": "Root cause: Min and Max are simply absent from the `_known_functions` mapping used by PythonCodePrinter in sympy/printing/pycode.py. Fix: add `'Min': 'min'` and `'Max': 'max'` to the `_known_functions` dict -- they map directly onto Python builtins, so no custom printer method is needed.",
+      "steps": [
+        "Open sympy/printing/pycode.py",
+        "Find the `_known_functions` dict",
+        "Add 'Min': 'min' and 'Max': 'max' entries"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "description": "Python code printer not respecting tuple with one element Hi, Thanks for the recent updates in SymPy! I'm trying to update my code to use SymPy 1.10 but ran into an issue with the Python code printer. MWE: SymPy 1.9 and under outputs: But SymPy 1.10 gives Note the missing comma after `1` that causes an integer to be returned instead of a tuple. For tuples with two or more elements, the generated code is correct: In S",
+    "error_signature": "Python code printer not respecting tuple with one element Hi, Thanks for the rec",
+    "tags": [
+      "sympy",
+      "printer"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.utilities.lambdify, in `_recursive_to_string()` (sympy/utilities/lambdify.py), not in unrelated modules. Symptom matches: Python code printer not respecting tuple with one element Hi, Thanks for the recent updates in SymPy! I'm trying to update my code to use SymPy 1.10 but ran int\u2026 Fix: widen an isinstance guard so nested types (e.g. Pow inside Mul) are parenthesised correctly.\n\n**Verified fix locations:** sympy/utilities/lambdify.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+            left, right = \"[\", \"]\"\n+            left, right = \"(\", \",)\"\n```",
+      "steps": [
+        "Open sympy/utilities/lambdify.py and locate _recursive_to_string",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "description": "bug with HNF removing rows I expect `np.flip (hermite_normal_form (Matrix (np.flip (np.array ([[5, 8, 12], [0, 0, 1]]))).T).T))` to give `[[5, 8, 0], [0, 0, 1]]` but instead I get `[[5, 8, 0]]` It seems to be falsely identifying my matrix as rank-deficient and removing the row when I try to achieve a row-style HNF using flips and transposes.",
+    "error_signature": "bug with HNF removing rows I expect `np.flip (hermite_normal_form (Matrix (np.fl",
+    "tags": [
+      "sympy",
+      "Matrix"
+    ],
+    "good": {
+      "content": "Root cause is in `_hermite_normal_form` in sympy/polys/matrices/normalforms.py. It only processes `rows = min(m, n)` rows (loop `range(m - 1, m - 1 - rows, -1)`). When m > n that skips the top rows and silently discards columns, which looks like rank deficiency. Fix: drop the `rows = min(m, n)` cap and iterate over EVERY row -- `for i in range(m - 1, -1, -1)` -- and add an early `break` at the top of the loop when `k == 0` (all n pivots already placed).",
+      "steps": [
+        "Open sympy/polys/matrices/normalforms.py, find _hermite_normal_form",
+        "Remove `rows = min(m, n)` and the `m - 1 - rows` loop bound",
+        "Loop `for i in range(m - 1, -1, -1)` over all rows",
+        "At the start of the loop body, `if k == 0: break`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "description": "Using symbols to create functions doesn't work if there is an extra layer of parentheses Sympy version == 1.10.1 Using `symbols` to create symbol-like objects like instances of `Function` as shown in the [documentation](https://docs.sympy.org/latest/modules/core.html?highlight=symbols#symbols) creates objects of class `Symbol` instead of `Function` if there is an extra layer of parentheses. The extra layer of parenth",
+    "error_signature": "Using symbols to create functions doesn't work if there is an extra layer of par",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in `symbols()` in sympy/core/symbol.py. When `names` is an iterable (tuple/list/set), symbols() recurses per element with `symbols(name, **args)`. But `cls` is a keyword-only parameter, so it is NOT part of `**args`, and the recursive call silently defaults cls back to Symbol. Fix: forward cls explicitly in that recursive call -- `result.append(symbols(name, cls=cls, **args))`.",
+      "steps": [
+        "Open sympy/core/symbol.py, find symbols() and the iterable branch",
+        "Locate the recursive call `symbols(name, **args)`",
+        "Change it to `symbols(name, cls=cls, **args)`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "description": "physics.hep.kahane_simplify() incorrectly reverses order of leading uncontracted gamma matrices The kahane_simplify() function applies [identities](https://en.wikipedia.org/w/index.php?title=Gamma_matrices&oldid=1098219980#Miscellaneous_identities) such as $\\gamma^\\mu \\gamma_\\mu = 4 I_4$ to simplify products of gamma matrices in which contracted matrices occur. Leading gamma matrices without contractions should be un",
+    "error_signature": "AssertionError",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Matrix"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.physics.hep.gamma_matrices, in `kahane_simplify()` (sympy/physics/hep/gamma_matrices.py), not in unrelated modules. Symptom matches: physics.hep.kahane_simplify() incorrectly reverses order of leading uncontracted gamma matrices The kahane_simplify() function applies [identities](https://en.w\u2026 Fix: apply a minimal change along the lines of `resulting_indices = list( free_pos[0:first_dum_pos] + ri for ri in resulting_indices )` (see the patched module).\n\n**Verified fix locations:** sympy/physics/hep/gamma_matrices.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    resulting_indices = list( free_pos[0:first_dum_pos] + ri for ri in resulting_indices )\n```",
+      "steps": [
+        "Open sympy/physics/hep/gamma_matrices.py and locate kahane_simplify",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "description": "Contains.as_set returns Contains This is wrong because Contains is not a set (it's a boolean). It results in failures in other places because it doesn't have as_relational (since it isn't a set). For instance, from https://github.com/sympy/sympy/pull/14965#discussion_r205281989",
+    "error_signature": "AttributeError: 'Contains' object has no attribute 'as_relational'",
+    "tags": [
+      "sympy",
+      "Piecewise",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause: `Contains.as_set()` in sympy/sets/contains.py does not return a set (it raises NotImplementedError / returns self). Contains(x, S) asserts membership in S, so the set of values satisfying it is exactly S, which is stored in self.args[1]. Fix: make `as_set` simply `return self.args[1]`.",
+      "steps": [
+        "Open sympy/sets/contains.py, find the as_set method",
+        "Replace its body with `return self.args[1]`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "description": "SI._collect_factor_and_dimension() cannot properly detect that exponent is dimensionless How to reproduce:",
+    "error_signature": "ValueError: Dimension of \"exp(second/(farad*ohm))\" is Dimension(time/(capacitance*impedance)), but it should be Dimension(1)",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.physics.units.unitsystem, in `_collect_factor_and_dimension()` (sympy/physics/units/unitsystem.py), not in unrelated modules. Symptom matches: SI._collect_factor_and_dimension() cannot properly detect that exponent is dimensionless How to reproduce:\u2026 Fix: widen an isinstance guard so nested types (e.g. Pow inside Mul) are parenthesised correctly.\n\n**Verified fix locations:** sympy/physics/units/unitsystem.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+            fds = [self._collect_factor_and_dimension(arg) for arg in expr.args]\n+            dims = [Dimension(1) if self.get_dimension_system().is_dimensionless(d[1]) else d[1] for d in fds]\n+            return (expr.func(*(f[0] for f in fds)), *dims)\n```",
+      "steps": [
+        "Open sympy/physics/units/unitsystem.py and locate _collect_factor_and_dimension",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "description": "collect_factor_and_dimension does not detect equivalent dimensions in addition Code to reproduce: Results in:",
+    "error_signature": "ValueError: Dimension of \"v1\" is Dimension(velocity), but it should be Dimension(acceleration*time)",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "good": {
+      "content": "Root cause is in `_collect_factor_and_dimension` in sympy/physics/units/unitsystem.py. When summing an Add it compares dimensions with `dim != addend_dim` -- plain object inequality -- which is False-positive for dimensions that are equivalent but expressed differently (acceleration*time vs velocity). Fix: replace `if dim != addend_dim:` with `if not self.get_dimension_system().equivalent_dims(dim, addend_dim):`.",
+      "steps": [
+        "Open sympy/physics/units/unitsystem.py, find _collect_factor_and_dimension",
+        "Locate the Add branch check `if dim != addend_dim:`",
+        "Change it to `if not self.get_dimension_system().equivalent_dims(dim, addend_dim):`"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "description": "`_check_homomorphism` is broken on PermutationGroups The issue is in the internal `_image()` function, where it handles the case of a `PermutationGroup`: https://github.com/sympy/sympy/blob/809c53c077485ca48a206cee78340389cb83b7f1/sympy/combinatorics/homomorphisms.py#L336-L337 When `r[i]` is an inverted generator, the `in gens` test fails. I think the whole thing can be greatly simplified.",
+    "error_signature": "ValueError: The given images do not define a homomorphism",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.combinatorics.homomorphisms, in `homomorphism()` (sympy/combinatorics/homomorphisms.py), not in unrelated modules. Symptom matches: `_check_homomorphism` is broken on PermutationGroups The issue is in the internal `_image()` function, where it handles the case of a `PermutationGroup`: https:\u2026 Fix: widen an isinstance guard so nested types (e.g. Pow inside Mul) are parenthesised correctly.\n\n**Verified fix locations:** sympy/combinatorics/homomorphisms.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    \"\"\"\n+    Check that a given mapping of generators to images defines a homomorphism.\n+\n+    Parameters\n+    ==========\n+    domain : PermutationGroup, FpGroup, FreeGroup\n+    codomain : PermutationGroup, FpGroup, FreeGroup\n+    images : dict\n+        The set of keys must be equal to domain.generators.\n+        The values must be elements of the codomain.\n+\n+    \"\"\"\n+    pres = domain if hasattr(domain, 'relators') else domain.presentation()\n+    rels = pres.relators\n+    gens = pres.generators\n+    symbols = [g.ext_rep[0] for g in gens]\n+    symbols_to_domain_generators = dict(zip(symbols, domain.generators))\n+        w = identity\n+        for symbol, power in r.array_form:\n+            g = symbols_to_domain_generators[symbol]\n+            w *= images[g]**power\n+        return w\n```",
+      "steps": [
+        "Open sympy/combinatorics/homomorphisms.py and locate homomorphism",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "description": "`PolyElement.as_expr()` not accepting symbols The method `PolyElement.as_expr()` https://github.com/sympy/sympy/blob/193e3825645d93c73e31cdceb6d742cc6919624d/sympy/polys/rings.py#L618-L624 is supposed to let you set the symbols you want to use, but, as it stands, either you pass the wrong number of symbols, and get an error message, or you pass the right number of symbols, and it ignores them, using `self.ring.symbol",
+    "error_signature": "`PolyElement.as_expr()` not accepting symbols The method `PolyElement.as_expr()`",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.polys.rings, in `set_ring()` (sympy/polys/rings.py), not in unrelated modules. Symptom matches: `PolyElement.as_expr()` not accepting symbols The method `PolyElement.as_expr()` https://github.com/sympy/sympy/blob/193e3825645d93c73e31cdceb6d742cc6919624d/sy\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/polys/rings.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        if not symbols:\n+        elif len(symbols) != self.ring.ngens:\n+            raise ValueError(\n+                \"Wrong number of symbols, expected %s got %s\" %\n+                (self.ring.ngens, len(symbols))\n+            )\n```",
+      "steps": [
+        "Open sympy/polys/rings.py and locate set_ring",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "description": "Rational calc value error python 3.11, sympy 1.11.1 when calc Rational('0.5', '100'), the value is 1/100100; but Rational(0.5, 100) the value is 1/200, this value is the true value, and the version of sympy 1.8 is normal",
+    "error_signature": "Rational calc value error python 3.11, sympy 1.11.1 when calc Rational('0.5', '1",
+    "tags": [
+      "sympy"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.core.numbers, in `__new__()` (sympy/core/numbers.py), not in unrelated modules. Symptom matches: Rational calc value error python 3.11, sympy 1.11.1 when calc Rational('0.5', '100'), the value is 1/100100; but Rational(0.5, 100) the value is 1/200, this val\u2026 Fix: widen an isinstance guard so nested types (e.g. Pow inside Mul) are parenthesised correctly.\n\n**Verified fix locations:** sympy/core/numbers.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+        Q = 1\n+            Q *= p.q\n+            Q *= q.p\n+            Q *= int(q)\n+        q = Q\n```",
+      "steps": [
+        "Open sympy/core/numbers.py and locate __new__",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "description": "The evaluate=False parameter to `parse_expr` is ignored for relationals See also #22305 and #22098 This inequality evaluates even though `evaluate=False` is given: The result that should be returned is:",
+    "error_signature": "The evaluate=False parameter to `parse_expr` is ignored for relationals See also",
+    "tags": [
+      "sympy",
+      "parse"
+    ],
+    "good": {
+      "content": "Root cause is in sympy.parsing.sympy_parser (sympy/parsing/sympy_parser.py), not in unrelated modules. Symptom matches: The evaluate=False parameter to `parse_expr` is ignored for relationals See also #22305 and #22098 This inequality evaluates even though `evaluate=False` is giv\u2026 Fix: adjust the return expression so the constructed object matches the mathematical definition.\n\n**Verified fix locations:** sympy/parsing/sympy_parser.py\n\n**Key patch hunks (from the resolved change):**\n```diff\n+    relational_operators = {\n+        ast.NotEq: 'Ne',\n+        ast.Lt: 'Lt',\n+        ast.LtE: 'Le',\n+        ast.Gt: 'Gt',\n+        ast.GtE: 'Ge',\n+        ast.Eq: 'Eq'\n+    }\n+    def visit_Compare(self, node):\n+        if node.ops[0].__class__ in self.relational_operators:\n+            sympy_class = self.relational_operators[node.ops[0].__class__]\n+            right = self.visit(node.comparators[0])\n+            left = self.visit(node.left)\n+            new_node = ast.Call(\n+                func=ast.Name(id=sympy_class, ctx=ast.Load()),\n+                args=[left, right],\n+                keywords=[ast.keyword(arg='evaluate', value=ast.NameConstant(value=False, ctx=ast.Load()))],\n+                starargs=None,\n+                kwargs=None\n+            )\n+            return new_node\n+        return node\n+\n```",
+      "steps": [
+        "Open sympy/parsing/sympy_parser.py and locate the handler named in the traceback",
+        "Reproduce with the minimal example from the bug report",
+        "Apply the minimal fix described above and run the module's existing tests"
+      ]
+    }
+  }
+]

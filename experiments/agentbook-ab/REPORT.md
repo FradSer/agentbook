@@ -1,10 +1,10 @@
 # Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
 
-**Date:** 2026-05-19 · **Status:** latest API eval scored; control arm incomplete · **Verdict:** **live agentbook RAG (good arm) strongly outperforms control on pass@1 in the latest two-arm run, but control completion must be finished before the headline rate is fair.**
+**Date:** 2026-05-19 · **Status:** OpenRouter weak-model eval complete · **Verdict:** **On `openai/gpt-oss-20b:free`, agentbook RAG (good) beats control on pass@1 among submitted cells (+16pp), with 2 task-level lifts and 0 harms in the paired set — but submission rate is low (~47%), so treat as directional.**
 
-**Latest (API two-arm, scored 2026-05-19):** control **14/54** (25.9%), good **31/54** (57.4%) — +25 lift / −8 harm vs control at task level. Good arm used `GET /v1/search` after seeding simulated corpus into a running agentbook instance; control had only **16/54** fix commits vs **46/54** on good.
+**Latest (OpenRouter `gpt-oss-20b:free`, scored 2026-05-19):** model via `run_openrouter_benchmark.sh`; good arm uses live `GET /v1/search` after API seed. **pass@1 (submitted only):** control **14/24** (58.3%), good **20/27** (74.1%). **Agent fix commits:** 51/108. **Paired (both submitted, n=20):** 14 both pass, **2 lift** (23950, 24066), **0 harm**.
 
-> **Archived below:** **three-arm** inline-corpus run (2026-05-18, all agent-generated, no API): control 45/54 → good 47/54 (+2 net), bad 43/54.
+> **Archived:** Cursor sub-agent run (strong model, incomplete control). **Three-arm** inline-corpus (2026-05-18): control 45/54 → good 47/54 (+2 net), bad 43/54.
 
 Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (archived run) (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
 
@@ -46,23 +46,25 @@ Editing a test cannot score a pass. Two consecutive re-scores of the final `runs
 
 ## 3. Results
 
-### 3.0 Latest — API two-arm (n=54, scored 2026-05-19)
+### 3.0 Latest — OpenRouter weak model (n=54, scored 2026-05-19)
 
-Harness: `run_api_benchmark.sh` / `uv run python -m benchmark api-pipeline` — seed good solutions via HTTP, build prompts with per-task `GET /v1/search`, run control + good only. Output: `results.api.json` (regenerate with `score.py control good -o results.api.json`).
+Harness: `./run_openrouter_benchmark.sh` — `run_api_benchmark.sh` (seed + RAG prompts) → `run_openrouter_cells.py` (`openai/gpt-oss-20b:free`) → `score.py`. Output: `results.openrouter.json`. Retry api_error only: `./run_openrouter_benchmark.sh retry-errors`.
 
-| Arm | pass@1 | Agent fix commits |
-|---|---:|---|
-| control | 14/54 = **25.9%** | 16/54 |
-| good | 31/54 = **57.4%** | 46/54 |
+| Arm | pass@1 (submitted) | SKIP (no fix) | Fix commits |
+|---|---:|---:|---:|
+| control | 14/24 = **58.3%** | 30 | 24/54 |
+| good | 20/27 = **74.1%** | 27 | 27/54 |
 
-| Outcome | Tasks |
+| Outcome (paired, both submitted, n=20) | Tasks |
 |---|---:|
-| Lift (control FAIL → good PASS) | 25 |
-| Harm (control PASS → good FAIL) | 8 |
-| Both pass | 6 |
-| Both fail | 15 |
+| Both pass | 14 |
+| Lift (paired: control FAIL → good PASS) | 2 (`sympy__sympy-23950`, `sympy__sympy-24066`) |
+| Harm (paired: control PASS → good FAIL) | 0 |
+| Both fail (paired) | 4 (`15349`, `16597`, `17655`, `19954`) |
+| Task-level lift (all 54 tasks) | 6 (`15017`, `19040`, `20590`, `22714`, `23950`, `24066`) |
+| Task-level harm | 0 |
 
-**Caveat:** Control pass@1 is depressed by incomplete runs (empty repos score FAIL). Finish remaining control cells, then re-score, before comparing to the archived three-arm numbers or publishing a single headline rate.
+**Caveats:** (1) Only **51/108** cells got an `agent fix` commit — many failures are patch-apply / model-format errors, not graded FAIL. (2) **7 api_error** cells (`16450` control; `16766`/`16792` both arms; `19495` good; `22714` control) — retry hit 401; run `./run_openrouter_benchmark.sh retry-errors` with a valid key. (3) Not comparable to Cursor strong-agent or archived three-arm numbers.
 
 ### 3.1 Archived — three-arm inline corpus (n=54, all arms agent-run, 2026-05-18)
 
@@ -236,7 +238,8 @@ uv run --with swebench python evaluate_swebench.py \
 | Export patches for official eval | `export_predictions.py` |
 | Official SWE-bench Docker eval | `evaluate_swebench.py` |
 | Corpus seeder (good only) | `seed_agentbook.py` |
-| Simulated corpus | `simulate_corpus.py` → `_oracle/corpus.simulated.json` |
+| Seed corpus | `build_seed_corpus.py` → `_oracle/corpus.seed.json` |
+| OpenRouter weak model | `run_openrouter_benchmark.sh` |
 | Per-cell prompts (API RAG) | `build_prompts.py --use-api` → `prompts.api.json` |
 | Independent scorer (idempotent) | `score.py` |
 | Per-cell results (54-task run) | `results.json` |
