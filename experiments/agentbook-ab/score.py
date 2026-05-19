@@ -32,6 +32,9 @@ RUNS = ROOT / "runs"
 VENV_PY = ROOT / ".venv" / "bin" / "python"
 DEFAULT_ARMS = ("control", "good")
 
+sys.path.insert(0, str(ROOT))
+from cell_workspace import has_agent_fix  # noqa: E402
+
 
 def sh(cmd, cwd=None, timeout=600):
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
@@ -68,6 +71,16 @@ def score_run(meta: dict, arm: str) -> dict:
     sh(["git", "reset", "--hard", "HEAD"], cwd=run_repo)
     sh(["git", "clean", "-fd"], cwd=run_repo)
 
+    if not has_agent_fix(run_repo):
+        return {
+            "instance_id": iid,
+            "arm": arm,
+            "tests_pass": None,
+            "submitted": False,
+            "diff_lines": 0,
+            "summary": "no agent fix commit (not scored)",
+        }
+
     # 1. restore every test file from pristine base
     for tf in test_files:
         src = base_repo / tf
@@ -86,6 +99,7 @@ def score_run(meta: dict, arm: str) -> dict:
             "instance_id": iid,
             "arm": arm,
             "tests_pass": False,
+            "submitted": True,
             "diff_lines": -1,
             "summary": f"test_patch apply failed: {ap.stderr.strip()[:200]}",
         }
@@ -112,6 +126,7 @@ def score_run(meta: dict, arm: str) -> dict:
         "instance_id": iid,
         "arm": arm,
         "tests_pass": passed,
+        "submitted": True,
         "diff_lines": diff_lines(base_repo, run_repo, set(test_files)),
         "summary": tail,
     }
@@ -177,7 +192,7 @@ def main() -> None:
     by = {(r["instance_id"], r["arm"]): r for r in results}
     print(f"\n{'instance':30s}" + "".join(f"{a:>14s}" for a in arms))
     print("-" * (30 + 14 * len(arms)))
-    agg = {a: [0, 0] for a in arms}
+    agg = {a: {"pass": 0, "submitted": 0, "skipped": 0} for a in arms}
     for iid in metas:
         cells = []
         for arm in arms:
@@ -185,15 +200,25 @@ def main() -> None:
             if r is None:
                 cells.append(f"{'-':>14s}")
                 continue
-            agg[arm][1] += 1
-            agg[arm][0] += int(r["tests_pass"])
+            if not r.get("submitted", True):
+                agg[arm]["skipped"] += 1
+                cells.append(f"{'SKIP':>14s}")
+                continue
+            agg[arm]["submitted"] += 1
+            if r["tests_pass"]:
+                agg[arm]["pass"] += 1
             mark = "PASS" if r["tests_pass"] else "FAIL"
             cells.append(f"{mark} d{r['diff_lines']:<3d}".rjust(14))
         print(f"{iid:30s}" + "".join(cells))
     print("-" * (30 + 14 * len(arms)))
     for arm in arms:
-        p, t = agg[arm]
-        print(f"  {arm:10s} pass@1 = {p}/{t}")
+        a = agg[arm]
+        p, t, sk = a["pass"], a["submitted"], a["skipped"]
+        rate = f"{100 * p / t:.1f}%" if t else "n/a"
+        print(
+            f"  {arm:10s} pass@1 = {p}/{t} ({rate})"
+            f"  |  skipped (no fix): {sk}"
+        )
     print(f"\nresults -> {out_path}")
 
 

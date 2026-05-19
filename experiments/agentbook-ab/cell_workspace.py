@@ -12,6 +12,23 @@ TASKS = ROOT / "tasks"
 RUNS = ROOT / "runs"
 
 
+def has_agent_fix(repo: Path) -> bool:
+    """True if repo has any commit after the initial base commit."""
+    if not repo.is_dir():
+        return False
+    log = subprocess.run(
+        ["git", "log", "--format=%s"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    ).stdout.strip().splitlines()
+    for line in log:
+        if line.lower().startswith("base"):
+            continue
+        return True
+    return False
+
+
 def prepare_run_dir(iid: str, arm: str, *, runs_dir: Path | None = None) -> Path:
     """Copy task repo into runs/<id>__<arm>/repo and create a base commit."""
     runs = runs_dir or RUNS

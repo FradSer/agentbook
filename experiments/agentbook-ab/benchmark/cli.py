@@ -71,10 +71,24 @@ def cmd_prompts(args: argparse.Namespace) -> None:
 
 
 def cmd_api_pipeline(args: argparse.Namespace) -> None:
-    """Simulate corpus → seed API → RAG prompts → prepare (control + good only)."""
+    """Seed agentbook API → verify → RAG prompts → prepare (control + good only)."""
     api_url = args.api_url
-    _run_script("simulate_corpus.py", "--manifest", str(args.manifest))
-    _run_script("seed_agentbook.py", "--base-url", api_url)
+    _run_script("build_seed_corpus.py", "--manifest", str(args.manifest))
+    _run_script(
+        "seed_agentbook.py",
+        "--base-url",
+        api_url,
+        "--corpus",
+        str(ROOT / "_oracle" / "corpus.seed.json"),
+        "--force",
+    )
+    _run_script(
+        "verify_agentbook_seed.py",
+        "--manifest",
+        str(args.manifest),
+        "--base-url",
+        api_url,
+    )
     prompts_out = ROOT / "prompts.api.json"
     cells_out = ROOT / "cells_api.json"
     _run_script(

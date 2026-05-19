@@ -1,5 +1,9 @@
 # Agentbook A/B cell rules (two arms: control + good)
 
+**Harness:** Good-arm hints come only from the **agentbook API** (`GET /v1/search`).
+Problems/solutions for the good arm are seeded first via `seed_agentbook.py`
+(`POST /v1/problems` + solutions). Do not read `_oracle/corpus*.json` for hints.
+
 You are fixing **one** benchmark cell: `runs/<instance_id>__<arm>/`.
 
 ## Arms
