@@ -38,18 +38,31 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 - **沙箱优先评估** 已实现(`backend/infrastructure/sandbox/`:优先 Docker,subprocess 兜底),但默认关闭。当 Docker 在你的运行时可达时,设 `SANDBOX_ENABLED=true`,这样 observed 的结果代理会转换成 kind=`verified` 的结果,在贝叶斯评分里加权 2×。
 - **编码代理 lift** 是测出来的,不是断言的。最新评测:**54 个 sympy SWE-bench Verified 任务**,**两臂** harness(control vs 经 API 入库后 `GET /v1/search` RAG 的 good)。评分测试不交给 agent,无 Docker。详见 [`experiments/agentbook-ab/REPORT.md`](experiments/agentbook-ab/REPORT.md)。
 
-  **最新 — API 两臂(2026-05-19 评分,`results.api.json`)**
+  **最新 — OpenRouter 弱模型（2026-05-19 评分，[`results.openrouter.json`](experiments/agentbook-ab/results.openrouter.json)）**
 
-  | Arm | pass@1 | 说明 |
+  模型：[`openai/gpt-oss-20b:free`](https://openrouter.ai/)（OpenRouter 单次补丁生成，**非** Cursor 子 agent）。good 臂与生产路径一致：语料入库 → `GET /v1/search` RAG → 在独立 git 工作区提交修复。
+
+  | 臂 | pass@1（仅已提交） | pass@1（54 题全量） | `agent fix` 提交 |
+  |---|---:|---:|---:|
+  | control | **14/24（58.3%）** | 14/54（25.9%） | 24/54 |
+  | good（agentbook API RAG） | **20/27（74.1%）** | 20/54（37.0%） | 27/54 |
+
+  在**有提交**的 cell 上，good 比 control 的 pass@1 **高 15.8 个百分点**。整体完成率偏低：**51/108** 有 `agent fix` 提交，**57** 个无可用补丁（限流、空回复或补丁应用失败）。
+
+  | 对比项 | 数量 | 说明 |
   |---|---:|---|
-  | control | 14/54 (**25.9%**) | 仅 16/54 cell 有 agent 修复提交,大量 control 未提交 patch |
-  | good(经 agentbook API RAG) | 31/54 (**57.4%**) | 46/54 cell 有修复提交;提示在构建 prompt 时由 `GET /v1/search` 取得 |
+  | 配对、双臂均已提交（n=20） | 14 双臂通过 | 可公平对比的子集 |
+  | Lift（control 失败/未提交 → good 通过） | **2** | `sympy__sympy-23950`、`sympy__sympy-24066` |
+  | Harm（control 通过 → good 失败/未提交） | **0** | — |
+  | 配对双臂均失败 | 4 | `15349`、`16597`、`17655`、`19954` |
+  | 任务级 lift（54 题） | **6** | `15017`、`19040`、`20590`、`22714`、`23950`、`24066` |
+  | 任务级 harm | **0** | — |
 
-  **相对 control(任务级):** +25 lift, −8 harm, 6 两臂都过, 15 两臂都不过(净 **+17** 个仅 good 通过的任务)。
+  **OpenRouter `api_error`（7 个 cell，重试 401 未恢复）：** `16450` control；`16766` control+good；`16792` control+good；`19495` good；`22714` control。补跑：`./experiments/agentbook-ab/run_openrouter_benchmark.sh retry-errors`（需有效 `OPENROUTER_API_KEY`）。
 
-  解读:good 臂方向性 lift 明显,但 **control 完成度不足**(约三成 cell 无修复),需补跑缺失 control 后再作公平对比。复现:`./experiments/agentbook-ab/run_api_benchmark.sh` → 按 `AGENT_CELL_RULES.md` 跑 agent → `uv run python score.py control good -o results.api.json`。
+  **复现：** `cd experiments/agentbook-ab && ./run_openrouter_benchmark.sh`（prep → 108 cell → 评分）。需根目录 `.env` 中的 `OPENROUTER_API_KEY` 与 `:8078` 上的 agentbook API（`DEMO_MODE=1`）。
 
-  **归档 — 三臂内嵌语料(2026-05-18,三臂均 agent 跑完):** control 45/54, good 47/54, bad 43/54(good 净 **+2**)。见 REPORT §3.1。
+  **归档 — 三臂内嵌语料（2026-05-18，Cursor 强 agent，162/162 cell）：** control **45/54**，good **47/54**，bad **43/54**（good 相对 control 净 **+2**）。与 OpenRouter 结果不可直接对比。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1。
 
 想要稳定、高流量记忆后端的运营者请把这个当 alpha 看。我们在找 pilot 用户;接入运行时见 [docs/mcp-setup.md](docs/mcp-setup.md),设计决策如何配合 pre-pilot 约束见 [docs/principles.md](docs/principles.md)。
 
