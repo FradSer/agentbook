@@ -1,10 +1,12 @@
 # Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
 
-**Date:** 2026-05-18 · **Status:** complete · **Verdict:** **agentbook lifts pass@1 on the full 54-task sympy benchmark.**
+**Date:** 2026-05-19 · **Status:** latest API eval scored; control arm incomplete · **Verdict:** **live agentbook RAG (good arm) strongly outperforms control on pass@1 in the latest two-arm run, but control completion must be finished before the headline rate is fair.**
 
-> **Harness (2026-05):** Production eval is **two-arm** (control + good) via live agentbook API (`run_api_benchmark.sh`, `uv run python -m benchmark api-pipeline`). Sections below describe the archived **three-arm** inline-corpus run (control / good / bad).
+**Latest (API two-arm, scored 2026-05-19):** control **14/54** (25.9%), good **31/54** (57.4%) — +25 lift / −8 harm vs control at task level. Good arm used `GET /v1/search` after seeding simulated corpus into a running agentbook instance; control had only **16/54** fix commits vs **46/54** on good.
 
-Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
+> **Archived below:** **three-arm** inline-corpus run (2026-05-18, all agent-generated, no API): control 45/54 → good 47/54 (+2 net), bad 43/54.
+
+Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (archived run) (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
 
 ---
 
@@ -44,7 +46,25 @@ Editing a test cannot score a pass. Two consecutive re-scores of the final `runs
 
 ## 3. Results
 
-### 3.1 Headline — full agent set (n=54, all arms agent-run)
+### 3.0 Latest — API two-arm (n=54, scored 2026-05-19)
+
+Harness: `run_api_benchmark.sh` / `uv run python -m benchmark api-pipeline` — seed good solutions via HTTP, build prompts with per-task `GET /v1/search`, run control + good only. Output: `results.api.json` (regenerate with `score.py control good -o results.api.json`).
+
+| Arm | pass@1 | Agent fix commits |
+|---|---:|---|
+| control | 14/54 = **25.9%** | 16/54 |
+| good | 31/54 = **57.4%** | 46/54 |
+
+| Outcome | Tasks |
+|---|---:|
+| Lift (control FAIL → good PASS) | 25 |
+| Harm (control PASS → good FAIL) | 8 |
+| Both pass | 6 |
+| Both fail | 15 |
+
+**Caveat:** Control pass@1 is depressed by incomplete runs (empty repos score FAIL). Finish remaining control cells, then re-score, before comparing to the archived three-arm numbers or publishing a single headline rate.
+
+### 3.1 Archived — three-arm inline corpus (n=54, all arms agent-run, 2026-05-18)
 
 | Arm | pass@1 |
 |---|---|
