@@ -36,7 +36,20 @@ Monorepo with three isolated services sharing one domain model:
 - **Retrieval quality** has a frozen fallback-mode baseline (`docs/retrieval-baseline.md`). A real-mode (Voyage 3-large + cross-encoder rerank) baseline is opt-in via `make eval-real` so the actual production retrieval path is independently guarded.
 - **Use-side metrics** (`/v1/dashboard/usage`) expose volume, unique-reporter, and verified/observed splits aggregated from existing tables — flywheel health is now measurable rather than asserted.
 - **Sandbox-primary evaluation** is implemented (`backend/infrastructure/sandbox/`: Docker preferred, subprocess fallback) but disabled by default. Set `SANDBOX_ENABLED=true` once Docker is reachable in your runtime to convert observed-outcome proxies into kind=`verified` outcomes weighted 2× in the Bayesian scorer.
-- **Coding-agent lift** is measured, not asserted. A controlled A/B ([`experiments/agentbook-ab/`](experiments/agentbook-ab/REPORT.md)) uses the public [SWE-bench Verified](https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified) dataset (`fetch_verified.py`). The no-Docker sympy benchmark covers **54 RED-verified tasks** (sympy 1.4–1.12), scored across **162 cells** (54 tasks × 3 arms). Official Docker grading for the full 500-instance set is supported via `export_predictions.py` + `evaluate_swebench.py`. The pilot ran **162 isolated coding sub-agents** (every cell agent-generated), with the grading test withheld from the agent (no test oracle). An accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — four control-FAIL tasks flipped to PASS, two control-PASS tasks regressed (net **+2**). An adversarial entry dropped pass@1 to 43/54 (80%) — seven regressions partly offset by five lucky lifts. On the original 39-task slice the net lift remains **+3** (30/39 → 33/39). All lifts are tasks whose recorded fix is localizable; structural fixes still need the agent to implement the structure even with the right diagnosis. The bad-arm regressions are exactly what agentbook's outcome-driven confidence scoring (deliberately disabled in this experiment at the 0.3 cold-start floor) exists to suppress. Full method, sample size caveats, and per-task breakdown: [experiments/agentbook-ab/REPORT.md](experiments/agentbook-ab/REPORT.md).
+- **Coding-agent lift** is measured, not asserted. Latest eval: **54 sympy SWE-bench Verified tasks**, **two-arm** harness (control vs good with live `GET /v1/search` RAG after API seed). Grading test withheld from agents; no Docker. Details: [`experiments/agentbook-ab/REPORT.md`](experiments/agentbook-ab/REPORT.md).
+
+  **Latest — API two-arm (scored 2026-05-19, `results.api.json`)**
+
+  | Arm | pass@1 | Notes |
+  |---|---:|---|
+  | control | 14/54 (**25.9%**) | 16/54 cells had an agent fix commit; many control cells never submitted a patch |
+  | good (RAG via agentbook API) | 31/54 (**57.4%**) | 46/54 cells had a fix commit; hints from `GET /v1/search` at prompt build |
+
+  **Good vs control (task-level):** +25 lift, −8 harm, 6 both pass, 15 both fail (net **+17** tasks where only good passes).
+
+  Interpretation: good arm shows a large directional lift, but **control completion was incomplete** (~30% of cells without a fix) — rerun missing control cells before treating pass@1 as a fair headline. Reproduce: `./experiments/agentbook-ab/run_api_benchmark.sh` → run agents per `AGENT_CELL_RULES.md` → `uv run python score.py control good -o results.api.json`.
+
+  **Archived — three-arm inline corpus (2026-05-18, all arms agent-complete):** control 45/54, good 47/54, bad 43/54 (+2 good net). See REPORT §3.1.
 
 Operators looking for a stable, high-traffic memory backend should treat this as alpha. We are seeking pilot users; see [docs/mcp-setup.md](docs/mcp-setup.md) to wire it into your runtime, and [docs/principles.md](docs/principles.md) for how design decisions track the pre-pilot constraints.
 

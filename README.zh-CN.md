@@ -36,7 +36,20 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 - **检索质量** 有一个冻结的 fallback-mode baseline(`docs/retrieval-baseline.md`)。真模式(Voyage 3-large + cross-encoder rerank)的 baseline 通过 `make eval-real` 选择性开启,所以真实生产检索路径是独立守护的。
 - **使用侧指标**(`/v1/dashboard/usage`)暴露体量、唯一上报人、verified/observed 分布,从既有表聚合而来 —— 飞轮健康度从"主张"变成"可测"。
 - **沙箱优先评估** 已实现(`backend/infrastructure/sandbox/`:优先 Docker,subprocess 兜底),但默认关闭。当 Docker 在你的运行时可达时,设 `SANDBOX_ENABLED=true`,这样 observed 的结果代理会转换成 kind=`verified` 的结果,在贝叶斯评分里加权 2×。
-- **编码代理 lift** 是测出来的,不是断言的。受控 A/B([`experiments/agentbook-ab/`](experiments/agentbook-ab/REPORT.md))使用公开数据集 [SWE-bench Verified](https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified)(`fetch_verified.py` 下载)。无 Docker 的 sympy 基准 **RED 验证 54 个任务**(sympy 1.4–1.12),已评分 **162 个 cell**(54 任务 × 3 arm)。完整 500 实例可用 `export_predictions.py` + `evaluate_swebench.py` 走官方 Docker harness。试点跑了 **162 个隔离编码子代理**(每个 cell 都是 agent 端到端跑的),评分用的测试不交给 agent(没有 test oracle)。准确的 agentbook 条目把 pass@1 从 **45/54 (83%) 抬到 47/54 (87%)** —— 四个 control 失败的任务在 good arm 翻成 PASS,两个 control 通过的任务回归(净 **+2**)。对抗 arm 把 pass@1 拉到 43/54 (80%) —— 七个回归被五个偶然 lift 部分抵消。在原先 39 个任务的子集上,净 lift 仍是 **+3**(30/39 → 33/39)。所有 lift 都是记录的修复可以局部化(localizable)的任务;结构性修复即便给了正确诊断,agent 仍然需要自己实现那个结构。bad arm 的回归,正好就是 agentbook 的结果驱动置信度评分(本实验里刻意关闭,设在 0.3 cold-start floor)要压制的东西。完整方法、样本量注意事项、per-task 拆解:[experiments/agentbook-ab/REPORT.md](experiments/agentbook-ab/REPORT.md)。
+- **编码代理 lift** 是测出来的,不是断言的。最新评测:**54 个 sympy SWE-bench Verified 任务**,**两臂** harness(control vs 经 API 入库后 `GET /v1/search` RAG 的 good)。评分测试不交给 agent,无 Docker。详见 [`experiments/agentbook-ab/REPORT.md`](experiments/agentbook-ab/REPORT.md)。
+
+  **最新 — API 两臂(2026-05-19 评分,`results.api.json`)**
+
+  | Arm | pass@1 | 说明 |
+  |---|---:|---|
+  | control | 14/54 (**25.9%**) | 仅 16/54 cell 有 agent 修复提交,大量 control 未提交 patch |
+  | good(经 agentbook API RAG) | 31/54 (**57.4%**) | 46/54 cell 有修复提交;提示在构建 prompt 时由 `GET /v1/search` 取得 |
+
+  **相对 control(任务级):** +25 lift, −8 harm, 6 两臂都过, 15 两臂都不过(净 **+17** 个仅 good 通过的任务)。
+
+  解读:good 臂方向性 lift 明显,但 **control 完成度不足**(约三成 cell 无修复),需补跑缺失 control 后再作公平对比。复现:`./experiments/agentbook-ab/run_api_benchmark.sh` → 按 `AGENT_CELL_RULES.md` 跑 agent → `uv run python score.py control good -o results.api.json`。
+
+  **归档 — 三臂内嵌语料(2026-05-18,三臂均 agent 跑完):** control 45/54, good 47/54, bad 43/54(good 净 **+2**)。见 REPORT §3.1。
 
 想要稳定、高流量记忆后端的运营者请把这个当 alpha 看。我们在找 pilot 用户;接入运行时见 [docs/mcp-setup.md](docs/mcp-setup.md),设计决策如何配合 pre-pilot 约束见 [docs/principles.md](docs/principles.md)。
 
