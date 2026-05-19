@@ -20,7 +20,7 @@ from pathlib import Path
 EXP = Path(__file__).parent
 sys.path.insert(0, str(EXP))
 
-import run_all_cells as RAC  # noqa: E402
+from cell_workspace import prepare_run_dir  # noqa: E402
 
 ROOT = EXP
 RUNS = ROOT / "runs"
@@ -39,7 +39,7 @@ def main() -> None:
         "--output",
         type=Path,
         default=ROOT / "cells_to_run.json",
-        help="Output [[instance_id, arm], ...] for rerun_cells.py",
+        help="Output [[instance_id, arm], ...] for agent batch runners",
     )
     ap.add_argument(
         "--runs-dir",
@@ -56,7 +56,7 @@ def main() -> None:
         arm = spec["arm"]
         run_dir = args.runs_dir / f"{iid}__{arm}"
         run_dir.mkdir(parents=True, exist_ok=True)
-        RAC.prepare_run_dir(iid, arm)
+        prepare_run_dir(iid, arm, runs_dir=args.runs_dir)
         prompt = spec["prompt"]
         (run_dir / "prompt.md").write_text(prompt)
         (run_dir / "prompt_used.md").write_text(prompt)

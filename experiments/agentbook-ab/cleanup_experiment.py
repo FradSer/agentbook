@@ -52,9 +52,13 @@ MANIFEST_SLICES = [
 DEPRECATED_SCRIPTS = [
     "apply_gold_remaining.py",
     "apply_bad_arm_batch.py",
+    "apply_good_fixes.py",
     "fix_remaining.py",
     "good_arm_batch.py",
     "run_control_openrouter.py",
+    "run_all_cells.py",
+    "rerun_cells.py",
+    "filter_manifest.py",
     "run_complex_batch.sh",
     "run_responsible_batch.sh",
 ]
@@ -109,15 +113,18 @@ def main() -> None:
     manifest_ids = load_manifest_ids()
     print(f"manifest: {len(manifest_ids)} verified tasks\n")
 
+    run_globs = ("runs", "runs.*")
     if not args.keep_runs:
         print("run workspaces:")
-        for pat in ("runs", "runs.*"):
+        for pat in run_globs:
             for p in ROOT.glob(pat):
                 if p.is_dir():
                     rm_path(p, args.dry_run)
 
     print("\ngenerated JSON:")
     for pat in GENERATED_GLOBS:
+        if args.keep_runs and pat in run_globs:
+            continue
         for p in ROOT.glob(pat):
             rm_path(p, args.dry_run)
 

@@ -16,7 +16,7 @@ DEFAULT_MANIFEST = ROOT / "tasks" / "manifest.json"
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    ap.add_argument("--arms", nargs="*", default=("control", "good", "bad"))
+    ap.add_argument("--arms", nargs="*", default=("control", "good"))
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 

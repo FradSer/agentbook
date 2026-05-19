@@ -7,7 +7,8 @@
   uv run python -m benchmark prompts --preset eval-v2
   uv run python -m benchmark prepare --prompts prompts.v2.json
   uv run python -m benchmark score --preset eval-v2
-  uv run python -m benchmark pipeline eval-v2   # simulate + manifest + prompts + prepare
+  uv run python -m benchmark api-pipeline        # seed API + RAG prompts + prepare (2 arms)
+  uv run python -m benchmark pipeline eval-v2    # manifest slice + api-pipeline
 """
 
 from __future__ import annotations
@@ -63,18 +64,42 @@ def cmd_prompts(args: argparse.Namespace) -> None:
     manifest = args.manifest
     if args.preset and not args.manifest_set:
         manifest = DEFAULT_MANIFEST.parent / f"manifest.{args.preset}.json"
-    argv = [
+    argv = ["build_prompts.py", "--manifest", str(manifest), "-o", str(args.output)]
+    if getattr(args, "use_api", False):
+        argv.extend(["--use-api", "--api-url", args.api_url])
+    _run_script(*argv)
+
+
+def cmd_api_pipeline(args: argparse.Namespace) -> None:
+    """Simulate corpus → seed API → RAG prompts → prepare (control + good only)."""
+    api_url = args.api_url
+    _run_script("simulate_corpus.py", "--manifest", str(args.manifest))
+    _run_script("seed_agentbook.py", "--base-url", api_url)
+    prompts_out = ROOT / "prompts.api.json"
+    cells_out = ROOT / "cells_api.json"
+    _run_script(
         "build_prompts.py",
         "--manifest",
-        str(manifest),
-        "--corpus",
-        str(args.corpus),
+        str(args.manifest),
+        "--use-api",
+        "--api-url",
+        api_url,
         "-o",
-        str(args.output),
-    ]
-    if args.good_mode:
-        argv.extend(["--good-mode", args.good_mode])
-    _run_script(*argv)
+        str(prompts_out),
+    )
+    _run_script("reset_runs.py", "--manifest", str(args.manifest), "--arms", "control", "good")
+    _run_script(
+        "prepare_cells.py",
+        "--prompts",
+        str(prompts_out),
+        "-o",
+        str(cells_out),
+    )
+    n = len(json.loads(cells_out.read_text()))
+    print(f"\nAPI pipeline ready: {n} cells (control + good)")
+    print(f"  prompts -> {prompts_out}")
+    print(f"  cells   -> {cells_out}")
+    print("Run agents, then: uv run python score.py control good -o results.api.json")
 
 
 def cmd_prepare(args: argparse.Namespace) -> None:
@@ -112,10 +137,9 @@ def cmd_score(args: argparse.Namespace) -> None:
 
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
+    """Write manifest slice, then run api-pipeline (seed + RAG + prepare)."""
     preset = args.preset
     manifest_out = DEFAULT_MANIFEST.parent / f"manifest.{preset}.json"
-    prompts_out = ROOT / f"prompts.{preset}.json"
-    cells_out = ROOT / f"cells_{preset}.json"
     results_out = ROOT / f"results.{preset}.json"
 
     cmd_manifest(
@@ -126,31 +150,9 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
             dry_run=False,
         )
     )
-    cmd_simulate_corpus(
-        argparse.Namespace(manifest=manifest_out, output=CORPUS_SIMULATED)
+    cmd_api_pipeline(
+        argparse.Namespace(manifest=manifest_out, api_url=args.api_url)
     )
-    cmd_prompts(
-        argparse.Namespace(
-            preset=preset,
-            manifest_set=True,
-            manifest=manifest_out,
-            corpus=CORPUS_SIMULATED,
-            output=prompts_out,
-            good_mode=args.good_mode,
-        )
-    )
-    cmd_prepare(
-        argparse.Namespace(
-            reset=True,
-            manifest=manifest_out,
-            prompts=prompts_out,
-            cells=cells_out,
-        )
-    )
-    print(f"\nPipeline ready: {len(json.loads(cells_out.read_text()))} cells")
-    print(f"  manifest -> {manifest_out}")
-    print(f"  prompts  -> {prompts_out}")
-    print(f"  cells    -> {cells_out}")
     print("Run agents per AGENT_CELL_RULES.md, then:")
     print(f"  uv run python -m benchmark score --preset {preset} -o {results_out}")
 
@@ -173,18 +175,18 @@ def main() -> None:
     s.add_argument("-o", "--output", type=Path, default=CORPUS_SIMULATED)
     s.set_defaults(func=cmd_simulate_corpus)
 
-    p = sub.add_parser("prompts", help="Build prompts JSON")
+    p = sub.add_parser("prompts", help="Build prompts JSON (requires --use-api)")
     p.add_argument("--preset", type=str, default="")
     p.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    p.add_argument("--corpus", type=Path, default=CORPUS_SIMULATED)
-    p.add_argument("-o", "--output", type=Path, default=ROOT / "prompts.json")
-    p.add_argument(
-        "--good-mode",
-        choices=("simulated", "hand-only", "hand-then-simulated"),
-        default="hand-then-simulated",
-        help="Good-arm corpus source policy",
-    )
+    p.add_argument("-o", "--output", type=Path, default=ROOT / "prompts.api.json")
+    p.add_argument("--use-api", action="store_true", default=True)
+    p.add_argument("--api-url", default="http://127.0.0.1:8078")
     p.set_defaults(func=cmd_prompts, manifest_set=False)
+
+    api = sub.add_parser("api-pipeline", help="Seed + RAG prompts + prepare (2 arms)")
+    api.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+    api.add_argument("--api-url", default="http://127.0.0.1:8078")
+    api.set_defaults(func=cmd_api_pipeline)
 
     pr = sub.add_parser("prepare", help="Reset runs + prepare cell workspaces")
     pr.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
@@ -194,19 +196,15 @@ def main() -> None:
     pr.set_defaults(func=cmd_prepare)
 
     sc = sub.add_parser("score", help="Grade runs")
-    sc.add_argument("arms", nargs="*", default=["control", "good", "bad"])
+    sc.add_argument("arms", nargs="*", default=["control", "good"])
     sc.add_argument("--preset", type=str, default="")
     sc.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     sc.add_argument("-o", "--output", type=Path)
     sc.set_defaults(func=cmd_score, manifest_set=False)
 
-    pl = sub.add_parser("pipeline", help="manifest + corpus + prompts + prepare")
+    pl = sub.add_parser("pipeline", help="manifest slice + api-pipeline")
     pl.add_argument("preset", default="eval-v2")
-    pl.add_argument(
-        "--good-mode",
-        default="hand-then-simulated",
-        choices=("simulated", "hand-only", "hand-then-simulated"),
-    )
+    pl.add_argument("--api-url", default="http://127.0.0.1:8078")
     pl.set_defaults(func=cmd_pipeline)
 
     cl = sub.add_parser("cleanup", help="Remove stale runs, results, oracle shortcuts")

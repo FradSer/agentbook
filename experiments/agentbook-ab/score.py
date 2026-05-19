@@ -13,7 +13,7 @@ A run passes iff every FAIL_TO_PASS test is green. Source-diff size is measured
 against the pristine base, excluding test files.
 
 Run:  uv run python experiments/agentbook-ab/score.py [arm ...]
-      (default arms: control good bad -- whichever runs/ dirs exist)
+      (default arms: control good)
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ TASKS = ROOT / "tasks"
 ORACLE = ROOT / "_oracle"
 RUNS = ROOT / "runs"
 VENV_PY = ROOT / ".venv" / "bin" / "python"
-DEFAULT_ARMS = ("control", "good", "bad")
+DEFAULT_ARMS = ("control", "good")
 
 
 def sh(cmd, cwd=None, timeout=600):

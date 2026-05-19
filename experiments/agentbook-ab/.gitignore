@@ -21,5 +21,9 @@ recall_simulation.json
 rerun_results.json
 _oracle/corpus.simulated.json
 _oracle/seed_state_*.json
+recalls/
+prompts.api.json
+results.api.json
+cells_api.json
 tasks/manifest.*.json
 !tasks/manifest.json
