@@ -1,6 +1,10 @@
 # Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
 
-**Date:** 2026-05-18 · **Status:** complete · **Verdict:** **agentbook lifts pass@1 on the full 54-task sympy benchmark.** Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
+**Date:** 2026-05-18 · **Status:** complete · **Verdict:** **agentbook lifts pass@1 on the full 54-task sympy benchmark.**
+
+> **Harness (2026-05):** Production eval is **two-arm** (control + good) via live agentbook API (`run_api_benchmark.sh`, `uv run python -m benchmark api-pipeline`). Sections below describe the archived **three-arm** inline-corpus run (control / good / bad).
+
+Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
 
 ---
 
@@ -86,7 +90,7 @@ Bad picked up 5 incidental lifts (same 4 as good plus 21930) where its wrong hin
 
 ### 3.1b Hard tier (recommended for wider arm separation)
 
-The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. For experiments that need a lower control ceiling and clearer good/bad separation, use the **hard manifest** (`tasks/manifest.hard.json`, built by `filter_manifest.py hard`):
+The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. For experiments that need a lower control ceiling, use a manifest preset (`uv run python -m benchmark manifest hard` → `tasks/manifest.hard.json`):
 
 | Tier | Tasks | control | good | bad | good − control |
 |---|---|---|---|---|---|
@@ -100,13 +104,12 @@ Hard tier rules: drop sympy **1.4–1.6**; drop **&lt;15 min** SWE difficulty un
 Re-run on the hard tier (72 cells):
 
 ```bash
-uv run python experiments/agentbook-ab/filter_manifest.py hard
-uv run python experiments/agentbook-ab/build_prompts.py --manifest tasks/manifest.hard.json
-# run 72 sub-agents, then:
-uv run python experiments/agentbook-ab/score.py --manifest tasks/manifest.hard.json
+cd experiments/agentbook-ab
+uv run python -m benchmark manifest hard
+./run_api_benchmark.sh   # or: uv run python -m benchmark api-pipeline
+# run 48 sub-agents (control + good), then:
+uv run python score.py control good --manifest tasks/manifest.hard.json
 ```
-
-`build_prompts.py` now generates **adversarial bad hints** that point at a wrong sibling module (e.g. gold `mod.py` → bad `mul.py`) instead of the correct file, which should increase bad-arm regressions on control-pass tasks.
 
 ### 3.2 Split by sub-agent model
 
@@ -206,21 +209,23 @@ uv run --with swebench python evaluate_swebench.py \
 | Benchmark venv pins | `bench_requirements.txt` |
 | One-shot bootstrap | `setup_bench.sh` |
 | Benchmark builder (RED-verified sympy tasks) | `build_benchmark.py` |
-| Hard-tier manifest filter | `filter_manifest.py` → `tasks/manifest.hard.json` |
+| Manifest presets (hard, eval-v2, …) | `uv run python -m benchmark manifest <preset>` |
+| API two-arm pipeline | `run_api_benchmark.sh` or `uv run python -m benchmark api-pipeline` |
+| Workspace prep | `cell_workspace.py`, `prepare_cells.py` |
 | Substrate probe report | `probe_substrate.py` |
 | Export patches for official eval | `export_predictions.py` |
 | Official SWE-bench Docker eval | `evaluate_swebench.py` |
-| Corpus seeder (good / bad) | `seed_agentbook.py` |
-| Seed corpus | `_oracle/corpus.json` |
-| Per-cell prompts (162 cells @ 54 tasks) | `prompts.json` |
+| Corpus seeder (good only) | `seed_agentbook.py` |
+| Simulated corpus | `simulate_corpus.py` → `_oracle/corpus.simulated.json` |
+| Per-cell prompts (API RAG) | `build_prompts.py --use-api` → `prompts.api.json` |
 | Independent scorer (idempotent) | `score.py` |
 | Per-cell results (54-task run) | `results.json` |
 | Gold patches + held-out test patches | `_oracle/<id>/` |
 | Pre-expansion backup | `runs.glm-baseline/` |
 
 ```bash
-# Full no-Docker A/B loop (after ./setup_bench.sh)
-uv run python experiments/agentbook-ab/build_prompts.py
-# Run 162 sub-agents (rerun_cells.py or run_all_cells.py), then:
-uv run python experiments/agentbook-ab/score.py
+# Current two-arm API loop (after ./setup_bench.sh + agentbook on :8078)
+cd experiments/agentbook-ab && ./run_api_benchmark.sh
+# Run agents per AGENT_CELL_RULES.md, then:
+uv run python score.py control good -o results.api.json
 ```
