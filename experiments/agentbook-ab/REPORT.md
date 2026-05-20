@@ -64,7 +64,9 @@ Harness: `./run_openrouter_benchmark.sh` — `run_api_benchmark.sh` (seed + RAG 
 | Task-level lift (all 54 tasks) | 6 (`15017`, `19040`, `20590`, `22714`, `23950`, `24066`) |
 | Task-level harm | 0 |
 
-**Caveats:** (1) Only **51/108** cells got an `agent fix` commit — many failures are patch-apply / model-format errors, not graded FAIL. (2) **7 api_error** cells (`16450` control; `16766`/`16792` both arms; `19495` good; `22714` control) — retry hit 401; run `./run_openrouter_benchmark.sh retry-errors` with a valid key. (3) Not comparable to Cursor strong-agent or archived three-arm numbers.
+**Caveats:** (1) Only **51/108** cells got an `agent fix` commit — many failures are patch-apply / model-format errors, not graded FAIL. (2) **7 api_error** cells (`16450` control; `16766`/`16792` both arms; `19495` good; `22714` control) — retry hit 401; run `./run_openrouter_retry_errors.sh` with a valid key. (3) Not comparable to Cursor strong-agent or archived three-arm numbers.
+
+**Search stack:** `GET /v1/search` embedding/rerank runs on the agentbook server (Voyage → OpenRouter → Fallback; Voyage rerank). The OpenRouter fix model only reads recall text in `prompt.md` — it does not embed queries. After this change, `DEMO_MODE=1` uses the same resolver (not hard-coded Fallback). Re-run `run_api_benchmark.sh` to refresh good-arm prompts when changing keys.
 
 ### 3.1 Archived — three-arm inline corpus (n=54, all arms agent-run, 2026-05-18)
 

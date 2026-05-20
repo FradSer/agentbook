@@ -3,6 +3,8 @@
 #
 # Prereq: agentbook API running, e.g. from repo root:
 #   DEMO_MODE=1 uv run uvicorn backend.main:app --host 127.0.0.1 --port 8078
+# Set VOYAGE_API_KEY and/or OPENROUTER_API_KEY so /v1/search uses server embeddings
+# (not deterministic Fallback). External fix models use a separate API key.
 #
 set -euo pipefail
 AB="$(cd "$(dirname "$0")" && pwd)"

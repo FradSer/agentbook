@@ -4,6 +4,11 @@
 Problems/solutions for the good arm are seeded first via `seed_agentbook.py`
 (`POST /v1/problems` + solutions). Do not read `_oracle/corpus*.json` for hints.
 
+**Search stack (server-side only):** Embedding and rerank for `GET /v1/search` run
+inside agentbook (Voyage → OpenRouter → Fallback; Voyage rerank when configured).
+The external fix model must **not** call embedding APIs for retrieval — it only
+reads the recall text baked into `prompt.md` at prep time.
+
 You are fixing **one** benchmark cell: `runs/<instance_id>__<arm>/`.
 
 ## Arms
