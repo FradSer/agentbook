@@ -19,6 +19,5 @@ echo "==> 4. RED-verify sympy tasks into tasks/manifest.json"
 uv run --with pandas --with pyarrow python build_benchmark.py --rebuild-unverified
 
 echo ""
-echo "Done. Next steps:"
-echo "  - Expand benchmark: see probe_substrate.py for other repos"
-echo "  - Full 500-task eval: export_predictions.py + evaluate_swebench.py (Docker)"
+echo "Done. Run the two-arm eval:"
+echo "  ./run_api_benchmark.sh && ./run_openrouter_benchmark.sh"

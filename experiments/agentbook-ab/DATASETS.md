@@ -29,9 +29,9 @@ Survey for refactoring agentbook A/B. **Primary substrate today:** SWE-bench Ver
 
 ## Selection for agentbook-ab v2
 
-1. **Keep** SWE-bench Verified as sole *fix* substrate until RED-verify works for more repos (`probe_substrate.py`).
-2. **Manifest tiers** use static difficulty/patch/version rules — not prior `results.json` (avoids circular eval).
-3. **Eval slice `eval-v2`:** drop sympy 1.4–1.6 expansion, drop `<15 min fix`, require gold patch ≥ 15 lines → maximizes control/good/bad separation.
+1. **Keep** SWE-bench Verified as sole *fix* substrate until RED-verify works for more repos (`build_benchmark.py`).
+2. **Manifest** is `tasks/manifest.json` (54 RED-verified sympy tasks); edit manually for smaller slices.
+3. **Archived eval-v2 rules** (three-arm era): drop sympy 1.4–1.6 expansion, drop `<15 min fix`, require gold patch ≥ 15 lines.
 4. **Full slice `full`:** all 54 RED-verified sympy tasks (regression / headline number).
 5. **Future:** add ContextBench subset for recall@1 on injected hints without pass@1 confound.
 

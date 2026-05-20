@@ -1,8 +1,8 @@
 # Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
 
-**Date:** 2026-05-19 · **Status:** OpenRouter weak-model eval complete · **Verdict:** **On `openai/gpt-oss-20b:free`, agentbook RAG (good) beats control on pass@1 among submitted cells (+16pp), with 2 task-level lifts and 0 harms in the paired set — but submission rate is low (~47%), so treat as directional.**
+**Date:** 2026-05-20 · **Status:** OpenRouter weak-model eval complete (incl. api_error retry) · **Verdict:** **On `openai/gpt-oss-20b:free`, agentbook RAG (good) beats control on pass@1 among submitted cells (+20pp), with 4 paired lifts and 0 harms — but submission rate is low (~52%), so treat as directional.**
 
-**Latest (OpenRouter `gpt-oss-20b:free`, scored 2026-05-19):** model via `run_openrouter_benchmark.sh`; good arm uses live `GET /v1/search` after API seed. **pass@1 (submitted only):** control **14/24** (58.3%), good **20/27** (74.1%). **Agent fix commits:** 51/108. **Paired (both submitted, n=20):** 14 both pass, **2 lift** (23950, 24066), **0 harm**.
+**Latest (OpenRouter `gpt-oss-20b:free`, scored 2026-05-20):** model via `run_openrouter_benchmark.sh`; good arm uses live `GET /v1/search` after API seed (server Voyage embed/rerank when keyed). **pass@1 (submitted only):** control **15/27** (55.6%), good **22/29** (75.9%). **Agent fix commits:** 56/108 cell-arms. **Paired (both submitted, n=23):** 15 both pass, **4 lift** (16766, 19495, 23950, 24066), **0 harm**.
 
 > **Archived:** Cursor sub-agent run (strong model, incomplete control). **Three-arm** inline-corpus (2026-05-18): control 45/54 → good 47/54 (+2 net), bad 43/54.
 
@@ -46,25 +46,25 @@ Editing a test cannot score a pass. Two consecutive re-scores of the final `runs
 
 ## 3. Results
 
-### 3.0 Latest — OpenRouter weak model (n=54, scored 2026-05-19)
+### 3.0 Latest — OpenRouter weak model (n=54, scored 2026-05-20)
 
 Harness: `./run_openrouter_benchmark.sh` — `run_api_benchmark.sh` (seed + RAG prompts) → `run_openrouter_cells.py` (`openai/gpt-oss-20b:free`) → `score.py`. Output: `results.openrouter.json`. Retry api_error only: `./run_openrouter_benchmark.sh retry-errors`.
 
 | Arm | pass@1 (submitted) | SKIP (no fix) | Fix commits |
 |---|---:|---:|---:|
-| control | 14/24 = **58.3%** | 30 | 24/54 |
-| good | 20/27 = **74.1%** | 27 | 27/54 |
+| control | 15/27 = **55.6%** | 27 | 27/54 |
+| good | 22/29 = **75.9%** | 25 | 29/54 |
 
-| Outcome (paired, both submitted, n=20) | Tasks |
+| Outcome (paired, both submitted, n=23) | Tasks |
 |---|---:|
-| Both pass | 14 |
-| Lift (paired: control FAIL → good PASS) | 2 (`sympy__sympy-23950`, `sympy__sympy-24066`) |
+| Both pass | 15 |
+| Lift (paired: control FAIL → good PASS) | 4 (`16766`, `19495`, `23950`, `24066`) |
 | Harm (paired: control PASS → good FAIL) | 0 |
 | Both fail (paired) | 4 (`15349`, `16597`, `17655`, `19954`) |
-| Task-level lift (all 54 tasks) | 6 (`15017`, `19040`, `20590`, `22714`, `23950`, `24066`) |
+| Task-level lift (all 54 tasks) | 7 (`15017`, `16766`, `19040`, `19495`, `20590`, `23950`, `24066`) |
 | Task-level harm | 0 |
 
-**Caveats:** (1) Only **51/108** cells got an `agent fix` commit — many failures are patch-apply / model-format errors, not graded FAIL. (2) **7 api_error** cells (`16450` control; `16766`/`16792` both arms; `19495` good; `22714` control) — retry hit 401; run `./run_openrouter_retry_errors.sh` with a valid key. (3) Not comparable to Cursor strong-agent or archived three-arm numbers.
+**Caveats:** (1) Only **56/108** cell-arms got an `agent fix` commit — many failures are patch-apply / model-format errors, not graded FAIL. (2) Seven cells initially hit `api_error` (401); **2026-05-20 retry** recovered 4/7 with a valid key (`16766` both arms, `19495` good, `22714` control). (3) Not comparable to Cursor strong-agent or archived three-arm numbers.
 
 **Search stack:** `GET /v1/search` embedding/rerank runs on the agentbook server (Voyage → OpenRouter → Fallback; Voyage rerank). The OpenRouter fix model only reads recall text in `prompt.md` — it does not embed queries. After this change, `DEMO_MODE=1` uses the same resolver (not hard-coded Fallback). Re-run `run_api_benchmark.sh` to refresh good-arm prompts when changing keys.
 
@@ -114,7 +114,7 @@ Bad picked up 5 incidental lifts (same 4 as good plus 21930) where its wrong hin
 
 ### 3.1b Hard tier (recommended for wider arm separation)
 
-The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. For experiments that need a lower control ceiling, use a manifest preset (`uv run python -m benchmark manifest hard` → `tasks/manifest.hard.json`):
+The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. For experiments that need a lower control ceiling, edit `tasks/manifest.json` (archived hard-tier stats below used a separate manifest slice):
 
 | Tier | Tasks | control | good | bad | good − control |
 |---|---|---|---|---|---|
@@ -125,13 +125,12 @@ The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control
 
 Hard tier rules: drop sympy **1.4–1.6**; drop **&lt;15 min** SWE difficulty unless control already failed; always keep control-fail tasks (including 19495).
 
-Re-run on the hard tier (72 cells):
+Re-run on a hard-tier manifest (historical; 48 cells = 24 tasks × 2 arms):
 
 ```bash
 cd experiments/agentbook-ab
-uv run python -m benchmark manifest hard
-./run_api_benchmark.sh   # or: uv run python -m benchmark api-pipeline
-# run 48 sub-agents (control + good), then:
+./run_api_benchmark.sh
+# run agents per AGENT_CELL_RULES.md, then:
 uv run python score.py control good --manifest tasks/manifest.hard.json
 ```
 
@@ -200,28 +199,14 @@ All tasks come from the public **[SWE-bench Verified](https://huggingface.co/dat
 
 | Substrate | Scope | Grading | When to use |
 |---|---|---|---|
-| **No-Docker (pilot)** | sympy 1.4–1.12, RED-verified in-repo | `score.py` + pinned venv (`bench_requirements.txt`) | Fast iteration, agentbook A/B arms, no Docker |
-| **Official harness** | Full Verified set (all repos) | `evaluate_swebench.py` → SWE-bench Docker harness | Comparable to published SWE-bench numbers |
+| **No-Docker (pilot)** | sympy 1.4–1.12, RED-verified in-repo | `score.py` + pinned venv (`bench_requirements.txt`) | Fast iteration, agentbook two-arm A/B, no Docker |
 
 Bootstrap the no-Docker sympy benchmark:
 
 ```bash
 cd experiments/agentbook-ab
 ./setup_bench.sh   # fetch HF dataset, venv, clone sympy, RED-verify manifest
-```
-
-Probe other repos on the no-Docker substrate (most need Docker in practice):
-
-```bash
-uv run --with pandas --with pyarrow python probe_substrate.py --limit 3
-```
-
-Full Verified evaluation (Docker):
-
-```bash
-uv run python export_predictions.py --arm good -o predictions/good.jsonl
-uv run --with swebench python evaluate_swebench.py \
-  --predictions predictions/good.jsonl --run_id agentbook-good-001
+./run_openrouter_benchmark.sh   # prep + 108 cells + score (weak model)
 ```
 
 ## 8. Reproducibility
@@ -233,12 +218,8 @@ uv run --with swebench python evaluate_swebench.py \
 | Benchmark venv pins | `bench_requirements.txt` |
 | One-shot bootstrap | `setup_bench.sh` |
 | Benchmark builder (RED-verified sympy tasks) | `build_benchmark.py` |
-| Manifest presets (hard, eval-v2, …) | `uv run python -m benchmark manifest <preset>` |
-| API two-arm pipeline | `run_api_benchmark.sh` or `uv run python -m benchmark api-pipeline` |
+| API two-arm prep | `run_api_benchmark.sh` |
 | Workspace prep | `cell_workspace.py`, `prepare_cells.py` |
-| Substrate probe report | `probe_substrate.py` |
-| Export patches for official eval | `export_predictions.py` |
-| Official SWE-bench Docker eval | `evaluate_swebench.py` |
 | Corpus seeder (good only) | `seed_agentbook.py` |
 | Seed corpus | `build_seed_corpus.py` → `_oracle/corpus.seed.json` |
 | OpenRouter weak model | `run_openrouter_benchmark.sh` |
