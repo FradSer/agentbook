@@ -22,7 +22,6 @@ from backend.application.errors import (
 from backend.application.service import AgentbookService
 from backend.core.config import settings, validate_production_settings
 from backend.core.rate_limit import limiter
-from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from backend.infrastructure.persistence.database import SessionLocal
 from backend.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
@@ -224,43 +223,32 @@ def _install_domain_error_handlers(app: FastAPI) -> None:
 def _build_service() -> AgentbookService:
     import os
 
+    from backend.infrastructure.search_stack import (
+        resolve_search_stack,
+        warn_if_degraded_search_stack,
+    )
+
+    stack = resolve_search_stack()
+    warn_if_degraded_search_stack(stack)
+    if not settings.voyage_api_key and settings.database_url:
+        logger.warning(
+            "VOYAGE_API_KEY unset in production-shaped env; reranker is NoOp."
+        )
+
     if os.getenv("DEMO_MODE") == "1":
         from backend.demo import build_demo_repos
 
         agents, problems, solutions, outcomes, cycles = build_demo_repos()
         return AgentbookService(
             agents=agents,
-            embedding_provider=FallbackEmbeddingProvider(),
+            embedding_provider=stack.embedding_provider,
             problems=problems,
             solutions=solutions,
             outcomes=outcomes,
             research_cycles=cycles,
-        )
-
-    # Resolver chain (highest precedence first):
-    #   Voyage v3-large (asymmetric, code-tuned) -> OpenRouter
-    #   text-embedding-3-small (legacy) -> deterministic Fallback (CI/local).
-    # Local imports keep these out of the module top-level so ruff's
-    # unused-import sweep doesn't strip them between edits.
-    from backend.infrastructure.embeddings.openrouter import (
-        resolve_embedding_provider as resolve_openrouter_embedding,
-    )
-    from backend.infrastructure.embeddings.voyage import (
-        resolve_embedding_provider as resolve_voyage_embedding,
-    )
-    from backend.infrastructure.reranking import resolve_rerank_fn
-
-    embedding_provider = (
-        resolve_voyage_embedding()
-        or resolve_openrouter_embedding()
-        or FallbackEmbeddingProvider()
-    )
-    rerank_fn = resolve_rerank_fn()
-    if not settings.voyage_api_key and settings.database_url:
-        # Loud signal in production-shaped env: operator probably forgot to
-        # set the key. Don't error — local dev / CI still need to work.
-        logger.warning(
-            "VOYAGE_API_KEY unset in production-shaped env; reranker is NoOp."
+            rerank_fn=stack.rerank_fn,
+            embedding_provider_name=stack.embedding_provider_name,
+            rerank_provider_name=stack.rerank_provider_name,
         )
 
     from backend.infrastructure.evaluation.llm_evaluator import (
@@ -288,7 +276,7 @@ def _build_service() -> AgentbookService:
     if settings.database_url:
         return AgentbookService(
             agents=SQLAlchemyAgentRepository(SessionLocal),
-            embedding_provider=embedding_provider,
+            embedding_provider=stack.embedding_provider,
             evaluator=evaluator,
             sandbox=sandbox,
             problems=SQLAlchemyProblemRepository(SessionLocal),
@@ -296,12 +284,14 @@ def _build_service() -> AgentbookService:
             outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
             research_cycles=SQLAlchemyResearchCycleRepository(SessionLocal),
             problem_relationships=relationships,
-            rerank_fn=rerank_fn,
+            rerank_fn=stack.rerank_fn,
+            embedding_provider_name=stack.embedding_provider_name,
+            rerank_provider_name=stack.rerank_provider_name,
         )
 
     return AgentbookService(
         agents=InMemoryAgentRepository(),
-        embedding_provider=embedding_provider,
+        embedding_provider=stack.embedding_provider,
         evaluator=evaluator,
         sandbox=sandbox,
         problems=InMemoryProblemRepository(),
@@ -309,7 +299,9 @@ def _build_service() -> AgentbookService:
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
         problem_relationships=relationships,
-        rerank_fn=rerank_fn,
+        rerank_fn=stack.rerank_fn,
+        embedding_provider_name=stack.embedding_provider_name,
+        rerank_provider_name=stack.rerank_provider_name,
     )
 
 

@@ -50,6 +50,9 @@ class SearchResponse(BaseModel):
     results: list[SearchResultResponse]
     total: int
     no_good_match: bool = False
+    search_mode: str | None = None
+    embedding_provider: str | None = None
+    rerank_provider: str | None = None
 
 
 class ErrorResponse(BaseModel):

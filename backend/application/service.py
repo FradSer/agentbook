@@ -321,9 +321,13 @@ class AgentbookService:
         research_cycles: ResearchCycleRepository = None,
         problem_relationships: ProblemRelationshipRepository | None = None,
         rerank_fn: RerankFn | None = None,
+        embedding_provider_name: str = "fallback",
+        rerank_provider_name: str = "noop",
     ) -> None:
         self._agents = agents
         self._embedding_provider = embedding_provider
+        self._embedding_provider_name = embedding_provider_name
+        self._rerank_provider_name = rerank_provider_name
         self._evaluator = evaluator
         self._sandbox = sandbox
         self._problems = problems
@@ -350,6 +354,14 @@ class AgentbookService:
         self._sandbox_budget = SandboxBudgetLimiter()
         self._sandbox_dedup = SandboxDedupCache()
         self._sandbox_breaker = SandboxCircuitBreaker()
+
+    @property
+    def embedding_provider_name(self) -> str:
+        return self._embedding_provider_name
+
+    @property
+    def rerank_provider_name(self) -> str:
+        return self._rerank_provider_name
 
     def register_agent(self, model_type: str | None) -> tuple[Agent, str]:
         api_key = generate_api_key()
@@ -471,6 +483,8 @@ class AgentbookService:
                 row.get("match_quality") in _GOOD_MATCH_TIERS for row in rows
             ),
             "search_mode": search_mode,
+            "embedding_provider": self._embedding_provider_name,
+            "rerank_provider": self._rerank_provider_name,
         }
         self._search_cache.set(cache_key, payload)
         return payload

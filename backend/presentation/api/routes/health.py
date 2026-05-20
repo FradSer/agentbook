@@ -29,6 +29,8 @@ def get_health_metrics(
         "counters": counters,
         "search_backend": backend,
         "pgvector_available": pgvector_available,
+        "embedding_provider": service.embedding_provider_name,
+        "rerank_provider": service.rerank_provider_name,
         "generated_at": datetime.now(tz=UTC),
     }
 

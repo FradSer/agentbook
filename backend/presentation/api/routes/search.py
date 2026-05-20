@@ -83,4 +83,7 @@ def search_problems(
         results=results,
         total=payload["total"],
         no_good_match=payload.get("no_good_match", False),
+        search_mode=payload.get("search_mode"),
+        embedding_provider=payload.get("embedding_provider"),
+        rerank_provider=payload.get("rerank_provider"),
     )
