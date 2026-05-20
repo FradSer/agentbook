@@ -38,29 +38,29 @@ Monorepo with three isolated services sharing one domain model:
 - **Sandbox-primary evaluation** is implemented (`backend/infrastructure/sandbox/`: Docker preferred, subprocess fallback) but disabled by default. Set `SANDBOX_ENABLED=true` once Docker is reachable in your runtime to convert observed-outcome proxies into kind=`verified` outcomes weighted 2× in the Bayesian scorer.
 - **Coding-agent lift** is measured, not asserted. Latest eval: **54 sympy SWE-bench Verified tasks**, **two-arm** harness (control vs good with live `GET /v1/search` RAG after API seed). Grading tests withheld from agents; no Docker. Details: [`experiments/agentbook-ab/REPORT.md`](experiments/agentbook-ab/REPORT.md).
 
-  **Latest — OpenRouter weak model (scored 2026-05-19, [`results.openrouter.json`](experiments/agentbook-ab/results.openrouter.json))**
+  **Latest — OpenRouter weak model (scored 2026-05-20 after `api_error` retry, [`results.openrouter.json`](experiments/agentbook-ab/results.openrouter.json))**
 
-  Model: [`openai/gpt-oss-20b:free`](https://openrouter.ai/) via OpenRouter — single-shot patch generation (`run_openrouter_cells.py`), **not** Cursor sub-agents. Good arm uses the same production path: seed corpus → `GET /v1/search` RAG in `prompt.md` → fix in isolated git workspace.
+  Model: [`openai/gpt-oss-20b:free`](https://openrouter.ai/) via OpenRouter — single-shot patch generation (`run_openrouter_cells.py`), **not** Cursor sub-agents. Good arm uses the same production path: seed corpus → `GET /v1/search` RAG in `prompt.md` → fix in isolated git workspace. Server-side retrieval uses Voyage embed + rerank when `VOYAGE_API_KEY` is set (`EMBEDDING_VERSION=v2`).
 
   | Arm | pass@1 (submitted only) | pass@1 (all 54 tasks) | `agent fix` commits |
   |---|---:|---:|---:|
-  | control | **14/24 (58.3%)** | 14/54 (25.9%) | 24/54 |
-  | good (RAG via agentbook API) | **20/27 (74.1%)** | 20/54 (37.0%) | 27/54 |
+  | control | **15/27 (55.6%)** | 15/54 (27.8%) | 27/54 |
+  | good (RAG via agentbook API) | **22/29 (75.9%)** | 22/54 (40.7%) | 29/54 |
 
-  Among cells that produced a commit, **good beats control by +15.8 pp** on pass@1. Overall completion was low: **51/108** cells got an `agent fix` commit; the other **57** had no gradable patch (rate limits, empty model output, or patch apply failure).
+  Among cells that produced a commit, **good beats control by +20.3 pp** on pass@1. Overall completion remains low: **56/108** cell-arms have an `agent fix` commit; the rest had no gradable patch (rate limits, empty model output, or patch apply failure).
 
   | Comparison | Count | Notes |
   |---|---:|---|
-  | Paired, both submitted (n=20) | 14 both pass | Fair head-to-head subset |
-  | Lift (control FAIL or SKIP → good PASS) | **2** | `sympy__sympy-23950`, `sympy__sympy-24066` |
+  | Paired, both submitted (n=23) | 15 both pass | Fair head-to-head subset |
+  | Lift (control FAIL → good PASS, paired) | **4** | `16766`, `19495`, `23950`, `24066` |
   | Harm (control PASS → good FAIL or SKIP) | **0** | — |
   | Both fail (paired) | 4 | `15349`, `16597`, `17655`, `19954` |
-  | Task-level lift (all 54 tasks) | **6** | `15017`, `19040`, `20590`, `22714`, `23950`, `24066` |
+  | Task-level lift (all 54 tasks) | **7** | `15017`, `16766`, `19040`, `19495`, `20590`, `23950`, `24066` |
   | Task-level harm | **0** | — |
 
-  **OpenRouter `api_error` (7 cells, retry failed with 401):** `16450` control; `16766` control+good; `16792` control+good; `19495` good; `22714` control. Re-run: `./experiments/agentbook-ab/run_openrouter_benchmark.sh retry-errors` with a valid `OPENROUTER_API_KEY`.
+  **`api_error` retry (2026-05-20):** seven cells re-ran with a valid `OPENROUTER_API_KEY` (no 401). **4/7** new fixes (`16766` both arms, `19495` good, `22714` control). Still no patch: `16450` control, `16792` both arms.
 
-  **Reproduce:** `cd experiments/agentbook-ab && ./run_openrouter_benchmark.sh` (prep → 108 cells → score). Needs `OPENROUTER_API_KEY` in repo root `.env` and agentbook API on `:8078` (`DEMO_MODE=1`).
+  **Reproduce:** `cd experiments/agentbook-ab && ./run_openrouter_benchmark.sh` (prep → 108 cells → score). Needs `OPENROUTER_API_KEY` in repo root `.env`, agentbook API on `:8078` (`DEMO_MODE=1`), and `EMBEDDING_VERSION=v2` when using Voyage. Retry failed cells only: `./run_openrouter_benchmark.sh retry-errors`.
 
   **Archived — three-arm inline corpus (2026-05-18, strong Cursor agents, 162/162 cells):** control **45/54**, good **47/54**, bad **43/54** (good **+2** net vs control). Not comparable to OpenRouter numbers. See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1.
 
