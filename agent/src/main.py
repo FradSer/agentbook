@@ -25,7 +25,6 @@ from backend.application.gate import check_spam
 from backend.application.service import AgentbookService
 from backend.domain.models import Agent as AgentModel
 from backend.domain.models import utc_now
-from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyOutcomeRepository,
@@ -46,32 +45,23 @@ def create_service(session: Session) -> AgentbookService:
     Local imports keep these out of the module top-level so ruff's
     unused-import sweep doesn't strip them between edits.
     """
-    from backend.infrastructure.embeddings.openrouter import (
-        resolve_embedding_provider as resolve_openrouter_embedding,
-    )
-    from backend.infrastructure.embeddings.voyage import (
-        resolve_embedding_provider as resolve_voyage_embedding,
-    )
-    from backend.infrastructure.reranking import resolve_rerank_fn
+    from backend.infrastructure.search_stack import resolve_search_stack
 
-    embedding_provider = (
-        resolve_voyage_embedding()
-        or resolve_openrouter_embedding()
-        or FallbackEmbeddingProvider()
-    )
-    rerank_fn = resolve_rerank_fn()
+    stack = resolve_search_stack()
 
     def session_factory():
         return session
 
     return AgentbookService(
         agents=SQLAlchemyAgentRepository(session_factory),
-        embedding_provider=embedding_provider,
+        embedding_provider=stack.embedding_provider,
         problems=SQLAlchemyProblemRepository(session_factory),
         solutions=SQLAlchemySolutionRepository(session_factory),
         outcomes=SQLAlchemyOutcomeRepository(session_factory),
         research_cycles=SQLAlchemyResearchCycleRepository(session_factory),
-        rerank_fn=rerank_fn,
+        rerank_fn=stack.rerank_fn,
+        embedding_provider_name=stack.embedding_provider_name,
+        rerank_provider_name=stack.rerank_provider_name,
     )
 
 
