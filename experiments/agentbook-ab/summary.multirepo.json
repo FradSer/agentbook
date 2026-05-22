@@ -1,0 +1,51 @@
+{
+  "results_file": "results.multirepo.json",
+  "manifest": "tasks/manifest.multirepo.json",
+  "pass_at_1": {
+    "control": {
+      "pass": 8,
+      "submitted": 18,
+      "skip": 9
+    },
+    "good": {
+      "pass": 10,
+      "submitted": 19,
+      "skip": 8
+    },
+    "oracle": {
+      "pass": 10,
+      "submitted": 17,
+      "skip": 10
+    }
+  },
+  "paired_control_good": {
+    "n": 16,
+    "lift": 3,
+    "harm": 1,
+    "both_pass": 6,
+    "both_fail": 6,
+    "lifted": [
+      "sympy__sympy-19346",
+      "sympy__sympy-19783",
+      "sympy__sympy-23950"
+    ],
+    "harmed": [
+      "sympy__sympy-20154"
+    ]
+  },
+  "paired_good_oracle": {
+    "n": 17,
+    "lift": 1,
+    "harm": 1,
+    "both_pass": 9,
+    "both_fail": 6,
+    "lifted": [
+      "sympy__sympy-21612"
+    ],
+    "harmed": [
+      "sympy__sympy-21930"
+    ]
+  },
+  "rag_gain": 2,
+  "retrieval_loss": 0
+}

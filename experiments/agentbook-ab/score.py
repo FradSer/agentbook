@@ -30,14 +30,17 @@ TASKS = ROOT / "tasks"
 ORACLE = ROOT / "_oracle"
 RUNS = ROOT / "runs"
 VENV_PY = ROOT / ".venv" / "bin" / "python"
-DEFAULT_ARMS = ("control", "good")
+DEFAULT_ARMS = ("control", "good", "oracle")
 
 sys.path.insert(0, str(ROOT))
+from benchmark.repo_config import install_workspace, workspace_env  # noqa: E402
 from cell_workspace import has_agent_fix  # noqa: E402
 
 
-def sh(cmd, cwd=None, timeout=600):
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+def sh(cmd, cwd=None, timeout=600, env=None):
+    return subprocess.run(
+        cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env
+    )
 
 
 def diff_lines(base_repo: Path, run_repo: Path, exclude: set[str]) -> int:
@@ -104,6 +107,19 @@ def score_run(meta: dict, arm: str) -> dict:
             "summary": f"test_patch apply failed: {ap.stderr.strip()[:200]}",
         }
 
+    repo = meta.get("repo", "")
+    if repo:
+        ok, msg = install_workspace(repo, run_repo)
+        if not ok:
+            return {
+                "instance_id": iid,
+                "arm": arm,
+                "tests_pass": False,
+                "submitted": True,
+                "diff_lines": -1,
+                "summary": f"workspace install failed: {msg[:200]}",
+            }
+
     # 3. run FAIL_TO_PASS (a hung test from a bad fix counts as FAIL)
     cmd = [
         str(VENV_PY),
@@ -116,7 +132,8 @@ def score_run(meta: dict, arm: str) -> dict:
         "no:cacheprovider",
     ]
     try:
-        r = sh(cmd, cwd=run_repo, timeout=180)
+        env = workspace_env(repo, run_repo) if repo else None
+        r = sh(cmd, cwd=run_repo, timeout=180, env=env)
         passed = r.returncode == 0
         tail = (r.stdout.strip().splitlines() or [""])[-1]
     except subprocess.TimeoutExpired:
@@ -169,6 +186,8 @@ def main() -> None:
             out_path = ROOT / "results.eval-v2.json"
         elif manifest_name.startswith("manifest.full"):
             out_path = ROOT / "results.full.json"
+        elif manifest_name.startswith("manifest.multirepo"):
+            out_path = ROOT / "results.multirepo.json"
         else:
             out_path = ROOT / "results.json"
     arms = [a for a in args.arms if (RUNS).exists()]

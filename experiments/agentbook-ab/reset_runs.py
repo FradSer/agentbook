@@ -13,6 +13,14 @@ RUNS = ROOT / "runs"
 DEFAULT_MANIFEST = ROOT / "tasks" / "manifest.json"
 
 
+def _remove_tree(path: Path) -> None:
+    if not path.exists():
+        return
+    shutil.rmtree(path, ignore_errors=True)
+    if path.exists():
+        shutil.rmtree(path)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
@@ -31,7 +39,7 @@ def main() -> None:
                 if args.dry_run:
                     print(f"would remove {d}")
                 else:
-                    shutil.rmtree(d)
+                    _remove_tree(d)
     print(f"{'would remove' if args.dry_run else 'removed'} {removed} run dirs")
 
 

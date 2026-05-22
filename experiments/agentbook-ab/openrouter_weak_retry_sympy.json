@@ -1,0 +1,378 @@
+[
+  {
+    "instance_id": "sympy__sympy-15349",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 156
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 20232
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 19365
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 21917
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 265
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 506
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 391
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 416
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 375
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 972
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 372
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 308
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 3862
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 854
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 1601
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 595
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 2003
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1611
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1010
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1902
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 1371
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 283
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 510
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 903
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 11165
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 2274
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 198
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 10732
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 532
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 10646
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 603
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 360
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 399
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 407
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 341
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b",
+    "fix_applied": true,
+    "response_length": 187
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 165
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 478
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1413
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1602
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 348
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 509
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": true,
+    "response_length": 175
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1743
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 22236
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "good",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 401
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "control",
+    "status": "completed",
+    "model": "openai/gpt-oss-20b:free",
+    "fix_applied": false,
+    "response_length": 1870
+  }
+]

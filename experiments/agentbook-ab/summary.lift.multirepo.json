@@ -1,0 +1,85 @@
+{
+  "results_file": "results.lift.multirepo.filtered.json",
+  "manifest": "tasks/manifest.lift.multirepo.json",
+  "lift_eligible_tasks": 18,
+  "pass_at_1": {
+    "control": {
+      "pass": 0,
+      "submitted": 10,
+      "skip": 8
+    },
+    "good": {
+      "pass": 4,
+      "submitted": 12,
+      "skip": 6
+    },
+    "oracle": {
+      "pass": 5,
+      "submitted": 10,
+      "skip": 8
+    }
+  },
+  "pass_at_1_eligible": {
+    "control": {
+      "pass": 0,
+      "submitted": 10,
+      "skip": 8
+    },
+    "good": {
+      "pass": 4,
+      "submitted": 12,
+      "skip": 6
+    },
+    "oracle": {
+      "pass": 5,
+      "submitted": 10,
+      "skip": 8
+    }
+  },
+  "submit_rate": {
+    "control": 0.5556,
+    "good": 0.6667,
+    "oracle": 0.5556
+  },
+  "paired_control_good": {
+    "n": 9,
+    "lift": 3,
+    "harm": 0,
+    "both_pass": 0,
+    "both_fail": 6,
+    "lifted": [
+      "sympy__sympy-19346",
+      "sympy__sympy-19783",
+      "sympy__sympy-23950"
+    ],
+    "harmed": []
+  },
+  "paired_control_good_eligible_fail": {
+    "n": 9,
+    "lift": 3,
+    "harm": 0,
+    "both_pass": 0,
+    "both_fail": 6,
+    "lifted": [
+      "sympy__sympy-19346",
+      "sympy__sympy-19783",
+      "sympy__sympy-23950"
+    ],
+    "harmed": []
+  },
+  "paired_good_oracle": {
+    "n": 10,
+    "lift": 1,
+    "harm": 0,
+    "both_pass": 4,
+    "both_fail": 5,
+    "lifted": [
+      "sympy__sympy-21612"
+    ],
+    "harmed": []
+  },
+  "rag_gain": 4,
+  "rag_gain_eligible": 4,
+  "retrieval_loss": 1,
+  "retrieval_loss_eligible": 1
+}

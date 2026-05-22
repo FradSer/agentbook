@@ -14,12 +14,16 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "_data" / "verified.parquet"
 REPO_DIR = ROOT / "_repo"
 MANIFEST = ROOT / "tasks" / "manifest.json"
+
+sys.path.insert(0, str(ROOT))
+from benchmark.repo_config import MULTIREPO_PILOT  # noqa: E402
 
 # GitHub slugs for every repo in SWE-bench Verified
 UPSTREAM = {
@@ -78,10 +82,17 @@ def main() -> None:
         help="Only clone repos present in tasks/manifest.json",
     )
     ap.add_argument("--repo", action="append", help="Clone a single repo slug (owner/name)")
+    ap.add_argument(
+        "--multirepo",
+        action="store_true",
+        help="Clone all repos in the multi-repo pilot (sympy + sklearn + pytest)",
+    )
     args = ap.parse_args()
 
     if args.repo:
         wanted = args.repo
+    elif args.multirepo:
+        wanted = sorted(MULTIREPO_PILOT)
     elif args.from_manifest:
         if not MANIFEST.exists():
             raise SystemExit(f"manifest not found: {MANIFEST}")

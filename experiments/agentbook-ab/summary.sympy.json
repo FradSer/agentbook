@@ -1,0 +1,54 @@
+{
+  "results_file": "results.sympy.json",
+  "manifest": "tasks/manifest.json",
+  "pass_at_1": {
+    "control": {
+      "pass": 15,
+      "submitted": 30,
+      "skip": 24
+    },
+    "good": {
+      "pass": 18,
+      "submitted": 35,
+      "skip": 19
+    },
+    "oracle": {
+      "pass": 23,
+      "submitted": 34,
+      "skip": 20
+    }
+  },
+  "paired_control_good": {
+    "n": 27,
+    "lift": 5,
+    "harm": 2,
+    "both_pass": 11,
+    "both_fail": 9,
+    "lifted": [
+      "sympy__sympy-15345",
+      "sympy__sympy-19346",
+      "sympy__sympy-19783",
+      "sympy__sympy-22714",
+      "sympy__sympy-23950"
+    ],
+    "harmed": [
+      "sympy__sympy-20154",
+      "sympy__sympy-24562"
+    ]
+  },
+  "paired_good_oracle": {
+    "n": 31,
+    "lift": 3,
+    "harm": 0,
+    "both_pass": 18,
+    "both_fail": 10,
+    "lifted": [
+      "sympy__sympy-20154",
+      "sympy__sympy-21612",
+      "sympy__sympy-24562"
+    ],
+    "harmed": []
+  },
+  "rag_gain": 3,
+  "retrieval_loss": 5
+}

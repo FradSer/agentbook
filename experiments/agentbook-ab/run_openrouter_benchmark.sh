@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# Two-arm A/B via OpenRouter (openai/gpt-oss-20b) — prep, run, score, retry api_error.
+# Weak-model appendix via OpenRouter (openai/gpt-oss-20b:free only).
+#
+# Prefer: MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
 #
 # Prereqs: OPENROUTER_API_KEY in env or repo root .env; agentbook API on :8078
 #
-#   ./run_openrouter_benchmark.sh              # prep + 108 cells + score
-#   ./run_openrouter_benchmark.sh prep-only
-#   ./run_openrouter_benchmark.sh run-only
-#   ./run_openrouter_benchmark.sh retry-errors  # only cells_api_errors.json
+#   ./run_openrouter_benchmark.sh retry-errors  # retry cells_api_errors.json
 #
 set -euo pipefail
 AB="$(cd "$(dirname "$0")" && pwd)"
 cd "$AB"
 
 MODE="${1:-full}"
-MODEL_PRIMARY="${OPENROUTER_MODEL:-openai/gpt-oss-20b:free}"
-MODEL_FALLBACK="${OPENROUTER_MODEL_FALLBACK:-openai/gpt-oss-20b}"
-RESULTS="${RESULTS:-results.openrouter.json}"
+OPENROUTER_MODEL="${OPENROUTER_MODEL:-openai/gpt-oss-20b:free}"
+MANIFEST="${MANIFEST:-tasks/manifest.lift.json}"
+RESULTS="${RESULTS:-results.openrouter.lift.json}"
 ENV_FILE="${AB}/../../.env"
+
+uv run python -c "
+from run_openrouter_cells import normalize_openrouter_models
+normalize_openrouter_models(('$OPENROUTER_MODEL',))
+"
 
 if [[ -z "${OPENROUTER_API_KEY:-}" ]] && [[ -f "$ENV_FILE" ]]; then
   set -a
@@ -29,41 +33,40 @@ if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
   exit 1
 fi
 
-run_prep() {
-  ./run_api_benchmark.sh
-}
+PROMPTS_OUT="prompts.$(basename "${MANIFEST%.json}").json"
+CELLS_OUT="cells.$(basename "${MANIFEST%.json}").json"
 
 run_cells() {
-  local cells_file="${1:-cells_api.json}"
-  echo "== OpenRouter cells (${cells_file}, model ${MODEL_PRIMARY}) =="
+  local cells_file="${1:-${CELLS_OUT%.json}_weak.json}"
+  echo "== OpenRouter cells (${cells_file}, model ${OPENROUTER_MODEL}, workers ${OPENROUTER_WORKERS:-4}) =="
   uv run python run_openrouter_cells.py \
     --cells "$cells_file" \
-    --model "$MODEL_PRIMARY" \
-    --model "$MODEL_FALLBACK" \
+    --prompts "$PROMPTS_OUT" \
+    --model "$OPENROUTER_MODEL" \
+    --workers "${OPENROUTER_WORKERS:-4}" \
     --delay "${OPENROUTER_DELAY:-45}" \
     -o openrouter_run_results.json
 }
 
 run_score() {
-  echo "== score =="
-  uv run python score.py control good --manifest tasks/manifest.json -o "$RESULTS"
+  echo "== score (manifest: $MANIFEST) =="
+  uv run python score.py control good --manifest "$MANIFEST" -o "$RESULTS"
 }
 
 case "$MODE" in
-  prep-only) run_prep ;;
-  run-only) run_cells; run_score ;;
+  run-only) run_cells "$2"; run_score ;;
   retry-errors)
     uv run python collect_openrouter_errors.py --merge
     run_cells cells_api_errors.json
     run_score
     ;;
   full)
-    run_prep
-    run_cells
-    run_score
+    echo "Use: MODEL_TRACK=weak-cells MANIFEST=$MANIFEST ./run_full_eval.sh" >&2
+    exit 1
     ;;
   *)
-    echo "Usage: $0 [full|prep-only|run-only|retry-errors]" >&2
+    echo "Usage: $0 [retry-errors|run-only [cells.json]]" >&2
+    echo "Primary path: MODEL_TRACK=weak-cells ./run_full_eval.sh" >&2
     exit 1
     ;;
 esac

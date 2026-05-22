@@ -1,0 +1,594 @@
+[
+  {
+    "instance_id": "scikit-learn__scikit-learn-25973",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 18572
+  },
+  {
+    "instance_id": "scikit-learn__scikit-learn-25973",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 7220
+  },
+  {
+    "instance_id": "scikit-learn__scikit-learn-25973",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 13588
+  },
+  {
+    "instance_id": "scikit-learn__scikit-learn-26194",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 11449
+  },
+  {
+    "instance_id": "scikit-learn__scikit-learn-26194",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 10134
+  },
+  {
+    "instance_id": "scikit-learn__scikit-learn-26194",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 937
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 26876
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7056
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1644
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 4853
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2317
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 725
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4803
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3830
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4111
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1292
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 850
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 4095
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7357
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 9438
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4161
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 8603
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7664
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 8049
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3875
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3801
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 206
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1533
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 8062
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2978
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4955
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2251
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2187
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 16246
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 19216
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2268
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 24326
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1432
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 781
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 9247
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7624
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 15829
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 16147
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 8932
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 914
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2090
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3220
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2423
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 22259
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3031
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4869
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2904
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2235
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "control",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "good",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "oracle",
+    "status": "api_error",
+    "error": "All models failed: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402"
+  }
+]

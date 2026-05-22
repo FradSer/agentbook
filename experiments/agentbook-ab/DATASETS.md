@@ -1,12 +1,13 @@
 # Coding-agent benchmark datasets (survey)
 
-Survey for refactoring agentbook A/B. **Primary substrate today:** SWE-bench Verified (no-Docker sympy slice). **Recommended additions** for memory/retrieval eval are marked.
+Survey for refactoring agentbook A/B. **Primary substrate today:** SWE-bench Verified (no-Docker sympy slice). **Multi-repo pilot:** sklearn + pytest via `setup_bench.sh --multirepo`.
 
 ## Tier 1 — Issue resolution (pass@1, our current task shape)
 
 | Dataset | Scale | Langs | Grading | Agentbook fit | Access |
 |---------|-------|-------|---------|---------------|--------|
 | [SWE-bench Verified](https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified) | 500 instances | Mostly Python | Fail→pass tests | **In use** — sympy 54 RED-verified | HF `SWE-bench/SWE-bench_Verified` |
+| **Multi-repo pilot** | sklearn 2 RED-verified (+ pytest blocked no-Docker) | Python | Same no-Docker harness | `tasks/manifest.multirepo.json` (27 tasks) | `build_benchmark.py --multirepo` |
 | [SWE-bench Full](https://www.swebench.com/) | 2.3k | Python | Docker harness | Same pipeline, heavier infra | HF + Docker |
 | [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live) | +50/mo | Multi | Fresh issues | Anti-contamination longitudinal | GitHub + HF |
 | [SWE-Bench Pro](https://arxiv.org/html/2509.16941) | 1,865 | Multi | Enterprise/long-horizon | Harder lift surface; license/partners | Separate release |
@@ -29,17 +30,23 @@ Survey for refactoring agentbook A/B. **Primary substrate today:** SWE-bench Ver
 
 ## Selection for agentbook-ab v2
 
-1. **Keep** SWE-bench Verified as sole *fix* substrate until RED-verify works for more repos (`build_benchmark.py`).
-2. **Manifest** is `tasks/manifest.json` (54 RED-verified sympy tasks); edit manually for smaller slices.
-3. **Archived eval-v2 rules** (three-arm era): drop sympy 1.4–1.6 expansion, drop `<15 min fix`, require gold patch ≥ 15 lines.
-4. **Full slice `full`:** all 54 RED-verified sympy tasks (regression / headline number).
-5. **Future:** add ContextBench subset for recall@1 on injected hints without pass@1 confound.
+1. **Keep** `tasks/manifest.json` as the 54-task sympy regression baseline.
+2. **Multi-repo pilot:** `./setup_bench.sh --multirepo` RED-verifies sklearn 1.3 (2/7 passed) and attempts pytest (0/12 — version lock-in needs Docker or per-task venv). Writes `tasks/manifest.multirepo.json` (25 sympy hard + 2 sklearn = **27 tasks**).
+3. **Retrieval gate (required before A/B):** `MANIFEST=tasks/manifest.multirepo.json ./run_retrieval_gate.sh` — asserts Voyage embed/rerank and recall@3 on `ab_task` tags.
+4. **Manifest presets:** `uv run python filter_manifest.py hard|multirepo -o tasks/manifest.*.json`
+5. **Hard tier rules:** drop sympy 1.4–1.6; drop `<15 min` unless control-failed; keep control-fail tasks.
 
 ## Local data layout
 
 ```
-_data/verified.parquet     # fetch_verified.py
-_repo/<name>/              # clone_repos.py
-tasks/<id>/                # BUG.md, META.json, repo/ (gitignored)
-_oracle/<id>/             # gold.patch, test.patch (never agent-visible)
+_data/verified.parquet        # fetch_verified.py
+_data/red_verify_report.json  # build failures by repo
+_repo/<name>/                 # clone_repos.py (--multirepo)
+tasks/manifest.json           # sympy regression (54)
+tasks/manifest.hard.json      # sympy hard tier (~25)
+tasks/manifest.multirepo.json # hard + sklearn/pytest pilot
+tasks/<id>/                   # BUG.md, META.json, repo/ (gitignored)
+_oracle/<id>/                 # gold.patch, test.patch (never agent-visible)
+recalls/                      # per-task GET /v1/search audit JSON
+retrieval_gate_report.json    # gate metrics
 ```

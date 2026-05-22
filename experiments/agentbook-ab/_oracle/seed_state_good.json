@@ -2,290 +2,134 @@
   "seeded": [
     {
       "instance_id": "sympy__sympy-14976",
-      "problem_id": "df451095-2ddc-4a1a-9381-0a64d2181cc6",
-      "solution_id": "c526996b-4156-4217-b425-02c059263288"
-    },
-    {
-      "instance_id": "sympy__sympy-15017",
-      "problem_id": "4a0e2215-3218-4f8e-81f2-1965d40d7b76",
-      "solution_id": "445ad809-d72c-4402-8ac9-bcd0582a5874"
-    },
-    {
-      "instance_id": "sympy__sympy-15345",
-      "problem_id": "039201f5-28e8-47d9-aae6-a41c4967eb04",
-      "solution_id": "320a05e5-95cc-40c6-b4a8-8aeede6089a5"
-    },
-    {
-      "instance_id": "sympy__sympy-15349",
-      "problem_id": "d38487ee-3a26-4d49-b2f7-5f7f00d81fee",
-      "solution_id": "48d3f255-34b6-4ea7-b1ba-caf505dbda7e"
-    },
-    {
-      "instance_id": "sympy__sympy-15599",
-      "problem_id": "75abf25b-b4ae-4b2e-b3bc-e53846c4dc3f",
-      "solution_id": "f9d6b60e-5489-4a18-a0c4-a756b86245f3"
-    },
-    {
-      "instance_id": "sympy__sympy-15809",
-      "problem_id": "b49338f5-80d7-4c78-8ae2-e67cb525d3d7",
-      "solution_id": "0cc46ce1-6774-437a-9aba-b5fba0bf25b8"
-    },
-    {
-      "instance_id": "sympy__sympy-15875",
-      "problem_id": "f8d2cdb7-9b89-4a4f-8924-0c3bbe27722d",
-      "solution_id": "7867dde0-bc70-484a-babc-11c22387153f"
-    },
-    {
-      "instance_id": "sympy__sympy-15976",
-      "problem_id": "180812af-3aa5-4d38-9bef-4aaecad8c9dc",
-      "solution_id": "ee4298b0-d601-4d80-aea8-d9795319ad76"
-    },
-    {
-      "instance_id": "sympy__sympy-16450",
-      "problem_id": "cb960cb3-454f-4d10-ae97-eb4ae33d7c25",
-      "solution_id": "0fa56823-528e-42cd-89a7-ed45110766a5"
-    },
-    {
-      "instance_id": "sympy__sympy-16597",
-      "problem_id": "2f68998d-7d22-444a-b98f-eb0f71d4622c",
-      "solution_id": "b00918a0-0cce-44d7-a650-d24810e978e7"
-    },
-    {
-      "instance_id": "sympy__sympy-16766",
-      "problem_id": "63db0b7b-2147-4243-9dfa-3de825cb05f4",
-      "solution_id": "5fbd4291-432e-4bc4-9c94-caeee469d34c"
-    },
-    {
-      "instance_id": "sympy__sympy-16792",
-      "problem_id": "1a0ba7de-0b3a-4925-b45e-0a18028ba44c",
-      "solution_id": "9d1415b1-ec2c-4df1-b412-10a70abeec17"
-    },
-    {
-      "instance_id": "sympy__sympy-16886",
-      "problem_id": "be0910c6-42b5-4f7e-90fc-21925c00ed0b",
-      "solution_id": "7e31ede3-cc15-4236-b7b6-61c795bcdb87"
-    },
-    {
-      "instance_id": "sympy__sympy-17139",
-      "problem_id": "c5a4e8eb-1622-4796-897b-6cec2e3ecef1",
-      "solution_id": "37289507-43a2-45d9-8c20-a77efa3db2b8"
-    },
-    {
-      "instance_id": "sympy__sympy-17318",
-      "problem_id": "3a7219f6-63f1-427f-bee6-1e8e2742e45d",
-      "solution_id": "8254252d-8521-4844-bca4-d95ad8fbbe1e"
-    },
-    {
-      "instance_id": "sympy__sympy-17630",
-      "problem_id": "42d2c4c2-f8ba-44a9-aff3-4ebf7c6f6a85",
-      "solution_id": "4c77824c-b7a1-452f-bae4-eba4e71a6619"
-    },
-    {
-      "instance_id": "sympy__sympy-17655",
-      "problem_id": "8cca4b07-4180-4854-9d4d-e35ee199dd17",
-      "solution_id": "8ba01605-7728-402b-b9ca-a7a4e95e0155"
-    },
-    {
-      "instance_id": "sympy__sympy-18189",
-      "problem_id": "ecbdd611-2d2e-4111-be68-8808cb69ff8e",
-      "solution_id": "00c06e7b-0e31-4b4b-8079-56546411dc57"
-    },
-    {
-      "instance_id": "sympy__sympy-18199",
-      "problem_id": "41307a90-de81-4233-8bee-4c58c1e72a91",
-      "solution_id": "fbf2cb3f-638b-4360-85f1-403f1f5f7254"
-    },
-    {
-      "instance_id": "sympy__sympy-18211",
-      "problem_id": "e285ac73-d7ea-4e02-9c25-c6a67b90aeb6",
-      "solution_id": "38b6b1b5-e088-43a1-a579-a3118192ae8f"
-    },
-    {
-      "instance_id": "sympy__sympy-18698",
-      "problem_id": "8ac5a1b9-eec5-4270-b60e-4ba0b39ca43b",
-      "solution_id": "62c4f586-ba69-4614-b3f9-9993b21820fe"
-    },
-    {
-      "instance_id": "sympy__sympy-18763",
-      "problem_id": "e4e625b3-3582-4709-8b5c-f46e4e14174e",
-      "solution_id": "bf482917-922d-48f9-a0e0-196cd10f045a"
-    },
-    {
-      "instance_id": "sympy__sympy-19040",
-      "problem_id": "f47e9c4f-634f-4139-943d-e475f0c88415",
-      "solution_id": "d8f2cb69-6425-4b3e-82f4-7e57cd7d9833"
+      "problem_id": "f7748c3c-fddb-40cd-8015-00f42053249c",
+      "solution_id": "e4eb9fef-cebf-4f91-a51c-8c0d0832527a"
     },
     {
       "instance_id": "sympy__sympy-19346",
-      "problem_id": "82af13a8-5c52-4b0e-898f-102c74038fcc",
-      "solution_id": "4bca4e85-0b81-495f-8c22-45ec882e9215"
-    },
-    {
-      "instance_id": "sympy__sympy-19495",
-      "problem_id": "d53ce4b9-6f87-4e5a-a11e-651560c6f5e6",
-      "solution_id": "2f668c6b-4284-4330-8cc3-48e375c1ea37"
-    },
-    {
-      "instance_id": "sympy__sympy-19637",
-      "problem_id": "93c43656-7d74-4f5c-af4c-cf989d24e661",
-      "solution_id": "a9a8300e-a2a9-423b-88c3-4715635b1ec7"
+      "problem_id": "136dfd0f-8fbb-4b58-9b06-c9f5b77476a0",
+      "solution_id": "b2d195a4-6649-4d7a-8513-1c3b35672518"
     },
     {
       "instance_id": "sympy__sympy-19783",
-      "problem_id": "070c2085-3ed1-4aa7-a970-2894a3af16b1",
-      "solution_id": "6ef21524-3ad6-4951-afa6-3f649b604d7a"
-    },
-    {
-      "instance_id": "sympy__sympy-19954",
-      "problem_id": "ba7a7b4b-e67d-47af-a300-2f78a47fa2b6",
-      "solution_id": "a57fc08a-93f8-47c3-894b-2a71ed124415"
-    },
-    {
-      "instance_id": "sympy__sympy-20154",
-      "problem_id": "f13ddb88-c9dc-46c2-a6a3-40e72ec5a28a",
-      "solution_id": "68c57d50-6af1-4383-8303-a27978db19b3"
-    },
-    {
-      "instance_id": "sympy__sympy-20428",
-      "problem_id": "6cfdafd4-eb94-4bac-a005-fee0b216467b",
-      "solution_id": "cacbb90f-ae20-4197-afc8-704037407628"
+      "problem_id": "9a44b3a2-5753-417f-9297-721c123eb285",
+      "solution_id": "6d0dd74c-784c-4181-82ec-33a714cf9870"
     },
     {
       "instance_id": "sympy__sympy-20438",
-      "problem_id": "85e3f061-099f-4b00-aeb8-fbc403808305",
-      "solution_id": "312005c5-58f6-4ba1-9ca4-b1ce75914aa1"
-    },
-    {
-      "instance_id": "sympy__sympy-20590",
-      "problem_id": "7b0e691f-79a1-4756-8010-e946c92301e4",
-      "solution_id": "4b019d08-0ac9-4bb9-9428-03cd8be15d5c"
+      "problem_id": "6394446d-b7d1-4057-8ec6-5ea0784f6b60",
+      "solution_id": "5879d101-e05c-4d1c-bd81-8f1d9b198315"
     },
     {
       "instance_id": "sympy__sympy-20801",
-      "problem_id": "77eed9d5-b80c-41d8-9313-5ef8510f1bb4",
-      "solution_id": "cf67e8e6-a64c-490a-b4e7-2c3a87dbe5a5"
-    },
-    {
-      "instance_id": "sympy__sympy-20916",
-      "problem_id": "20d3d769-3fa1-4795-bef3-17c0a4002160",
-      "solution_id": "6ef6c40a-5f81-45fd-8030-4fac5a1bd487"
-    },
-    {
-      "instance_id": "sympy__sympy-21379",
-      "problem_id": "2e0457cb-8a78-42ba-b4e5-501ad1681d60",
-      "solution_id": "1bff7c87-6555-4346-97d1-f157618d25dc"
+      "problem_id": "a55f2eec-1f2a-425c-a4d8-10cffa381f1e",
+      "solution_id": "1cfa7525-4dec-4feb-acc5-e79c64921556"
     },
     {
       "instance_id": "sympy__sympy-21596",
-      "problem_id": "5e2249cf-4a12-4293-a5f4-eb5c9020cdab",
-      "solution_id": "e7cd67e0-9491-4725-82d3-6b3b62746fb9"
+      "problem_id": "23769d27-304c-49ca-b1f1-d8a57d17cf93",
+      "solution_id": "6b926635-13a5-440b-9cd0-f037332d86e9"
     },
     {
       "instance_id": "sympy__sympy-21612",
-      "problem_id": "8d42f3fa-f8d9-4e0b-a0e0-b5f80fbc860a",
-      "solution_id": "4b956b7c-9d38-4a35-9a4c-ca74b979ee53"
-    },
-    {
-      "instance_id": "sympy__sympy-21847",
-      "problem_id": "b51e3589-0c32-4463-b681-dd2e77345c7e",
-      "solution_id": "60bd0f0b-be42-4eb5-be13-0f3e93a16064"
-    },
-    {
-      "instance_id": "sympy__sympy-21930",
-      "problem_id": "c65bafed-1318-43bb-9e2c-2af5f77ab2e4",
-      "solution_id": "069fde25-63e3-4acf-8264-7373f53b7ae2"
+      "problem_id": "2e5d49d1-9ea5-4124-a0b8-2aab337b4065",
+      "solution_id": "ab4dfad2-f982-4578-88a6-05f5b879a740"
     },
     {
       "instance_id": "sympy__sympy-22080",
-      "problem_id": "943129b0-e947-48f1-bb49-2407fb30f82c",
-      "solution_id": "49b954f3-4bf5-4c45-b294-f4793addbb78"
+      "problem_id": "774187cd-3f53-408a-b0e6-e453581cf33e",
+      "solution_id": "78ef0572-0cf7-46ae-b75a-dd3e96210831"
     },
     {
       "instance_id": "sympy__sympy-22456",
-      "problem_id": "d9b0143d-1934-473d-82b9-706c9c92f907",
-      "solution_id": "fb9fde81-3ff3-46a4-8b86-00a8e3af448b"
+      "problem_id": "50e40bd0-43d1-4b11-b94a-6c292b39ad84",
+      "solution_id": "bf31eb9a-fb70-4a98-8568-2e455f79cefc"
     },
     {
       "instance_id": "sympy__sympy-22714",
-      "problem_id": "00990729-304f-41fe-babb-0106c86f9035",
-      "solution_id": "38cc8880-6fa7-463a-b657-341ea75d8eb1"
-    },
-    {
-      "instance_id": "sympy__sympy-22914",
-      "problem_id": "90dcd7cf-3a4a-45fb-88f4-48e064f50d99",
-      "solution_id": "d18c39fd-8c5f-4bc0-9631-cdfb04daee47"
+      "problem_id": "5b20d738-8c45-475d-98ca-321ce1ce3d39",
+      "solution_id": "29089176-2ea3-434f-ab20-c4d10af73e93"
     },
     {
       "instance_id": "sympy__sympy-23262",
-      "problem_id": "d0729124-39c9-4e54-854b-3e4a89edc414",
-      "solution_id": "93a74769-bf22-4923-9728-5df8207c1156"
+      "problem_id": "e05c7b30-340b-468c-89ae-81f2d3f27c36",
+      "solution_id": "87392b41-5840-490e-bd6e-b15bbd77e805"
     },
     {
       "instance_id": "sympy__sympy-23413",
-      "problem_id": "480ef999-4f61-4b31-9efe-64cff349ede5",
-      "solution_id": "3a120877-51a6-466f-83da-25bb241d49d8"
-    },
-    {
-      "instance_id": "sympy__sympy-23534",
-      "problem_id": "6c48ebaa-75c6-40dc-aaca-b2f0d07d8679",
-      "solution_id": "683d9413-20eb-4058-9c42-80eecf6b9c4f"
+      "problem_id": "408c1da2-9522-48b1-b4eb-112af5d70a07",
+      "solution_id": "6434b080-2b18-4fcd-8385-394b17449f22"
     },
     {
       "instance_id": "sympy__sympy-23824",
-      "problem_id": "868dffed-ae8c-4ed4-b1f5-83f90b18d713",
-      "solution_id": "aecfda1f-d916-4c4c-b602-aedf83dd6d53"
+      "problem_id": "85f1a3b2-ca07-4fdc-961f-83dda1ce56cd",
+      "solution_id": "fdd46db0-9a47-464b-a8e2-80e9e911e8f1"
     },
     {
       "instance_id": "sympy__sympy-23950",
-      "problem_id": "14536afd-b029-43fb-8f0b-8fb55aeed556",
-      "solution_id": "9ac2e03d-6724-47fe-bef6-bb2f760e4506"
+      "problem_id": "64965312-c38a-4b3e-b78b-a309ec097d8c",
+      "solution_id": "24790fba-9d26-41dd-b2cf-23f2f0a3a9ef"
     },
     {
       "instance_id": "sympy__sympy-24066",
-      "problem_id": "b1792c3e-8cb1-4923-b3c8-3f81d5aff91e",
-      "solution_id": "edabe49f-4ed2-4be2-b037-4ffe4d402de4"
-    },
-    {
-      "instance_id": "sympy__sympy-24213",
-      "problem_id": "37a20cb6-004a-47b2-8088-5f417e7115c6",
-      "solution_id": "ea302f60-5337-43c6-b6e5-cc97f219b9b1"
-    },
-    {
-      "instance_id": "sympy__sympy-24443",
-      "problem_id": "ff213ffb-3d26-403c-91c3-95bf6e24a667",
-      "solution_id": "a3847cc5-ad44-4aa3-a4de-297794147adb"
-    },
-    {
-      "instance_id": "sympy__sympy-24539",
-      "problem_id": "4da87df6-7719-4c53-b99f-8022239be734",
-      "solution_id": "0665bd7a-20bf-4ff7-85ee-d7e1ddc7347d"
-    },
-    {
-      "instance_id": "sympy__sympy-24562",
-      "problem_id": "ff6856ae-6970-41fd-bf04-57fd3c7a3bb1",
-      "solution_id": "340b4a4b-d886-4889-944d-e1f815bac94f"
+      "problem_id": "07a3a053-75b8-46e6-bc5c-e82ae817e0c3",
+      "solution_id": "dc3b7fdc-b176-4b34-b587-2c24366c8eaf"
     },
     {
       "instance_id": "sympy__sympy-24661",
-      "problem_id": "0f166c83-b87a-4450-8bf9-e0e2fbde5145",
-      "solution_id": "0e1b1ff0-54f7-40a4-8fbf-bded53208f57"
+      "problem_id": "bad112ec-330a-417f-afa6-7e4ec475b980",
+      "solution_id": "e938fe93-1fa1-4542-8869-8d43804d7c63"
     },
     {
-      "problem_id": "e291edad-39f1-4894-848e-7143f8e9940a",
+      "instance_id": "scikit-learn__scikit-learn-25973",
+      "problem_id": "53a53799-4226-4cd3-96a5-33e6a62a21b3",
+      "solution_id": "1ad8b587-0530-429c-a1d6-7a23e113c9cf"
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-26194",
+      "problem_id": "a9d47c99-bdf1-48d1-a838-7418afbc7fe4",
+      "solution_id": "80124f2c-0043-407e-a7fe-95c1cd3548f6"
+    },
+    {
+      "problem_id": "8d9f363d-835f-4d24-9079-7734a643ff86",
       "kind": "distractor"
     },
     {
-      "problem_id": "aa07be26-2cd4-4ae1-a14c-91d79bb4a3d6",
+      "problem_id": "9bcfc6dd-987e-4374-91c7-a620343f96bc",
       "kind": "distractor"
     },
     {
-      "problem_id": "c4863fa9-7892-490a-83dd-dc12928e155d",
+      "problem_id": "2301b272-8c18-44cc-b7fd-d70654976417",
+      "kind": "distractor"
+    },
+    {
+      "problem_id": "8957b2a2-03a0-4dfe-b96b-3c99d838fe51",
+      "kind": "distractor"
+    },
+    {
+      "problem_id": "bb193fe3-5a14-4e13-84bf-840f6ee1353b",
+      "kind": "distractor"
+    },
+    {
+      "problem_id": "54b2b4b3-3e4f-40cf-b97b-13114f8990cb",
+      "kind": "distractor"
+    },
+    {
+      "problem_id": "c0072efe-a138-4ef8-873f-91bba8e0d7be",
+      "kind": "distractor"
+    },
+    {
+      "problem_id": "1c34b4bd-ee14-4c0a-87a1-fbae8409b64f",
+      "kind": "distractor"
+    },
+    {
+      "problem_id": "4e578601-2c54-4b82-830e-19090be108da",
       "kind": "distractor"
     }
   ],
   "corpus_path": "/Users/FradSer/Developer/FradSer/agentbook/experiments/agentbook-ab/_oracle/corpus.seed.json",
   "mode": "good",
-  "api_key": "ak_BytQk4g8KFr56Tda0g_MbrdNlm5-h23J",
-  "agent_id": "35a78b5e-cdce-4cbc-9154-f13b589d180e",
+  "api_key": "ak_FSrViAbresA7iBT9GtFZccZTzOky_1xB",
+  "agent_id": "3fdf1747-02b7-4018-9dd2-b38d2ce2cd11",
   "base_url": "http://127.0.0.1:8078"
 }

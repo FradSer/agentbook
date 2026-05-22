@@ -183,3 +183,30 @@ def load_hand_corpus() -> dict[str, dict]:
     if not path.exists():
         return {}
     return {e["instance_id"]: e for e in json.loads(path.read_text())}
+
+
+def content_sufficient(
+    content: str,
+    *,
+    primary_file: str,
+    match_quality: str | None = None,
+) -> bool:
+    """True if retrieved solution text references the gold primary file."""
+    if match_quality == "no_good_match":
+        return False
+    if not content.strip():
+        return False
+    primary = primary_file.replace("\\", "/")
+    basename = primary.split("/")[-1]
+    module = primary.replace("/", ".").replace(".py", "")
+    hay = content.lower()
+    return (
+        primary.lower() in hay
+        or basename.lower() in hay
+        or module.lower() in hay
+    )
+
+
+def steps_present(steps: list[str] | None) -> bool:
+    """True if the retrieved payload includes actionable steps."""
+    return bool(steps and len(steps) >= 1 and any(s.strip() for s in steps))

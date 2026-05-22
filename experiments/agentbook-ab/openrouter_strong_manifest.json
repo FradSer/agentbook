@@ -1,0 +1,1298 @@
+[
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 6655
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2660
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1778
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 16679
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1338
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 991
+  },
+  {
+    "instance_id": "sympy__sympy-15345",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 4627
+  },
+  {
+    "instance_id": "sympy__sympy-15345",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3395
+  },
+  {
+    "instance_id": "sympy__sympy-15345",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2575
+  },
+  {
+    "instance_id": "sympy__sympy-15349",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 10902
+  },
+  {
+    "instance_id": "sympy__sympy-15349",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4577
+  },
+  {
+    "instance_id": "sympy__sympy-15349",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 5492
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2308
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 4438
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2576
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 18366
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 12568
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7925
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4960
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2499
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3070
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 11840
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4651
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4496
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7040
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 6179
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4211
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1558
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 15733
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 15360
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1905
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1065
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 372
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4944
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 5286
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 10521
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1618
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 533
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 552
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2309
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1695
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3352
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7049
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2892
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3344
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 7302
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 8856
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2792
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3915
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1605
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 905
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1725
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1957
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1221
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 6655
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 15842
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5913
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 11677
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2287
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2489
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 14591
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1931
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3689
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1367
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 968
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1184
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 19326
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 6363
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 711
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1101
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 902
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 561
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4952
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3930
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1045
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2134
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4131
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 4830
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 7062
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1356
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1413
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 6161
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 4566
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3009
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7893
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 8315
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 15743
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 12120
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 5756
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 206
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2718
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 7345
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 7930
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5697
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1895
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1110
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 25458
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 39091
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3981
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 19063
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 6818
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 198
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5418
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1213
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 836
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 11794
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 8421
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 12117
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 18605
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5841
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 914
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1598
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 962
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 604
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 960
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3605
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3205
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 26683
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 7036
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 6931
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 2959
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3303
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 3253
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1321
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1211
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 341
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 6165
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 187
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 187
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2009
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2496
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2452
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 9961
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5503
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5161
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 21676
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 19448
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 16354
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 55515
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 5963
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 65527
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1070
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 920
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 175
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1294
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1589
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 986
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 1989
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1602
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1123
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 3961
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2529
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 2664
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 819
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1080
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 919
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 8611
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 9463
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 1353
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "control",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": true,
+    "response_length": 42761
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "good",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 17529
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "arm": "oracle",
+    "status": "completed",
+    "model": "anthropic/claude-sonnet-4",
+    "fix_applied": false,
+    "response_length": 7513
+  }
+]

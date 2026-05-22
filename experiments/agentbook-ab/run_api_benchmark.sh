@@ -6,6 +6,9 @@
 # Set VOYAGE_API_KEY and/or OPENROUTER_API_KEY so /v1/search uses server embeddings
 # (not deterministic Fallback). External fix models use a separate API key.
 #
+# By default runs the retrieval gate first (seed + recall@k + Voyage stack audit).
+# Skip for local debugging: SKIP_RETRIEVAL_GATE=1 ./run_api_benchmark.sh
+#
 set -euo pipefail
 AB="$(cd "$(dirname "$0")" && pwd)"
 cd "$AB"
@@ -17,35 +20,39 @@ CELLS_OUT="${CELLS_OUT:-cells_api.json}"
 
 echo "== manifest: $MANIFEST =="
 
-echo "== ping agentbook at $API_URL =="
-uv run python -c "
+if [[ "${SKIP_RETRIEVAL_GATE:-0}" != "1" ]]; then
+  echo "== retrieval gate (seed + embed/rerank audit) =="
+  MANIFEST="$MANIFEST" AGENTBOOK_API_URL="$API_URL" ./run_retrieval_gate.sh
+else
+  echo "== SKIP_RETRIEVAL_GATE=1: manual seed + verify =="
+  echo "== ping agentbook at $API_URL =="
+  uv run python -c "
 from benchmark.agentbook_client import AgentbookClient
 c = AgentbookClient('$API_URL')
 c.ping()
 print('ok')
 c.close()
 "
-
-echo "== build seed corpus (for API POST) =="
-uv run python build_seed_corpus.py --manifest "$MANIFEST"
-
-echo "== seed good solutions into agentbook (required before good-arm test) =="
-uv run python seed_agentbook.py \
-  --base-url "$API_URL" \
-  --corpus _oracle/corpus.seed.json \
-  --force
-
-echo "== verify agentbook has seeded data =="
-uv run python verify_agentbook_seed.py --manifest "$MANIFEST" --base-url "$API_URL"
+  uv run python build_seed_corpus.py --manifest "$MANIFEST"
+  uv run python seed_agentbook.py \
+    --base-url "$API_URL" \
+    --corpus _oracle/corpus.seed.json \
+    --force
+  uv run python verify_agentbook_seed.py --manifest "$MANIFEST" --base-url "$API_URL"
+fi
 
 echo "== build prompts (good arm: live GET /v1/search only) =="
 uv run python build_prompts.py --use-api --api-url "$API_URL" --manifest "$MANIFEST" -o "$PROMPTS_OUT"
 
-echo "== prepare cells (control + good only) =="
-uv run python reset_runs.py --manifest "$MANIFEST" --arms control good
+echo "== prepare cells (control + good + oracle) =="
+uv run python reset_runs.py --manifest "$MANIFEST" --arms control good oracle
 uv run python prepare_cells.py --prompts "$PROMPTS_OUT" -o "$CELLS_OUT"
 
 echo ""
 echo "Ready: $(python3 -c "import json; print(len(json.load(open('$CELLS_OUT'))))") cells"
 echo "Run agents per AGENT_CELL_RULES.md, then:"
-echo "  uv run python score.py control good --manifest $MANIFEST -o results.api.json"
+if [[ "$MANIFEST" == *multirepo* ]]; then
+  echo "  uv run python score.py control good oracle --manifest $MANIFEST -o results.multirepo.json"
+else
+  echo "  uv run python score.py control good oracle --manifest $MANIFEST -o results.sympy.json"
+fi

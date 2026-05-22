@@ -1,10 +1,50 @@
 # Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
 
-**Date:** 2026-05-20 · **Status:** OpenRouter weak-model eval complete (incl. api_error retry) · **Verdict:** **On `openai/gpt-oss-20b:free`, agentbook RAG (good) beats control on pass@1 among submitted cells (+20pp), with 4 paired lifts and 0 harms — but submission rate is low (~52%), so treat as directional.**
+**Date:** 2026-05-22 · **Status:** **v3 lift eval complete** (strong headline + weak appendix)
 
-**Latest (OpenRouter `gpt-oss-20b:free`, scored 2026-05-20):** model via `run_openrouter_benchmark.sh`; good arm uses live `GET /v1/search` after API seed (server Voyage embed/rerank when keyed). **pass@1 (submitted only):** control **15/27** (55.6%), good **22/29** (75.9%). **Agent fix commits:** 56/108 cell-arms. **Paired (both submitted, n=23):** 15 both pass, **4 lift** (16766, 19495, 23950, 24066), **0 harm**.
+## v3 headline (lift manifest — primary)
 
-> **Archived:** Cursor sub-agent run (strong model, incomplete control). **Three-arm** inline-corpus (2026-05-18): control 45/54 → good 47/54 (+2 net), bad 43/54.
+Protocol: [`EVAL_PROTOCOL.md`](EVAL_PROTOCOL.md) v3 final. Primary surface:
+**`tasks/manifest.lift.json`** (16 sympy tasks where strong control ≠ PASS).
+
+| Track | Model | Arms | Output |
+|---|---|---|---|
+| **Strong (headline)** | Cursor sub-agent | control, good, oracle | `summary.lift.json` |
+| **Weak (appendix)** | OpenRouter `openai/gpt-oss-20b:free` only | control, good | `results.openrouter.lift.json` |
+
+**Strong lift results** (`summary.lift.json`, filtered from prior strong three-arm run):
+
+| Metric | Value |
+|---|---|
+| **rag_gain_eligible** | **+5** (good 5/12 vs control 0/9 on submitted) |
+| **paired lift (control FAIL)** | **4 / 0** harm (`19346`, `19783`, `22714`, `23950`) |
+| **retrieval_loss_eligible** | **+1** (oracle 6/10 vs good 5/12) |
+| **submit_rate (strong)** | control 56%, good 75%, oracle 63% |
+
+Submit rates below 80% → headline is **directionally strong but underpowered** until
+fresh Cursor re-runs complete on v3 prep (good-arm prompts now include RAG steps).
+
+Layer 1 retrieval gate on lift manifest: **100%** on recall@3, content_sufficient@1,
+and steps_present@1 (Voyage embed + rerank).
+
+```bash
+cd experiments/agentbook-ab
+MODEL_TRACK=prep ./run_full_eval.sh
+MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
+MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
+MODEL_TRACK=status MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
+```
+
+OpenRouter is restricted to **`openai/gpt-oss-20b:free` only** — no paid model
+fallback on rate limits (`run_openrouter_cells.py` allowlist + 429 backoff).
+
+**Weak appendix (directional, not headline):** lift manifest OpenRouter free-only —
+control 4/7 (57%), good 5/8 (63%); multirepo lift control 3/9 (33%), good 6/11 (55%).
+High skip rate (~50%) from single-shot patch harness.
+
+**Archived (weak model only — directional, not main conclusion):** OpenRouter multirepo pilot below (§3.0).
+
+> **Archived:** Three-arm inline-corpus (2026-05-18): control 45/54 → good 47/54 (+2 net), bad 43/54.
 
 Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (archived run) (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
 
@@ -46,7 +86,7 @@ Editing a test cannot score a pass. Two consecutive re-scores of the final `runs
 
 ## 3. Results
 
-### 3.0 Latest — OpenRouter weak model (n=54, scored 2026-05-20)
+### 3.0 Archived — OpenRouter weak model (n=27 multirepo, scored 2026-05-20)
 
 Harness: `./run_openrouter_benchmark.sh` — `run_api_benchmark.sh` (seed + RAG prompts) → `run_openrouter_cells.py` (`openai/gpt-oss-20b:free`) → `score.py`. Output: `results.openrouter.json`. Retry api_error only: `./run_openrouter_benchmark.sh retry-errors`.
 
@@ -112,27 +152,46 @@ Bad arm — adversarial stress (control PASS → bad FAIL):
 
 Bad picked up 5 incidental lifts (same 4 as good plus 21930) where its wrong hint happened to land near a relevant area, but it lost 7 regressions — net −2.
 
-### 3.1b Hard tier (recommended for wider arm separation)
+### 3.1b Hard tier and multi-repo manifest
 
-The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. For experiments that need a lower control ceiling, edit `tasks/manifest.json` (archived hard-tier stats below used a separate manifest slice):
+The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. Use manifest presets:
+
+| Manifest | Contents | Cells (×2 arms) |
+|---|---|---|
+| `tasks/manifest.json` | Full sympy slice (54) | 108 |
+| `tasks/manifest.hard.json` | Sympy hard tier (~25) | ~50 |
+| `tasks/manifest.multirepo.json` | Sympy hard + sklearn/pytest pilot | varies |
+
+Generate presets:
+
+```bash
+cd experiments/agentbook-ab
+uv run python filter_manifest.py hard -o tasks/manifest.hard.json
+uv run python filter_manifest.py multirepo -o tasks/manifest.multirepo.json
+```
+
+Bootstrap multi-repo substrate:
+
+```bash
+./setup_bench.sh --multirepo   # clone sklearn+pytest, RED-verify pilot
+```
+
+**Retrieval gate (required before good-arm A/B):** good-arm hints must come from server-side Voyage embed + rerank (`GET /v1/search`). Run gate after seeding:
+
+```bash
+MANIFEST=tasks/manifest.multirepo.json ./run_retrieval_gate.sh
+# then prep + agents:
+MANIFEST=tasks/manifest.multirepo.json ./run_openrouter_benchmark.sh
+```
+
+Hard tier rules: drop sympy **1.4–1.6**; drop **&lt;15 min** SWE difficulty unless control already failed; always keep control-fail tasks (including 19495).
+
+Historical hard-tier stats (three-arm era, n=24):
 
 | Tier | Tasks | control | good | bad | good − control |
 |---|---|---|---|---|---|
 | Full (§3.1) | 54 | 83% | 87% | 80% | +2 tasks |
 | **Hard** | 24 | 75% | **92%** | 79% | **+4 tasks (+17 pp)** |
-| Lift-surface | 11 | 18% | 55% | 64% | +4 tasks |
-| Control-fail only | 9 | 0% | 44% | 56% | +4 tasks |
-
-Hard tier rules: drop sympy **1.4–1.6**; drop **&lt;15 min** SWE difficulty unless control already failed; always keep control-fail tasks (including 19495).
-
-Re-run on a hard-tier manifest (historical; 48 cells = 24 tasks × 2 arms):
-
-```bash
-cd experiments/agentbook-ab
-./run_api_benchmark.sh
-# run agents per AGENT_CELL_RULES.md, then:
-uv run python score.py control good --manifest tasks/manifest.hard.json
-```
 
 ### 3.2 Split by sub-agent model
 
@@ -193,20 +252,23 @@ Compare 21379: control made a 529-line edit in `hyperbolic.py` (wrong file); goo
 - **High control pass rate (77%) on a strong model** leaves a small lift surface. A weaker model, harder tasks, or remote-dependency bugs would produce more control failures and a larger lift set.
 - **Sympy 1.4–1.6 require `py<2`.** Pinning `py==1.11.0` in `bench_requirements.txt` restored RED verification for 15 additional sympy 1.4–1.6 tasks; one candidate in that range still fails RED and is excluded.
 
-## 7. Public reproducible benchmark (two substrates)
+## 7. Public reproducible benchmark (multi-repo pilot)
 
 All tasks come from the public **[SWE-bench Verified](https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified)** split (500 human-validated instances). Download and metadata are scripted — no proprietary data.
 
 | Substrate | Scope | Grading | When to use |
 |---|---|---|---|
-| **No-Docker (pilot)** | sympy 1.4–1.12, RED-verified in-repo | `score.py` + pinned venv (`bench_requirements.txt`) | Fast iteration, agentbook two-arm A/B, no Docker |
+| **No-Docker (sympy)** | sympy 1.4–1.12, 54 RED-verified | `score.py` + pinned venv | Regression baseline |
+| **No-Docker (multi-repo pilot)** | sympy hard + sklearn + pytest | Same harness + retrieval gate | Harder public slice |
 
-Bootstrap the no-Docker sympy benchmark:
+Bootstrap:
 
 ```bash
 cd experiments/agentbook-ab
-./setup_bench.sh   # fetch HF dataset, venv, clone sympy, RED-verify manifest
-./run_openrouter_benchmark.sh   # prep + 108 cells + score (weak model)
+./setup_bench.sh                    # sympy only
+./setup_bench.sh --multirepo        # + sklearn/pytest pilot
+MANIFEST=tasks/manifest.multirepo.json ./run_retrieval_gate.sh
+MANIFEST=tasks/manifest.multirepo.json ./run_openrouter_benchmark.sh
 ```
 
 ## 8. Reproducibility
@@ -217,8 +279,10 @@ cd experiments/agentbook-ab
 | Clone upstream repos | `clone_repos.py` |
 | Benchmark venv pins | `bench_requirements.txt` |
 | One-shot bootstrap | `setup_bench.sh` |
-| Benchmark builder (RED-verified sympy tasks) | `build_benchmark.py` |
-| API two-arm prep | `run_api_benchmark.sh` |
+| Benchmark builder (RED-verified tasks) | `build_benchmark.py` (`--multirepo` for pilot) |
+| Manifest presets | `filter_manifest.py` → `tasks/manifest.hard.json`, `manifest.multirepo.json` |
+| Retrieval gate (embed/rerank audit) | `run_retrieval_gate.sh`, `eval_retrieval_gate.py` |
+| API two-arm prep | `run_api_benchmark.sh` (calls gate by default) |
 | Workspace prep | `cell_workspace.py`, `prepare_cells.py` |
 | Corpus seeder (good only) | `seed_agentbook.py` |
 | Seed corpus | `build_seed_corpus.py` → `_oracle/corpus.seed.json` |

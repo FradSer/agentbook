@@ -41,6 +41,60 @@ DISTRACTORS = [
         "in env.py so column type changes are detected.",
         "steps": ["Set compare_type=True", "Re-run autogenerate"],
     },
+    {
+        "description": "scikit-learn fit() raises ValueError: Input contains NaN "
+        "when sparse matrix has implicit zeros treated as missing.",
+        "error_signature": "ValueError: Input contains NaN",
+        "tags": ["scikit-learn", "preprocessing", "bench-distractor"],
+        "content": "Use SimpleImputer or ensure the sparse CSC matrix uses explicit "
+        "zero storage before passing to an estimator that rejects NaN.",
+        "steps": ["Impute or densify sparse input", "Refit estimator"],
+    },
+    {
+        "description": "sklearn cross_val_score fails with 'X has 10 features, but "
+        "StandardScaler is expecting 8 features as input'.",
+        "error_signature": "StandardScaler is expecting",
+        "tags": ["scikit-learn", "pipeline", "bench-distractor"],
+        "content": "Fit the preprocessing pipeline on training columns only and "
+        "reuse the same column subset at predict time.",
+        "steps": ["Align feature columns", "Refit pipeline on train slice"],
+    },
+    {
+        "description": "pytest collection fails with ImportError while importing "
+        "conftest.py after upgrading to pytest 7.",
+        "error_signature": "ImportError while importing conftest",
+        "tags": ["pytest", "plugins", "bench-distractor"],
+        "content": "Pin pytest plugins compatible with the target pytest major "
+        "version or update deprecated hook names in conftest.",
+        "steps": ["Upgrade incompatible plugins", "Fix hook names"],
+    },
+    {
+        "description": "pytest.mark.parametrize raises TypeError when indirect=True "
+        "is combined with a fixture that returns a generator.",
+        "error_signature": "TypeError: indirect fixture",
+        "tags": ["pytest", "fixtures", "bench-distractor"],
+        "content": "Make the indirect fixture return the value directly instead of "
+        "yielding, or remove indirect=True for generator fixtures.",
+        "steps": ["Return value from fixture", "Re-run parametrized test"],
+    },
+    {
+        "description": "Django ORM QuerySet filter raises FieldError for a lookup on "
+        "a reverse relation after renaming the related_name.",
+        "error_signature": "FieldError: Cannot resolve keyword",
+        "tags": ["django", "orm", "bench-distractor"],
+        "content": "Update reverse relation lookups to the new related_name or use "
+        "the explicit related query path in filter()/exclude().",
+        "steps": ["Fix lookup path", "Add migration if model changed"],
+    },
+    {
+        "description": "Django test client returns 301 instead of 200 because "
+        "APPEND_SLASH redirects POST requests.",
+        "error_signature": "HTTP 301 Moved Permanently",
+        "tags": ["django", "urls", "bench-distractor"],
+        "content": "Post to the URL with the trailing slash or disable APPEND_SLASH "
+        "in test settings for that route.",
+        "steps": ["Add trailing slash", "Adjust test client URL"],
+    },
 ]
 
 
@@ -70,13 +124,19 @@ class AgentbookClient:
         state = self._load_state()
         key = state.get("api_key")
         if key and not force_register and state.get("base_url") == self.base_url:
-            # Reuse benchmark seed credentials without re-registering (avoids 429s).
+            self._auth = {"Authorization": f"Bearer {key}"}
+            if self._verify_key(key):
+                return key
+        if key and not force_register:
             self._auth = {"Authorization": f"Bearer {key}"}
             return key
         r = self._client.post(
             "/v1/auth/register",
             json={"model_type": "claude-opus-4-6"},
         )
+        if r.status_code == 429 and key:
+            self._auth = {"Authorization": f"Bearer {key}"}
+            return key
         r.raise_for_status()
         reg = r.json()
         if force_register:
@@ -221,17 +281,32 @@ def format_recall_for_prompt(payload: dict[str, Any]) -> str:
         f"- similarity_score: {top.get('similarity_score', 0):.3f}",
         f"- problem: {top.get('description_preview', '')}",
         f"- tags: {', '.join(top.get('tags') or [])}",
+        f"- source: live GET /v1/search (production RAG)",
     ]
     best = top.get("best_solution")
+    steps: list[str] = []
     if best:
         lines.append(f"- solution_id: {best.get('solution_id')}")
         lines.append(f"- confidence: {best.get('confidence', 0)}")
         content = best.get("content_preview") or ""
         lines.append(f"\n**Solution (from agentbook RAG):**\n\n{content}")
-    solutions = top.get("solutions") or []
-    if solutions and not best:
-        s0 = solutions[0]
-        lines.append(f"\n**Solution:**\n\n{s0.get('content', '')}")
+        raw_steps = best.get("steps")
+        if isinstance(raw_steps, list):
+            steps = [str(s) for s in raw_steps if str(s).strip()]
+    if not steps:
+        solutions = top.get("solutions") or []
+        if solutions:
+            raw_steps = solutions[0].get("steps")
+            if isinstance(raw_steps, list):
+                steps = [str(s) for s in raw_steps if str(s).strip()]
+    if steps:
+        lines.append("\n**Steps:**")
+        for i, step in enumerate(steps, 1):
+            lines.append(f"{i}. {step}")
+    elif best or (top.get("solutions") or []):
+        lines.append(
+            "\n_(No structured steps in search payload — explore source manually.)_"
+        )
     if payload.get("no_good_match"):
         lines.append(
             "\n_(agentbook flagged `no_good_match`; treat as weak hint.)_"

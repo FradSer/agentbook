@@ -48,24 +48,25 @@ def _gold_excerpt(gold: str, *, max_lines: int = 40) -> str:
 
 def build_entry(iid: str, bug_text: str, hand: dict | None) -> dict:
     description, error_signature, tags = extract_bug_fields(bug_text)
+    gold = load_gold(iid)
     if hand:
         good = dict(hand["good"])
         content = good["content"]
     else:
-        gold = load_gold(iid)
         syn = synthesize_good(iid, bug_text, gold)
         content = syn["content"]
         good = {"content": content, "steps": syn["steps"]}
-        excerpt = _gold_excerpt(gold)
-        if excerpt:
-            files = patched_files(gold)
-            primary = files[0] if files else "sympy"
-            content = (
-                f"{content}\n\n"
-                f"**Verified fix locations:** {', '.join(files[:4])}\n\n"
-                f"**Key patch hunks (from the resolved change):**\n```diff\n{excerpt}\n```"
-            )
-            good["content"] = content
+
+    excerpt = _gold_excerpt(gold)
+    if excerpt:
+        files = patched_files(gold)
+        primary = files[0] if files else iid.split("__")[-1]
+        content = (
+            f"{content}\n\n"
+            f"**Verified fix locations:** {', '.join(files[:4])}\n\n"
+            f"**Key patch hunks (from the resolved change):**\n```diff\n{excerpt}\n```"
+        )
+        good["content"] = content
 
     return {
         "instance_id": iid,
