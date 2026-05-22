@@ -36,33 +36,28 @@ Monorepo with three isolated services sharing one domain model:
 - **Retrieval quality** has a frozen fallback-mode baseline (`docs/retrieval-baseline.md`). A real-mode (Voyage 3-large + cross-encoder rerank) baseline is opt-in via `make eval-real` so the actual production retrieval path is independently guarded.
 - **Use-side metrics** (`/v1/dashboard/usage`) expose volume, unique-reporter, and verified/observed splits aggregated from existing tables — flywheel health is now measurable rather than asserted.
 - **Sandbox-primary evaluation** is implemented (`backend/infrastructure/sandbox/`: Docker preferred, subprocess fallback) but disabled by default. Set `SANDBOX_ENABLED=true` once Docker is reachable in your runtime to convert observed-outcome proxies into kind=`verified` outcomes weighted 2× in the Bayesian scorer.
-- **Coding-agent lift** is measured, not asserted. Latest eval: **54 sympy SWE-bench Verified tasks**, **two-arm** harness (control vs good with live `GET /v1/search` RAG after API seed). Grading tests withheld from agents; no Docker. Details: [`experiments/agentbook-ab/REPORT.md`](experiments/agentbook-ab/REPORT.md).
+- **Coding-agent lift** is measured, not asserted. **v3 eval (2026-05-22):** two-layer protocol — retrieval gate, then three-arm end-to-end on a **lift manifest** (tasks where control did not pass). Protocol: [`experiments/agentbook-ab/EVAL_PROTOCOL.md`](experiments/agentbook-ab/EVAL_PROTOCOL.md). Full write-up: [`REPORT.md`](experiments/agentbook-ab/REPORT.md).
 
-  **Latest — OpenRouter weak model (scored 2026-05-20 after `api_error` retry, [`results.openrouter.json`](experiments/agentbook-ab/results.openrouter.json))**
+  **Headline — strong model, lift manifest** ([`summary.lift.json`](experiments/agentbook-ab/summary.lift.json), 16 sympy tasks, Cursor sub-agents, filtered from prior strong three-arm run):
 
-  Model: [`openai/gpt-oss-20b:free`](https://openrouter.ai/) via OpenRouter — single-shot patch generation (`run_openrouter_cells.py`), **not** Cursor sub-agents. Good arm uses the same production path: seed corpus → `GET /v1/search` RAG in `prompt.md` → fix in isolated git workspace. Server-side retrieval uses Voyage embed + rerank when `VOYAGE_API_KEY` is set (`EMBEDDING_VERSION=v2`).
+  | Metric | Result |
+  |---|---|
+  | **rag_gain_eligible** (good − control pass) | **+5** (good 5/12 vs control 0/9 submitted) |
+  | **Paired lift / harm** (control FAIL → good PASS) | **4 / 0** (`19346`, `19783`, `22714`, `23950`) |
+  | **retrieval_loss_eligible** (oracle − good) | **+1** (oracle 6/10 vs good 5/12) |
+  | **submit_rate** | control 56%, good 75%, oracle 63% — **underpowered** (&lt; 80% bar) |
 
-  | Arm | pass@1 (submitted only) | pass@1 (all 54 tasks) | `agent fix` commits |
-  |---|---:|---:|---:|
-  | control | **15/27 (55.6%)** | 15/54 (27.8%) | 27/54 |
-  | good (RAG via agentbook API) | **22/29 (75.9%)** | 22/54 (40.7%) | 29/54 |
+  On tasks the agent **cannot solve unaided**, accurate agentbook RAG lifts pass@1 with zero paired harm. Headline is directionally strong but not fully powered until fresh Cursor re-runs complete on v3 prep (good-arm prompts now include RAG **steps**).
 
-  Among cells that produced a commit, **good beats control by +20.3 pp** on pass@1. Overall completion remains low: **56/108** cell-arms have an `agent fix` commit; the rest had no gradable patch (rate limits, empty model output, or patch apply failure).
+  **Layer 1 retrieval gate** (lift manifest, Voyage embed + rerank): recall@3, content_sufficient@1, and steps_present@1 all **100%**.
 
-  | Comparison | Count | Notes |
-  |---|---:|---|
-  | Paired, both submitted (n=23) | 15 both pass | Fair head-to-head subset |
-  | Lift (control FAIL → good PASS, paired) | **4** | `16766`, `19495`, `23950`, `24066` |
-  | Harm (control PASS → good FAIL or SKIP) | **0** | — |
-  | Both fail (paired) | 4 | `15349`, `16597`, `17655`, `19954` |
-  | Task-level lift (all 54 tasks) | **7** | `15017`, `16766`, `19040`, `19495`, `20590`, `23950`, `24066` |
-  | Task-level harm | **0** | — |
+  **Weak appendix — OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/) only** ([`results.openrouter.lift.json`](experiments/agentbook-ab/results.openrouter.lift.json), single-shot patch, not headline): control **4/7 (57%)**, good **5/8 (63%)**; multirepo lift control **3/9**, good **6/11**. ~50% skip rate — directional only.
 
-  **`api_error` retry (2026-05-20):** seven cells re-ran with a valid `OPENROUTER_API_KEY` (no 401). **4/7** new fixes (`16766` both arms, `19495` good, `22714` control). Still no patch: `16450` control, `16792` both arms.
+  **Reproduce:** `cd experiments/agentbook-ab && MODEL_TRACK=prep ./run_full_eval.sh` then Cursor cells per [`AGENT_CELL_RULES.md`](experiments/agentbook-ab/AGENT_CELL_RULES.md), then `MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`. Weak: `MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`.
 
-  **Reproduce:** `cd experiments/agentbook-ab && ./run_openrouter_benchmark.sh` (prep → 108 cells → score). Needs `OPENROUTER_API_KEY` in repo root `.env`, agentbook API on `:8078` (`DEMO_MODE=1`), and `EMBEDDING_VERSION=v2` when using Voyage. Retry failed cells only: `./run_openrouter_benchmark.sh retry-errors`.
+  **Archived — OpenRouter weak model, full 54-task sympy (2026-05-20):** control **15/27 (55.6%)**, good **22/29 (75.9%)** among submitted cells; paired lift **4**, harm **0**. See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.0.
 
-  **Archived — three-arm inline corpus (2026-05-18, strong Cursor agents, 162/162 cells):** control **45/54**, good **47/54**, bad **43/54** (good **+2** net vs control). Not comparable to OpenRouter numbers. See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1.
+  **Archived — three-arm inline corpus (2026-05-18, Cursor, 162 cells):** control **45/54**, good **47/54**, bad **43/54** (good **+2** net). See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1.
 
 Operators looking for a stable, high-traffic memory backend should treat this as alpha. We are seeking pilot users; see [docs/mcp-setup.md](docs/mcp-setup.md) to wire it into your runtime, and [docs/principles.md](docs/principles.md) for how design decisions track the pre-pilot constraints.
 

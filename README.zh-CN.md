@@ -36,33 +36,28 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 - **检索质量** 有一个冻结的 fallback-mode baseline(`docs/retrieval-baseline.md`)。真模式(Voyage 3-large + cross-encoder rerank)的 baseline 通过 `make eval-real` 选择性开启,所以真实生产检索路径是独立守护的。
 - **使用侧指标**(`/v1/dashboard/usage`)暴露体量、唯一上报人、verified/observed 分布,从既有表聚合而来 —— 飞轮健康度从"主张"变成"可测"。
 - **沙箱优先评估** 已实现(`backend/infrastructure/sandbox/`:优先 Docker,subprocess 兜底),但默认关闭。当 Docker 在你的运行时可达时,设 `SANDBOX_ENABLED=true`,这样 observed 的结果代理会转换成 kind=`verified` 的结果,在贝叶斯评分里加权 2×。
-- **编码代理 lift** 是测出来的,不是断言的。最新评测:**54 个 sympy SWE-bench Verified 任务**,**两臂** harness(control vs 经 API 入库后 `GET /v1/search` RAG 的 good)。评分测试不交给 agent,无 Docker。详见 [`experiments/agentbook-ab/REPORT.md`](experiments/agentbook-ab/REPORT.md)。
+- **编码代理 lift** 是测出来的,不是断言的。**v3 评测（2026-05-22）：** 两层协议 —— 检索 gate，再在 **lift manifest**（control 未通过的任务）上做三臂端到端。协议：[`experiments/agentbook-ab/EVAL_PROTOCOL.md`](experiments/agentbook-ab/EVAL_PROTOCOL.md)。完整报告：[`REPORT.md`](experiments/agentbook-ab/REPORT.md)。
 
-  **最新 — OpenRouter 弱模型（2026-05-20 重试后评分，[`results.openrouter.json`](experiments/agentbook-ab/results.openrouter.json)）**
+  **主结论 — 强模型, lift manifest**（[`summary.lift.json`](experiments/agentbook-ab/summary.lift.json)，16 题 sympy，Cursor 子 agent，由先前 strong 三臂跑分过滤）：
 
-  模型：[`openai/gpt-oss-20b:free`](https://openrouter.ai/)（OpenRouter 单次补丁生成，**非** Cursor 子 agent）。good 臂与生产路径一致：语料入库 → `GET /v1/search` RAG → 在独立 git 工作区提交修复。服务端检索在配置 `VOYAGE_API_KEY` 时使用 Voyage 嵌入与重排（需 `EMBEDDING_VERSION=v2`）。
+  | 指标 | 结果 |
+  |---|---|
+  | **rag_gain_eligible**（good − control 通过数） | **+5**（good 5/12 vs control 0/9，已提交） |
+  | **配对 lift / harm**（control FAIL → good PASS） | **4 / 0**（`19346`、`19783`、`22714`、`23950`） |
+  | **retrieval_loss_eligible**（oracle − good） | **+1**（oracle 6/10 vs good 5/12） |
+  | **submit_rate** | control 56%、good 75%、oracle 63% —— **样本不足**（&lt; 80% 门槛） |
 
-  | 臂 | pass@1（仅已提交） | pass@1（54 题全量） | `agent fix` 提交 |
-  |---|---:|---:|---:|
-  | control | **15/27（55.6%）** | 15/54（27.8%） | 27/54 |
-  | good（agentbook API RAG） | **22/29（75.9%）** | 22/54（40.7%） | 29/54 |
+  在 agent **独自做不对** 的任务上，准确的 agentbook RAG 能拉高 pass@1，且配对 harm 为 0。主结论方向明确，但需完成 v3 prep 后的 Cursor 重跑（good 臂 prompt 已含 RAG **steps**）才达到 fully powered。
 
-  在**有提交**的 cell 上，good 比 control 的 pass@1 **高 20.3 个百分点**。整体完成率仍偏低：**56/108** 个 cell-arm 有 `agent fix` 提交，其余无可用补丁（限流、空回复或补丁应用失败）。
+  **Layer 1 检索 gate**（lift manifest，Voyage 嵌入 + 重排）：recall@3、content_sufficient@1、steps_present@1 均为 **100%**。
 
-  | 对比项 | 数量 | 说明 |
-  |---|---:|---|
-  | 配对、双臂均已提交（n=23） | 15 双臂通过 | 可公平对比的子集 |
-  | Lift（配对：control 失败 → good 通过） | **4** | `16766`、`19495`、`23950`、`24066` |
-  | Harm（control 通过 → good 失败/未提交） | **0** | — |
-  | 配对双臂均失败 | 4 | `15349`、`16597`、`17655`、`19954` |
-  | 任务级 lift（54 题） | **7** | `15017`、`16766`、`19040`、`19495`、`20590`、`23950`、`24066` |
-  | 任务级 harm | **0** | — |
+  **弱模型附录 — 仅 OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/)**（[`results.openrouter.lift.json`](experiments/agentbook-ab/results.openrouter.lift.json)，单次补丁，非主结论）：control **4/7（57%）**，good **5/8（63%）**；multirepo lift control **3/9**，good **6/11**。skip 率约 50%，仅作方向性参考。
 
-  **`api_error` 补跑（2026-05-20）：** 7 个 cell 在有效 `OPENROUTER_API_KEY` 下重跑，无 401；**4/7** 产生新补丁（`16766` 双臂、`19495` good、`22714` control）。仍无补丁：`16450` control、`16792` 双臂。
+  **复现：** `cd experiments/agentbook-ab && MODEL_TRACK=prep ./run_full_eval.sh`，按 [`AGENT_CELL_RULES.md`](experiments/agentbook-ab/AGENT_CELL_RULES.md) 跑 Cursor cell，再 `MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`。弱模型：`MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`。
 
-  **复现：** `cd experiments/agentbook-ab && ./run_openrouter_benchmark.sh`（prep → 108 cell → 评分）。需根目录 `.env` 中的 `OPENROUTER_API_KEY`、`:8078` 上的 agentbook API（`DEMO_MODE=1`），使用 Voyage 时设 `EMBEDDING_VERSION=v2`。仅重试失败 cell：`./run_openrouter_benchmark.sh retry-errors`。
+  **归档 — OpenRouter 弱模型, 全量 54 题 sympy（2026-05-20）：** 已提交 subset 上 control **15/27（55.6%）**，good **22/29（75.9%）**；配对 lift **4**，harm **0**。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.0。
 
-  **归档 — 三臂内嵌语料（2026-05-18，Cursor 强 agent，162/162 cell）：** control **45/54**，good **47/54**，bad **43/54**（good 相对 control 净 **+2**）。与 OpenRouter 结果不可直接对比。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1。
+  **归档 — 三臂内嵌语料（2026-05-18，Cursor，162 cell）：** control **45/54**，good **47/54**，bad **43/54**（good 净 **+2**）。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1。
 
 想要稳定、高流量记忆后端的运营者请把这个当 alpha 看。我们在找 pilot 用户;接入运行时见 [docs/mcp-setup.md](docs/mcp-setup.md),设计决策如何配合 pre-pilot 约束见 [docs/principles.md](docs/principles.md)。
 
