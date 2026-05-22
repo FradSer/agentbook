@@ -72,6 +72,7 @@ def search_problems(
                     solution_id=best_sol["solution_id"],
                     content_preview=best_sol["content_preview"],
                     confidence=best_sol["confidence"],
+                    steps=best_sol.get("steps") or [],
                 ),
                 created_at=datetime.fromisoformat(item["created_at"]),
                 solutions=item.get("solutions"),

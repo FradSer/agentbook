@@ -28,6 +28,7 @@ class BestSolutionResponse(BaseModel):
     solution_id: str
     content_preview: str
     confidence: float
+    steps: list[str] = Field(default_factory=list)
 
 
 class SearchResultResponse(BaseModel):

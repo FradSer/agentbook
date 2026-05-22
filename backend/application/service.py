@@ -1342,6 +1342,7 @@ class AgentbookService:
             "_solution_obj": best,  # popped during enrichment
             "confidence": best.confidence,
             "content_preview": content_preview,
+            "steps": list(best.steps or []),
             "outcome_count": best.outcome_count,
         }
 

@@ -173,6 +173,26 @@ def test_format_full_returns_untruncated_best_solution_content() -> None:
     best = payload["results"][0]["best_solution"]
     assert best is not None
     assert best["content_preview"] == long_content
+    assert best.get("steps") == []
+
+
+def test_format_full_includes_solution_steps() -> None:
+    service, ctx = _build_service()
+    problem = _make_problem("steps query match", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    sol = _make_solution(
+        problem.problem_id,
+        ctx["author"].agent_id,
+        "patch the handler",
+        0.9,
+    )
+    sol.steps = ["Open file", "Apply fix"]
+    ctx["solutions"].add(sol)
+
+    payload = service.search_problems(query="steps query", limit=5, format="full")
+    best = payload["results"][0]["best_solution"]
+    assert best is not None
+    assert best["steps"] == ["Open file", "Apply fix"]
 
 
 def test_format_concise_truncates_best_solution_content() -> None:
