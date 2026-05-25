@@ -1,0 +1,260 @@
+{
+  "sympy__sympy-15017": {
+    "root_cause_pattern": "Empty-fold fallback returns the wrong identity: code reduces a sequence with a binary op (here multiplication over a shape tuple) but special-cases the empty input with a hardcoded value that is the WRONG identity element. A product over an empty collection must be the multiplicative identity 1, not 0 (0 is the additive identity). Fix direction: make the empty/degenerate case return the identity element of the actual operation. Sibling bugs: any `reduce(op, seq) if seq else <wrong-const>`, sums defaulting to 1, products/`and`/`or`/min/max defaulting to a value that isn't the operation's neutral element.",
+    "localization_cues": [
+      "`_loop_size` computation in NDimArray constructors",
+      "`DenseNDimArray._new` / `MutableDenseNDimArray._new` in `sympy/tensor/array/dense_ndim_array.py`",
+      "`ImmutableSparseNDimArray._new` / `MutableSparseNDimArray.__new__` in `sympy/tensor/array/sparse_ndim_array.py`",
+      "the `functools.reduce(lambda x,y: x*y, shape) if shape else ...` empty-shape fallback (all four constructor sites)",
+      "`NDimArray.__len__` simply returns `_loop_size`"
+    ],
+    "verification_method": "`python -c \"import sympy; a = sympy.Array(3); print(len(a), len(list(a)))\"` currently prints `0 1` (rank-0 array reports length 0); after the fix it should print `1 1`, matching the iterator yielding one scalar and numpy's `.size`.",
+    "instance_id": "sympy__sympy-15017",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 16.2
+  },
+  "sympy__sympy-16450": {
+    "root_cause_pattern": "Lossy object reconstruction: code rebuilds a replacement object (here a symbolic Dummy) setting ONLY the one property it cares about (`positive`), silently dropping every other attribute the original carried (finite, integer, rational, even/odd, prime...). The fix direction: when synthesizing the replacement, propagate the original's full attribute set through and merely add/override the targeted property, so non-conflicting metadata survives the substitution. Match any sibling bug where a transform recreates a value from scratch instead of copying-then-modifying.",
+    "localization_cues": [
+      "`sympy/simplify/simplify.py`, function `posify` (around line 254)",
+      "the dict-comprehension that builds the `reps` substitution map",
+      "the `Dummy(s.name, positive=True)` construction inside it — only one assumption is passed",
+      "the original symbol's assumption bag, accessible via `s.assumptions0`, which should be spread into the new Dummy"
+    ],
+    "verification_method": "`python -c \"from sympy import Symbol; from sympy.simplify import posify; x = Symbol('x', finite=True); xp, _ = posify(x); print(xp.is_finite)\"` prints `None` with the bug (finiteness lost) but should print `True` once the original assumptions are carried over.",
+    "instance_id": "sympy__sympy-16450",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 14.8
+  },
+  "sympy__sympy-15809": {
+    "root_cause_pattern": "Over-eager input validation: an explicit early guard rejects the empty/degenerate-argument case by raising, even though the method's own downstream logic already handles that case correctly by returning the operation's identity element (oo for Min, -oo for Max). The class of mistake is a redundant guard that contradicts the function's existing identity-element fallback. Fix direction: delete the early raise so the empty case falls through to the already-correct `return cls.identity` branch -- do not add new logic, just stop short-circuiting the correct path.",
+    "localization_cues": [
+      "file `sympy/functions/elementary/miscellaneous.py`",
+      "class `MinMaxBase`, method `__new__`",
+      "the early `if not args: raise ValueError(...)` guard at the top of `__new__`",
+      "the existing later branch that returns `cls.identity` when the filtered arg set is empty"
+    ],
+    "verification_method": "`python -c \"from sympy import Min, Max; print(Min(), Max())\"` -- buggy code raises `ValueError: The Max/Min functions must have arguments.`; after the fix it prints `oo -oo` (Min() == oo, Max() == -oo).",
+    "instance_id": "sympy__sympy-15809",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 15.3
+  },
+  "sympy__sympy-15976": {
+    "root_cause_pattern": "A token/leaf element is being used as a container for child elements it is not allowed to hold. In MathML, `<mi>` is a token element that may contain only character data, but the printer unconditionally created an outer `<mi>` and nested layout elements (`<msub>`/`<msup>`/`<msubsup>`) inside it, producing invalid markup that renderers drop (invisible output). Fix direction: choose the top-level element by content kind — emit the bare token only for atomic/plain content, and otherwise make the layout/container element itself the returned top-level node (no wrapping token). Any styling (e.g. `mathvariant`) must be applied to whichever element is actually returned, not to a wrapper that no longer exists. Match any sibling bug where an output node is wrapped in a type that cannot legally contain its children.",
+    "localization_cues": [
+      "`sympy/printing/mathml.py`, class `MathMLPresentationPrinter`, method `_print_Symbol`",
+      "the upfront `createElement('mi')` wrapper created before the sub/superscript branch",
+      "the branch using `split_super_sub` that builds `<msub>`/`<msup>`/`<msubsup>` and appends them into the `<mi>`",
+      "where `mathvariant=\"bold\"` (bold style) is set on the wrapper element"
+    ],
+    "verification_method": "`python -c \"import sympy; print(sympy.mathml(sympy.symbols('x2'), printer='presentation'))\"` — buggy output nests a layout element inside a token, e.g. contains `<mi><msub><mi>x</mi><mi>2</mi></msub></mi>` (an `<mi>` wrapping an `<msub>`, invalid MathML, renders blank); fixed output should have the script element as the top-level node with no enclosing `<mi>`, e.g. `<msub><mi>x</mi><mi>2</mi></msub>`.",
+    "instance_id": "sympy__sympy-15976",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 19.0
+  },
+  "sympy__sympy-14976": {
+    "root_cause_pattern": "Incomplete-override / fall-through-to-base bug in a printer/visitor subclass: a specialized code-generator (MpmathPrinter) overrode only ONE numeric node type (_print_Float) and silently inherited the base printer for its sibling types (Rational, Integer). The inherited path emits bare Python literals (e.g. `p/q`, `n`) that the target runtime evaluates at native machine precision, defeating the backend's arbitrary precision. Fix direction: add the missing per-type overrides so EVERY sibling literal kind is emitted via the backend's own exact constructor (wrap p, q, n in the mpmath number type) instead of native Python ints/floats. The class of mistake: when you specialize one member of a related type-family, audit and cover all siblings that share the same precision/identity contract.",
+    "localization_cues": [
+      "`sympy/printing/pycode.py`, class `MpmathPrinter`",
+      "the existing `_print_Float` override and the conspicuous ABSENCE of `_print_Rational` / `_print_Integer`",
+      "base-printer methods these inherit, which render `p/q` and bare integers",
+      "the `lambdify(..., modules='mpmath')` code-emission path that consumes this printer"
+    ],
+    "verification_method": "`python -c \"from sympy import S, lambdify, symbols; import inspect; x=symbols('x'); print(inspect.getsource(lambdify(x, x + S(232)/3, 'mpmath')))\"` — buggy output contains the unwrapped literal `232/3` (Python machine-precision division); the fixed output instead constructs it via the mpmath number type (e.g. `mpf(232)/mpf(3)`), preserving full precision.",
+    "instance_id": "sympy__sympy-14976",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 20.1
+  },
+  "sympy__sympy-16766": {
+    "root_cause_pattern": "Missing-visitor-method bug in a printer/codegen dispatcher: a printer class lacks a `_print_<NodeType>` handler for one node type, so dispatch falls through to the base class's unsupported-type path, which emits a placeholder/`# Not supported` comment instead of real output. Fix direction: add the missing per-type visitor method that renders the node by recursively printing its already-supported sub-parts and composing them in the target syntax (here: print the base, then its indices, in subscript form). A sibling bug is any other expr type that triggers the same 'not supported' comment from the same printer.",
+    "localization_cues": [
+      "`sympy/printing/pycode.py`, class `PythonCodePrinter` — no `_print_Indexed` method present",
+      "Pattern-match existing `_print_*` methods in that class for naming/signature and the `self._print(...)` recursion idiom",
+      "Base `CodePrinter`'s unsupported-type fallback (the `_print_not_supported` / 'Not supported' comment path) is what currently fires",
+      "The `Indexed` node's parts to render: its base and its index list (e.g. `expr.base`, `expr.indices`, or `expr.args`)"
+    ],
+    "verification_method": "`python -c 'from sympy import IndexedBase; from sympy.printing.pycode import pycode; print(pycode(IndexedBase(\"p\")[0]))'` — buggy output is a `# Not supported in Python:` / `# Indexed` comment; after the fix it should print `p[0]`.",
+    "instance_id": "sympy__sympy-16766",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 14.6
+  },
+  "sympy__sympy-16886": {
+    "root_cause_pattern": "A static lookup/translation table (the single source of truth) contains one entry whose KEY is not a valid member of the encoding's domain, so it maps to the wrong value AND silently corrupts any inverse table auto-derived from it. Class of mistake: an incorrect/invalid key in a spec-defined codec map. Fix direction: replace the bad key with the canonical value mandated by the external standard (here, International Morse code), correcting both forward and inverse maps at once — do not patch the inverse separately.",
+    "localization_cues": [
+      "file `sympy/crypto/crypto.py`",
+      "the `morse_char` dict literal mapping Morse strings -> characters",
+      "the entry whose VALUE is `\"1\"` (its key is the suspect)",
+      "the inverse `char_morse` built by reversing `morse_char` — confirm it inherits the fix, don't edit it by hand"
+    ],
+    "verification_method": "`python -c \"from sympy.crypto.crypto import encode_morse, decode_morse; e=encode_morse('1'); print(e, decode_morse(e))\"` — buggy build prints `---- 1` (encodes '1' to the invalid sequence `----`); after the fix it should print `.---- 1`, matching the standard International Morse code for digit 1.",
+    "instance_id": "sympy__sympy-16886",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 13.9
+  },
+  "sympy__sympy-16792": {
+    "root_cause_pattern": "Class of mistake: a fallback/exception construction path builds an object with default/empty metadata, dropping type-dependent attributes that the primary path always attaches. Here, an argument that is present in the user-supplied argument_sequence but ABSENT from the expression hits a KeyError fallback that builds it as a plain scalar, losing the array dimension/shape metadata. Fix direction: in the fallback branch, detect array-like symbols and reconstruct the SAME dimension metadata the main path computes from the symbol's shape; leave non-array symbols with empty metadata. (Pointer-vs-scalar emission is downstream of whether that metadata exists.)",
+    "localization_cues": [
+      "`sympy/utilities/codegen.py`, the `CodeGen.routine` method",
+      "the block that rebuilds the argument list to match `argument_sequence` — specifically the `try/except KeyError` fallback constructing an `InputArgument`",
+      "isinstance check against `MatrixSymbol`/`IndexedBase` and use of the symbol's `.shape`",
+      "compare to how `dimensions`/metadata is built for arguments that DO appear in the expression elsewhere in the same method"
+    ],
+    "verification_method": "`python -c \"from sympy import MatrixSymbol; from sympy.utilities.codegen import codegen; print(codegen(('f',1.0),'C99','f',header=False,argument_sequence=(MatrixSymbol('x',2,1),))[0][1])\"` — buggy output declares the parameter as a scalar (`double f(double x)`); the fix should declare it as a pointer (`double f(double *x)`).",
+    "instance_id": "sympy__sympy-16792",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 20.0
+  },
+  "sympy__sympy-17139": {
+    "root_cause_pattern": "Unguarded ordering comparison on a possibly-non-orderable operand: code applies relational operators (`<`/`>`) to a symbolic value that may be complex/non-real, where ordering is undefined, so the comparison raises `TypeError: Invalid comparison of complex ...` instead of failing gracefully. This is the class where a transform assumes its operand is real before branching on sign/magnitude. Fix direction: add an early precondition guard that tests the operand's realness BEFORE any `<`/`>`, and when the precondition fails, return the input unchanged (no-op) rather than attempting to compare.",
+    "localization_cues": [
+      "file `sympy/simplify/fu.py`",
+      "the `_TR56` helper and its inner `_f` (shared by `TR5` / `TR6`)",
+      "the `rv.exp < 0` and `rv.exp > max` ordering comparisons on the power's exponent",
+      "insert the guard right after the existing `if not (rv.is_Pow and rv.base.func == f): ...` early-return block",
+      "use the exponent's realness predicate (e.g. an `is_real`/sign attribute check) to bail out early"
+    ],
+    "verification_method": "`python -c \"from sympy import simplify, cos, Symbol, I; x=Symbol('x'); print(simplify(cos(x)**I))\"` — buggy version raises `TypeError: Invalid comparison of complex I`; fixed version returns `cos(x)**I` unchanged.",
+    "instance_id": "sympy__sympy-17139",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 16.0
+  },
+  "sympy__sympy-17318": {
+    "root_cause_pattern": "An over-permissive guard treats a necessary-but-insufficient predicate as if it were sufficient: the branch wanted genuine real surds/rational constants but tested only that each addend's square is rational. That property is also true of imaginary units (I**2 == -1) and negatives, so out-of-domain terms enter a branch that assumes the stronger property and feed a downstream helper degenerate/empty input, which then crashes (here, indexing element [0] of an empty list -> IndexError). Fix direction: tighten the predicate to the DISTINGUISHING property of the intended set (square must be a *positive* rational, not merely rational) so non-matching inputs fall through to the general path and the expression is returned unchanged when it can't be transformed. Class of mistake: leaky type/domain check that admits a superset.",
+    "localization_cues": [
+      "`sympy/simplify/sqrtdenest.py`, function `_sqrt_match`",
+      "the `elif p.is_Add:` block iterating over `pargs`",
+      "the guard `all((x**2).is_Rational for x in pargs)` deciding whether to call `split_surds`",
+      "downstream crash site: `split_surds` -> `_split_gcd` doing `g = a[0]` on an empty surds list"
+    ],
+    "verification_method": "`python -c 'from sympy import sqrt, I, sqrtdenest; print(sqrtdenest(sqrt(1 + I)))'` -- buggy: raises IndexError from `_split_gcd`; expected: prints `sqrt(1 + I)` (returned unchanged, no error).",
+    "instance_id": "sympy__sympy-17318",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 15.3
+  },
+  "sympy__sympy-18189": {
+    "root_cause_pattern": "Dropped-flag-on-recursion: a function delegates to itself (or a helper) to remap/normalize results but omits one of its own optional keyword arguments in that inner call, so the recursion silently falls back to that argument's default and discards behavior the caller explicitly requested. Result is order/path-dependent output. Fix direction: thread every caller-controlled option through all internal recursive/delegating calls so the flag is preserved on every path.",
+    "localization_cues": [
+      "module `sympy/solvers/diophantine.py`, function `diophantine`",
+      "the branch that handles user-supplied `syms` whose order differs from the internally sorted `var` list",
+      "the inner self-call used to remap results, e.g. `diophantine(eq, param)` — inspect which keyword args (notably `permute`) it forwards vs. its outer signature"
+    ],
+    "verification_method": "`python -c \"from sympy import symbols; from sympy.solvers.diophantine import diophantine; n,m=symbols('n m',integer=True); eq=n**4+m**4-2**4-3**4; print(len(diophantine(eq,syms=(m,n),permute=True)), len(diophantine(eq,syms=(n,m),permute=True)))\"` — buggy prints `8 1` (count depends on syms order); fixed prints `8 8` (both orderings yield the full permuted set).",
+    "instance_id": "sympy__sympy-18189",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 15.6
+  },
+  "sympy__sympy-17655": {
+    "root_cause_pattern": "Non-commutative operator overload: for `a * b` Python tries the LEFT operand's method first, and SymPy's `call_highest_priority` decorator only defers to the right operand's reflected method (`__rmul__`) if that operand advertises a higher `_op_priority`. A type that defines forward arithmetic (`__mul__`) but lacks the priority marker (and lacks `__rmul__`) gets bypassed when on the right: the left operand sympifies it into a generic `Mul` instead of the type's own result, so `x*scalar` and `scalar*x` diverge and a later step rejects the wrong object type. Class of mistake: missing reflected-operator + dispatch-priority on a custom numeric-like type. Fix DIRECTION: raise the type's `_op_priority` above the competing type's, and add the reflected operator delegating to the forward one, so both orderings yield the same type.",
+    "localization_cues": [
+      "`sympy/geometry/point.py`, the `Point` class",
+      "the `_op_priority` class attribute (Point has none; `Expr`/`Float` default to 10.0)",
+      "`Point.__mul__` present but `Point.__rmul__` absent",
+      "`call_highest_priority`-decorated `Float.__mul__` / Expr arithmetic that picks the higher-priority operand",
+      "`Point.__add__` -> `Point(...)` rejecting a non-sequence `Mul` and raising `GeometryError`"
+    ],
+    "verification_method": "`python -c \"import sympy; from sympy import geometry as ge; p1=ge.Point(0,0); p2=ge.Point(1,1); print(p1 + sympy.sympify(2.0)*p2)\"` raises `GeometryError` (buggy) but should print `Point2D(2.0, 2.0)`, matching the working `p1 + p2*sympy.sympify(2.0)`.",
+    "instance_id": "sympy__sympy-17655",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 18.6
+  },
+  "sympy__sympy-18211": {
+    "root_cause_pattern": "A public conversion/normalization method (`as_set`) unconditionally delegates to a best-effort symbolic solver that signals 'I can't do this symbolically' by raising `NotImplementedError`. Because the call is unguarded, that internal capability-limit exception leaks out as the public result. This is the 'leaky best-effort solver / missing symbolic fallback' pattern: when an operation has a legitimate unevaluated representation, an unsolvable input should DEGRADE to that placeholder, not raise. Fix direction: guard the solver call and, on the capability exception, return the symbolic 'unevaluated condition' object that represents 'the set of x satisfying this relation' rather than propagating the error.",
+    "localization_cues": [
+      "`sympy/core/relational.py`, method `Relational._eval_as_set`",
+      "the unguarded call to `solve_univariate_inequality` inside it (the path that bottoms out in `solvify` and raises `NotImplementedError`)",
+      "the fallback object `ConditionSet` (importable from `sympy.sets.conditionset`), built as ConditionSet(var, self-relation, domain=S.Reals)"
+    ],
+    "verification_method": "`python -c \"from sympy import Eq, cos, sin, symbols; n = symbols('n'); print(Eq(n*cos(n) - 3*sin(n), 0).as_set())\"` — buggy version raises NotImplementedError; fixed version prints a ConditionSet over the reals (an unevaluated condition set), no exception.",
+    "instance_id": "sympy__sympy-18211",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 17.2
+  },
+  "sympy__sympy-18698": {
+    "root_cause_pattern": "Divide-and-conquer over the parts of an unexpanded product computes a per-part decomposition and then CONCATENATES the partial results without a canonicalizing merge step, so two output entries that share the same grouping key (here the square-free exponent/multiplicity) survive as duplicates instead of being combined. This is a 'missing post-aggregation merge / no group-by on the key that must be unique' bug. Fix DIRECTION: after collecting all parts, group the entries by that key and fold each group into one entry using the operation the entry represents (multiply the bases for a multiplicative factor list), restoring the invariant 'at most one entry per key'. Only the square-free (`sqf`) mode needs this; full factorization keeps bases distinct.",
+    "localization_cues": [
+      "file `sympy/polys/polytools.py`",
+      "helper `_symbolic_factor_list` (backs public `sqf`/`sqf_list`), reached via `_generic_factor_list` -> `_symbolic_factor_list`",
+      "the loop that walks each argument of an unexpanded `Mul` and extends one flat `factors` list",
+      "the `method == 'sqf'` branch — add the group-by-exponent-then-combine step there, after the collection loop",
+      "you'll need a grouped product over bases sharing an exponent (think `reduce`/`mul` style fold)"
+    ],
+    "verification_method": "`python -c \"from sympy import sqf_list, symbols; x=symbols('x'); print(sqf_list((x**2 + 1)*(x - 1)**2*(x - 2)**3*(x - 3)**3))\"` — buggy output lists TWO separate multiplicity-3 entries `(x - 2, 3)` and `(x - 3, 3)`; correct output has each multiplicity appear exactly once, with the two combined into one `(x**2 - 5*x + 6, 3)`.",
+    "instance_id": "sympy__sympy-18698",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 20.8
+  },
+  "sympy__sympy-19637": {
+    "root_cause_pattern": "Conditional-initialization / referenced-before-assignment: a local (`kern`) is assigned only inside a guarded branch (`if ' ' in s:`) but a statement after the branch unconditionally reads it (to set a `hit` flag). Inputs that skip the branch (parenthesized text with no internal space) leave the local unbound, so the post-branch read raises UnboundLocalError. Fix direction: move the dependent read/assignment INTO the same guard so the skip path never touches the conditional local and instead falls through to its already-initialized default (`…`). Match any sibling where a flag is computed from a variable born inside a branch but evaluated outside it.",
+    "localization_cues": [
+      "`sympy/core/sympify.py`, function `def kernS`",
+      "the `if ' ' in s:` block that assigns `kern` (and does `s = s.replace(' ', kern)`)",
+      "the line right after that block that reads `kern` to compute `hit` — it lives at the wrong indentation level",
+      "the earlier default `…` that should remain the value when no kern substitution happens"
+    ],
+    "verification_method": "`python -c \"from sympy.core.sympify import kernS; print(kernS('(2*x)/(x-1)'))\"` currently raises `UnboundLocalError: local variable 'kern' referenced before assignment`; after the fix it should print the parsed expression `2*x/(x - 1)`.",
+    "instance_id": "sympy__sympy-19637",
+    "leak_lines_removed": 2,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 18.3
+  },
+  "sympy__sympy-19346": {
+    "root_cause_pattern": "Incomplete type-dispatch coverage in a visitor/printer: container types `set`, `frozenset`, and `dict` have no dedicated `_print_*` method, so they fall through to a generic fallback (`emptyPrinter`) that does `str(expr)` and renders elements with plain `str` instead of recursing the printer per-element — breaking the round-trippable representation that `_print_list`/`_print_tuple` produce. Fix direction: add the missing per-type handlers that mirror the existing list/tuple ones, recursing the printer (`self._print`/reprify) over each element and each key/value pair, and special-case the empty `set()`/`frozenset()` literals so the emitted text is still valid, eval-able Python.",
+    "localization_cues": [
+      "file `sympy/printing/repr.py`, class `ReprPrinter`",
+      "existing `_print_list` and `_print_tuple` methods — use as the template/mirror",
+      "the `emptyPrinter` fallback that returns `str(expr)` (the lossy path)",
+      "missing `_print_set`, `_print_frozenset`, `_print_dict` methods",
+      "watch the empty-container literals (`set()` / `frozenset()`) so output stays eval-round-trippable"
+    ],
+    "verification_method": "`python -c \"from sympy import srepr; from sympy.abc import x,y; print(srepr({x,y})); print(srepr({x:y}))\"` — buggy output is `{x, y}` and `{x: y}`; correct output is `{Symbol('x'), Symbol('y')}` and `{Symbol('x'): Symbol('y')}` (and srepr of an empty set should yield `set()`, not `{}`).",
+    "instance_id": "sympy__sympy-19346",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 19.4
+  },
+  "sympy__sympy-19954": {
+    "root_cause_pattern": "Class of bug: mutating a list in place (deleting elements by index) while iterating over it by index, made worse because several PARALLEL lists must stay index-aligned. Removing an entry mid-loop shifts every later index down, so the running index `i` overruns the now-shorter lists (IndexError) and the parallel lists desynchronize. Fix DIRECTION: never delete-while-iterating; instead record which entries to drop during the loop (a boolean mask or index set), then AFTER the loop rebuild all parallel lists in one pass keeping only the unmasked entries, so all lists stay aligned and no index shifts mid-iteration. Sibling bugs: any `del lst[i]` / `lst.pop(i)` inside a `for i, x in enumerate(lst)` touching multiple companion lists.",
+    "localization_cues": [
+      "file `sympy/combinatorics/perm_groups.py`, method `minimal_blocks` of class `PermutationGroup`",
+      "the `for i, r in enumerate(rep_blocks):` loop",
+      "in-loop deletions (`del`) on the parallel lists `blocks`, `num_blocks`, and `rep_blocks`",
+      "the condition that decides a block system is non-minimal / should be removed"
+    ],
+    "verification_method": "Run `python -c \"from sympy.combinatorics import DihedralGroup; print(DihedralGroup(18).sylow_subgroup(p=2))\"`. Buggy: raises `IndexError` originating in `minimal_blocks` (DihedralGroup(18) has >1 removable block system, triggering the index shift). Fixed: prints a `PermutationGroup(...)` with no error.",
+    "instance_id": "sympy__sympy-19954",
+    "leak_lines_removed": 0,
+    "model": "opus",
+    "source": "claude -p synthesis of leak-free memory",
+    "elapsed_s": 17.1
+  }
+}

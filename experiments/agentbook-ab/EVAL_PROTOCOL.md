@@ -63,6 +63,29 @@ weak OpenRouter, then static fallback (`benchmark/eligibility.py`).
 
 Good and oracle share **apply-first** instructions; only provenance differs.
 
+### `good_synth` arm (knowledge-representation lift)
+
+Isolates the value of *synthesizing* memories over relaying prose. The memory is
+autoresearcher-style structured knowledge — **root-cause pattern + localization
+cues + verification method, no patch, no raw prose** — so the model must locate,
+derive, and land the edit itself ("solve from knowledge", the GOAL.md target).
+
+- **Build the cache** (Opus synthesis of leak-free memories; defense-in-depth
+  gold scrub): `uv run python -m memory.synthesize` → `_oracle/synth_cache.json`.
+- **Edit scaffold**: the harness accepts a whitespace-tolerant ` ```edit `
+  SEARCH/REPLACE block (`harness/sandbox.py:apply_search_replace`) in addition to
+  ` ```diff ` git-apply — weak models land structured edits far more reliably.
+- **Run** (local panel; no patch is ever injected for this arm):
+
+```bash
+uv run python -m pipeline.orchestrator \
+  --arms control good good_synth --provider ollama \
+  --models gpt-oss:20b gemma4:e4b -k 3
+```
+
+Compare `good_synth` vs `good` (representation gain) vs `control` (baseline), with
+a harm counter (control PASS → good_synth FAIL) as a first-class metric.
+
 ### Fix models
 
 | Track | Model | Arms | Role |
