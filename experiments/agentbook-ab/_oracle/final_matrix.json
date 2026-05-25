@@ -1,47 +1,58 @@
 {
-  "Opus-4.7 (claude -p, ceiling)": {
+  "opus-4.7_ceiling": {
     "resolved": 17,
     "tasks": 17,
-    "submit": 1.0
+    "submit": 1.0,
+    "note": "45% on full 38-task RED set"
   },
-  "gpt-oss:20b control": {
+  "gpt-oss-20b_control": {
     "resolved": 0,
     "tasks": 17,
     "submit": 0.09
   },
-  "gpt-oss:20b good": {
+  "gpt-oss-20b_good": {
     "resolved": 4,
     "tasks": 17,
     "submit": 0.21
   },
-  "gpt-oss:20b oracle": {
+  "gpt-oss-20b_oracle": {
     "resolved": 2,
     "tasks": 17,
     "submit": 0.41
   },
-  "gpt-oss:20b good_apply": {
+  "gpt-oss-20b_good_apply": {
     "resolved": 14,
     "tasks": 17,
     "submit": 0.71
   },
-  "gemma4:e4b control": {
+  "gemma4-e4b_control": {
     "resolved": 1,
     "tasks": 17,
     "submit": 0.65
   },
-  "gemma4:e4b good": {
+  "gemma4-e4b_good": {
     "resolved": 6,
     "tasks": 17,
     "submit": 0.71
   },
-  "gemma4:e4b oracle": {
+  "gemma4-e4b_oracle": {
     "resolved": 2,
     "tasks": 17,
     "submit": 0.76
   },
-  "gemma4:e4b good_apply": {
+  "gemma4-e4b_good_apply": {
     "resolved": 17,
     "tasks": 17,
     "submit": 0.97
+  },
+  "gpt-oss-20b-free_control": {
+    "resolved": 0,
+    "tasks": 17,
+    "submit": 0.09
+  },
+  "gpt-oss-20b-free_good": {
+    "resolved": 3,
+    "tasks": 17,
+    "submit": 0.24
   }
 }
