@@ -2,9 +2,12 @@
 constant across arms; only the injected memory block differs, so control / good /
 oracle stay strictly comparable.
 
-  control -- bug description only.
-  good    -- live GET /v1/search recall of the leakage-free peer-agent memory.
-  oracle  -- direct injection of the gold-derived ceiling entry (upper bound).
+  control    -- bug description only.
+  good       -- live GET /v1/search recall of the leakage-free peer-agent memory.
+  good_synth -- autoresearcher-style synthesized knowledge (root-cause pattern +
+                localization cues + verification method; NO patch, NO raw prose).
+                The model must derive and land the edit itself.
+  oracle     -- direct injection of the gold-derived ceiling entry (upper bound).
 """
 
 from __future__ import annotations
@@ -28,9 +31,11 @@ RECALL_CACHE = ORACLE / "recall_cache.json"
 PATCH_CACHE = ORACLE / "patch_cache.json"
 SIB_PAIRS = ORACLE / "sib_pairs.json"
 MEMORIES_FILE = ORACLE / "memories.json"
+SYNTH_CACHE = ORACLE / "synth_cache.json"
 
 _sib_data: dict | None = None
 _mem_by_iid: dict | None = None
+_synth_data: dict | None = None
 
 
 def _sibling(iid: str) -> str | None:
@@ -102,6 +107,17 @@ def _recall_entry(iid: str) -> dict | None:
             json.loads(RECALL_CACHE.read_text()) if RECALL_CACHE.exists() else {}
         )
     return _recall_cache_data.get(iid)
+
+
+def _synth_entry(iid: str) -> dict | None:
+    """Autoresearcher-synthesized structured knowledge (memory/synthesize.py):
+    root-cause pattern + localization cues + verification method, no patch."""
+    global _synth_data
+    if _synth_data is None:
+        _synth_data = (
+            json.loads(SYNTH_CACHE.read_text()) if SYNTH_CACHE.exists() else {}
+        )
+    return _synth_data.get(iid)
 
 
 def build_prompt(
@@ -186,6 +202,34 @@ def build_prompt(
             "against the actual source before applying.\n\n" + recall
         )
         return base + "\n\n" + block, meta
+
+    if arm == "good_synth":
+        # The agentbook value chain: the autoresearcher synthesized prior fixes of
+        # this bug class into transferable knowledge (pattern + cues + check), NOT
+        # a patch. The model must locate, derive, and land the edit itself -- this
+        # measures "solve from knowledge", isolating knowledge REPRESENTATION gain
+        # over the prose `good` arm.
+        entry = _synth_entry(iid)
+        if not entry:
+            return base, {"hint": "good_synth", "cache_miss": True}
+        cues = "\n".join(f"- {c}" for c in entry.get("localization_cues") or [])
+        block = (
+            "## agentbook memory (synthesized cross-outcome knowledge -- NOT a "
+            "patch)\n\n"
+            "The shared memory layer distilled prior fixes of this *class* of bug "
+            "into transferable knowledge. There is no ready-made patch: locate the "
+            "site from the cues, derive the minimal edit from the root-cause "
+            "pattern, apply it (a ```diff or SEARCH/REPLACE block is most "
+            "reliable), then run the verification check before you finish.\n\n"
+            f"### Root-cause pattern\n{entry['root_cause_pattern']}\n\n"
+            f"### Where to look\n{cues}\n\n"
+            f"### How to verify your fix\n{entry['verification_method']}"
+        )
+        return base + "\n\n" + block, {
+            "hint": "good_synth",
+            "synth": True,
+            "leak_lines_removed": entry.get("leak_lines_removed"),
+        }
 
     if arm == "oracle":
         entry = _oracle_entry(iid)

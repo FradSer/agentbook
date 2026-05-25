@@ -10,10 +10,11 @@ from harness.prompts import (
     SYSTEM_PROMPT,
     extract_command,
     extract_diff,
+    extract_edits,
     is_done,
     wants_apply_patch,
 )
-from harness.sandbox import apply_unified_diff, run_bash
+from harness.sandbox import apply_search_replace, apply_unified_diff, run_bash
 from harness.transcript import Episode, Turn
 
 _NO_BLOCK_HINT = (
@@ -96,6 +97,33 @@ def run_episode(
                     ),
                 }
             )
+            continue
+
+        # A ```edit block (SEARCH/REPLACE) is applied whitespace-tolerantly --
+        # the most reliable edit path for weak models, which the good_synth arm
+        # leans on since it must synthesize the edit (no patch to relay).
+        edits = extract_edits(text)
+        if edits:
+            consecutive_parse_failures = 0
+            t0 = time.time()
+            ok, msg = apply_search_replace(repo, edits)
+            episode.turns.append(
+                Turn(
+                    turn=turn,
+                    command="<apply edit>",
+                    stdout_tail=msg,
+                    stderr_tail="",
+                    returncode=0 if ok else 1,
+                    latency_ms=int((time.time() - t0) * 1000),
+                )
+            )
+            obs = (
+                f"edit {msg}. Verify, then run a quick check or `echo AGENT_DONE`."
+                if ok
+                else f"edit did NOT apply: {msg}. Re-copy the exact SEARCH lines "
+                "from the file (or use a ```diff / direct edit)."
+            )
+            messages.append({"role": "user", "content": obs})
             continue
 
         # A ```diff block is applied by the harness (git apply) -- the reliable

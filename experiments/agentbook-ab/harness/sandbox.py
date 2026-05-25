@@ -76,6 +76,78 @@ def apply_unified_diff(repo: Path, diff: str) -> tuple[bool, str]:
     return False, f"git apply failed: {msg}"
 
 
+def _flex_locate(hay: list[str], needle: list[str]) -> int | None:
+    """Index where `needle` matches `hay` ignoring per-line leading/trailing
+    whitespace (the common weak-model failure mode). Returns start or None.
+    Exact-strip equality only -- no fuzzy/semantic matching, so it never edits
+    the wrong region."""
+    n = len(needle)
+    if n == 0:
+        return None
+    target = [ln.strip() for ln in needle]
+    for i in range(len(hay) - n + 1):
+        if [hay[i + j].strip() for j in range(n)] == target:
+            return i
+    return None
+
+
+def _reindent(replace_lines: list[str], delta: int) -> list[str]:
+    """Shift every non-blank replacement line by `delta` spaces (the indent gap
+    between the matched site and the model's SEARCH block)."""
+    out: list[str] = []
+    for ln in replace_lines:
+        if not ln.strip():
+            out.append("")
+        elif delta >= 0:
+            out.append(" " * delta + ln)
+        else:
+            strip_n = min(-delta, len(ln) - len(ln.lstrip(" ")))
+            out.append(ln[strip_n:])
+    return out
+
+
+def apply_search_replace(
+    repo: Path, edits: list[tuple[str, str, str]]
+) -> tuple[bool, str]:
+    """Apply structured SEARCH/REPLACE edits, whitespace-tolerant. Returns
+    (ok, msg). Moves the brittle 'reproduce exact indentation' burden off the
+    weak model and onto the harness -- the fuzzy structured-edit path."""
+    if not edits:
+        return False, "no SEARCH/REPLACE pairs parsed"
+    applied = 0
+    for path, search, replace in edits:
+        rel = path.lstrip("./")
+        if "/tests/" in f"/{rel}" or Path(rel).name.startswith("test_"):
+            return False, f"refusing to edit a test file: {rel}"
+        target = repo / rel
+        if not target.exists():
+            return False, f"file not found: {rel}"
+        text = target.read_text(errors="replace")
+        search_norm = search.rstrip("\n")
+        replace_norm = replace.rstrip("\n")
+
+        # 1. exact substring replace (preserves everything verbatim)
+        if search_norm and search_norm in text:
+            target.write_text(text.replace(search_norm, replace_norm, 1))
+            applied += 1
+            continue
+
+        # 2. whitespace-tolerant line-block match
+        hay = text.splitlines()
+        needle = search_norm.splitlines()
+        start = _flex_locate(hay, needle)
+        if start is None:
+            return False, f"SEARCH block not found in {rel}"
+        base_match = len(hay[start]) - len(hay[start].lstrip(" "))
+        base_needle = len(needle[0]) - len(needle[0].lstrip(" "))
+        new_lines = _reindent(replace_norm.splitlines(), base_match - base_needle)
+        hay[start : start + len(needle)] = new_lines
+        trailing = "\n" if text.endswith("\n") else ""
+        target.write_text("\n".join(hay) + trailing)
+        applied += 1
+    return True, f"applied {applied} edit(s)"
+
+
 def commit_fix(repo: Path) -> bool:
     """Commit any working-tree changes as 'agent fix'; return has_agent_fix."""
     subprocess.run(["git", "add", "-A"], cwd=repo, capture_output=True, timeout=60)

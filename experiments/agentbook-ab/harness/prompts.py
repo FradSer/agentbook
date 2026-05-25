@@ -27,9 +27,21 @@ heredoc (`python - <<'PY' ... PY`), `sed -i`, or by rewriting the file.
 - Do NOT edit, create, or delete any file under a `tests/` directory.
 - Do NOT use the network.
 - Make the smallest change that fixes the described bug; do not refactor broadly.
-- To apply a code change reliably, you MAY emit a unified diff in a ```diff
-  fenced block instead of editing by hand; I will `git apply` it for you (this
-  is more reliable than sed/heredoc):
+- To apply a code change reliably, prefer a structured SEARCH/REPLACE edit in an
+  ```edit fenced block (whitespace-tolerant -- you need not reproduce exact
+  indentation; I re-indent for you). This is the most robust edit path:
+
+```edit
+path/to/file.py
+<<<<<<< SEARCH
+old line(s) to find
+=======
+new line(s) to put in their place
+>>>>>>> REPLACE
+```
+
+- Alternatively you MAY emit a unified diff in a ```diff fenced block; I will
+  `git apply` it (less forgiving of whitespace than the ```edit block):
 
 ```diff
 --- a/path/to/file.py
@@ -40,6 +52,7 @@ heredoc (`python - <<'PY' ... PY`), `sed -i`, or by rewriting the file.
 +new
 ```
 
+- Both edit paths are more reliable than sed/heredoc -- prefer them.
 - When the fix is complete, respond with exactly this and nothing else:
 
 ```bash
@@ -50,6 +63,33 @@ Start by locating the relevant source, then apply a minimal fix."""
 
 _FENCE_RE = re.compile(r"(?:```|~~~)(?:bash|sh|shell)?\s*\n(.*?)(?:```|~~~)", re.DOTALL)
 _DIFF_RE = re.compile(r"```diff\s*\n(.*?)```", re.DOTALL)
+_EDIT_RE = re.compile(r"```edit\s*\n(.*?)```", re.DOTALL)
+_SR_RE = re.compile(
+    r"<{3,}\s*SEARCH\s*\n(?P<search>.*?)\n={3,}\s*\n(?P<replace>.*?)\n>{3,}\s*REPLACE",
+    re.DOTALL,
+)
+
+
+def extract_edits(text: str) -> list[tuple[str, str, str]]:
+    """Parse ```edit blocks into (path, search, replace) tuples.
+
+    Each block is `path\\n<<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE`. A block
+    may carry multiple SEARCH/REPLACE pairs under one path. Whitespace-tolerant
+    application happens in sandbox.apply_search_replace; this only parses."""
+    edits: list[tuple[str, str, str]] = []
+    for block in _EDIT_RE.findall(text or ""):
+        lines = block.splitlines()
+        # path is the first non-empty line before the first SEARCH marker
+        path = ""
+        for ln in lines:
+            if ln.strip() and "<<<" not in ln:
+                path = ln.strip().strip("`")
+                break
+        if not path:
+            continue
+        for m in _SR_RE.finditer(block):
+            edits.append((path, m.group("search"), m.group("replace")))
+    return edits
 
 
 def extract_diff(text: str) -> str | None:

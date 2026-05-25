@@ -203,15 +203,25 @@ def main() -> None:
         for arm in arms:
             cells.extend(enumerate_cells([iid], [arm], models, k_for(arm)))
     # good arm only where a memory exists (recall cache); elsewhere it would just
-    # equal control (no useful hint), so skip those cells.
-    from pipeline.arm_context import RECALL_CACHE
+    # equal control (no useful hint), so skip those cells. good_synth is gated on
+    # its own synthesized-knowledge cache.
+    from pipeline.arm_context import RECALL_CACHE, SYNTH_CACHE
 
     mem_ids = (
         set(json.loads(RECALL_CACHE.read_text())) if RECALL_CACHE.exists() else set()
     )
-    cells = [
-        c for c in cells if c.arm not in ("good", "good_apply") or c.iid in mem_ids
-    ]
+    synth_ids = (
+        set(json.loads(SYNTH_CACHE.read_text())) if SYNTH_CACHE.exists() else set()
+    )
+
+    def _has_memory(c) -> bool:
+        if c.arm in ("good", "good_apply"):
+            return c.iid in mem_ids
+        if c.arm == "good_synth":
+            return c.iid in synth_ids
+        return True
+
+    cells = [c for c in cells if _has_memory(c)]
     todo = [c for c in cells if args.force or not c.is_fresh()]
     done = len(cells) - len(todo)
     print(f"todo {len(todo)} cells ({done} already fresh) | {args.workers} workers")
@@ -221,6 +231,10 @@ def main() -> None:
         from pipeline.arm_context import _oracle_entry
 
         _oracle_entry(ids[0])
+    if "good_synth" in arms and ids:
+        from pipeline.arm_context import _synth_entry
+
+        _synth_entry(ids[0])
     harness_git_commit()
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
