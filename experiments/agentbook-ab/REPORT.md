@@ -93,8 +93,27 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
   --manifest tasks/manifest.memory.json --arms good_apply -k 2 --workers 1
 ```
 
+## 附录 A:good_synth(综合抽象知识)实测(2026-05-26)
+
+测试 §6 的优化设想——把记忆综合成「根因模式 + 定位线索 + 验证方法」(无补丁、无散文),配空白不敏感的结构化 SEARCH/REPLACE 编辑,**模型自己推导并落地**。同题记忆,新 harness,k=1(gpt-oss 高推理 step30、gemma step12)。
+
+| 臂 | gpt-oss:20b | gemma4:e4b |
+|---|---|---|
+| control | 0/17(复用) | 2/17 |
+| good(散文召回) | **4/17** | **5/17** |
+| good_synth(综合抽象) | **4/17** | 3/17 |
+| good ∪ good_synth | **6/17** | **6/17** |
+| harm | 0 | 1(16886) |
+
+**结论一:综合抽象知识不抬升 baseline。** good_synth 单臂不优于散文 good——gpt-oss 持平(4=4)、gemma 反低(3<5)。**对小模型,把解法从「具体散文诊断(含文件+具体修法)」抽象成「模式+线索」不是增益。** 与 §2「good > oracle」同向:可执行表述的甜区是**更具体**,不是更抽象。⇒ knowledge synthesis 应朝「结构化即用补丁」(good_apply 14-17/17),而非去具体化。§6 的「综合/抽象」设想被证伪。
+
+**结论二:具体与抽象表述互补。** good 与 good_synth 各自解出 2 道对方没解出的题(两模型皆然),**并集 6/17 > 任一单臂**——不同表述命中不同失败模式。产品方向:多表述并存/按模型择优,而非用抽象替代具体。harm 低(gemma 1、gpt-oss 0)。
+
+逐 cell 产物 `runs_v2/*good_synth*`、综合缓存 `_oracle/synth_cache.json`、矩阵 `_oracle/final_matrix.json` 的 `good_synth_eval_2026_05_26`。
+
 ## 附:产物
-- `_oracle/final_matrix.json` — 全臂最终矩阵
+- `_oracle/final_matrix.json` — 全臂最终矩阵(含 `good_synth_eval_2026_05_26`)
+- `_oracle/synth_cache.json` — good_synth 综合知识缓存(17 条)
 - `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
 - `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`
 - `_oracle/patch_cache.json`(peer 验证补丁)、`memories.json`、`oracle.json`、`red_clean.json`、`published_benchmarks.json`
