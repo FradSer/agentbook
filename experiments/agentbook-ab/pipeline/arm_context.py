@@ -26,6 +26,46 @@ from benchmark.paths import ORACLE, TASKS  # noqa: E402
 ORACLE_CORPUS = ORACLE / "oracle.json"
 RECALL_CACHE = ORACLE / "recall_cache.json"
 PATCH_CACHE = ORACLE / "patch_cache.json"
+SIB_PAIRS = ORACLE / "sib_pairs.json"
+MEMORIES_FILE = ORACLE / "memories.json"
+
+_sib_data: dict | None = None
+_mem_by_iid: dict | None = None
+
+
+def _sibling(iid: str) -> str | None:
+    """The same-module sibling task whose memory we transfer (leave-one-out)."""
+    global _sib_data
+    if _sib_data is None:
+        _sib_data = json.loads(SIB_PAIRS.read_text()) if SIB_PAIRS.exists() else {}
+    return _sib_data.get(iid)
+
+
+def _memory(iid: str) -> dict | None:
+    global _mem_by_iid
+    if _mem_by_iid is None:
+        _mem_by_iid = {
+            m["instance_id"]: m
+            for m in (
+                json.loads(MEMORIES_FILE.read_text()) if MEMORIES_FILE.exists() else []
+            )
+        }
+    return _mem_by_iid.get(iid)
+
+
+def _sibling_block(sib_iid: str) -> str:
+    m = _memory(sib_iid) or {}
+    steps = "\n".join(f"{i}. {s}" for i, s in enumerate(m.get("steps") or [], 1))
+    return (
+        "## agentbook memory (a RELATED problem in the SAME module -- NOT this bug)\n\n"
+        "Another agent fixed a *different* bug in the same area. Its approach may "
+        "or may not transfer; understand the pattern and adapt it to THIS bug -- "
+        "do not assume the same lines.\n\n"
+        f"Root cause / fix of the related bug:\n{m.get('content', '')}\n\n"
+        f"Steps:\n{steps}"
+    )
+
+
 _BASE_INSTRUCTION = "\n\nFix the bug in the source. Do not edit any test file."
 
 _oracle_cache: dict[str, dict] | None = None
@@ -73,6 +113,25 @@ def build_prompt(
 
     if arm == "control":
         return base, {"hint": None}
+
+    if arm in ("loo_sibling", "loo_sibling_apply"):
+        # Leave-one-out transfer: inject a SAME-MODULE sibling's memory (NOT this
+        # task's own). Tests whether a related (not exact) memory helps a new bug.
+        sib = _sibling(iid)
+        if not sib:
+            return base, {"hint": arm, "no_sibling": True}
+        block = _sibling_block(sib)
+        meta = {"hint": arm, "sibling": sib}
+        if arm == "loo_sibling_apply":
+            patch = _patch_entry(sib)
+            block += (
+                "\n\nThe related fix's patch is below. It targets a DIFFERENT file/"
+                "site, so it will usually NOT apply as-is. Only reply `APPLY_PATCH` "
+                "if it genuinely fits THIS bug; otherwise edit directly.\n\n"
+                "```diff\n" + (patch or "").strip() + "\n```"
+            )
+            meta["apply_patch"] = patch
+        return base + "\n\n" + block, meta
 
     if arm == "good_apply":
         # Executability moved into agentbook+harness: the recalled memory carries
