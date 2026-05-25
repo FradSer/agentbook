@@ -1,0 +1,17 @@
+{
+  "provider": "ollama-local",
+  "model": "gpt-oss:20b",
+  "tasks_memory": 17,
+  "k": 2,
+  "control": 0,
+  "good": 4,
+  "oracle": 2,
+  "good_lift_tasks": [
+    "sympy__sympy-15017",
+    "sympy__sympy-16450",
+    "sympy__sympy-16766",
+    "sympy__sympy-16792"
+  ],
+  "submit_rate": 0.2,
+  "opus_ceiling": "17/17 on these tasks (memory set = Opus-solved); 17/38=45% on full red set"
+}

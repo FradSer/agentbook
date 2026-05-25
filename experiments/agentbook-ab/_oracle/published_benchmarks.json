@@ -1,0 +1,21 @@
+{
+  "purpose": "Published SWE-bench Verified references to contextualize our results (web search, 2026-05).",
+  "note": "Published scores use the FULL Verified set (500, mixed difficulty) with tuned agent harnesses + (for reasoning models) HIGH reasoning effort. Our eval uses a HARD sympy red subset (38 tasks where Opus 4.7 itself = 45%), so our absolute numbers are lower by construction; comparison is for capability ordering + methodology, not apples-to-apples.",
+  "published": {
+    "claude-opus-4.7": {"swebench_verified": 0.876, "source": "Anthropic / Vellum / TheNextWeb"},
+    "gpt-oss-120b": {"swebench_verified": 0.624, "source": "OpenAI model card / Clarifai", "note": "needs HIGH reasoning effort; inference-time scaling ~doubles resolved rate"},
+    "gpt-oss-20b": {"swebench_verified": null, "source": "not separately published; substantially weaker than 120b"},
+    "gemma-4-27b": {"swebench_verified_approx": 0.78, "source": "gemma4.wiki / willitrunai (secondary, possibly optimistic)"},
+    "mini-swe-agent_top_models": {"swebench_verified": 0.74, "source": "mini-swe-agent.com (e.g. Gemini 3 Pro)"}
+  },
+  "reproduction_gap": {
+    "finding": "Local Ollama reproduction of gpt-oss SWE-bench is far below published numbers.",
+    "evidence": "mini-swe-agent issue #798: gpt-oss:120b published ~62% but local Ollama repro ~1/10 (10%) at high/medium reasoning effort; failures = patch-already-applied, regressions, wrong fixes.",
+    "implication": "Our low gpt-oss numbers are consistent with the known open-model local-reproduction gap, not a harness defect. gpt-oss reasoning models also fight the single-bash-block protocol (emit reasoning, not commands) unless reasoning_effort is lowered, which in turn reduces reasoning quality -- a genuine tension."
+  },
+  "methodology_alignment": [
+    "Harness: single bash tool, linear history (mini-swe-agent style) -- same family as the official SWE-bench leaderboard agent.",
+    "Grading: FAIL_TO_PASS on held-out test_patch, tamper-proof (test files restored from base) -- standard SWE-bench Verified grading.",
+    "Difference: we restrict to a hard RED subset to expose lift surface; published numbers are full-set."
+  ]
+}

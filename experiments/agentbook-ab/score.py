@@ -43,6 +43,23 @@ def sh(cmd, cwd=None, timeout=600, env=None):
     )
 
 
+def _strip_editable_finders() -> None:
+    """Remove any editable (PEP 660) import finder for sympy/scikit-learn from
+    the bench venv. Such a finder hijacks `import sympy` to a fixed repo
+    regardless of cwd, which silently invalidates grading (it makes every cell
+    import the same sympy). Stripping it before each score forces `import sympy`
+    to resolve from the run_repo (cwd). Idempotent and race-safe.
+    """
+    sp = ROOT / ".venv" / "lib"
+    for site in sp.glob("python*/site-packages"):
+        for pat in ("__editable__*sympy*", "__editable__*scikit*"):
+            for f in site.glob(pat):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+
+
 def diff_lines(base_repo: Path, run_repo: Path, exclude: set[str]) -> int:
     """Lines changed in non-test source files, run vs pristine base."""
     total = 0
@@ -63,10 +80,26 @@ def diff_lines(base_repo: Path, run_repo: Path, exclude: set[str]) -> int:
 
 
 def score_run(meta: dict, arm: str) -> dict:
+    """Score the canonical runs/<id>__<arm> directory (CLI compatibility)."""
+    iid = meta["instance_id"]
+    return score_run_dir(meta, RUNS / f"{iid}__{arm}", arm=arm)
+
+
+def score_run_dir(meta: dict, run_dir: Path, arm: str | None = None) -> dict:
+    """Independently score one prepared run directory (containing repo/).
+
+    Tamper-proof: discards the working tree to HEAD, restores every test file
+    from the pristine base, applies the held-out test_patch on top of the
+    agent's source edits, then runs FAIL_TO_PASS with the pinned venv pytest.
+    `run_dir` is the cell directory; `arm` is the label echoed into the result
+    (defaults to the directory name).
+    """
     iid = meta["instance_id"]
     base_repo = TASKS / iid / "repo"
-    run_repo = RUNS / f"{iid}__{arm}" / "repo"
+    run_repo = run_dir / "repo"
     test_files = meta["test_files"]
+    label = arm if arm is not None else run_dir.name
+    _strip_editable_finders()  # guarantee `import sympy` resolves from run_repo
 
     # 0. restore working tree to committed HEAD so prior scoring runs cannot
     #    leak test_patch (or any other) edits into this one. The committed
@@ -77,7 +110,7 @@ def score_run(meta: dict, arm: str) -> dict:
     if not has_agent_fix(run_repo):
         return {
             "instance_id": iid,
-            "arm": arm,
+            "arm": label,
             "tests_pass": None,
             "submitted": False,
             "diff_lines": 0,
@@ -100,7 +133,7 @@ def score_run(meta: dict, arm: str) -> dict:
     if ap.returncode != 0:
         return {
             "instance_id": iid,
-            "arm": arm,
+            "arm": label,
             "tests_pass": False,
             "submitted": True,
             "diff_lines": -1,
@@ -113,7 +146,7 @@ def score_run(meta: dict, arm: str) -> dict:
         if not ok:
             return {
                 "instance_id": iid,
-                "arm": arm,
+                "arm": label,
                 "tests_pass": False,
                 "submitted": True,
                 "diff_lines": -1,
@@ -141,7 +174,7 @@ def score_run(meta: dict, arm: str) -> dict:
         tail = "TIMEOUT (>180s) -- treated as FAIL"
     return {
         "instance_id": iid,
-        "arm": arm,
+        "arm": label,
         "tests_pass": passed,
         "submitted": True,
         "diff_lines": diff_lines(base_repo, run_repo, set(test_files)),
@@ -152,7 +185,9 @@ def score_run(meta: dict, arm: str) -> dict:
 def main() -> None:
     import argparse
 
-    ap = argparse.ArgumentParser(description="Score A/B runs against FAIL_TO_PASS tests")
+    ap = argparse.ArgumentParser(
+        description="Score A/B runs against FAIL_TO_PASS tests"
+    )
     ap.add_argument(
         "arms",
         nargs="*",
@@ -234,10 +269,7 @@ def main() -> None:
         a = agg[arm]
         p, t, sk = a["pass"], a["submitted"], a["skipped"]
         rate = f"{100 * p / t:.1f}%" if t else "n/a"
-        print(
-            f"  {arm:10s} pass@1 = {p}/{t} ({rate})"
-            f"  |  skipped (no fix): {sk}"
-        )
+        print(f"  {arm:10s} pass@1 = {p}/{t} ({rate})  |  skipped (no fix): {sk}")
     print(f"\nresults -> {out_path}")
 
 

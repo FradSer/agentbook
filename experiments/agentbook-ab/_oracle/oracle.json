@@ -1,0 +1,591 @@
+[
+  {
+    "instance_id": "sympy__sympy-14976",
+    "description": "lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precision results from `nsolve`, because the 232/3 isn't evaluated at full precision. Originally reported at https://github.com/sympy/sympy/pull/14971",
+    "error_signature": "lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precis",
+    "tags": [
+      "sympy",
+      "Mod",
+      "solve",
+      "lambdify",
+      "Float",
+      "Rational"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/pycode.py.\n\nKey additions from the resolved change:\n```diff\n    def _print_Rational(self, e):\n        return '{0}({1})/{0}({2})'.format(\n            self._module_format('mpmath.mpf'),\n            e.p,\n            e.q,\n            )\n\n```",
+    "steps": [
+      "Open sympy/printing/pycode.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "description": "`len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always returns zero for rank-0 arrays (scalars). I believe the correct value should be one, which is the number of elements of the iterator and the observed behaviour in numpy. In numpy we have the following: This was tested in sympy 1.2-rc1 running in Python 3.6.6 `len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always ret",
+    "error_signature": "`len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always r",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/tensor/array/dense_ndim_array.py.\n\nKey additions from the resolved change:\n```diff\n        self._loop_size = functools.reduce(lambda x,y: x*y, shape, 1)\n```",
+    "steps": [
+      "Open sympy/tensor/array/dense_ndim_array.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "description": "Zero-argument Min() and Max() Right now `Min()` and `Max()` with no arguments raise `ValueError: The Max/Min functions must have arguments.`. It might be mathematically more convenient to have them return `oo` and `-oo`, respectively. See https://en.wikipedia.org/wiki/Empty_set#Extended_real_numbers for why these are valid answers mathematically.",
+    "error_signature": "ValueError: The Max/Min functions must have arguments",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/functions/elementary/miscellaneous.py.\n\nKey additions from the resolved change:\n```diff\n\n```",
+    "steps": [
+      "Open sympy/functions/elementary/miscellaneous.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "description": "is_zero is incorrect on complex integer `is_zero` should return `None` if it cannot decide, but should never give the wrong answer. However: This is causing errors in determining the rank of a matrix. See issue #15872 Fixing is_zero for complex numbers while Add References to other Issues or PRs #15873 Other comments: <!-- BEGIN RELEASE NOTES --> - core - Fix `is_zero` becoming `False` on some expressions with `Add`.",
+    "error_signature": "is_zero is incorrect on complex integer `is_zero` should return `None` if it can",
+    "tags": [
+      "sympy",
+      "Matrix"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/add.py.\n\nKey additions from the resolved change:\n```diff\n        if len(nz) == 0 or len(nz) == len(self.args):\n```",
+    "steps": [
+      "Open sympy/core/add.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "description": "A symbol ending with a number is made invisible when printing with MathML A variable with a number, such as x1, is made invisible when printing in a MathML format. `import sympy from sympy.printing.mathml import mathml x2, y, z = sympy.symbols('x2 y z') y = x2*z+x2**3 f = open('sympy_test.html', 'w') f.write('\\n') f.write('\\n') f.write('\\n') f.write('\\n') f.write(sympy.mathml(y, printer='presentation')+'\\n') f.write(",
+    "error_signature": "A symbol ending with a number is made invisible when printing with MathML A vari",
+    "tags": [
+      "sympy",
+      "printer"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/mathml.py.\n\nKey additions from the resolved change:\n```diff\n                x = mname\n                x = self.dom.createElement('msub')\n                x.appendChild(mname)\n                x.appendChild(join(subs))\n                x = self.dom.createElement('msup')\n                x.appendChild(mname)\n                x.appendChild(join(supers))\n                x = self.dom.createElement('msubsup')\n                x.appendChild(mname)\n                x.appendChild(join(subs))\n                x.appendChild(join(supers))\n        # Set bold font?\n        if style == 'bold':\n            x.setAttribute('mathvariant', 'bold')\n```",
+    "steps": [
+      "Open sympy/printing/mathml.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "description": "Posify ignores is_finite assmptions Posify removes a finite assumption from a symbol: I think that posify should preserve the finiteness assumption. Possibly other assumptions should be preserved as well (integer, rational, prime, even, odd...).",
+    "error_signature": "Posify ignores is_finite assmptions Posify removes a finite assumption from a sy",
+    "tags": [
+      "sympy",
+      "assumption",
+      "Rational",
+      "Sum"
+    ],
+    "content": "Verified gold fix lives in: sympy/simplify/simplify.py.\n\nKey additions from the resolved change:\n```diff\n    reps = {s: Dummy(s.name, positive=True, **s.assumptions0)\n```",
+    "steps": [
+      "Open sympy/simplify/simplify.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "description": "a.is_even does not imply a.is_finite I'm not sure what the right answer is here: I would expect that a number should be finite before it can be even.",
+    "error_signature": "a.is_even does not imply a.is_finite I'm not sure what the right answer is here:",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/assumptions/ask.py, sympy/assumptions/ask_generated.py, sympy/core/assumptions.py, sympy/core/power.py, sympy/printing/tree.py, sympy/tensor/indexed.py.\n\nKey additions from the resolved change:\n```diff\n        Implies(Q.irrational, Q.finite),\n        Implies(Q.algebraic, Q.finite),\n        Equivalent(Q.transcendental | Q.algebraic, Q.complex & Q.finite),\n        Implies(Q.transcendental, Q.finite),\n        Equivalent(Q.irrational | Q.rational, Q.real & Q.finite),\n        Q.finite | ~Q.algebraic,\n        Q.finite | ~Q.irrational,\n        Q.finite | ~Q.rational,\n        Q.finite | ~Q.transcendental,\n        Q.algebraic | Q.transcendental | ~Q.complex | ~Q.finite,\n        Q.composite | Q.prime | ~Q.integer | ~Q.positive,\n        Q.irrational | Q.rational | ~Q.finite | ~Q.real\n        Q.algebraic: set([Q.algebraic, Q.complex, Q.finite]),\n        Q.finite, Q.hermitian, Q.integer, Q.rational, Q.real]),\n        Q.integer: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n        Q.hermitian, Q.integer, Q.rational, Q.real]),\n        Q.irrational: set([Q.complex, Q.extended_real, Q.finite, Q.hermitian,\n        Q.odd: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n        Q.hermitian, Q.integer, Q.nonzero, Q.odd, Q.rational, Q.real]),\n        Q.prime: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n        Q.hermitian, Q.integer, Q.nonnegative, Q.nonzero, Q.positive,\n        Q.prime, Q.rational, Q.real]),\n        Q.rational: set([Q.algebraic, Q.complex, Q.extended_real, Q.finite,\n        Q.hermitian, Q.rational, Q.real]),\n        Q.transcendental: set([Q.complex, Q.finite, Q.transcendental]),\n        Q.finite, Q.hermitian, Q.integer, Q.nonnegative,\n        Q.nonpositive, Q.rational, Q.real, Q.zero]),\n    'rational       ->  real & finite',\n    'algebraic      ->  complex & finite',\n    'transcendental ==  complex & !algebraic & finite',\n    'irrational     ==  real & !rational & finite',\nfrom .logic import fuzzy_bool, fuzzy_not, fuzzy_and\n        # The evaluation of self.func below can be very expensive in the case\n        # of integer**integer if the exponent is large.  We should try to exit\n        # before that if possible:\n        if (self.exp.is_integer and self.base.is_rational\n                and fuzzy_not(fuzzy_and([self.exp.is_negative, self.base.is_zero]))):\n            return True\n    | finite: True\n    | infinite: False\n```",
+    "steps": [
+      "Open sympy/assumptions/ask.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "description": "PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some functions and save the code for further use. But the generated code for `Indexed` operation has some warnings which can be confirmed by following code; the output is We should add following method to `PythonCodePrinter`:",
+    "error_signature": "PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some fu",
+    "tags": [
+      "sympy",
+      "printer",
+      "lambdify"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/pycode.py.\n\nKey additions from the resolved change:\n```diff\n    def _print_Indexed(self, expr):\n        base = expr.args[0]\n        index = expr.args[1:]\n        return \"{}[{}]\".format(str(base), \", \".join([self._print(ind) for ind in index]))\n\n```",
+    "steps": [
+      "Open sympy/printing/pycode.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "description": "autowrap with cython backend fails when array arguments do not appear in wrapped expr When using the cython backend for autowrap, it appears that the code is not correctly generated when the function in question has array arguments that do not appear in the final expression. A minimal counterexample is: This should of course return `1.0` but instead fails with: A little inspection reveals that this is because the cor",
+    "error_signature": "TypeError: only size-1 arrays can be converted to Python scalars",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Matrix",
+      "codegen"
+    ],
+    "content": "Verified gold fix lives in: sympy/utilities/codegen.py.\n\nKey additions from the resolved change:\n```diff\n\n        # helper to get dimensions for data for array-like args\n        def dimensions(s):\n            return [(S.Zero, dim - 1) for dim in s.shape]\n\n                metadata = {'dimensions': dimensions(array)}\n                    if isinstance(symbol, (IndexedBase, MatrixSymbol)):\n                        metadata = {'dimensions': dimensions(symbol)}\n                    else:\n                        metadata = {}\n                    new_args.append(InputArgument(symbol, **metadata))\n```",
+    "steps": [
+      "Open sympy/utilities/codegen.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "description": "Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.crypto contains an incorrect mapping of `\"----\": \"1\"` The correct mapping is `\".----\": \"1\"`.",
+    "error_signature": "Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/crypto/crypto.py.\n\nKey additions from the resolved change:\n```diff\n    \"-----\": \"0\", \".----\": \"1\",\n```",
+    "steps": [
+      "Open sympy/crypto/crypto.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "description": "simplify(cos(x)**I): Invalid comparison of complex I (fu.py)",
+    "error_signature": "TypeError: Invalid comparison of complex I",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "content": "Verified gold fix lives in: sympy/simplify/fu.py.\n\nKey additions from the resolved change:\n```diff\n        if not rv.exp.is_real:\n            return rv\n```",
+    "steps": [
+      "Open sympy/simplify/fu.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "description": "sqrtdenest raises IndexError If an expression cannot be denested it should be returned unchanged. IndexError fixed for sqrtdenest. Fixes #12420 Now if the expression can't be **denested**, it will be returned unchanged. Old Result: New Result:",
+    "error_signature": "IndexError: tuple index out of range",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "content": "Verified gold fix lives in: sympy/simplify/radsimp.py, sympy/simplify/sqrtdenest.py.\n\nKey additions from the resolved change:\n```diff\n    num and den are sum of terms whose squares are positive rationals.\n    Split an expression with terms whose squares are positive rationals\n    and a sum of terms with surds squared prime with g.\n        sqargs = [x**2 for x in pargs]\n        if all(sq.is_Rational and sq.is_positive for sq in sqargs):\n```",
+    "steps": [
+      "Open sympy/simplify/radsimp.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "description": "Exception when multiplying BlockMatrix containing ZeroMatrix blocks When a block matrix with zero blocks is defined then block-multiplying it once seems to work fine: but block-multiplying twice throws an exception: This seems to be caused by the fact that the zeros in `b._blockmul(b)` are not `ZeroMatrix` but `Zero`: However, I don't understand SymPy internals well enough to find out why this happens. I use Python 3",
+    "error_signature": "AttributeError: 'Zero' object has no attribute 'cols'",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Matrix"
+    ],
+    "content": "Verified gold fix lives in: sympy/matrices/expressions/matexpr.py.\n\nKey additions from the resolved change:\n```diff\n        if mat_class == MatAdd:\n            return mat_class(*matrices).doit(deep=False)\n```",
+    "steps": [
+      "Open sympy/matrices/expressions/matexpr.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "description": "Unexpected exception when multiplying geometry.Point and number This line works fine But when I write the same this way it raises an exception The expected behaviour is, that both lines give the same result",
+    "error_signature": "GeometryError: Don't know how to add 2",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Point"
+    ],
+    "content": "Verified gold fix lives in: sympy/geometry/point.py.\n\nKey additions from the resolved change:\n```diff\n    def __rmul__(self, factor):\n        \"\"\"Multiply a factor by point's coordinates.\"\"\"\n        return self.__mul__(factor)\n\n```",
+    "steps": [
+      "Open sympy/geometry/point.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "description": "diophantine: incomplete results depending on syms order with permute=True diophantine: incomplete results depending on syms order with permute=True",
+    "error_signature": "diophantine: incomplete results depending on syms order with permute=True diopha",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/solvers/diophantine.py.\n\nKey additions from the resolved change:\n```diff\n                            for t in diophantine(eq, param, permute=permute)}\n```",
+    "steps": [
+      "Open sympy/solvers/diophantine.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "description": "nthroot_mod function misses one root of x = 0 mod p. When in the equation x**n = a mod p , when a % p == 0. Then x = 0 mod p is also a root of this equation. But right now `nthroot_mod` does not check for this condition. `nthroot_mod(17*17, 5 , 17)` has a root `0 mod 17`. But it does not return it.",
+    "error_signature": "nthroot_mod function misses one root of x = 0 mod p. When in the equation x**n =",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "content": "Verified gold fix lives in: sympy/ntheory/residue_ntheory.py.\n\nKey additions from the resolved change:\n```diff\nfrom sympy.utilities.iterables import cartes\ndef _nthroot_mod_composite(a, n, m):\n    \"\"\"\n    Find the solutions to ``x**n = a mod m`` when m is not prime.\n    \"\"\"\n    from sympy.ntheory.modular import crt\n    f = factorint(m)\n    dd = {}\n    for p, e in f.items():\n        tot_roots = set()\n        if e == 1:\n            tot_roots.update(nthroot_mod(a, n, p, True) or [])\n        else:\n            for root in nthroot_mod(a, n, p, True) or []:\n                rootn = pow(root, n)\n                diff = (rootn // (root or 1) * n) % p\n                if diff != 0:\n                    ppow = p\n                    for j in range(1, e):\n                        ppow *= p\n                        root = (root - (rootn - a) * mod_inverse(diff, p)) % ppow\n                    tot_roots.add(root)\n                else:\n                    new_base = p\n                    roots_in_base = {root}\n                    while new_base < pow(p, e):\n                        new_base *= p\n                        new_roots = set()\n                        for k in roots_in_base:\n                            if (pow(k, n) - a) % (new_base) != 0:\n                                continue\n                            while k not in new_roots:\n                                new_roots.add(k)\n                                k = (k + (new_base // p)) % new_base\n                        roots_in_base = new_roots\n                    tot_roots = tot_roots | roots_in_base\n        dd[pow(p, e)] = tot_roots\n    a = []\n    m = []\n    for x, y in dd.items():\n```",
+    "steps": [
+      "Open sympy/ntheory/residue_ntheory.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "description": "`solveset` raises `NotImplementedError` instead of returning `ConditionSet` The problem is Here `solveset` raises `NotImplementedError` but probably a `ConditionSet` should be returned by `solveset` instead. The obvious result of `as_set()` here is _Originally posted by @oscarbenjamin in https://github.com/sympy/sympy/pull/17771_",
+    "error_signature": "NotImplementedError",
+    "tags": [
+      "sympy",
+      "solve"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/relational.py.\n\nKey additions from the resolved change:\n```diff\n        from sympy.sets.conditionset import ConditionSet\n        try:\n            xset = solve_univariate_inequality(self, x, relational=False)\n        except NotImplementedError:\n            # solve_univariate_inequality raises NotImplementedError for\n            # unsolvable equations/inequalities.\n            xset = ConditionSet(x, self, S.Reals)\n        return xset\n```",
+    "steps": [
+      "Open sympy/core/relational.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "description": "sqf and sqf_list output is not consistant The example below is wrong in the sense that we should have (x*_2 - 5_x + 6, 3) and not 2 factors of multiplicity 3. whereas below is correct --- one factor of multiplicity 2",
+    "error_signature": "sqf and sqf_list output is not consistant The example below is wrong in the sens",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/polys/polytools.py.\n\nKey additions from the resolved change:\n```diff\nfrom functools import wraps, reduce\nfrom operator import mul\n        elif arg.is_Pow:\n    if method == 'sqf':\n        factors = [(reduce(mul, (f for f, _ in factors if _ == k)), k)\n                   for k in set(i for _, i in factors)]\n```",
+    "steps": [
+      "Open sympy/polys/polytools.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "description": "Incorrect parenthesizing of Subs Here is an example. LaTeX printing of this gives: ![image](https://quicklatex.com/cache3/76/ql_9672fd7e62c909ff3d9ac8543c2e2576_l3.png) It would be better to be parenthesized to: ![image](https://quicklatex.com/cache3/bf/ql_936ffdb876e784206d4c54bb93d28dbf_l3.png)",
+    "error_signature": "Incorrect parenthesizing of Subs Here is an example. LaTeX printing of this give",
+    "tags": [
+      "sympy",
+      "subs",
+      "latex"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/latex.py.\n\nKey additions from the resolved change:\n```diff\n        return r'\\left. \\left(%s\\right) \\right|_{\\substack{ %s }}' % (latex_expr,\n```",
+    "steps": [
+      "Open sympy/printing/latex.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "description": "Factor with extension=True drops a factor of y-1 I guess this related (or a duplicate of?) #5786 This is from stackoverflow: https://stackoverflow.com/questions/60682765/python-sympy-factoring-polynomial-over-complex-numbers Factor with extension=True drops a factor of y-1 <!-- Your title above should be a short description of what was changed. Do not include the issue number in the title. --> Factor with extension=T",
+    "error_signature": "Factor with extension=True drops a factor of y-1 I guess this related (or a dupl",
+    "tags": [
+      "sympy",
+      "Poly"
+    ],
+    "content": "Verified gold fix lives in: sympy/polys/factortools.py.\n\nKey additions from the resolved change:\n```diff\n    s, g, r = dmp_sqf_norm(F, u, K)\n```",
+    "steps": [
+      "Open sympy/polys/factortools.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "description": "srepr not printing dict and set properly `srepr` prints the element in `list` and `tuple` correctly. However, `srepr` prints the elements in `dict` and `set` wrong. Is this behavior intended? If it isn't, fixing it will be an easy job.",
+    "error_signature": "srepr not printing dict and set properly `srepr` prints the element in `list` an",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/repr.py.\n\nKey additions from the resolved change:\n```diff\n    def _print_dict(self, expr):\n        sep = \", \"\n        dict_kvs = [\"%s: %s\" % (self.doprint(key), self.doprint(value)) for key, value in expr.items()]\n        return \"{%s}\" % sep.join(dict_kvs)\n\n    def _print_set(self, expr):\n        if not expr:\n            return \"set()\"\n        return \"{%s}\" % self.reprify(expr, \", \")\n\n```",
+    "steps": [
+      "Open sympy/printing/repr.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "description": "Strange/wrong? behaviour of subs with ConditionSet / ImageSet I'm not sure what to think of the following: The first two outputs are completely as expected, but if I construct a similar ConditionSet with an ImageSet instead of a FiniteSet, a plain `subs` gives a strange result (`Out[75]`). It's as if the bound variable `x` of the ConditionSet were mistaken for a `y`. Only after having typed the above, I found issue #",
+    "error_signature": "Strange/wrong? behaviour of subs with ConditionSet / ImageSet I'm not sure what ",
+    "tags": [
+      "sympy",
+      "subs",
+      "imageset",
+      "solve",
+      "Rational"
+    ],
+    "content": "Verified gold fix lives in: sympy/sets/conditionset.py.\n\nKey additions from the resolved change:\n```diff\n    appears as a free symbol in the base set and the dummy symbol\n\n        else:\n            cond = self.condition.subs(old, new)\n            base = self.base_set.subs(old, new)\n            # The condition may have become true due to assumptions\n            # on 'sym'. In order for .subs() to be consistent with\n            # __new__ we *don't* check if 'sym' actually belongs to\n            # 'base'. In other words: assumptions are ignored.\n            return self.func(self.sym, cond, base)\n```",
+    "steps": [
+      "Open sympy/sets/conditionset.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "description": "kernS: 'kern' referenced before assignment from sympy.core.sympify import kernS text = \"(2*x)/(x-1)\" expr = kernS(text) // hit = kern in s // UnboundLocalError: local variable 'kern' referenced before assignment",
+    "error_signature": "UnboundLocalError: local variable 'kern' referenced before assignment",
+    "tags": [
+      "sympy"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/sympify.py.\n\nKey additions from the resolved change:\n```diff\n            hit = kern in s\n        else:\n            hit = False\n```",
+    "steps": [
+      "Open sympy/core/sympify.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "description": "sylow_subgroup() IndexError I use sympy 1.6.1, with numpy 1.18.5, scipy 1.4.1, under Python '3.8.5 (default, Aug 5 2020, 09:44:06) [MSC v.1916 64 bit (AMD64)]'. The code that I run as the following gives IndexError for sylow_subgroup(): from sympy.combinatorics import DihedralGroup, PermutationGroup, Permutation G = DihedralGroup(18) S2 = G.sylow_subgroup(p=2) Traceback (most recent call last): File \"<input>\", line 7",
+    "error_signature": "IndexError: list assignment index out of range",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "content": "Verified gold fix lives in: sympy/combinatorics/perm_groups.py.\n\nKey additions from the resolved change:\n```diff\n                blocks_remove_mask = [False] * len(blocks)\n                        blocks_remove_mask[i] = True\n                blocks = [b for i, b in enumerate(blocks) if not blocks_remove_mask[i]]\n                num_blocks = [n for i, n in enumerate(num_blocks) if not blocks_remove_mask[i]]\n                rep_blocks = [r for i, r in enumerate(rep_blocks) if not blocks_remove_mask[i]]\n```",
+    "steps": [
+      "Open sympy/combinatorics/perm_groups.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "description": "`is_subset` gives wrong results @sylee957 Current status on `master`, _Originally posted by @czgdp1807 in https://github.com/sympy/sympy/pull/16764#issuecomment-592606532_",
+    "error_signature": "AttributeError: 'Complement' object has no attribute 'equals'",
+    "tags": [
+      "sympy",
+      "subs",
+      "Mod",
+      "intersect"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/relational.py, sympy/sets/handlers/comparison.py, sympy/sets/handlers/issubset.py.\n\nKey additions from the resolved change:\n```diff\n        from sympy.core.expr import Expr\n            if not isinstance(r.lhs, Expr) or not isinstance(r.rhs, Expr):\n                return r\n        from sympy.core.expr import Expr\n        if not isinstance(e.lhs, Expr) or not isinstance(e.rhs, Expr):\n            return e\n    return tfn[fuzzy_and(a.is_subset(b) for a, b in [(lhs, rhs), (rhs, lhs)])]\nfrom sympy.sets.sets import FiniteSet, Interval, Set, Union, ProductSet\n\n@dispatch(ProductSet, FiniteSet)  # type: ignore # noqa:F811\ndef is_subset_sets(a_ps, b_fs): # noqa:F811\n    return fuzzy_and(b_fs.contains(x) for x in a_ps)\n```",
+    "steps": [
+      "Open sympy/core/relational.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "description": "Symbol instances have __dict__ since 1.7? In version 1.6.2 Symbol instances had no `__dict__` attribute This changes in 1.7 where `sympy.Symbol('s').__dict__` now exists (and returns an empty dict) I may misinterpret this, but given the purpose of `__slots__`, I assume this is a bug, introduced because some parent class accidentally stopped defining `__slots__`.",
+    "error_signature": "AttributeError: 'Symbol' object has no attribute '__dict__'",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Sum"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/_print_helpers.py.\n\nKey additions from the resolved change:\n```diff\n    # Since this class is used as a mixin we set empty slots. That means that\n    # instances of any subclasses that use slots will not need to have a\n    # __dict__.\n    __slots__ = ()\n\n```",
+    "steps": [
+      "Open sympy/core/_print_helpers.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "description": "S(0.0) == S.false returns True This issue is related to those listed in #20033. As shown by @sayandip18, comparing `S.false` to `S(0.0)` returns 2 different results depending on the order in which they are compared: Based on the results of comparison to `S(0)`: I assume we would want `S(0.0) == S.false` to return True as well?",
+    "error_signature": "S(0.0) == S.false returns True This issue is related to those listed in #20033. ",
+    "tags": [
+      "sympy",
+      "diff",
+      "Sum"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/numbers.py.\n\nKey additions from the resolved change:\n```diff\n        if not self:\n            return not other\n```",
+    "steps": [
+      "Open sympy/core/numbers.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "description": "Latex parsing of fractions yields wrong expression due to missing brackets Problematic latex expression: `\"\\\\frac{\\\\frac{a^3+b}{c}}{\\\\frac{1}{c^2}}\"` is parsed to: `((a**3 + b)/c)/1/(c**2)`. Expected is: `((a**3 + b)/c)/(1/(c**2))`. The missing brackets in the denominator result in a wrong expression. ## Tested on - 1.8 - 1.6.2 ## Reproduce:",
+    "error_signature": "Latex parsing of fractions yields wrong expression due to missing brackets Probl",
+    "tags": [
+      "sympy",
+      "latex",
+      "parse"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/str.py.\n\nKey additions from the resolved change:\n```diff\n                            isinstance(item.base, (Mul, Pow))):\n```",
+    "steps": [
+      "Open sympy/printing/str.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "description": "itermonomials returns incorrect monomials when using min_degrees argument `itermonomials` returns incorrect monomials when using optional `min_degrees` argument For example, the following code introduces three symbolic variables and generates monomials with max and min degree of 3: The code returns `[x3**3, x2**3, x1**3]`, when it _should_ also return monomials such as `x1*x2**2, x2*x3**2, etc...` that also have tota",
+    "error_signature": "itermonomials returns incorrect monomials when using min_degrees argument `iterm",
+    "tags": [
+      "sympy",
+      "Poly"
+    ],
+    "content": "Verified gold fix lives in: sympy/polys/monomials.py.\n\nKey additions from the resolved change:\n```diff\n                if sum(powers.values()) >= min_degree:\n                if sum(powers.values()) >= min_degree:\n```",
+    "steps": [
+      "Open sympy/polys/monomials.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "description": "Mod function lambdify bug Description: When lambdifying any function of structure like `expr * Mod(a, b)` sympy moves the multiplier into the first argument of Mod, like `Mod(expr * a, b)`, WHEN we specify `modules=[]` This is an example from Sympy online shell",
+    "error_signature": "Mod function lambdify bug Description: When lambdifying any function of structur",
+    "tags": [
+      "sympy",
+      "Mod",
+      "lambdify"
+    ],
+    "content": "Verified gold fix lives in: sympy/printing/codeprinter.py, sympy/printing/precedence.py.\n\nKey additions from the resolved change:\n```diff\nfrom sympy.printing.precedence import precedence, PRECEDENCE\n        if len(a) == 1 and sign == \"-\":\n            # Unary minus does not have a SymPy class, and hence there's no\n            # precedence weight associated with it, Python's unary minus has\n            # an operator precedence between multiplication and exponentiation,\n            # so we use this to compute a weight.\n            a_str = [self.parenthesize(a[0], 0.5*(PRECEDENCE[\"Pow\"]+PRECEDENCE[\"Mul\"]))]\n        else:\n            a_str = [self.parenthesize(x, prec) for x in a]\n    \"Mod\": PRECEDENCE[\"Mul\"],\n```",
+    "steps": [
+      "Open sympy/printing/codeprinter.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "description": "Argument invariance of codegen.ast String Currently, the `codegen.ast` `String` class does not support argument invariance like: `expr.func(*expr.args) == expr`, but instead uses the invariance `expr.func(**expr.kwargs()) == expr`. The former should hold for any `Basic` subclass, which `String` is.",
+    "error_signature": "Argument invariance of codegen.ast String Currently, the `codegen.ast` `String` ",
+    "tags": [
+      "sympy",
+      "codegen"
+    ],
+    "content": "Verified gold fix lives in: sympy/codegen/ast.py.\n\nKey additions from the resolved change:\n```diff\nfrom sympy.core.expr import Expr, Atom\nclass String(Atom, Token):\n    def kwargs(self, exclude = (), apply = None):\n        return {}\n\n    #to be removed when Atom is given a suitable func\n    @property\n    def func(self):\n        return lambda: self\n```",
+    "steps": [
+      "Open sympy/codegen/ast.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "description": "simpify gives `Imaginary coordinates are not permitted.` with evaluate(False) ## Issue `with evaluate(False)` crashes unexpectedly with `Point2D` ## Code ## Error However, it works without `with evaluate(False)`. Both of following commands work",
+    "error_signature": "ValueError: Imaginary coordinates are not permitted",
+    "tags": [
+      "sympy",
+      "Mod",
+      "parse",
+      "Point"
+    ],
+    "content": "Verified gold fix lives in: sympy/geometry/point.py.\n\nKey additions from the resolved change:\n```diff\n        if any(a.is_number and im(a).is_zero is False for a in coords):\n```",
+    "steps": [
+      "Open sympy/geometry/point.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "description": "Python code printer not respecting tuple with one element Hi, Thanks for the recent updates in SymPy! I'm trying to update my code to use SymPy 1.10 but ran into an issue with the Python code printer. MWE: SymPy 1.9 and under outputs: But SymPy 1.10 gives Note the missing comma after `1` that causes an integer to be returned instead of a tuple. For tuples with two or more elements, the generated code is correct: In S",
+    "error_signature": "Python code printer not respecting tuple with one element Hi, Thanks for the rec",
+    "tags": [
+      "sympy",
+      "printer",
+      "lambdify",
+      "Sum"
+    ],
+    "content": "Verified gold fix lives in: sympy/utilities/lambdify.py.\n\nKey additions from the resolved change:\n```diff\n            left, right = \"[\", \"]\"\n            left, right = \"(\", \",)\"\n```",
+    "steps": [
+      "Open sympy/utilities/lambdify.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "description": "Using symbols to create functions doesn't work if there is an extra layer of parentheses Sympy version == 1.10.1 Using `symbols` to create symbol-like objects like instances of `Function` as shown in the [documentation](https://docs.sympy.org/latest/modules/core.html?highlight=symbols#symbols) creates objects of class `Symbol` instead of `Function` if there is an extra layer of parentheses. The extra layer of parenth",
+    "error_signature": "Using symbols to create functions doesn't work if there is an extra layer of par",
+    "tags": [
+      "sympy",
+      "Mod"
+    ],
+    "content": "Verified gold fix lives in: sympy/core/symbol.py.\n\nKey additions from the resolved change:\n```diff\n            result.append(symbols(name, cls=cls, **args))\n```",
+    "steps": [
+      "Open sympy/core/symbol.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "description": "physics.hep.kahane_simplify() incorrectly reverses order of leading uncontracted gamma matrices The kahane_simplify() function applies [identities](https://en.wikipedia.org/w/index.php?title=Gamma_matrices&oldid=1098219980#Miscellaneous_identities) such as $\\gamma^\\mu \\gamma_\\mu = 4 I_4$ to simplify products of gamma matrices in which contracted matrices occur. Leading gamma matrices without contractions should be un",
+    "error_signature": "AssertionError",
+    "tags": [
+      "sympy",
+      "Mod",
+      "Matrix"
+    ],
+    "content": "Verified gold fix lives in: sympy/physics/hep/gamma_matrices.py.\n\nKey additions from the resolved change:\n```diff\n    resulting_indices = list( free_pos[0:first_dum_pos] + ri for ri in resulting_indices )\n```",
+    "steps": [
+      "Open sympy/physics/hep/gamma_matrices.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "description": "Contains.as_set returns Contains This is wrong because Contains is not a set (it's a boolean). It results in failures in other places because it doesn't have as_relational (since it isn't a set). For instance, from https://github.com/sympy/sympy/pull/14965#discussion_r205281989",
+    "error_signature": "AttributeError: 'Contains' object has no attribute 'as_relational'",
+    "tags": [
+      "sympy",
+      "Piecewise",
+      "Mod"
+    ],
+    "content": "Verified gold fix lives in: sympy/sets/contains.py.\n\nKey additions from the resolved change:\n```diff\n        return self.args[1]\n```",
+    "steps": [
+      "Open sympy/sets/contains.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "description": "SI._collect_factor_and_dimension() cannot properly detect that exponent is dimensionless How to reproduce:",
+    "error_signature": "ValueError: Dimension of \"exp(second/(farad*ohm))\" is Dimension(time/(capacitance*impedance)), but it should be Dimension(1)",
+    "tags": [
+      "sympy",
+      "units"
+    ],
+    "content": "Verified gold fix lives in: sympy/physics/units/unitsystem.py.\n\nKey additions from the resolved change:\n```diff\n            fds = [self._collect_factor_and_dimension(arg) for arg in expr.args]\n            dims = [Dimension(1) if self.get_dimension_system().is_dimensionless(d[1]) else d[1] for d in fds]\n            return (expr.func(*(f[0] for f in fds)), *dims)\n```",
+    "steps": [
+      "Open sympy/physics/units/unitsystem.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "description": "The evaluate=False parameter to `parse_expr` is ignored for relationals See also #22305 and #22098 This inequality evaluates even though `evaluate=False` is given: The result that should be returned is:",
+    "error_signature": "The evaluate=False parameter to `parse_expr` is ignored for relationals See also",
+    "tags": [
+      "sympy",
+      "parse"
+    ],
+    "content": "Verified gold fix lives in: sympy/parsing/sympy_parser.py.\n\nKey additions from the resolved change:\n```diff\n    relational_operators = {\n        ast.NotEq: 'Ne',\n        ast.Lt: 'Lt',\n        ast.LtE: 'Le',\n        ast.Gt: 'Gt',\n        ast.GtE: 'Ge',\n        ast.Eq: 'Eq'\n    }\n    def visit_Compare(self, node):\n        if node.ops[0].__class__ in self.relational_operators:\n            sympy_class = self.relational_operators[node.ops[0].__class__]\n            right = self.visit(node.comparators[0])\n            left = self.visit(node.left)\n            new_node = ast.Call(\n                func=ast.Name(id=sympy_class, ctx=ast.Load()),\n                args=[left, right],\n                keywords=[ast.keyword(arg='evaluate', value=ast.NameConstant(value=False, ctx=ast.Load()))],\n                starargs=None,\n                kwargs=None\n            )\n            return new_node\n        return node\n\n```",
+    "steps": [
+      "Open sympy/parsing/sympy_parser.py",
+      "Apply the additions shown above; adjust to local source."
+    ],
+    "source": "gold (oracle ceiling -- not a realistic memory)"
+  }
+]

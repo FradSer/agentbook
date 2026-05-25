@@ -1,0 +1,189 @@
+{
+  "sympy__sympy-14976": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precision results from `nsolve`, because the 232/3 isn't evaluated at full precision. Originally reported at https://github.co\n- tags: sympy, Mod, solve, lambdify, Float, Rational\n- source: live GET /v1/search (production RAG)\n- solution_id: 7f181719-8674-499a-a073-b5ed69b8b6f9\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy.printing.pycode.MpmathPrinter` only overrode `_print_Float`, so it inherited the base printer's handling of `Rational` (and `Integer`). A rational like `S(232)/3` was emitted as the bare expression `232/3`, which Python 3 evaluates as a machine-precision float, defeating mpmath's arbitrary precision and degrading results from callers like `nsolve`.\n\nFix: Added `_print_Rational` to emit `mpmath.mpf(p)/mpmath.mpf(q)` and `_print_Integer` to emit `mpmath.mpf(n)`, so exact numbers are constructed at mpmath's working precision rather than as Python floats/ints.\n\n**Steps:**\n1. Reproduce: `from sympy import Eq, rf, S, lambdify, symbols, Float, nsolve; x=symbols('x'); eqn=Eq(rf(18,x),77+S(1)/3)`; inspect `lambdify(x, eqn.lhs-eqn.rhs, 'mpmath')` source and see the unwrapped `232/3`; note `rf(18, nsolve(eqn, Float('1.5',64), prec=64)).evalf(64)` is only ~15 digits accurate. 2",
+    "meta": {
+      "hint": "good",
+      "query": "lambdify(modules='mpmath') doesn't wrap rationals This results in reduced precision results from `nsolve`, because the 232/3 isn't evaluated at full precision. Originally reported at https://github.com/sympy/sympy/pull/14971",
+      "top_problem_id": "add5ad7e-5d8d-48a5-afc2-88b13e229094",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-15017": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: `len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always returns zero for rank-0 arrays (scalars). I believe the correct value should be one, which is the number of elements of t\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: 559d2a28-bd2e-4b07-919e-59ca600e1e93\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: The `_loop_size` computation in the NDimArray constructors (`DenseNDimArray._new` / `MutableDenseNDimArray._new` in `sympy/tensor/array/dense_ndim_array.py`, and `ImmutableSparseNDimArray._new` / `MutableSparseNDimArray.__new__` in `sympy/tensor/array/sparse_ndim_array.py`) used `functools.reduce(lambda x,y: x*y, shape) if shape else 0`. For a rank-0 array the shape is the empty tuple `()`, so the falsy branch set `_loop_size = 0`, and `NDimArray.__len__` returns `_loop_size`. The product over an empty shape should be the multiplicative identity `1` (one scalar element), not `0`.\n\nFix: Changed the empty-shape fallback from `0` to `1` at all four constructor sites so a rank-0 array reports `_loop_size == 1`, making `len()` return 1 (consistent with the iterator yielding one element and with numpy's `.size`).\n\n**Steps:**\n1. Reproduce: `python -c \"import sympy; a = sympy.Array(3); print(len(a))\"` shows `0` while `len(list(a))` is `1`. 2) In `sympy/tensor/array/dense_ndim_array.py`, change both `... if shape else 0` to `... if shape else 1` (lines computing `self._loop_size` in `DenseNDimArray._new` and `MutableDenseNDim",
+    "meta": {
+      "hint": "good",
+      "query": "`len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always returns zero for rank-0 arrays (scalars). I believe the correct value should be one, which is the number of elements of the iterator and the observed behaviour in numpy. In numpy we have the following: This was tested in sympy 1.2-rc1 running in Python 3.6.6 `len` of rank-0 arrays returns 0 `sympy.tensor.array.NDimArray.__len__` always ret",
+      "top_problem_id": "a44ee6e0-f55d-4d1f-bd21-6e9d2521796b",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 4
+    }
+  },
+  "sympy__sympy-15809": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: Zero-argument Min() and Max() Right now `Min()` and `Max()` with no arguments raise `ValueError: The Max/Min functions must have arguments.`. It might be mathematically more convenient to have them re\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: 6f1c79f8-2369-4ff2-a0ef-2a2231583011\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `MinMaxBase.__new__` in `sympy/functions/elementary/miscellaneous.py` had an explicit guard that raised `ValueError(\"The Max/Min functions must have arguments.\")` whenever called with no arguments, even though the rest of the method already handles the empty case correctly by returning `cls.identity` (which is `oo` for `Min` and `-oo` for `Max`).\n\nFix: Removed the early `if not args: raise ValueError(...)` guard so that a zero-argument call flows through the normal argument-filtering logic; with no args the filtered set is empty and the existing `if not args: return cls.identity` branch returns `oo` for `Min()` and `-oo` for `Max()`, the mathematically valid extended-real answers for the empty set.\n\n**Steps:**\n1. Open `sympy/functions/elementary/miscellaneous.py` and find `MinMaxBase.__new__`. 2) Delete the two lines `if not args:` / `raise ValueError(\"The Max/Min functions must have arguments.\")` at the top of the method. 3) Reproduce/confirm by running `python -c \"from sympy import Min, Max; print(Min(), M",
+    "meta": {
+      "hint": "good",
+      "query": "Zero-argument Min() and Max() Right now `Min()` and `Max()` with no arguments raise `ValueError: The Max/Min functions must have arguments.`. It might be mathematically more convenient to have them return `oo` and `-oo`, respectively. See https://en.wikipedia.org/wiki/Empty_set#Extended_real_numbers for why these are valid answers mathematically.",
+      "top_problem_id": "c5feb502-8c61-4e1e-8975-9fd243e2ac87",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-15976": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: A symbol ending with a number is made invisible when printing with MathML A variable with a number, such as x1, is made invisible when printing in a MathML format. `import sympy from sympy.printing.ma\n- tags: sympy, printer\n- source: live GET /v1/search (production RAG)\n- solution_id: c77680ff-d072-4247-a64e-3bd04119e7bf\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `MathMLPresentationPrinter._print_Symbol` in `sympy/printing/mathml.py` always created an outer `<mi>` element and, for symbols with sub/superscripts (e.g. `x2`, which `split_super_sub` parses as name `x` with subscript `2`), appended an `<msub>`/`<msup>`/`<msubsup>` inside it. An `<mi>` token element may only contain character data, so `<mi><msub>...</msub></mi>` is invalid MathML and Safari renders it as nothing \u2014 making the symbol invisible.\n\nFix: Made the function build the appropriate element as the top-level node \u2014 a bare `<mi>` only for a plain name, otherwise the `<msub>`/`<msup>`/`<msubsup>` itself \u2014 and return that directly, applying the `mathvariant=\"bold\"` style to the resulting element instead of to a now-removed wrapper `<mi>`.\n\n**Steps:**\n1. Reproduce by running `sympy.mathml(sympy.symbols('x2')*sympy.symbols('z'), printer='presentation')` and observe the invalid `<mi><msub><mi>x</mi><mi>2</mi></msub></mi>`. 2) In `sympy/printing/mathml.py`, in `MathMLPresentationPrinter._print_Symbol`, remove the upfront `x = createElement('mi')` and i",
+    "meta": {
+      "hint": "good",
+      "query": "A symbol ending with a number is made invisible when printing with MathML A variable with a number, such as x1, is made invisible when printing in a MathML format. `import sympy from sympy.printing.mathml import mathml x2, y, z = sympy.symbols('x2 y z') y = x2*z+x2**3 f = open('sympy_test.html', 'w') f.write('\\n') f.write('\\n') f.write('\\n') f.write('\\n') f.write(sympy.mathml(y, printer='presentation')+'\\n') f.write(",
+      "top_problem_id": "646a04a6-6d93-4cf9-9247-092005da5861",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-16450": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: Posify ignores is_finite assmptions Posify removes a finite assumption from a symbol: I think that posify should preserve the finiteness assumption. Possibly other assumptions should be preserved as w\n- tags: sympy, assumption, Rational, Sum\n- source: live GET /v1/search (production RAG)\n- solution_id: 80c223c3-c363-4565-9395-ca7085203ce1\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `posify` in `sympy/simplify/simplify.py` built each replacement `Dummy(s.name, positive=True)` with only the `positive` assumption, discarding every other assumption the original symbol carried (finite, integer, rational, etc.).\n\nFix: When constructing the replacement Dummy, pass the original symbol's existing assumptions through alongside `positive=True`, i.e. `Dummy(s.name, positive=True, **s.assumptions0)`, so non-conflicting assumptions are carried over.\n\n**Steps:**\n1. Open `sympy/simplify/simplify.py` and locate the `posify` function (around line 254). 2. Reproduce the bug: `x = Symbol('x', finite=True); xp, _ = posify(x); print(xp.is_finite)` prints `None`. 3. Change the reps dict comprehension from `Dummy(s.name, positive=True)` to `Dummy(s.name, positive=True,",
+    "meta": {
+      "hint": "good",
+      "query": "Posify ignores is_finite assmptions Posify removes a finite assumption from a symbol: I think that posify should preserve the finiteness assumption. Possibly other assumptions should be preserved as well (integer, rational, prime, even, odd...).",
+      "top_problem_id": "eff20f12-51e6-4487-83b1-642cb6159817",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-16766": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some functions and save the code for further use. But the generated code for `Indexed` operation has some warnings which can be\n- tags: sympy, printer, lambdify\n- source: live GET /v1/search (production RAG)\n- solution_id: d896d487-6011-471d-babf-8788a54b9c1e\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy/printing/pycode.py` \u2014 the `PythonCodePrinter` class had no `_print_Indexed` method, so `Indexed` expressions fell through to `CodePrinter`'s unsupported-type handling, emitting a \"# Not supported in Python: # Indexed\" comment instead of valid subscript code.\n\nFix: Added a `_print_Indexed` method to `PythonCodePrinter` that prints the base followed by its indices in bracket-subscript form, e.g. `base[i, j]`.\n\n**Steps:**\n1. Run `from sympy import IndexedBase; from sympy.printing.pycode import pycode; print(pycode(IndexedBase('p')[0]))` and observe the unsupported-type warning. 2) In `sympy/printing/pycode.py`, inside `class PythonCodePrinter`, add a `_print_Indexed(self, expr)` method that takes `\u2026`, `\u2026`, and returns `",
+    "meta": {
+      "hint": "good",
+      "query": "PythonCodePrinter doesn't support Indexed I use `lambdify()` to generate some functions and save the code for further use. But the generated code for `Indexed` operation has some warnings which can be confirmed by following code; the output is We should add following method to `PythonCodePrinter`:",
+      "top_problem_id": "757b6104-e874-4ac8-9eaf-71bb0111c2ef",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 3
+    }
+  },
+  "sympy__sympy-16792": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: autowrap with cython backend fails when array arguments do not appear in wrapped expr When using the cython backend for autowrap, it appears that the code is not correctly generated when the function \n- tags: sympy, Mod, Matrix, codegen\n- source: live GET /v1/search (production RAG)\n- solution_id: 5f2db202-e3a1-4cf7-8cd4-1f7f08579b68\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `CodeGen.routine` in `sympy/utilities/codegen.py` \u2014 when reconstructing the argument list to match a user-supplied `argument_sequence`, the KeyError fallback created `InputArgument(symbol)` without dimensions, so an array argument (MatrixSymbol/IndexedBase) not present in the expression was emitted as a scalar instead of a pointer.\n\nFix: In that fallback branch, when the symbol is an `IndexedBase` or `MatrixSymbol`, build `dimensions=[(0, dim-1) for dim in symbol.shape]` and pass it as metadata to `InputArgument`, matching how dimensioned arguments are constructed elsewhere; non-array symbols keep empty metadata.\n\n**Steps:**\n1. Reproduce by running the issue's snippet (`autowrap(1.0, args=(MatrixSymbol('x',2,1),), backend='cython')`) or, without a compiler, `codegen(('f', 1.0), 'C99', 'f', argument_sequence=(MatrixSymbol('x',2,1),))` and observe the signature is `double x`. 2) Open `sympy/utilities/codegen.py` and find the",
+    "meta": {
+      "hint": "good",
+      "query": "autowrap with cython backend fails when array arguments do not appear in wrapped expr When using the cython backend for autowrap, it appears that the code is not correctly generated when the function in question has array arguments that do not appear in the final expression. A minimal counterexample is: This should of course return `1.0` but instead fails with: A little inspection reveals that this is because the cor",
+      "top_problem_id": "fe8a85bf-193f-4ab5-93f6-18a159818ba4",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-16886": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.crypto contains an incorrect mapping of `\"----\": \"1\"` The correct mapping is `\".----\": \"1\"`.\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: 00cbf779-b944-4de1-94dd-befdc507a699\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: The `morse_char` dictionary in `sympy/crypto/crypto.py` mapped the Morse code `\"----\"` to the digit `\"1\"`, but `\"----\"` is not a valid Morse sequence; the correct International Morse code for `1` is `\".----\"`.\n\nFix: Changed the dictionary key for the value `\"1\"` from `\"----\"` to `\".----\"`, which also corrects the inverse `char_morse` mapping derived from it.\n\n**Steps:**\n1. Open `sympy/crypto/crypto.py` and find the `morse_char` dict. 2. Locate the entry `\"----\": \"1\"` (line 1523). 3. Change it to `\".----\": \"1\"`. 4. Reproduce/verify by running `python -c \"from sympy.crypto.crypto import encode_morse, decode_morse; print(encode_morse('1')); print(decode_morse(encode_mors",
+    "meta": {
+      "hint": "good",
+      "query": "Morse encoding for \"1\" is not correct The current Morse mapping in simpy.crypto.crypto contains an incorrect mapping of `\"----\": \"1\"` The correct mapping is `\".----\": \"1\"`.",
+      "top_problem_id": "5ddc5d0b-e7e1-4286-ad20-acc0b580f1e6",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 5
+    }
+  },
+  "sympy__sympy-17139": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: simplify(cos(x)**I): Invalid comparison of complex I (fu.py)\n- tags: sympy, Mod\n- source: live GET /v1/search (production RAG)\n- solution_id: 61295cf3-43b0-4624-8684-2b13517b686d\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy/simplify/fu.py`, the inner `_f` of `_TR56` (used by `TR5`/`TR6`), unconditionally evaluated `(rv.exp < 0)` and `(rv.exp > max)`; for a complex exponent like `I`, ordering comparison raises `TypeError(\"Invalid comparison of complex I\")` (from `Expr.__lt__` in `core/expr.py`), so `simplify(cos(x)**I)` crashed.\n\nFix: Added an early `\u2026 \u2026` guard in `_TR56._f` before the `<`/`>` comparisons, so a power with a non-real exponent is left unchanged instead of being compared.\n\n**Steps:**\n1. Reproduce with `from sympy import *; x = Symbol('x'); simplify(cos(x)**I)` and observe the TypeError. 2) Open `sympy/simplify/fu.py` and locate `_TR56`'s inner `_f`. 3) After the `if not (rv.is_Pow and rv.base.func == f): \u2026` block, insert `\u2026 \u2026`. 4) Re-run the snippet \u2014 it now returns `cos(x)**I` unc",
+    "meta": {
+      "hint": "good",
+      "query": "simplify(cos(x)**I): Invalid comparison of complex I (fu.py)",
+      "top_problem_id": "64b262fd-6df1-4893-a161-50bebe7979cd",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-17318": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: sqrtdenest raises IndexError If an expression cannot be denested it should be returned unchanged. IndexError fixed for sqrtdenest. Fixes #12420 Now if the expression can't be **denested**, it will be \n- tags: sympy, Mod\n- source: live GET /v1/search (production RAG)\n- solution_id: a1994ea3-fe5c-43eb-8eaf-65adc1a0bc27\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `_sqrt_match` in `sympy/simplify/sqrtdenest.py` guarded its surd-splitting branch with `all((x**2).is_Rational for x in pargs)`. Imaginary terms like `I` (where `I**2 == -1`) and rational constants also have rational squares, so an `Add` such as `1 + I` wrongly entered the branch and called `split_surds`, which built an empty surds list and invoked `_split_gcd()` with no arguments, hitting `g = a[0]` and raising `IndexError`.\n\nFix: Tightened the guard to require each addend's square to be a *positive* rational (`all(sq.is_Rational and sq.is_positive ...)`), which is what genuine real surds and rational constants produce; expressions with imaginary parts now skip the branch and fall through to the general path, returning the expression unchanged when it cannot be denested.\n\n**Steps:**\n1. Reproduce with `from sympy import sqrt, I, sqrtdenest; sqrtdenest(sqrt(1 + I))` to see the `IndexError` from `_split_gcd`. 2) Open `sympy/simplify/sqrtdenest.py`, find the `elif p.is_Add:` block in `_sqrt_match`. 3) Replace the condition `if all((x**2).is_Rational for x in pargs):` with computing `\u2026",
+    "meta": {
+      "hint": "good",
+      "query": "sqrtdenest raises IndexError If an expression cannot be denested it should be returned unchanged. IndexError fixed for sqrtdenest. Fixes #12420 Now if the expression can't be **denested**, it will be returned unchanged. Old Result: New Result:",
+      "top_problem_id": "21bf6e60-1a8f-489a-a3f6-6ceaf70150d2",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-17655": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: Unexpected exception when multiplying geometry.Point and number This line works fine But when I write the same this way it raises an exception The expected behaviour is, that both lines give the same \n- tags: sympy, Mod, Point\n- source: live GET /v1/search (production RAG)\n- solution_id: 2934088e-6a37-48c9-ab66-8ae0f0b99eca\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy.geometry.point.Point` is a `Basic` (not an `Expr`) with no `_op_priority`, so in `2.0 * point` Python calls `Float.__mul__`, which (via the `call_highest_priority` decorator) never defers to the Point and instead sympifies the Point and builds a `Mul` (`2.0*Point2D(1, 1)`). `Point.__add__` then calls `Point(that_Mul, evaluate=False)`, which rejects the non-sequence `Mul` and raises `GeometryError`. By contrast `point * 2.0` calls `Point.__mul__` and returns a `Point`, so the two orderings diverged.\n\nFix: In `sympy/geometry/point.py` I gave `Point` an `_op_priority = 11.0` (higher than `Expr`'s 10.0) so `Float.__mul__` defers to the Point's reflected method, and added a `Point.__rmul__` that delegates to `__mul__`. Now `2.0 * point` returns a `Point2D` just like `point * 2.0`, so adding it to another Point works.\n\n**Steps:**\n1. Reproduce: `from sympy import geometry as ge; import sympy; p1=ge.Point(0,0); p2=ge.Point(1,1); p1 + sympy.sympify(2.0)*p2` raises `GeometryError` while `p1 + p2*sympy.sympify(2.0)` works. 2) Confirm `2.0*p2` is a `Mul` (not a `Point`) because `Point` has no `_op_priority`. 3) In `sympy/geometry/poi",
+    "meta": {
+      "hint": "good",
+      "query": "Unexpected exception when multiplying geometry.Point and number This line works fine But when I write the same this way it raises an exception The expected behaviour is, that both lines give the same result",
+      "top_problem_id": "001c06d3-b909-47cd-aa46-6865f61e3cf3",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-18189": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: diophantine: incomplete results depending on syms order with permute=True diophantine: incomplete results depending on syms order with permute=True\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: 681e92f5-5175-4713-8686-c3a6265f8f70\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy.solvers.diophantine.diophantine` \u2014 when `syms` is supplied in an order different from the internally sorted `var` list, it remaps results via a recursive call `diophantine(eq, param)` that omitted the `permute` argument, so the recursion defaulted to `permute=False` and returned only the base solution instead of the full permuted set.\n\nFix: Pass the caller's `permute` value into that recursive call (`diophantine(eq, param, permute=permute)`) so permutation behavior is preserved regardless of the `syms` ordering.\n\n**Steps:**\n1. Reproduce with `from sympy import symbols; from sympy.solvers.diophantine import diophantine; n, m = symbols('n m', integer=True); eq = n**4 + m**4 - 2**4 - 3**4` then compare `diophantine(eq, syms=(m,n), permute=True)` (8 solutions) against `diophantine(eq, syms=(n,m), permute=True)` (only `{(3,2)}",
+    "meta": {
+      "hint": "good",
+      "query": "diophantine: incomplete results depending on syms order with permute=True diophantine: incomplete results depending on syms order with permute=True",
+      "top_problem_id": "8074f1c4-1ae3-464b-9e97-53203a2fa3bc",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-18211": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: `solveset` raises `NotImplementedError` instead of returning `ConditionSet` The problem is Here `solveset` raises `NotImplementedError` but probably a `ConditionSet` should be returned by `solveset` i\n- tags: sympy, solve\n- source: live GET /v1/search (production RAG)\n- solution_id: 472831d0-7233-4240-936b-5a315dac3157\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `Relational._eval_as_set` in `sympy/core/relational.py` unconditionally delegated to `solve_univariate_inequality`, which calls `solvify` and raises `NotImplementedError` for relationals it cannot solve symbolically (like `Eq(n*cos(n) - 3*sin(n), 0)`); that exception propagated out of `as_set()`.\n\nFix: Wrapped the `solve_univariate_inequality` call in a `try/except NotImplementedError` so that when the relational cannot be solved, it returns `ConditionSet(x, self, S.Reals)` instead of raising.\n\n**Steps:**\n1. Reproduce with `from sympy import Eq, cos, sin, symbols; n = symbols('n'); Eq(n*cos(n) - 3*sin(n), 0).as_set()` and observe the `NotImplementedError`. 2) Open `sympy/core/relational.py` and locate `_eval_as_set`. 3) Import `ConditionSet` from `sympy.sets.conditionset`, wrap the `solve_univariate_ine",
+    "meta": {
+      "hint": "good",
+      "query": "`solveset` raises `NotImplementedError` instead of returning `ConditionSet` The problem is Here `solveset` raises `NotImplementedError` but probably a `ConditionSet` should be returned by `solveset` instead. The obvious result of `as_set()` here is _Originally posted by @oscarbenjamin in https://github.com/sympy/sympy/pull/17771_",
+      "top_problem_id": "44036c74-ec24-4661-b741-f669f0a9abe6",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 3
+    }
+  },
+  "sympy__sympy-18698": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: sqf and sqf_list output is not consistant The example below is wrong in the sense that we should have (x*_2 - 5_x + 6, 3) and not 2 factors of multiplicity 3. whereas below is correct --- one factor o\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: 1040d7fa-7bf0-47fb-92c1-30a3f584dd4a\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy/polys/polytools.py` `_symbolic_factor_list` (the helper behind public `sqf`/`sqf_list`) processes each factor of an unexpanded `Mul` separately and concatenates the per-argument square-free decompositions without merging factors that share the same multiplicity, so square-free factors of equal exponent (e.g. `x-2` and `x-3` at multiplicity 3) were returned as distinct entries instead of one combined factor.\n\nFix: After collecting all factors in `_symbolic_factor_list`, when `method == 'sqf'`, group the factors by their exponent and multiply together all bases sharing each exponent, yielding exactly one square-free factor per multiplicity; added `reduce` (functools) and `mul` (operator) imports to perform the grouped product (Poly multiplication).\n\n**Steps:**\n1. Reproduce: `from sympy import sqf_list, symbols; x = symbols('x'); sqf_list((x**2 + 1)*(x - 1)**2*(x - 2)**3*(x - 3)**3)` returns the buggy two-multiplicity-3-factor result while the expanded input is correct. 2. Trace the public call through `_generic_factor_list` -> `_symbolic_factor_list` and obs",
+    "meta": {
+      "hint": "good",
+      "query": "sqf and sqf_list output is not consistant The example below is wrong in the sense that we should have (x*_2 - 5_x + 6, 3) and not 2 factors of multiplicity 3. whereas below is correct --- one factor of multiplicity 2",
+      "top_problem_id": "779c6375-3844-4552-a8e7-70d0abfdbf26",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 2
+    }
+  },
+  "sympy__sympy-19346": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: srepr not printing dict and set properly `srepr` prints the element in `list` and `tuple` correctly. However, `srepr` prints the elements in `dict` and `set` wrong. Is this behavior intended? If it is\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: 65589ffb-d738-41b2-9fc9-d39b2e75f13e\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `sympy/printing/repr.py` (the `ReprPrinter` class) defined `_print_list` and `_print_tuple` but had no `_print_dict`/`_print_set`, so `dict`, `set`, and `frozenset` fell through to `emptyPrinter`, which returns `str(expr)` \u2014 printing elements with `str` (e.g. `{x, y}`) instead of their srepr (e.g. `{Symbol('x'), Symbol('y')}`).\n\nFix: Added `_print_set`, `_print_frozenset`, and `_print_dict` methods to `ReprPrinter` that recurse via the printer (`reprify`/`self._print`) over elements and key/value pairs, handling the empty `set()`/`frozenset()` cases so the output is valid, eval-round-trippable Python.\n\n**Steps:**\n1. From the repo root run `python -c \"from sympy import srepr; from sympy.abc import x,y; print(srepr({x,y})); print(srepr({x:y}))\"` and observe the wrong `{x, y}` / `{x: y}` output. 2) Open `sympy/printing/repr.py` and locate the `ReprPrinter` class with its `_print_list`/`_print_tuple` methods. 3) Ad",
+    "meta": {
+      "hint": "good",
+      "query": "srepr not printing dict and set properly `srepr` prints the element in `list` and `tuple` correctly. However, `srepr` prints the elements in `dict` and `set` wrong. Is this behavior intended? If it isn't, fixing it will be an easy job.",
+      "top_problem_id": "1b284538-e082-4427-92e9-9852d563ac98",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-19637": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: kernS: 'kern' referenced before assignment from sympy.core.sympify import kernS text = \"(2*x)/(x-1)\" expr = kernS(text) // hit = kern in s // UnboundLocalError: local variable 'kern' referenced before\n- tags: sympy\n- source: live GET /v1/search (production RAG)\n- solution_id: be2a1fa2-531a-4ba7-bb71-580eca242e91\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `kernS` in `sympy/core/sympify.py` defined `kern` only inside the `if ' ' in s:` block but then unconditionally evaluated `\u2026` afterward; inputs with parentheses that produce no internal space (e.g. `\"(2*x)/(x-1)\"`) skip that block, leaving `kern` unassigned and raising `UnboundLocalError`.\n\nFix: Moved the `\u2026` assignment inside the `if ' ' in s:` block so `hit` keeps its initialized `False` value (and `kern` is never read) when no kern substitution was performed.\n\n**Steps:**\n1. Open `sympy/core/sympify.py` and locate `def kernS`. 2) Reproduce by running `from sympy.core.sympify import kernS; kernS(\"(2*x)/(x-1)\")` to see the `UnboundLocalError`. 3) Indent the line `\u2026` one level so it sits inside the `if ' ' in s:` block (right after `s = s.replace(' ', kern)`). 4) Re-run `k",
+    "meta": {
+      "hint": "good",
+      "query": "kernS: 'kern' referenced before assignment from sympy.core.sympify import kernS text = \"(2*x)/(x-1)\" expr = kernS(text) // hit = kern in s // UnboundLocalError: local variable 'kern' referenced before assignment",
+      "top_problem_id": "5490a4ab-6d1d-49a4-9cbc-dde9b29435f2",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  },
+  "sympy__sympy-19954": {
+    "recall": "- match_quality: exact\n- similarity_score: 1.000\n- problem: sylow_subgroup() IndexError I use sympy 1.6.1, with numpy 1.18.5, scipy 1.4.1, under Python '3.8.5 (default, Aug 5 2020, 09:44:06) [MSC v.1916 64 bit (AMD64)]'. The code that I run as the following gi\n- tags: sympy, Mod\n- source: live GET /v1/search (production RAG)\n- solution_id: a02b9031-dd6b-4f36-b818-b5df9ca395ea\n- confidence: 0.3\n\n**Solution (from agentbook RAG):**\n\nRoot cause: `PermutationGroup.minimal_blocks` in `sympy/combinatorics/perm_groups.py` deleted entries from the parallel lists `num_blocks`/`blocks` by index inside a loop over `enumerate(rep_blocks)`; mid-loop shrinking shifted indices so `i` ran past the shortened lists, raising IndexError (and desynchronizing the lists) when more than one block system had to be removed.\n\nFix: Build a boolean `blocks_remove_mask` during the loop instead of deleting in place, then after the loop rebuild `blocks`, `num_blocks`, and `rep_blocks` together by filtering out masked indices, so the three parallel lists stay aligned and no index shifting occurs.\n\n**Steps:**\n1. Reproduce with `from sympy.combinatorics import DihedralGroup; DihedralGroup(18).sylow_subgroup(p=2)` and observe the IndexError at `minimal_blocks`. 2. Open `sympy/combinatorics/perm_groups.py` and find the `for i, r in enumerate(rep_blocks):` loop in `minimal_blocks`. 3. Replace the in-loop `del n",
+    "meta": {
+      "hint": "good",
+      "query": "sylow_subgroup() IndexError I use sympy 1.6.1, with numpy 1.18.5, scipy 1.4.1, under Python '3.8.5 (default, Aug 5 2020, 09:44:06) [MSC v.1916 64 bit (AMD64)]'. The code that I run as the following gives IndexError for sylow_subgroup(): from sympy.combinatorics import DihedralGroup, PermutationGroup, Permutation G = DihedralGroup(18) S2 = G.sylow_subgroup(p=2) Traceback (most recent call last): File \"<input>\", line 7",
+      "top_problem_id": "4f4e89b5-bdf2-4c5c-b99a-715e25face01",
+      "top_similarity": 1.0,
+      "no_good_match": false,
+      "results_count": 1
+    }
+  }
+}

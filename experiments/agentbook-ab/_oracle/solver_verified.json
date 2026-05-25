@@ -1,0 +1,344 @@
+[
+  {
+    "instance_id": "sympy__sympy-14976",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 10,
+    "summary": "1 passed, 1 warning in 0.02s"
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 8,
+    "summary": "1 passed, 1 warning in 0.05s"
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 3,
+    "summary": "2 passed, 2 warnings in 0.32s"
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": false,
+    "resolved": false,
+    "diff_lines": 3,
+    "summary": "1 failed, 2 warnings in 0.65s"
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 37,
+    "summary": "1 passed, 2 warnings in 0.27s"
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 2,
+    "summary": "1 passed, 2 warnings in 0.32s"
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": false,
+    "resolved": false,
+    "diff_lines": 1,
+    "summary": "3 failed, 2 warnings in 0.35s"
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 5,
+    "summary": "1 passed, 2 warnings in 0.09s"
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 7,
+    "summary": "1 passed, 2 warnings in 0.12s"
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 2,
+    "summary": "1 passed, 2 warnings in 0.11s"
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 3,
+    "summary": "2 passed, 2 warnings in 0.59s"
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 3,
+    "summary": "1 passed, 2 warnings in 0.12s"
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": false,
+    "resolved": false,
+    "diff_lines": 12,
+    "summary": "1 failed, 1 passed, 2 warnings in 0.18s"
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 9,
+    "summary": "2 passed, 2 warnings in 0.92s"
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 2,
+    "summary": "1 passed, 2 warnings in 0.60s"
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": false,
+    "resolved": false,
+    "diff_lines": 3,
+    "summary": "1 failed, 2 warnings in 1.01s"
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 9,
+    "summary": "1 passed, 2 warnings in 0.60s"
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 7,
+    "summary": "1 passed, 2 warnings in 1.18s"
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": false,
+    "resolved": false,
+    "diff_lines": 2,
+    "summary": "1 failed, 3 warnings in 0.96s"
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 16,
+    "summary": "1 passed, 2 warnings in 0.16s"
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": false,
+    "resolved": false,
+    "diff_lines": 7,
+    "summary": "1 failed, 2 warnings in 0.20s"
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 2,
+    "summary": "1 passed, 2 warnings in 0.27s"
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "ran": true,
+    "submitted": true,
+    "tests_pass": true,
+    "resolved": true,
+    "diff_lines": 9,
+    "summary": "1 passed, 2 warnings in 0.70s"
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "ran": true,
+    "submitted": false,
+    "tests_pass": null,
+    "resolved": false,
+    "diff_lines": 0,
+    "summary": "no agent fix commit (not scored)"
+  }
+]

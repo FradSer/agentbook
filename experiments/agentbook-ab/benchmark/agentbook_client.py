@@ -13,87 +13,155 @@ from benchmark.paths import CORPUS_SEED, ORACLE
 DEFAULT_BASE = "http://127.0.0.1:8078"
 SEED_STATE = ORACLE / "seed_state_good.json"
 
+# Same-domain (sympy) distractor memories. These describe *other* plausible
+# sympy bugs whose surface (symbols, printers, sets, simplification) overlaps
+# with the benchmark tasks, so retrieving the correct memory above them is a
+# genuine test of the embedding/rerank stack -- not a unique-tag lookup. None of
+# these correspond to a task in tasks/manifest.json.
 DISTRACTORS = [
     {
-        "description": "TypeScript build fails with TS2307 'Cannot find module' for a "
-        "monorepo workspace package when using project references.",
-        "error_signature": "error TS2307: Cannot find module",
-        "tags": ["typescript", "monorepo", "bench-distractor"],
-        "content": "Add the package to tsconfig 'references' and emit declaration "
-        "files (composite: true); build with tsc --build.",
-        "steps": ["Add references entry", "Enable composite", "tsc --build"],
+        "description": "srepr of a Float loses precision: srepr(Float('1.1', 30)) "
+        "drops the declared 30-digit precision when round-tripped through eval.",
+        "error_signature": "Float precision lost in srepr",
+        "tags": ["sympy", "printing", "Float", "bench-distractor"],
+        "content": "ReprPrinter._print_Float must emit the precision argument so "
+        "the repr round-trips; include the binary precision in the constructor call.",
+        "steps": ["Open sympy/printing/repr.py", "Emit precision in _print_Float"],
     },
     {
-        "description": "PostgreSQL deadlock when concurrent UPDATE ... FROM queries "
-        "run on the same table under load.",
-        "error_signature": "ERROR: deadlock detected",
-        "tags": ["postgresql", "deadlock", "bench-distractor"],
-        "content": "Acquire row locks in a consistent order: sort rows by primary "
-        "key before UPDATE so transactions lock in the same sequence.",
-        "steps": ["Order rows by primary key", "Lock in deterministic order"],
+        "description": "Integral of a Piecewise over a symbolic interval returns an "
+        "unevaluated Integral instead of a Piecewise result.",
+        "error_signature": "Integral not evaluated for Piecewise",
+        "tags": ["sympy", "integrals", "Piecewise", "bench-distractor"],
+        "content": "Dispatch piecewise integrands to piecewise_integrate so each "
+        "branch is integrated under its own condition before recombining.",
+        "steps": ["Detect Piecewise integrand", "Integrate branchwise"],
     },
     {
-        "description": "Alembic autogenerate produces an empty migration and misses "
-        "a column type change from String to Text.",
-        "error_signature": "No changes in schema detected",
-        "tags": ["alembic", "sqlalchemy", "bench-distractor"],
-        "content": "Set compare_type=True in the Alembic context.configure() call "
-        "in env.py so column type changes are detected.",
-        "steps": ["Set compare_type=True", "Re-run autogenerate"],
+        "description": "simplify() fails to reduce trigonometric expression "
+        "sin(x)**2 + cos(x)**2 to 1 when the symbol carries assumptions.",
+        "error_signature": "trig identity not simplified",
+        "tags": ["sympy", "simplify", "trigonometry", "bench-distractor"],
+        "content": "Apply fu/trigsimp on the assumption-bearing atoms; the "
+        "Pythagorean identity rewrite must run before generic cancellation.",
+        "steps": ["Call trigsimp before cancel", "Preserve assumptions"],
     },
     {
-        "description": "scikit-learn fit() raises ValueError: Input contains NaN "
-        "when sparse matrix has implicit zeros treated as missing.",
-        "error_signature": "ValueError: Input contains NaN",
-        "tags": ["scikit-learn", "preprocessing", "bench-distractor"],
-        "content": "Use SimpleImputer or ensure the sparse CSC matrix uses explicit "
-        "zero storage before passing to an estimator that rejects NaN.",
-        "steps": ["Impute or densify sparse input", "Refit estimator"],
+        "description": "Matrix.rref() returns wrong pivot columns for a matrix with "
+        "symbolic entries because zero-testing gives None.",
+        "error_signature": "rref pivots incorrect with symbolic zero",
+        "tags": ["sympy", "matrices", "rref", "bench-distractor"],
+        "content": "Use the matrix's iszerofunc with simplify=True so symbolic "
+        "entries that are structurally zero are detected during elimination.",
+        "steps": ["Pass iszerofunc to rref", "Enable simplify in zero test"],
     },
     {
-        "description": "sklearn cross_val_score fails with 'X has 10 features, but "
-        "StandardScaler is expecting 8 features as input'.",
-        "error_signature": "StandardScaler is expecting",
-        "tags": ["scikit-learn", "pipeline", "bench-distractor"],
-        "content": "Fit the preprocessing pipeline on training columns only and "
-        "reuse the same column subset at predict time.",
-        "steps": ["Align feature columns", "Refit pipeline on train slice"],
+        "description": "lambdify with the numpy module mistranslates Max/Min to "
+        "Python builtins, producing element-wise errors on arrays.",
+        "error_signature": "lambdify Max numpy mismatch",
+        "tags": ["sympy", "lambdify", "printer", "bench-distractor"],
+        "content": "Map Max/Min to numpy.maximum/numpy.minimum in the numpy printer "
+        "namespace so they broadcast over arrays.",
+        "steps": ["Edit numpy printer mapping", "Map Max to numpy.maximum"],
     },
     {
-        "description": "pytest collection fails with ImportError while importing "
-        "conftest.py after upgrading to pytest 7.",
-        "error_signature": "ImportError while importing conftest",
-        "tags": ["pytest", "plugins", "bench-distractor"],
-        "content": "Pin pytest plugins compatible with the target pytest major "
-        "version or update deprecated hook names in conftest.",
-        "steps": ["Upgrade incompatible plugins", "Fix hook names"],
+        "description": "solve() drops a valid solution branch for an equation with a "
+        "rational power because the radical check rejects it.",
+        "error_signature": "solve missing radical branch",
+        "tags": ["sympy", "solvers", "solve", "bench-distractor"],
+        "content": "Relax the checksol radical verification to compare numerically "
+        "within tolerance before discarding a candidate root.",
+        "steps": ["Loosen checksol for radicals", "Re-verify candidates"],
     },
     {
-        "description": "pytest.mark.parametrize raises TypeError when indirect=True "
-        "is combined with a fixture that returns a generator.",
-        "error_signature": "TypeError: indirect fixture",
-        "tags": ["pytest", "fixtures", "bench-distractor"],
-        "content": "Make the indirect fixture return the value directly instead of "
-        "yielding, or remove indirect=True for generator fixtures.",
-        "steps": ["Return value from fixture", "Re-run parametrized test"],
+        "description": "Poly division raises PolynomialError for multivariate input "
+        "when the generators are passed in non-canonical order.",
+        "error_signature": "PolynomialError: generators order",
+        "tags": ["sympy", "polys", "Poly", "bench-distractor"],
+        "content": "Canonicalise the generator tuple before constructing the dense "
+        "representation so division aligns exponents consistently.",
+        "steps": ["Sort generators", "Rebuild Poly with canonical gens"],
     },
     {
-        "description": "Django ORM QuerySet filter raises FieldError for a lookup on "
-        "a reverse relation after renaming the related_name.",
-        "error_signature": "FieldError: Cannot resolve keyword",
-        "tags": ["django", "orm", "bench-distractor"],
-        "content": "Update reverse relation lookups to the new related_name or use "
-        "the explicit related query path in filter()/exclude().",
-        "steps": ["Fix lookup path", "Add migration if model changed"],
+        "description": "FiniteSet intersection with an ImageSet returns EmptySet "
+        "even though concrete members satisfy the image relation.",
+        "error_signature": "intersection ImageSet empty",
+        "tags": ["sympy", "sets", "intersection", "bench-distractor"],
+        "content": "Add an intersection handler that substitutes finite members "
+        "into the ImageSet lambda and keeps those that solve it.",
+        "steps": ["Add handler in sets/handlers/intersection.py", "Test membership"],
     },
     {
-        "description": "Django test client returns 301 instead of 200 because "
-        "APPEND_SLASH redirects POST requests.",
-        "error_signature": "HTTP 301 Moved Permanently",
-        "tags": ["django", "urls", "bench-distractor"],
-        "content": "Post to the URL with the trailing slash or disable APPEND_SLASH "
-        "in test settings for that route.",
-        "steps": ["Add trailing slash", "Adjust test client URL"],
+        "description": "latex() renders a Derivative with the wrong bracket nesting "
+        "for higher-order mixed partials.",
+        "error_signature": "latex Derivative bracket",
+        "tags": ["sympy", "printing", "latex", "bench-distractor"],
+        "content": "Group the differentiation variables in LatexPrinter."
+        "_print_Derivative so the order multiplicities render before the operand.",
+        "steps": ["Edit sympy/printing/latex.py", "Fix _print_Derivative grouping"],
+    },
+    {
+        "description": "parse_expr mishandles implicit multiplication next to a "
+        "function call, parsing 2f(x) as a single name.",
+        "error_signature": "parse implicit multiplication",
+        "tags": ["sympy", "parsing", "parse", "bench-distractor"],
+        "content": "Insert an implicit Mul token between a number and a following "
+        "callable in the implicit-multiplication transformation.",
+        "steps": ["Edit sympy_parser transformation", "Tokenise number*call"],
+    },
+    {
+        "description": "Sum does not telescope a hypergeometric term and leaves the "
+        "result unevaluated for a definite upper limit.",
+        "error_signature": "Sum hypergeometric not evaluated",
+        "tags": ["sympy", "concrete", "Sum", "bench-distractor"],
+        "content": "Route hypergeometric summands through Gosper before falling "
+        "back to the generic eval_sum path.",
+        "steps": ["Detect hypergeometric term", "Apply Gosper summation"],
+    },
+    {
+        "description": "Mod with a negative modulus returns a positive remainder, "
+        "disagreeing with Python's % sign convention.",
+        "error_signature": "Mod negative modulus sign",
+        "tags": ["sympy", "core", "Mod", "bench-distractor"],
+        "content": "Align Mod.eval with the divisor's sign so the remainder takes "
+        "the sign of the modulus as Python's % does.",
+        "steps": ["Edit sympy/core/mod.py", "Match remainder sign to modulus"],
+    },
+    {
+        "description": "pycode printer emits math.factorial for a symbolic argument "
+        "instead of guarding non-integer inputs.",
+        "error_signature": "pycode factorial symbolic",
+        "tags": ["sympy", "printing", "pycode", "bench-distractor"],
+        "content": "Have the pycode printer fall back to a gamma-based expression "
+        "when the factorial argument is not a concrete integer.",
+        "steps": ["Edit sympy/printing/pycode.py", "Guard _print_factorial"],
+    },
+    {
+        "description": "Quantum Dagger of a sum is not distributed over the "
+        "addends, leaving Dagger(A + B) unexpanded.",
+        "error_signature": "Dagger not distributed over Add",
+        "tags": ["sympy", "physics.quantum", "dagger", "bench-distractor"],
+        "content": "Implement Dagger over Add by mapping the adjoint across each "
+        "argument so it distributes linearly.",
+        "steps": ["Edit physics/quantum/dagger.py", "Distribute over Add"],
+    },
+    {
+        "description": "geometry Point equality treats a 2D and a 3D point with the "
+        "same first two coordinates as equal.",
+        "error_signature": "Point equality dimension",
+        "tags": ["sympy", "geometry", "Point", "bench-distractor"],
+        "content": "Compare the ambient dimension in Point.__eq__ before comparing "
+        "coordinates so differing dimensions are unequal.",
+        "steps": ["Edit sympy/geometry/point.py", "Check dimension in __eq__"],
+    },
+    {
+        "description": "units convert_to silently returns the original quantity "
+        "when the target unit is dimensionally incompatible.",
+        "error_signature": "convert_to incompatible units",
+        "tags": ["sympy", "physics.units", "convert", "bench-distractor"],
+        "content": "Raise (or return None) on a dimension mismatch in convert_to "
+        "instead of returning the unconverted expression.",
+        "steps": ["Edit physics/units/util.py", "Validate dimensions in convert_to"],
     },
 ]
 
@@ -161,20 +229,24 @@ class AgentbookClient:
             raise FileNotFoundError(f"corpus not found: {corpus_path}")
         corpus = json.loads(corpus_path.read_text())
         state = self._load_state()
-        if skip_if_seeded and state.get("seeded") and state.get("corpus_path") == str(
-            corpus_path.resolve()
+        if (
+            skip_if_seeded
+            and state.get("seeded")
+            and state.get("corpus_path") == str(corpus_path.resolve())
         ):
             self.ensure_agent()
             return state
 
-        self.ensure_agent(
-            force_register=force_register or not state.get("api_key")
-        )
+        self.ensure_agent(force_register=force_register or not state.get("api_key"))
         seeded: list[dict] = []
         for entry in corpus:
             iid = entry["instance_id"]
-            tags = list(entry.get("tags") or [])
-            tags.append(f"ab_task:{iid}")
+            # Semantic/domain tags only -- no per-task unique tag. A unique
+            # `ab_task:{iid}` tag would make retrieval a trivial primary-key
+            # lookup; recall is measured by retrieved problem_id identity instead.
+            tags = [
+                t for t in (entry.get("tags") or []) if not t.startswith("ab_task:")
+            ]
             pr = self._client.post(
                 "/v1/problems",
                 headers=self._auth,
@@ -227,14 +299,104 @@ class AgentbookClient:
         self._save_state(state)
         return state
 
+    def seed_memories(
+        self,
+        memories_path: Path | str,
+        *,
+        include_distractors: bool = True,
+        force_register: bool = True,
+    ) -> dict:
+        """Seed leakage-free peer-agent memories (good arm) + sympy distractors.
+
+        Each memory entry: {instance_id, description, error_signature, tags,
+        content, steps}; tags are semantic only (any ab_task:* is stripped).
+        Records a problem_id -> instance_id map so retrieval recall is scored by
+        identity, not a unique tag. force_register defaults True so a fresh
+        in-memory (DEMO_MODE) database always gets a valid agent. Returns state.
+        """
+        memories_path = Path(memories_path)
+        memories = json.loads(memories_path.read_text())
+        state = self._load_state()
+        self.ensure_agent(force_register=force_register or not state.get("api_key"))
+
+        pid_to_iid: dict[str, str] = {}
+        seeded: list[dict] = []
+        for entry in memories:
+            iid = entry["instance_id"]
+            tags = [
+                t for t in (entry.get("tags") or []) if not t.startswith("ab_task:")
+            ][:20]
+            pr = self._client.post(
+                "/v1/problems",
+                headers=self._auth,
+                json={
+                    "description": entry["description"],
+                    "error_signature": entry.get("error_signature", ""),
+                    "tags": tags,
+                },
+            )
+            pr.raise_for_status()
+            problem_id = pr.json()["problem_id"]
+            sr = self._client.post(
+                f"/v1/problems/{problem_id}/solutions",
+                headers=self._auth,
+                json={"content": entry["content"], "steps": entry.get("steps") or []},
+            )
+            sr.raise_for_status()
+            pid_to_iid[problem_id] = iid
+            seeded.append(
+                {
+                    "instance_id": iid,
+                    "problem_id": problem_id,
+                    "solution_id": sr.json()["solution_id"],
+                }
+            )
+
+        distractor_pids: list[str] = []
+        if include_distractors:
+            for entry in DISTRACTORS:
+                pr = self._client.post(
+                    "/v1/problems",
+                    headers=self._auth,
+                    json={
+                        "description": entry["description"],
+                        "error_signature": entry["error_signature"],
+                        "tags": entry["tags"],
+                    },
+                )
+                pr.raise_for_status()
+                problem_id = pr.json()["problem_id"]
+                sr = self._client.post(
+                    f"/v1/problems/{problem_id}/solutions",
+                    headers=self._auth,
+                    json={"content": entry["content"], "steps": entry["steps"]},
+                )
+                sr.raise_for_status()
+                distractor_pids.append(problem_id)
+
+        state["memories_seeded"] = seeded
+        state["pid_to_iid"] = pid_to_iid
+        state["distractor_pids"] = distractor_pids
+        state["memories_path"] = str(memories_path.resolve())
+        state["mode"] = "memories"
+        self._save_state(state)
+        return state
+
     def search(
         self,
         query: str,
         *,
         error_log: str | None = None,
         limit: int = 3,
+        authenticated: bool = False,
     ) -> dict[str, Any]:
-        self.ensure_agent()
+        """Query GET /v1/search. Reads are public; default is anonymous (robust
+        and within the 30/min anonymous budget). Pass authenticated=True only to
+        use the higher 300/min agent tier."""
+        headers: dict[str, str] = {}
+        if authenticated:
+            self.ensure_agent()
+            headers = self._auth
         params: dict[str, Any] = {
             "q": query,
             "limit": limit,
@@ -243,7 +405,7 @@ class AgentbookClient:
         }
         if error_log:
             params["error_log"] = error_log
-        r = self._client.get("/v1/search", headers=self._auth, params=params)
+        r = self._client.get("/v1/search", headers=headers, params=params)
         r.raise_for_status()
         return r.json()
 
@@ -281,7 +443,7 @@ def format_recall_for_prompt(payload: dict[str, Any]) -> str:
         f"- similarity_score: {top.get('similarity_score', 0):.3f}",
         f"- problem: {top.get('description_preview', '')}",
         f"- tags: {', '.join(top.get('tags') or [])}",
-        f"- source: live GET /v1/search (production RAG)",
+        "- source: live GET /v1/search (production RAG)",
     ]
     best = top.get("best_solution")
     steps: list[str] = []
@@ -308,7 +470,5 @@ def format_recall_for_prompt(payload: dict[str, Any]) -> str:
             "\n_(No structured steps in search payload — explore source manually.)_"
         )
     if payload.get("no_good_match"):
-        lines.append(
-            "\n_(agentbook flagged `no_good_match`; treat as weak hint.)_"
-        )
+        lines.append("\n_(agentbook flagged `no_good_match`; treat as weak hint.)_")
     return "\n".join(lines)

@@ -1,0 +1,47 @@
+{
+  "Opus-4.7 (claude -p, ceiling)": {
+    "resolved": 17,
+    "tasks": 17,
+    "submit": 1.0
+  },
+  "gpt-oss:20b control": {
+    "resolved": 0,
+    "tasks": 17,
+    "submit": 0.09
+  },
+  "gpt-oss:20b good": {
+    "resolved": 4,
+    "tasks": 17,
+    "submit": 0.21
+  },
+  "gpt-oss:20b oracle": {
+    "resolved": 2,
+    "tasks": 17,
+    "submit": 0.41
+  },
+  "gpt-oss:20b good_apply": {
+    "resolved": 14,
+    "tasks": 17,
+    "submit": 0.71
+  },
+  "gemma4:e4b control": {
+    "resolved": 1,
+    "tasks": 17,
+    "submit": 0.65
+  },
+  "gemma4:e4b good": {
+    "resolved": 6,
+    "tasks": 17,
+    "submit": 0.71
+  },
+  "gemma4:e4b oracle": {
+    "resolved": 2,
+    "tasks": 17,
+    "submit": 0.76
+  },
+  "gemma4:e4b good_apply": {
+    "resolved": 17,
+    "tasks": 17,
+    "submit": 0.97
+  }
+}

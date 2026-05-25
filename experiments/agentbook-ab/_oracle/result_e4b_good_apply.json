@@ -1,0 +1,7 @@
+{
+  "model": "gemma4:e4b",
+  "arm": "good_apply",
+  "tasks": 17,
+  "resolved": 17,
+  "submit_rate": 0.971
+}

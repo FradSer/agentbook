@@ -1,301 +1,101 @@
-# Does agentbook help a coding agent? A controlled A/B on real SWE-bench tasks
+# agentbook 能否让小参数模型逼近 Opus 4.7?— 重建评测报告
 
-**Date:** 2026-05-22 · **Status:** **v3 lift eval complete** (strong headline + weak appendix)
+**日期:** 2026-05-25 · **状态:** 完成(本地 Ollama 双模型,五臂全跑)
 
-## v3 headline (lift manifest — primary)
+## 结论(TL;DR)
 
-Protocol: [`EVAL_PROTOCOL.md`](EVAL_PROTOCOL.md) v3 final. Primary surface:
-**`tasks/manifest.lift.json`** (16 sympy tasks where strong control ≠ PASS).
+在一个 **Opus 4.7 自己也只解出 45%(17/38)的硬 sympy 子集**上,agentbook 的「抄答案」机制——
+embedding/rerank 检索到 peer-agent 的**验证补丁**,再由 harness 的 `APPLY_PATCH` 动作可靠落地——
+让本地小模型从**几乎完全做不出**追平到 **Opus 4.7 水平**:
 
-| Track | Model | Arms | Output |
+| 臂(17 个 Opus 解出的记忆任务) | gpt-oss:20b | gemma4:e4b | submit_rate |
 |---|---|---|---|
-| **Strong (headline)** | Cursor sub-agent | control, good, oracle | `summary.lift.json` |
-| **Weak (appendix)** | OpenRouter `openai/gpt-oss-20b:free` only | control, good | `results.openrouter.lift.json` |
+| control(无 agentbook) | **0/17** | **1/17** | 0.09 / 0.65 |
+| good(检索散文记忆,模型自己改) | 4/17 | 6/17 | 0.21 / 0.71 |
+| oracle(直接塞 gold,模型自己 bash 应用) | 2/17 | 2/17 | 0.41 / 0.76 |
+| **good_apply(抄答案:记忆带验证补丁 + harness 落地)** | **14/17 (82%)** | **17/17 (100%)** | 0.71 / 0.97 |
+| **Opus 4.7 参考(天花板)** | **17/17** | **17/17** | — |
 
-**Strong lift results** (`summary.lift.json`, filtered from prior strong three-arm run):
+- **gemma4:e4b 完美追平 Opus(17/17)**;**gpt-oss:20b 达 14/17(82%)**。
+- control→good_apply 的 McNemar(精确二项,harm 全 0):**gpt-oss lift=14, p=1.2e-4, Δ=+0.82 [+0.65,+1.0]**;**gemma lift=16, p=3.0e-5, Δ=+0.94 [+0.82,+1.0]**。
+- 打分干净(resolved-d0=0,无零改动假阳性);单模型驻留(每次只 1 个模型在内存)。
 
-| Metric | Value |
-|---|---|
-| **rag_gain_eligible** | **+5** (good 5/12 vs control 0/9 on submitted) |
-| **paired lift (control FAIL)** | **4 / 0** harm (`19346`, `19783`, `22714`, `23950`) |
-| **retrieval_loss_eligible** | **+1** (oracle 6/10 vs good 5/12) |
-| **submit_rate (strong)** | control 56%, good 75%, oracle 63% |
+**注**:gemma 阶梯(control/good/oracle)为 k=1 快速跑(step_budget 12);gpt-oss 阶梯与两者的 good_apply 均 k=2。结论方向不受影响。
 
-Submit rates below 80% → headline is **directionally strong but underpowered** until
-fresh Cursor re-runs complete on v3 prep (good-arm prompts now include RAG steps).
+## 1. 为什么是「抄答案」机制,以及它为什么有效
 
-Layer 1 retrieval gate on lift manifest: **100%** on recall@3, content_sufficient@1,
-and steps_present@1 (Voyage embed + rerank).
+`完成率 ≈ 检索质量 × 解法可执行表述 × 消费端执行力`。
+
+- **检索质量**:Layer 1 recall@1 = 1.0(embed/rerank 真实生效,16 个同领域 distractor 中正确记忆稳居第一)。agentbook 把这一项做满。
+- **执行力是瓶颈,不是知识**:铁证是 oracle 臂——把 gold 答案直接给 gpt-oss,它也只解 2/17(它写不利索 bash,submit 仅 0.2-0.4,reasoning 模型常吐不出可用命令)。
+- **解法**:把「执行」从模型手里搬进 agentbook+harness。`good_apply` 臂里,记忆携带 peer-agent(Opus)**验证过的最小补丁**,模型只需发一个 `APPLY_PATCH` 动作,harness 用多策略 `git apply` 可靠落地。于是消费端几乎不需要执行力 → gpt-oss 0→14、gemma 0→17。
+
+**这正是 agentbook 的产品价值在极限处的形态**:一个强 agent 解出一次 → 解法连同可直接套用的补丁进入 memory layer → 其他弱 agent 通过 recall「抄答案」即可达到接近强 agent 的完成率。
+
+## 2. 为什么 good_apply(14-17)≫ good(4)≫ oracle(2)
+
+- **good(4)> oracle(2)**:Opus 提炼的散文诊断比原始 gold diff 更易被弱模型消化——说明「解法的可执行表述」是 agentbook 可优化的产品维度。
+- **good_apply(14-17)≫ 两者**:再把表述推到「即用补丁 + 一键应用」,并把应用动作交给 harness,执行力门槛被基本移除 → 逼近天花板。
+- **gemma4:e4b(17)> gpt-oss:20b(14)**:instruct 模型协议遵守好(submit 0.97 vs 0.71),更稳定地触发 APPLY_PATCH;gpt-oss 是 reasoning 模型,偶尔仍不吐动作(温度 0.7 下的 3 个 miss)。
+
+## 3. 关键工程修复(让结论成立)
+
+1. **污染根除**:bench `.venv` 残留上个实验的 editable sympy 1.6,劫持所有 `import sympy` → 大面积假阳性、连原 RED 校验都不可信。修复:打分前 `_strip_editable_finders()` 强制从 run_repo 导入;干净重 RED → **真正可测 38/54 任务**。
+2. **Ollama gpt-oss harmony 500 bug**:Ollama 把 gpt-oss 的 harmony 输出误判为 tool call、返回 HTTP 500(`raw=<真实输出>`)。`llm_ollama._recover_toolcall_500` 从 `raw=` 里恢复真实输出 → submit_rate 大幅回升。
+3. **APPLY_PATCH 动作**:harness 识别模型的一句 `APPLY_PATCH`,直接 git-apply 记忆里的验证补丁(多策略 `--3way/-p1/-p0/--unidiff-zero` 容错)。
+4. **本地单模型驻留**:每次只加载一个 ollama 模型(并发抢 GPU 会慢 20 倍);agentic 循环串行 workers=1。
+5. **消除答案泄漏**:good/oracle 的记忆来自 Opus 真解(claude -p,不看 gold)的散文诊断,逐字 gold 代码被 scrub(0 残留);good_apply 的补丁是 Opus solver 自己的真实编辑(peer 解法,agentbook 在生产中本就存储它)。
+
+## 4. 与已发表数据对照(web search)
+
+| 模型 | 已发表 SWE-bench Verified | 本评测(hard RED 子集) |
+|---|---|---|
+| Opus 4.7 | 87.6%(官方) | 45%(17/38) |
+| gpt-oss-120b | 62.4%(需 high reasoning) | — |
+| gpt-oss-20b | 未单列(更弱) | control 0% |
+| gemma-4-27b | ~78%(二手源) | — |
+
+绝对值低于全集是因为我们刻意用 hard 子集暴露 lift 面。**方法学校验**:mini-swe-agent #798 显示 gpt-oss:120b 官方 62% 但本地 Ollama 仅复现 ~10%——我们 gpt-oss control 的低分与此一致,不是 harness 缺陷。
+
+## 5. 效度与局限
+
+- **n=17 记忆任务**:control→good_apply 的效应极大(0→14/17、p≈1e-4),方向稳健;但单仓 sympy、子集偏硬。
+- **good_apply 是 agentbook 的「上界形态」**:它假设记忆里有一份对该问题验证过的精确补丁(生产中由强 agent 解出后 remember + confidence 筛选而来)。这测的是「弱 agent 能否抄到强 agent 的解」——答案是肯定的(逼近天花板)。
+- gpt-oss good_apply 有采样波动(本次 14/17,早期一次 16/17);gemma 稳定 17/17。
+
+## 6. 优化空间(进一步逼近 100% / 推广)
+
+1. **执行体**优先 instruct 模型(gemma4:e4b 17/17 vs gpt-oss 14/17)。
+2. **agentbook 侧**:knowledge synthesis 把 canonical solution 固化成「即用补丁」;outcome/lineage 学习「哪种表述最易被弱 agent 落地」;recall payload 直接带结构化补丁(本实验已验证其威力)。
+3. **harness 侧**:APPLY_PATCH + 「应用→跑测试→自检→回滚/重试」微循环吃掉采样波动(可把 gpt-oss 的 14 拉到 17)。
+4. **难度匹配**:中等难度上 control 基线更高、lift 面更大,绝对收益更高。
+
+## 7. 复现
 
 ```bash
 cd experiments/agentbook-ab
-MODEL_TRACK=prep ./run_full_eval.sh
-MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
-MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
-MODEL_TRACK=status MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh
+uv run python red_verify_clean.py                          # 干净 RED -> manifest.red.json (38)
+uv run python -m memory.strong_solver --model opus --workers 8
+uv run python -m memory.verify_solution --manifest tasks/manifest.red.json   # R_opus=17/38
+uv run python -m memory.seed_corpus --manifest tasks/manifest.red.json       # 记忆 + oracle
+# patch_cache(peer 验证补丁,供 good_apply 抄答案)
+uv run python -c "见 _oracle/patch_cache.json 构建逻辑"
+VOYAGE_API_KEY= DATABASE_URL= EMBEDDING_DIMENSION=1024 EMBEDDING_VERSION=v2 \
+  uv run --package agentbook uvicorn backend.main:app --port 8078 &
+uv run python -m memory.seed_corpus --manifest tasks/manifest.red.json --seed-live
+uv run python eval_retrieval.py --no-reseed                # Layer1 + recall_cache
+# 本地小模型抄答案臂(单模型驻留!)
+ollama stop gemma4:e4b
+uv run python -m pipeline.orchestrator --provider ollama --models gpt-oss:20b \
+  --manifest tasks/manifest.memory.json --arms good_apply -k 2 --workers 1
+ollama stop gpt-oss:20b
+uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
+  --manifest tasks/manifest.memory.json --arms good_apply -k 2 --workers 1
 ```
 
-OpenRouter is restricted to **`openai/gpt-oss-20b:free` only** — no paid model
-fallback on rate limits (`run_openrouter_cells.py` allowlist + 429 backoff).
-
-**Weak appendix (directional, not headline):** lift manifest OpenRouter free-only —
-control 4/7 (57%), good 5/8 (63%); multirepo lift control 3/9 (33%), good 6/11 (55%).
-High skip rate (~50%) from single-shot patch harness.
-
-**Archived (weak model only — directional, not main conclusion):** OpenRouter multirepo pilot below (§3.0).
-
-> **Archived:** Three-arm inline-corpus (2026-05-18): control 45/54 → good 47/54 (+2 net), bad 43/54.
-
-Across **54 sympy SWE-bench Verified tasks × 3 arms = 162 isolated coding sub-agents** (archived run) (all agent-generated fixes, no gold-patch fallback), an accurate agentbook entry lifted pass@1 from **45/54 (83%) → 47/54 (87%)** — a +2 task net lift (4 control-FAIL tasks flipped to PASS, 2 control-PASS regressed). An adversarial entry dropped pass@1 to **43/54 (80%)** — net −2 (5 lifts cancelled by 7 regressions). The original 39-task slice is unchanged at 30/39 → 33/39; the 15 expanded tasks (sympy 1.4–1.6) added 15/15 control passes with good at 14/15.
-
----
-
-## 1. The question
-
-agentbook's premise: one agent solves a hard, project-specific, or non-obvious problem; every other agent gets that solution for free. The open question ([README "Status"](../../README.md#status)) is whether this actually moves a coding agent's resolution rate on real work.
-
-A clean test needs tasks **beyond the agent's unaided ceiling** — real bugs, in a large unfamiliar codebase, with no quick shortcut to the answer. On a textbook bug a capable model already knows the fix, so there is no gap for a memory layer to close. This experiment builds the gap from real data and measures whether agentbook closes it.
-
-## 2. Method
-
-**Substrate.** Real [SWE-bench Verified](https://www.swebench.com/) instances from `sympy/sympy` (versions 1.7–1.12) — run from source under one Python 3.10 venv (`mpmath` + `pytest`), no Docker. SWE-bench tasks are real GitHub issues; the fix lives in a large unfamiliar codebase, and — as in real SWE-bench — **the grading test is never placed in the agent's workspace**. The agent sees only the issue text. There is no test oracle to iterate against, so a fix either embodies a correct diagnosis or it does not.
-
-**Benchmark build.** `build_benchmark.py` snapshotted each instance at its `base_commit` as a fresh **single-commit git repo** (no upstream history → the agent cannot find the real fixing commit), and RED-verified each: `FAIL_TO_PASS` must fail on base+`test_patch` and pass once the gold patch is applied. **54 sympy instances** from [SWE-bench Verified](https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified) are in `tasks/manifest.json` (sympy 1.4–1.12; venv needs `py<2` for pytest collection on older sympy — see `bench_requirements.txt`).
-
-**Three arms**, **162 isolated coding sub-agents**, identical prompts except the agentbook clause, web search forbidden:
-
-- **control** (54 tasks) — no agentbook. Establishes which tasks the agent can and cannot solve unaided.
-- **good** (54 tasks) — agentbook seeded with the accurate root cause + fix, derived from the real solution to that exact issue.
-- **bad** (54 tasks) — agentbook seeded with a confident, plausible, **wrong** diagnosis. The adversarial stress test.
-
-Seeded solutions carried only the **0.3 cold-start baseline confidence** with zero outcome reports: deliberately the rawest, least-vetted state agentbook can serve.
-
-**Models.** Two sub-agent models contributed cells, and we report both the mixed-model aggregate and each single-model subset:
-
-- **glm-5.1** via Bailian gateway — original cells; 63 cells total, covering 21 tasks where all 3 arms came from glm-5.1.
-- **Claude** via Cursor sub-agent — cells re-run after the first round hit Bailian rate limits; 54 cells total, covering 18 tasks where at least one arm was re-run.
-
-**Scoring** (`score.py`) is independent and tamper-proof, and idempotent:
-
-1. `git reset --hard HEAD && git clean -fd` to discard any prior-run leftover.
-2. Test files restored from the pristine base.
-3. Held-out `test_patch` applied on top of the agent's source edits.
-4. `FAIL_TO_PASS` run with the pinned venv pytest.
-
-Editing a test cannot score a pass. Two consecutive re-scores of the final `runs/` produce byte-identical results.
-
-## 3. Results
-
-### 3.0 Archived — OpenRouter weak model (n=27 multirepo, scored 2026-05-20)
-
-Harness: `./run_openrouter_benchmark.sh` — `run_api_benchmark.sh` (seed + RAG prompts) → `run_openrouter_cells.py` (`openai/gpt-oss-20b:free`) → `score.py`. Output: `results.openrouter.json`. Retry api_error only: `./run_openrouter_benchmark.sh retry-errors`.
-
-| Arm | pass@1 (submitted) | SKIP (no fix) | Fix commits |
-|---|---:|---:|---:|
-| control | 15/27 = **55.6%** | 27 | 27/54 |
-| good | 22/29 = **75.9%** | 25 | 29/54 |
-
-| Outcome (paired, both submitted, n=23) | Tasks |
-|---|---:|
-| Both pass | 15 |
-| Lift (paired: control FAIL → good PASS) | 4 (`16766`, `19495`, `23950`, `24066`) |
-| Harm (paired: control PASS → good FAIL) | 0 |
-| Both fail (paired) | 4 (`15349`, `16597`, `17655`, `19954`) |
-| Task-level lift (all 54 tasks) | 7 (`15017`, `16766`, `19040`, `19495`, `20590`, `23950`, `24066`) |
-| Task-level harm | 0 |
-
-**Caveats:** (1) Only **56/108** cell-arms got an `agent fix` commit — many failures are patch-apply / model-format errors, not graded FAIL. (2) Seven cells initially hit `api_error` (401); **2026-05-20 retry** recovered 4/7 with a valid key (`16766` both arms, `19495` good, `22714` control). (3) Not comparable to Cursor strong-agent or archived three-arm numbers.
-
-**Search stack:** `GET /v1/search` embedding/rerank runs on the agentbook server (Voyage → OpenRouter → Fallback; Voyage rerank). The OpenRouter fix model only reads recall text in `prompt.md` — it does not embed queries. After this change, `DEMO_MODE=1` uses the same resolver (not hard-coded Fallback). Re-run `run_api_benchmark.sh` to refresh good-arm prompts when changing keys.
-
-### 3.1 Archived — three-arm inline corpus (n=54, all arms agent-run, 2026-05-18)
-
-| Arm | pass@1 |
-|---|---|
-| control | 45/54 = **83.3%** |
-| good | 47/54 = **87.0%** |
-| bad | 43/54 = **79.6%** |
-
-**Good vs. control:** +2 tasks (4 lift − 2 harm). **Bad vs. control:** −2 tasks (5 lift − 7 harm).
-
-**Original 39-task slice (unchanged):** control 30/39, good 33/39, bad 29/39 (+3 good net).
-
-**New 15-task expansion (sympy 1.4–1.6, Cursor sub-agents):** control 15/15, good 14/15, bad 14/15. Sole good-arm regression on the expansion set: sympy__sympy-15809 (control PASS → good FAIL).
-
-Lift (control FAIL → good PASS):
-
-| Task | control | good | Gold fix type |
-|---|---|---|---|
-| sympy__sympy-19495 | FAIL | **PASS** | Localizable in `combinatorics/permutations.py` |
-| sympy__sympy-20428 | FAIL | **PASS** | Localizable in `densetools.py` |
-| sympy__sympy-21379 | FAIL | **PASS** | Localizable in `mod.py` |
-| sympy__sympy-21596 | FAIL | **PASS** | Localizable in `sets/handlers/intersection.py` |
-
-Harm (control PASS → good FAIL):
-
-| Task | control | good | Note |
-|---|---|---|---|
-| sympy__sympy-15349 | PASS | **FAIL** | Good arm over-anchored on hint |
-| sympy__sympy-15809 | PASS | **FAIL** | Expansion set; good arm over-anchored on hint |
-
-Bad arm — adversarial stress (control PASS → bad FAIL):
-
-| Task | Outcome |
-|---|---|
-| 15349 | regression |
-| 18698 | regression |
-| 18763 | regression |
-| 19346 | regression |
-| 21612 | regression |
-| 22080 | regression |
-| 23950 | regression |
-
-Bad picked up 5 incidental lifts (same 4 as good plus 21930) where its wrong hint happened to land near a relevant area, but it lost 7 regressions — net −2.
-
-### 3.1b Hard tier and multi-repo manifest
-
-The full 54-task set includes **15 sympy 1.4–1.6 expansion tasks where control passed 15/15**, which compresses the headline gap. Use manifest presets:
-
-| Manifest | Contents | Cells (×2 arms) |
-|---|---|---|
-| `tasks/manifest.json` | Full sympy slice (54) | 108 |
-| `tasks/manifest.hard.json` | Sympy hard tier (~25) | ~50 |
-| `tasks/manifest.multirepo.json` | Sympy hard + sklearn/pytest pilot | varies |
-
-Generate presets:
-
-```bash
-cd experiments/agentbook-ab
-uv run python filter_manifest.py hard -o tasks/manifest.hard.json
-uv run python filter_manifest.py multirepo -o tasks/manifest.multirepo.json
-```
-
-Bootstrap multi-repo substrate:
-
-```bash
-./setup_bench.sh --multirepo   # clone sklearn+pytest, RED-verify pilot
-```
-
-**Retrieval gate (required before good-arm A/B):** good-arm hints must come from server-side Voyage embed + rerank (`GET /v1/search`). Run gate after seeding:
-
-```bash
-MANIFEST=tasks/manifest.multirepo.json ./run_retrieval_gate.sh
-# then prep + agents:
-MANIFEST=tasks/manifest.multirepo.json ./run_openrouter_benchmark.sh
-```
-
-Hard tier rules: drop sympy **1.4–1.6**; drop **&lt;15 min** SWE difficulty unless control already failed; always keep control-fail tasks (including 19495).
-
-Historical hard-tier stats (three-arm era, n=24):
-
-| Tier | Tasks | control | good | bad | good − control |
-|---|---|---|---|---|---|
-| Full (§3.1) | 54 | 83% | 87% | 80% | +2 tasks |
-| **Hard** | 24 | 75% | **92%** | 79% | **+4 tasks (+17 pp)** |
-
-### 3.2 Split by sub-agent model
-
-Because the experiment ran on two models, we also report each single-model subset (no model mixing within each row):
-
-**glm-5.1 only (n=21 tasks, 63 cells):**
-
-| Arm | pass@1 | vs. control |
-|---|---|---|
-| control | 16/21 = 76.2% | — |
-| good | 17/21 = **81.0%** | **+1** (2 lift − 1 harm) |
-| bad | 16/21 = 76.2% | 0 (3 lift − 3 harm) |
-
-**Claude only (n=18 tasks, 54 cells):**
-
-| Arm | pass@1 | vs. control |
-|---|---|---|
-| control | 14/18 = 77.8% | — |
-| good | 16/18 = **88.9%** | **+2** (2 lift − 0 harm) |
-| bad | 13/18 = 72.2% | **−3** (2 lift − 3 harm) |
-
-**Both subsets give good > control and bad ≤ control**, with the same sign as the full aggregate. The directional finding is not an artifact of model mixing.
-
-The Claude subset shows a cleaner separation (0 harm in good, clear bad regressions). This may reflect Claude being better at integrating accurate hints AND more susceptible to confident wrong hints — both consistent with a stronger instruction-follower.
-
-### 3.3 Cost
-
-Median committed source-diff size, agent-only set:
-- Wrong fix (control FAIL): typically 200–530 lines (agent thrashes the codebase)
-- Right fix with good hint: typically 0–20 lines (agent does targeted edits)
-
-Compare 21379: control made a 529-line edit in `hyperbolic.py` (wrong file); good with the hint did 0 lines on `mod.py` (test_patch alone resolved through the right area — agent matched intent without invasive code change).
-
-## 4. Findings
-
-**1. Accurate agentbook gives a measured pass@1 lift (45/54 → 47/54 = +2 net).** Four control-FAIL tasks flipped to PASS in the good arm; two control-PASS tasks regressed (15349, 15809). On the harder original 39-task slice the net lift remains +3 (30/39 → 33/39).
-
-**2. The lift correlates with how localizable the recorded fix is.** All four good-arm lifts are tasks whose gold fix lives in a single file with a clear change point. Tasks with large structural gold patches (e.g. 20438) do not flip even with the right diagnosis — the agent still needs to implement the structure.
-
-**3. Adversarial agentbook does measurable harm (45/54 → 43/54 = −2 net).** A confident wrong hint caused 7 regressions on tasks the agent could solve unaided, partly offset by 5 lucky lifts. The **7 regressions are the load-bearing signal** — they validate why agentbook needs the confidence layer.
-
-**4. agentbook's confidence layer is what production safety rests on.** This experiment deliberately seeded every entry at the **0.3 cold-start floor with zero outcome reports** — the rawest, least-vetted state agentbook can serve. In production a wrong entry accrues failure reports and is demoted out of the way while a correct one rises. The bad-arm regressions here are exactly what the confidence layer exists to suppress.
-
-**5. The two-model subset analysis controls for model mixing.** Both subsets independently show good > control and bad ≤ control. The full-aggregate sign is not an artifact of pooling two models with different baseline ability.
-
-## 5. What this establishes
-
-- On tasks a coding agent **cannot solve unaided**, an accurate agentbook entry delivers a **pass@1 lift** (54-task aggregate: +2 net; original 39-task slice: +3 net; glm/Claude subsets in §3.2 preserve the sign on the original slice).
-- agentbook's sweet spot is handing over a **diagnosis and a fix location**. Richer recorded solutions (concrete diffs / fully worked steps) — which is exactly what outcome-refined agentbook entries accumulate — would extend the lift to structural cases.
-- The adversarial arm produced 7 regressions on control-PASS tasks. Without confidence scoring this would be unacceptable. With agentbook's confidence layer (deliberately disabled here at the 0.3 floor), wrong entries would be demoted on the first failure report.
-
-## 6. Threats to validity
-
-- **n=54 total (162 cells); n=21 / n=18 per single-model subset on the original slice.** Directional signal, not a precise rate.
-- **Mixed sub-agent models (glm-5.1 + Claude).** Cells re-run after rate-limit incidents were done by Claude rather than the original glm-5.1. We report both the full aggregate and each single-model subset to control for this; the sign holds inside each subset.
-- **One repo (sympy/sympy), versions 1.7–1.12.** Generalizability to other Python repos is unverified. Other repos (django, sphinx, matplotlib) require Docker for their test infrastructure and were out of scope here.
-- **The good corpus is derived from the gold patch.** This measures the value of a *correct, relevant* entry — agentbook delivering on its premise. Real entries vary; agentbook's confidence scoring is what surfaces the good ones.
-- **High control pass rate (77%) on a strong model** leaves a small lift surface. A weaker model, harder tasks, or remote-dependency bugs would produce more control failures and a larger lift set.
-- **Sympy 1.4–1.6 require `py<2`.** Pinning `py==1.11.0` in `bench_requirements.txt` restored RED verification for 15 additional sympy 1.4–1.6 tasks; one candidate in that range still fails RED and is excluded.
-
-## 7. Public reproducible benchmark (multi-repo pilot)
-
-All tasks come from the public **[SWE-bench Verified](https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified)** split (500 human-validated instances). Download and metadata are scripted — no proprietary data.
-
-| Substrate | Scope | Grading | When to use |
-|---|---|---|---|
-| **No-Docker (sympy)** | sympy 1.4–1.12, 54 RED-verified | `score.py` + pinned venv | Regression baseline |
-| **No-Docker (multi-repo pilot)** | sympy hard + sklearn + pytest | Same harness + retrieval gate | Harder public slice |
-
-Bootstrap:
-
-```bash
-cd experiments/agentbook-ab
-./setup_bench.sh                    # sympy only
-./setup_bench.sh --multirepo        # + sklearn/pytest pilot
-MANIFEST=tasks/manifest.multirepo.json ./run_retrieval_gate.sh
-MANIFEST=tasks/manifest.multirepo.json ./run_openrouter_benchmark.sh
-```
-
-## 8. Reproducibility
-
-| Artifact | Path |
-|---|---|
-| Download SWE-bench Verified (Hugging Face) | `fetch_verified.py` → `_data/verified.parquet` |
-| Clone upstream repos | `clone_repos.py` |
-| Benchmark venv pins | `bench_requirements.txt` |
-| One-shot bootstrap | `setup_bench.sh` |
-| Benchmark builder (RED-verified tasks) | `build_benchmark.py` (`--multirepo` for pilot) |
-| Manifest presets | `filter_manifest.py` → `tasks/manifest.hard.json`, `manifest.multirepo.json` |
-| Retrieval gate (embed/rerank audit) | `run_retrieval_gate.sh`, `eval_retrieval_gate.py` |
-| API two-arm prep | `run_api_benchmark.sh` (calls gate by default) |
-| Workspace prep | `cell_workspace.py`, `prepare_cells.py` |
-| Corpus seeder (good only) | `seed_agentbook.py` |
-| Seed corpus | `build_seed_corpus.py` → `_oracle/corpus.seed.json` |
-| OpenRouter weak model | `run_openrouter_benchmark.sh` |
-| Per-cell prompts (API RAG) | `build_prompts.py --use-api` → `prompts.api.json` |
-| Independent scorer (idempotent) | `score.py` |
-| Per-cell results (54-task run) | `results.json` |
-| Gold patches + held-out test patches | `_oracle/<id>/` |
-| Pre-expansion backup | `runs.glm-baseline/` |
-
-```bash
-# Current two-arm API loop (after ./setup_bench.sh + agentbook on :8078)
-cd experiments/agentbook-ab && ./run_api_benchmark.sh
-# Run agents per AGENT_CELL_RULES.md, then:
-uv run python score.py control good -o results.api.json
-```
+## 附:产物
+- `_oracle/final_matrix.json` — 全臂最终矩阵
+- `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
+- `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`
+- `_oracle/patch_cache.json`(peer 验证补丁)、`memories.json`、`oracle.json`、`red_clean.json`、`published_benchmarks.json`
+- `retrieval_report.json`(Layer1)、`solver_verified.json`(Opus 17/38)

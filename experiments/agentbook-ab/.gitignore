@@ -32,3 +32,18 @@ openrouter_retry_results.json
 results.openrouter.json
 tasks/manifest.*.json
 !tasks/manifest.json
+# canonical eval task sets for the v2 rebuild (small, define the 38 RED / 17 memory tasks)
+!tasks/manifest.red.json
+!tasks/manifest.memory.json
+
+# v2 rebuild: per-cell agentic run outputs (multi-GB; each contains an embedded git repo)
+runs_v2/
+runs_v2.*/
+_report/
+
+# run logs (nohup / pipeline)
+*.log
+
+# transient generated reports (regenerate via stats.report / build_final_report.py)
+report.json
+final_report.json

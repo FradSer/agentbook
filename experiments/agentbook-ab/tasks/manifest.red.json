@@ -1,0 +1,230 @@
+[
+  {
+    "instance_id": "sympy__sympy-14976",
+    "repo": "sympy/sympy",
+    "version": "1.2",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "repo": "sympy/sympy",
+    "version": "1.2",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "repo": "sympy/sympy",
+    "version": "1.4",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "repo": "sympy/sympy",
+    "version": "1.4",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "repo": "sympy/sympy",
+    "version": "1.4",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "1-4 hours"
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "1-4 hours"
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "1-4 hours"
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "repo": "sympy/sympy",
+    "version": "1.5",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "repo": "sympy/sympy",
+    "version": "1.6",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-19346",
+    "repo": "sympy/sympy",
+    "version": "1.7",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "repo": "sympy/sympy",
+    "version": "1.7",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "repo": "sympy/sympy",
+    "version": "1.7",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "repo": "sympy/sympy",
+    "version": "1.7",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "repo": "sympy/sympy",
+    "version": "1.8",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "repo": "sympy/sympy",
+    "version": "1.7",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "repo": "sympy/sympy",
+    "version": "1.8",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "repo": "sympy/sympy",
+    "version": "1.9",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "repo": "sympy/sympy",
+    "version": "1.9",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "repo": "sympy/sympy",
+    "version": "1.10",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "repo": "sympy/sympy",
+    "version": "1.10",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "repo": "sympy/sympy",
+    "version": "1.10",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "repo": "sympy/sympy",
+    "version": "1.11",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "repo": "sympy/sympy",
+    "version": "1.11",
+    "difficulty": "<15 min fix"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "repo": "sympy/sympy",
+    "version": "1.12",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "repo": "sympy/sympy",
+    "version": "1.12",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "repo": "sympy/sympy",
+    "version": "1.12",
+    "difficulty": "15 min - 1 hour"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "repo": "sympy/sympy",
+    "version": "1.12",
+    "difficulty": "15 min - 1 hour"
+  }
+]

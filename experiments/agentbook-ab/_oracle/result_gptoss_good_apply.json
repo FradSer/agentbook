@@ -1,0 +1,7 @@
+{
+  "model": "gpt-oss:20b",
+  "arm": "good_apply",
+  "tasks": 17,
+  "resolved": 16,
+  "submit_rate": 0.794
+}

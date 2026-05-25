@@ -1,0 +1,542 @@
+[
+  {
+    "instance_id": "sympy__sympy-19346",
+    "model": "opus",
+    "elapsed_s": 44.3,
+    "num_turns": 8,
+    "cost_usd": 0.37368874999999996,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-19346__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-14976",
+    "model": "opus",
+    "elapsed_s": 163.9,
+    "num_turns": 16,
+    "cost_usd": 1.072032,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-14976__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15809",
+    "model": "opus",
+    "elapsed_s": 61.1,
+    "num_turns": 11,
+    "cost_usd": 0.56663725,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15809__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15599",
+    "model": "opus",
+    "elapsed_s": 306.2,
+    "num_turns": 14,
+    "cost_usd": 1.8086517500000006,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15599__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-16597",
+    "model": "opus",
+    "elapsed_s": 78.4,
+    "num_turns": 8,
+    "cost_usd": 0.5449427499999999,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-16597__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-16450",
+    "model": "opus",
+    "elapsed_s": 44.9,
+    "num_turns": 9,
+    "cost_usd": 0.37672999999999995,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-16450__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-16886",
+    "model": "opus",
+    "elapsed_s": 21.9,
+    "num_turns": 5,
+    "cost_usd": 0.24391175000000004,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-16886__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-17139",
+    "model": "opus",
+    "elapsed_s": 90.7,
+    "num_turns": 8,
+    "cost_usd": 0.52486125,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-17139__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-16766",
+    "model": "opus",
+    "elapsed_s": 29.2,
+    "num_turns": 6,
+    "cost_usd": 0.27892350000000005,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-16766__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15976",
+    "model": "opus",
+    "elapsed_s": 90.0,
+    "num_turns": 12,
+    "cost_usd": 0.642279,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15976__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15345",
+    "model": "opus",
+    "elapsed_s": 351.6,
+    "num_turns": 18,
+    "cost_usd": 1.85332475,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15345__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15875",
+    "model": "opus",
+    "elapsed_s": 221.2,
+    "num_turns": 15,
+    "cost_usd": 1.2723985,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15875__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-16792",
+    "model": "opus",
+    "elapsed_s": 86.9,
+    "num_turns": 14,
+    "cost_usd": 0.65248025,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-16792__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-18199",
+    "model": "opus",
+    "elapsed_s": 100.5,
+    "num_turns": 13,
+    "cost_usd": 0.66315075,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-18199__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-17655",
+    "model": "opus",
+    "elapsed_s": 247.4,
+    "num_turns": 19,
+    "cost_usd": 1.3552615,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-17655__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15017",
+    "model": "opus",
+    "elapsed_s": 81.1,
+    "num_turns": 15,
+    "cost_usd": 0.6691085,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15017__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-17318",
+    "model": "opus",
+    "elapsed_s": 246.9,
+    "num_turns": 21,
+    "cost_usd": 1.05602325,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-17318__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-19040",
+    "model": "opus",
+    "elapsed_s": 182.4,
+    "num_turns": 20,
+    "cost_usd": 1.1045242499999999,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-19040__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-18211",
+    "model": "opus",
+    "elapsed_s": 82.3,
+    "num_turns": 15,
+    "cost_usd": 0.5810305,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-18211__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-17630",
+    "model": "opus",
+    "elapsed_s": 362.4,
+    "num_turns": 37,
+    "cost_usd": 2.37579775,
+    "is_error": true,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-17630__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-18189",
+    "model": "opus",
+    "elapsed_s": 58.6,
+    "num_turns": 8,
+    "cost_usd": 0.3830469999999999,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-18189__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-19495",
+    "model": "opus",
+    "elapsed_s": 158.7,
+    "num_turns": 10,
+    "cost_usd": 0.8683345,
+    "is_error": true,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-19495__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-19637",
+    "model": "opus",
+    "elapsed_s": 37.5,
+    "num_turns": 5,
+    "cost_usd": 0.294325,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-19637__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-18763",
+    "model": "opus",
+    "elapsed_s": 33.1,
+    "num_turns": 7,
+    "cost_usd": 0.31836175,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-18763__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-19783",
+    "model": "opus",
+    "elapsed_s": 119.0,
+    "num_turns": 12,
+    "cost_usd": 0.8408585000000002,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-19783__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-19954",
+    "model": "opus",
+    "elapsed_s": 77.9,
+    "num_turns": 10,
+    "cost_usd": 0.54645425,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-19954__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-20438",
+    "model": "opus",
+    "elapsed_s": 3.2,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-20438__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-20590",
+    "model": "opus",
+    "elapsed_s": 3.5,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-20590__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-20801",
+    "model": "opus",
+    "elapsed_s": 3.9,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-20801__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-20154",
+    "model": "opus",
+    "elapsed_s": 10.0,
+    "num_turns": 3,
+    "cost_usd": 0.15950324999999999,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-20154__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-20428",
+    "model": "opus",
+    "elapsed_s": 10.2,
+    "num_turns": 3,
+    "cost_usd": 0.10786525,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-20428__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-20916",
+    "model": "opus",
+    "elapsed_s": 4.0,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-20916__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-21847",
+    "model": "opus",
+    "elapsed_s": 4.4,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-21847__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-21379",
+    "model": "opus",
+    "elapsed_s": 3.3,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-21379__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-21596",
+    "model": "opus",
+    "elapsed_s": 5.1,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-21596__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-21612",
+    "model": "opus",
+    "elapsed_s": 4.4,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-21612__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-21930",
+    "model": "opus",
+    "elapsed_s": 4.0,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-21930__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-22080",
+    "model": "opus",
+    "elapsed_s": 3.0,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-22080__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-22456",
+    "model": "opus",
+    "elapsed_s": 4.1,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-22456__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-22714",
+    "model": "opus",
+    "elapsed_s": 3.3,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-22714__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-22914",
+    "model": "opus",
+    "elapsed_s": 3.6,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-22914__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-23413",
+    "model": "opus",
+    "elapsed_s": 4.3,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-23413__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-23262",
+    "model": "opus",
+    "elapsed_s": 3.9,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-23262__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-23534",
+    "model": "opus",
+    "elapsed_s": 4.4,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-23534__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-23824",
+    "model": "opus",
+    "elapsed_s": 4.0,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-23824__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-23950",
+    "model": "opus",
+    "elapsed_s": 4.2,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-23950__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-24066",
+    "model": "opus",
+    "elapsed_s": 3.0,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-24066__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-24443",
+    "model": "opus",
+    "elapsed_s": 3.0,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-24443__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-24213",
+    "model": "opus",
+    "elapsed_s": 2.9,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-24213__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-24539",
+    "model": "opus",
+    "elapsed_s": 3.1,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-24539__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-24661",
+    "model": "opus",
+    "elapsed_s": 4.3,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-24661__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-24562",
+    "model": "opus",
+    "elapsed_s": 3.7,
+    "num_turns": 1,
+    "cost_usd": 0,
+    "is_error": true,
+    "submitted": false,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-24562__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-18698",
+    "model": "opus",
+    "elapsed_s": 244.8,
+    "num_turns": 36,
+    "cost_usd": 1.6942162500000002,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-18698__solver/solution.md"
+  },
+  {
+    "instance_id": "sympy__sympy-15349",
+    "model": "opus",
+    "elapsed_s": 37.9,
+    "num_turns": 5,
+    "cost_usd": 0.38406725,
+    "is_error": false,
+    "submitted": true,
+    "solution_path": "/var/folders/vn/whfnt01d4b19zg44txbtznbc0000gn/T/agentbook-ab-solver/sympy__sympy-15349__solver/solution.md"
+  }
+]

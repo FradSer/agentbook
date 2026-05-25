@@ -1,0 +1,16 @@
+{
+  "provider": "openrouter",
+  "model": "openai/gpt-oss-20b:free",
+  "tasks_memory": 17,
+  "k": 2,
+  "control_resolved": 0,
+  "good_resolved": 3,
+  "oracle_resolved": 0,
+  "lifted_tasks": [
+    "sympy__sympy-15809",
+    "sympy__sympy-17318",
+    "sympy__sympy-18189"
+  ],
+  "submit_rate": 0.141,
+  "note": "gpt-oss-20b:free is a poor agentic-protocol follower (submit~0.14); oracle 0 shows it cannot apply even the gold hint."
+}

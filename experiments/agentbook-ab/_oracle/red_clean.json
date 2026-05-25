@@ -1,0 +1,326 @@
+{
+  "sympy__sympy-15017": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-14976": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-15349": {
+    "base_pass": false,
+    "gold_pass": false,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-15345": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-15809": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-15976": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-15875": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-15599": {
+    "base_pass": false,
+    "gold_pass": false,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-16450": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-16597": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-16766": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-16792": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-16886": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-17318": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-17630": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-17139": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-18189": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-18211": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-17655": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-19346": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-18199": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-19040": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-18763": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-18698": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-19495": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-20154": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-19637": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-19954": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-19783": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-20438": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-20590": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-20801": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-20916": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-21612": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-21847": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-21379": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-21596": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-21930": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-20428": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-22456": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-22714": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-22080": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-22914": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-23262": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-23413": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-23534": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-23824": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-23950": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-24066": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-24443": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-24213": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-24661": {
+    "base_pass": false,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": true
+  },
+  "sympy__sympy-24539": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  },
+  "sympy__sympy-24562": {
+    "base_pass": true,
+    "gold_pass": true,
+    "gold_apply_rc": 0,
+    "red": false
+  }
+}
