@@ -203,6 +203,42 @@ def build_prompt(
         )
         return base + "\n\n" + block, meta
 
+    if arm == "good_multi_loop":
+        # Multi-representation + multi-repro: BOTH the prose recall (good) AND
+        # the synthesized structured analysis (good_synth) are injected, plus
+        # the harness-owned verify->retry->rollback loop. Knowledge stays
+        # general; only the PRESENTATION is doubled, to harvest the
+        # complementarity v1∪v2 = 9-10/17 showed (different representations
+        # cover different failure modes). Knowledge is identical to what good
+        # and good_synth carry individually -- no new information.
+        entry = _synth_entry(iid)
+        cached = _recall_entry(iid)
+        if not entry or not cached:
+            return base, {"hint": "good_multi_loop", "cache_miss": True}
+        cues = "\n".join(f"- {c}" for c in entry.get("localization_cues") or [])
+        block = (
+            "## agentbook memory (TWO complementary views of the same fix)\n\n"
+            "Another agent solved this problem. Two views are offered below -- "
+            "they describe the SAME fix from different angles, so use whichever "
+            "view is more actionable at each step (locate from the cues, then "
+            "use the prose detail to land the edit, etc.). There is no "
+            "ready-made patch; derive the minimal edit yourself, apply it with "
+            "a ```diff or SEARCH/REPLACE block, and the verification loop will "
+            "tell you which sites still need work before you finish.\n\n"
+            "### View 1 -- Prose recall (concrete narrative + steps)\n"
+            f"{cached['recall']}\n\n"
+            "### View 2 -- Synthesized analysis (pattern + cues + verification)\n"
+            f"Root-cause pattern: {entry['root_cause_pattern']}\n\n"
+            f"Where to look:\n{cues}\n\n"
+            f"How to verify your fix: {entry['verification_method']}"
+        )
+        return base + "\n\n" + block, {
+            "hint": "good_multi_loop",
+            "synth": True,
+            "leak_lines_removed": entry.get("leak_lines_removed"),
+            "verification": {"repros": entry.get("verifications") or []},
+        }
+
     if arm in ("good_synth", "good_loop"):
         # The agentbook value chain: the autoresearcher synthesized prior fixes of
         # this bug class into transferable knowledge (pattern + cues + check), NOT

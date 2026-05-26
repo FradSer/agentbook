@@ -151,6 +151,31 @@ def test_good_loop_arm_carries_repros():
     assert "--- a/" not in prompt
 
 
+def test_good_multi_loop_arm_carries_both_views():
+    import json
+
+    from pipeline.arm_context import RECALL_CACHE, SYNTH_CACHE, build_prompt
+
+    if not (SYNTH_CACHE.exists() and RECALL_CACHE.exists()):
+        return
+    synth = json.loads(SYNTH_CACHE.read_text())
+    recall = json.loads(RECALL_CACHE.read_text())
+    iid = next(
+        (i for i in synth if i in recall and synth[i].get("verifications")), None
+    )
+    if iid is None:
+        return
+    prompt, meta = build_prompt(iid, "good_multi_loop")
+    assert meta["hint"] == "good_multi_loop"
+    assert meta["verification"]["repros"]
+    # both views present, knowledge unchanged (no patch leaked)
+    assert "View 1 -- Prose recall" in prompt
+    assert "View 2 -- Synthesized analysis" in prompt
+    assert "Root-cause pattern" in prompt
+    assert "--- a/" not in prompt
+    assert "APPLY_PATCH" not in prompt
+
+
 def test_run_verifications_all_must_pass(tmp_path):
     import subprocess
 
