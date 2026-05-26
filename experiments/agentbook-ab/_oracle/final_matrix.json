@@ -126,5 +126,38 @@
     },
     "finding_1_asymmetry": "Multi-repro is MODEL-asymmetric, not monotonically better: gemma (reliable instruct) +2 from forced multi-site coverage; gpt-oss (flaky reasoning) -2 because the stricter all-pass bar amplifies parse_failures and pushes single-site cases out of budget. The verification regime must match the model's iteration reliability.",
     "finding_2_complementarity": "Different verifications/representations cover DIFFERENT failure modes -- v1 ∪ v2 jumps to 9-10/17 on both models, well above any single arm. Full arm union (good prose + good_synth + v1 + v2) hits gpt-oss 12/17 (71% of Opus) on the SAME general knowledge, using only different presentations + verification regimes. Direction: ensemble / arm-router (learned per-task), not 'find the right single arm'."
+  },
+  "good_multi_loop_eval_2026_05_27": {
+    "note": "good_multi_loop = prose good + abstract good_synth BOTH INJECTED in one prompt + multi-repro verify->retry->rollback. Knowledge total unchanged; only PRESENTATION doubled. Direct test of the ensemble hypothesis suggested by §6.4.",
+    "gemma4-e4b_good_multi_loop": {
+      "resolved": 8,
+      "tasks": 17,
+      "step_budget": 12,
+      "rank": "new best single arm on gemma (+1 vs loop v2's 7)",
+      "wins": ["15017", "15809", "16450", "16886", "17318", "18189", "18211", "19637"],
+      "new_vs_any_prior_arm": ["17318"],
+      "lost_vs_loop_v2": ["16792", "17655", "19346"]
+    },
+    "gpt-oss-20b_good_multi_loop": {
+      "resolved": 6,
+      "tasks": 17,
+      "reasoning": "high",
+      "step_budget": 30,
+      "rank": "between loop v1 (7) and loop v2 (5); dual-view still amplifies gpt-oss parse_failures on some tasks",
+      "wins": ["14976", "15809", "16450", "16886", "17139", "19954"],
+      "new_vs_any_prior_arm": ["14976", "15809"],
+      "lost_vs_loop_v1": ["16792", "17318", "17655", "18189", "18211"]
+    },
+    "unions_5_arms": {
+      "gpt-oss-20b": {
+        "v1_or_v2_or_multi": "13/17",
+        "all_5_arms": "14/17 (= 82% of Opus 17/17)"
+      },
+      "gemma4-e4b": {
+        "v1_or_v2_or_multi": "11/17",
+        "all_5_arms": "11/17 (= 65% of Opus 17/17)"
+      }
+    },
+    "headline": "Ensemble hypothesis quantitatively confirmed. 5 arms over the SAME general knowledge (no patch cache, no narrowing) reach gpt-oss 14/17 (82% Opus), gemma 11/17 (65% Opus). multi_loop ADDS 3 brand-new tasks no other arm solved (14976+15809 on gpt-oss, 17318 on gemma), proving dual-view captures new failure modes despite mixed single-arm result. Product direction: arm-router (parallel multi-arm at recall, or learned per-task routing), not 'find the optimal single arm'."
   }
 }

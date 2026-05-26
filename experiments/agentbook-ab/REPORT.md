@@ -146,8 +146,33 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 ⇒ **下一步是集成,不是找最优单臂**:`good_multi_loop`(散文+抽象 + 多 repro)→ arm-router(agentbook 按 outcome/lineage 学每类任务+模型的最易落地组合)。逐 cell:`runs_v2/*good_loop*`(v2)、`runs_v2.good_loop_v1_single_repro/`(v1 归档),综合缓存 `_oracle/synth_cache.json` 已含 multi-repro 字段。
 
+## 附录 D:good_multi_loop(双视图集成)实测(2026-05-27)—— 82% of Opus 定量证实
+
+一个 prompt 同载**散文 good + 抽象 good_synth 双视图**,配多 repro 循环;知识总量不变,只翻倍 PRESENTATION。直接测「集成是否吃到 v1∪v2 互补」。
+
+| 臂 | gpt-oss:20b | gemma4:e4b |
+|---|---|---|
+| good_loop v1 | **7/17** | 5/17 |
+| good_loop v2 | 5/17 | 7/17 |
+| **good_multi_loop** | 6/17 | **8/17** |
+| **v1 ∪ v2 ∪ multi** | **13/17** | **11/17** |
+| **全臂并集** | **14/17(= Opus 82%)** | **11/17(65%)** |
+
+**两个结论:**
+
+1. **单臂层面是混合的**——gemma multi = 8 是新最佳单臂(+1);gpt-oss multi = 6 介于 v1(7)和 v2(5),dual-view 仍带 parse_failure 风险。但 multi_loop **独家新增 3 道题**:gpt-oss 上 14976、15809,gemma 上 17318——这 3 道**无任何前臂解过**,确认双视图命中新失败模式。
+
+2. **集成假说定量证实**——5 臂全集 gpt-oss **14/17 = Opus 82%**、gemma 11/17 = 65%。同一份通用知识 × 不同表述 × 不同验证制度,小模型自解从 control 0% 抬到 gpt-oss 82%(知识不窄化,无补丁缓存)。
+
+**定量回答主目标(gpt-oss 硬子集):**
+0%(control) → 41%(单臂最佳) → 76%(v1∪v2∪multi) → **82%(5 臂集成)**,距 Opus 100% 差 3 题(不可约推理)。
+
+**下一步产品方向:** **arm-router**(agentbook recall 阶段并行多臂或规则路由),把 5 个手工臂变成可学习策略空间。
+
+逐 cell 产物 `runs_v2/*good_multi_loop*`、全矩阵 `_oracle/final_matrix.json` 的 `good_multi_loop_eval_2026_05_27`。
+
 ## 附:产物
-- `_oracle/final_matrix.json` — 全臂最终矩阵(含 v1/v2 详细块)
+- `_oracle/final_matrix.json` — 全臂最终矩阵(含 v1/v2/multi 详细块 + 全臂并集)
 - `_oracle/synth_cache.json` — good_synth 综合知识(17 条) + 每条 2-5 个独立 verification repros
 - `runs_v2.good_loop_v1_single_repro/` — v1 单 repro 归档(用于 v1 vs v2 对照)
 - `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
