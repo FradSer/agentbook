@@ -131,7 +131,7 @@ def test_run_verification_dual_condition(tmp_path):
     assert not ok
 
 
-def test_good_loop_arm_carries_verification():
+def test_good_loop_arm_carries_repros():
     import json
 
     from pipeline.arm_context import SYNTH_CACHE, build_prompt
@@ -139,12 +139,66 @@ def test_good_loop_arm_carries_verification():
     if not SYNTH_CACHE.exists():
         return
     cache = json.loads(SYNTH_CACHE.read_text())
-    iid = next((i for i, e in cache.items() if e.get("verification_feasible")), None)
+    iid = next((i for i, e in cache.items() if e.get("verifications")), None)
     if iid is None:
         return
     prompt, meta = build_prompt(iid, "good_loop")
     assert meta["hint"] == "good_loop"
-    assert meta["verification"]["command"]
+    assert meta["verification"]["repros"]
+    assert all(r.get("command") for r in meta["verification"]["repros"])
     # same knowledge block as good_synth (no patch)
     assert "Root-cause pattern" in prompt
     assert "--- a/" not in prompt
+
+
+def test_run_verifications_all_must_pass(tmp_path):
+    import subprocess
+
+    from harness.sandbox import run_verifications
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, capture_output=True)
+    # Two repros, both pass -> overall PASS
+    ok, _ = run_verifications(
+        tmp_path,
+        [
+            {
+                "label": "a",
+                "command": "echo right",
+                "expected": "right",
+                "buggy": "WRONG",
+            },
+            {"label": "b", "command": "echo ok 1 1", "expected": "1 1", "buggy": None},
+        ],
+    )
+    assert ok
+    # One repro fails -> overall FAIL (multi-site detection)
+    ok, _ = run_verifications(
+        tmp_path,
+        [
+            {"label": "a", "command": "echo right", "expected": "right", "buggy": None},
+            {
+                "label": "b-missing-site",
+                "command": "echo 0 1",
+                "expected": "1 1",
+                "buggy": None,
+            },
+        ],
+    )
+    assert not ok
+
+
+def test_run_verification_accepts_alternative_expected(tmp_path):
+    import subprocess
+
+    from harness.sandbox import run_verification
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, capture_output=True)
+    # any-of alternatives: command output matches one of them
+    ok, _ = run_verification(
+        tmp_path, "echo IS_OO: True", ["RESULT: oo", "IS_OO: True"], None
+    )
+    assert ok
+    ok, _ = run_verification(
+        tmp_path, "echo nothing", ["RESULT: oo", "IS_OO: True"], None
+    )
+    assert not ok

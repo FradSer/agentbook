@@ -233,11 +233,10 @@ def build_prompt(
             "leak_lines_removed": entry.get("leak_lines_removed"),
         }
         if arm == "good_loop":
-            meta["verification"] = {
-                "command": entry.get("verification_command"),
-                "expected": entry.get("verification_expected"),
-                "buggy": entry.get("verification_buggy"),
-            }
+            # Multi-repro: one per localization cue / site, so the harness can
+            # require ALL to pass and force the model to cover every fix site
+            # (not just the one a single repro exercised).
+            meta["verification"] = {"repros": entry.get("verifications") or []}
         return base + "\n\n" + block, meta
 
     if arm == "oracle":

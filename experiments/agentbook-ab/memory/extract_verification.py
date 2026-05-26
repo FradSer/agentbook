@@ -55,29 +55,37 @@ _PROVIDER_ENV = (
     "ANTHROPIC_DEFAULT_OPUS_MODEL",
 )
 
-EXTRACT_PROMPT = """Convert this bug-fix verification note into a machine-runnable \
-check. The note describes a shell command and how its output differs before vs \
-after the fix.
+EXTRACT_PROMPT = """Convert this bug-fix verification note into MULTIPLE \
+independent runnable repros, so a harness loop can require ALL to pass and \
+detect multi-site fixes (a single repro often under-specifies when the bug \
+spans several constructors / classes / branches).
 
-NOTE: {verification_method}
+Verification note: {verification_method}
+Root-cause pattern: {root_cause_pattern}
+Localization cues (each line may indicate a DIFFERENT site the fix must cover):
+{cues}
 
-Output a JSON object inside one ```json fenced block with exactly:
-- "verification_command": ONE shell command (usually `python -c "..."`) runnable \
-from a Python repo root that exercises the behaviour. No shell pipelines, no \
-&&; a single command. Prefer the command quoted in the note verbatim.
-- "verification_expected": a short substring that appears in the command's \
-combined stdout+stderr ONLY AFTER a correct fix (the PASS marker). Keep it tight \
-and literal (e.g. "1 1", "True", "oo -oo", "p[0]").
-- "verification_buggy": a short substring present while the bug is UNFIXED \
-(e.g. the wrong value, or an exception name like "UnboundLocalError"). Used to \
-confirm the check discriminates.
+Output a single JSON object inside one ```json fenced block with:
+- "verifications": a LIST of 1-5 repro entries. Each entry has:
+    - "label"   : one-line description of which site/case this exercises.
+    - "command" : ONE shell command (usually `python -c "..."`) runnable at \
+the repo root. No shell pipelines, no &&; a single command.
+    - "expected": a substring OR a list of alternative substrings; PASS \
+requires ANY one to appear in stdout+stderr after the fix. Keep literal and \
+tight (e.g. "1 1", ["True","true"], "oo -oo").
+    - "buggy"   : a substring that must be ABSENT after the fix (e.g. an \
+exception name, a wrong value). Use null if there's no clean negative marker.
 
 Rules:
-- The command must be self-contained from the bug report; never reference a test \
-file or a hidden grading test.
-- If the behaviour cannot be reduced to a clean substring check (e.g. it needs \
-multi-line structural diffing), set all three fields to null.
-- Output ONLY the JSON object. No prose, no diff."""
+- If the root cause spans MULTIPLE distinct sites (e.g. dense + sparse + \
+mutable + immutable constructors, or print path A + print path B), produce ONE \
+repro PER site so each is independently exercised. The list's length should \
+match the number of distinct sites the fix must touch.
+- If the fix is genuinely single-site, 1-2 angles is fine (different inputs).
+- Each repro must be SELF-CONTAINED from the bug report; never reference a \
+hidden grading test or any file under tests/.
+- No code fences inside the JSON, no diffs.
+- If no clean substring check is feasible at all, return {{"verifications": []}}."""
 
 _JSON_RE = re.compile(r"```json\s*\n(.*?)```", re.DOTALL)
 
@@ -105,9 +113,28 @@ def _clean(text: str | None, gold: set[str]) -> tuple[str | None, int]:
     return (c.strip() or None), r
 
 
+def _clean_expected(value, gold: set[str]) -> tuple[object, int]:
+    """`expected` may be a string OR a list of alternative substrings (any-of)."""
+    if isinstance(value, list):
+        cleaned: list[str] = []
+        removed = 0
+        for v in value:
+            c, r = _clean(str(v) if v is not None else None, gold)
+            removed += r
+            if c:
+                cleaned.append(c)
+        if not cleaned:
+            return None, removed
+        return (cleaned[0] if len(cleaned) == 1 else cleaned), removed
+    return _clean(value, gold)
+
+
 def extract_one(iid: str, entry: dict, *, model: str, timeout: int) -> dict:
+    cues = "\n".join(f"- {c}" for c in entry.get("localization_cues") or [])
     prompt = EXTRACT_PROMPT.format(
-        verification_method=entry.get("verification_method", "")
+        verification_method=entry.get("verification_method", ""),
+        root_cause_pattern=entry.get("root_cause_pattern", ""),
+        cues=cues or "(none)",
     )
     cmd = [
         str(CLAUDE_BIN),
@@ -134,15 +161,42 @@ def extract_one(iid: str, entry: dict, *, model: str, timeout: int) -> dict:
     raw = _extract_json(payload.get("result") or "")
 
     gold = gold_added_lines(iid)
-    command, r1 = _clean(raw.get("verification_command"), gold)
-    expected, r2 = _clean(raw.get("verification_expected"), gold)
-    buggy, r3 = _clean(raw.get("verification_buggy"), gold)
+    raw_list = (
+        raw.get("verifications") if isinstance(raw.get("verifications"), list) else []
+    )
+    verifications: list[dict] = []
+    leak_removed = 0
+    for v in raw_list:
+        if not isinstance(v, dict):
+            continue
+        cmd_clean, r1 = _clean(v.get("command"), gold)
+        exp_clean, r2 = _clean_expected(v.get("expected"), gold)
+        # Opus occasionally returns `buggy` as a list of alt markers too; reuse
+        # the any-of cleaner and collapse a one-element list back to a string.
+        bug_clean, r3 = _clean_expected(v.get("buggy"), gold)
+        leak_removed += r1 + r2 + r3
+        if not cmd_clean or not exp_clean:
+            continue
+        verifications.append(
+            {
+                "label": _clean(v.get("label"), gold)[0] or "",
+                "command": cmd_clean,
+                "expected": exp_clean,
+                "buggy": bug_clean,
+            }
+        )
+
     out = dict(entry)
-    out["verification_command"] = command
-    out["verification_expected"] = expected
-    out["verification_buggy"] = buggy
-    out["verification_feasible"] = bool(command and expected)
-    out["verification_leak_removed"] = r1 + r2 + r3
+    out["verifications"] = verifications
+    # Backwards-compat single fields: populate from the first repro so any
+    # caller that reads the flat keys still works during the transition.
+    first = verifications[0] if verifications else {}
+    fexp = first.get("expected")
+    out["verification_command"] = first.get("command")
+    out["verification_expected"] = fexp[0] if isinstance(fexp, list) and fexp else fexp
+    out["verification_buggy"] = first.get("buggy")
+    out["verification_feasible"] = bool(verifications)
+    out["verification_leak_removed"] = leak_removed
     return out
 
 

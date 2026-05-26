@@ -20,7 +20,7 @@ from harness.sandbox import (
     git_checkpoint,
     git_reset_to,
     run_bash,
-    run_verification,
+    run_verifications,
 )
 from harness.transcript import Episode, Turn
 
@@ -62,24 +62,20 @@ def run_episode(
     episode = Episode()
     consecutive_parse_failures = 0
 
-    # good_loop: harness-owned apply->verify->retry. `verification` carries the
-    # public repro {command, expected, buggy}; the harness runs it after every
-    # edit, gates `done` on a pass, and rolls back to the last passing edit. The
-    # knowledge stays general (good_synth) -- only the execution CONDITION changes.
+    # good_loop: harness-owned apply->verify->retry. `verification.repros` is a
+    # LIST of public repros (one per site for multi-site bugs); the harness runs
+    # ALL after every edit, gates `done` on all-pass, and rolls back to the last
+    # all-passing edit. Knowledge stays general -- only the execution CONDITION
+    # changes. Multi-repro forces the model to cover all sites, not just one.
     vstate = {"passed": False, "pass_commit": None, "rejected_done": 0}
-    vcmd = (verification or {}).get("command")
+    repros = (verification or {}).get("repros") or []
 
     def _edit_feedback(ok: bool, ok_msg: str, fail_msg: str) -> str:
         """Default edit observation, augmented with a verification verdict when
         good_loop is active. Updates vstate (pass flag + rollback checkpoint)."""
-        if not ok or not vcmd:
+        if not ok or not repros:
             return ok_msg if ok else fail_msg
-        passed, out = run_verification(
-            repo,
-            vcmd,
-            verification.get("expected"),
-            verification.get("buggy"),
-        )
+        passed, out = run_verifications(repo, repros)
         episode.turns.append(
             Turn(
                 turn=turn,
@@ -96,27 +92,27 @@ def run_episode(
                 git_checkpoint(repo, "loop-pass") or vstate["pass_commit"]
             )
             return (
-                "edit applied and the verification check now PASSES:\n"
+                f"edit applied and ALL {len(repros)} verification repros now PASS:\n"
                 f"{out}\nIf the fix is complete, reply ```bash\\necho AGENT_DONE\\n```."
             )
         return (
-            "edit applied but the verification check still FAILS:\n"
-            f"{out}\nExpected to see {verification.get('expected')!r}. Inspect the "
-            "site again and refine the fix; do not finish yet."
+            f"edit applied but the verification suite ({len(repros)} repros) is "
+            f"not all passing:\n{out}\nA FAIL above means that site/case is still "
+            "broken -- inspect it and extend the fix. Do not finish yet."
         )
 
-    if vcmd:
-        passed, out = run_verification(
-            repo, vcmd, verification.get("expected"), verification.get("buggy")
-        )
+    if repros:
+        passed, out = run_verifications(repo, repros)
         vstate["passed"] = passed
         messages.append(
             {
                 "role": "user",
                 "content": (
-                    "Before you start, here is the current output of the "
-                    f"verification check (it should fail now):\n{out}\nFix the bug so "
-                    "this check passes, then finish."
+                    f"Before you start, here is the current state of the "
+                    f"verification suite ({len(repros)} independent repros, all "
+                    f"should fail until the fix is complete):\n{out}\nFix the bug "
+                    "so ALL repros pass, then finish. A FAIL means that site/case "
+                    "is still broken."
                 ),
             }
         )
@@ -237,7 +233,7 @@ def run_episode(
             # done-gate: in good_loop, refuse to finish while the verification
             # check still fails (up to 3 nudges), so the budget is spent retrying
             # rather than declaring a broken fix complete.
-            if vcmd and not vstate["passed"] and vstate["rejected_done"] < 3:
+            if repros and not vstate["passed"] and vstate["rejected_done"] < 3:
                 vstate["rejected_done"] += 1
                 messages.append(
                     {
@@ -274,12 +270,12 @@ def run_episode(
 
     # rollback: if good_loop ends in a failing state but a prior edit passed the
     # check, restore that last-passing tree so the model's best attempt is graded.
-    if vcmd and not vstate["passed"] and vstate["pass_commit"]:
+    if repros and not vstate["passed"] and vstate["pass_commit"]:
         git_reset_to(repo, vstate["pass_commit"])
         episode.notes.append(
             f"rolled back to passing checkpoint {vstate['pass_commit']}"
         )
-    episode.verification_passed = vstate["passed"] if vcmd else None
+    episode.verification_passed = vstate["passed"] if repros else None
 
     if not episode.turns_used:
         episode.turns_used = len(episode.turns)

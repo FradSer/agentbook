@@ -127,9 +127,29 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 **诚实边界:** 公开 repro 必要非充分——gemma repro 过 9 但 resolved 5(欠定→过拟合);gpt-oss resolved 7 但子串检查只判过 5(假阴)。天花板受不可约的多点定位/诊断限制(5-7 ≪ Opus 17)。逐 cell 产物 `runs_v2/*good_loop*`、验证字段在 `_oracle/synth_cache.json`。
 
+## 附录 C:good_loop v2 多 repro(2026-05-26 夜)—— 不对称 + 互补
+
+把 §B 的单 repro 升级为**按 cues 派生 2-5 独立 repro**(17 → 68 repro)、`run_verifications` 全过才算通过、期望支持「任一备选命中」。**知识不变**。
+
+| 臂 | gpt-oss:20b | gemma4:e4b |
+|---|---|---|
+| good_loop v1(单 repro) | **7/17** | 5/17 |
+| good_loop v2(多 repro) | 5/17 | **7/17** |
+| **good_loop v1 ∪ v2** | **10/17** | **9/17** |
+| 全臂并集(good ∪ synth ∪ v1 ∪ v2) | **12/17** | **10/17** |
+
+**两条发现:**
+
+1. **多 repro 的效应与模型不对称**——gemma(instruct)+2、gpt-oss(flaky reasoning)-2。stricter all-pass 在可靠模型上强制多点覆盖(15017 4 个构造点全修),在不稳定模型上放大 parse_failures、丢掉单点 case。「更强验证」不单调更好。
+
+2. **不同验证/表述命中不同失败模式,互补极强**——v1 ∪ v2 跳到 9-10/17,全臂并集 **gpt-oss 12/17 = Opus 71%**。同一份通用知识 × 不同表述 × 不同验证 ≈ 准确逼近的真正路径。
+
+⇒ **下一步是集成,不是找最优单臂**:`good_multi_loop`(散文+抽象 + 多 repro)→ arm-router(agentbook 按 outcome/lineage 学每类任务+模型的最易落地组合)。逐 cell:`runs_v2/*good_loop*`(v2)、`runs_v2.good_loop_v1_single_repro/`(v1 归档),综合缓存 `_oracle/synth_cache.json` 已含 multi-repro 字段。
+
 ## 附:产物
-- `_oracle/final_matrix.json` — 全臂最终矩阵(含 `good_synth_eval_2026_05_26`、`good_loop_eval_2026_05_26`)
-- `_oracle/synth_cache.json` — good_synth 综合知识缓存(17 条) + good_loop 验证字段
+- `_oracle/final_matrix.json` — 全臂最终矩阵(含 v1/v2 详细块)
+- `_oracle/synth_cache.json` — good_synth 综合知识(17 条) + 每条 2-5 个独立 verification repros
+- `runs_v2.good_loop_v1_single_repro/` — v1 单 repro 归档(用于 v1 vs v2 对照)
 - `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
 - `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`
 - `_oracle/patch_cache.json`(peer 验证补丁)、`memories.json`、`oracle.json`、`red_clean.json`、`published_benchmarks.json`

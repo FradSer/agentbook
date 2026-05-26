@@ -97,5 +97,34 @@
     },
     "lift_over_good_synth": { "gpt-oss-20b": "+3 (4->7)", "gemma4-e4b": "+2 (3->5)" },
     "finding": "The execution/iteration CONDITION is the real lever, and it does NOT narrow knowledge. With the SAME general abstract knowledge, harness-owned verify+retry+rollback lifts good_synth +3 (gpt-oss) / +2 (gemma), most on the weaker model. good_loop 7/17 is the best NON-CACHE arm and beats prose good (4) on gpt-oss. Same lever as oracle->good_apply (+12-15) but on general knowledge instead of a same-task cached patch. Caveat: public repro is necessary-not-sufficient -- gemma passed repro on 9 but resolved 5 (under-specified repro -> overfit); gpt-oss resolved 7 but the substring check only registered 5 (false negatives). Ceiling still bounded by irreducible multi-site localization/diagnosis (5-7 << Opus 17)."
+  },
+  "good_loop_v2_multi_repro_eval_2026_05_26": {
+    "note": "good_loop v2 = SAME general knowledge as good_synth + harness verify->retry->rollback, but the verification suite is now a LIST of 2-5 INDEPENDENT repros per memory (one per localization_cue / fix site). PASS iff EVERY repro passes. `expected` also accepts a list of alternative substrings (fixes v1's substring false-negatives). Knowledge unchanged; only the verification regime tightened.",
+    "gemma4-e4b_good_loop_v2": {
+      "resolved": 7,
+      "tasks": 17,
+      "step_budget": 12,
+      "lift_vs_v1": "+2 (5->7)",
+      "wins": ["15017", "16450", "16792", "16886", "17655", "19346", "19637"],
+      "newly_resolved_vs_v1": ["15017", "16450", "17655", "19346"],
+      "lost_vs_v1": ["15809", "18211"]
+    },
+    "gpt-oss-20b_good_loop_v2": {
+      "resolved": 5,
+      "tasks": 17,
+      "reasoning": "high",
+      "step_budget": 30,
+      "lift_vs_v1": "-2 (7->5)",
+      "wins": ["15017", "16450", "17139", "17655", "19637"],
+      "newly_resolved_vs_v1": ["15017", "16450", "19637"],
+      "lost_vs_v1": ["16792", "17318", "18189", "18211", "19954"]
+    },
+    "union_v1_or_v2": { "gpt-oss-20b": "10/17", "gemma4-e4b": "9/17" },
+    "union_all_arms_good_synth_v1_v2": {
+      "gpt-oss-20b": "12/17 (= 71% of Opus 17/17)",
+      "gemma4-e4b": "10/17"
+    },
+    "finding_1_asymmetry": "Multi-repro is MODEL-asymmetric, not monotonically better: gemma (reliable instruct) +2 from forced multi-site coverage; gpt-oss (flaky reasoning) -2 because the stricter all-pass bar amplifies parse_failures and pushes single-site cases out of budget. The verification regime must match the model's iteration reliability.",
+    "finding_2_complementarity": "Different verifications/representations cover DIFFERENT failure modes -- v1 ∪ v2 jumps to 9-10/17 on both models, well above any single arm. Full arm union (good prose + good_synth + v1 + v2) hits gpt-oss 12/17 (71% of Opus) on the SAME general knowledge, using only different presentations + verification regimes. Direction: ensemble / arm-router (learned per-task), not 'find the right single arm'."
   }
 }

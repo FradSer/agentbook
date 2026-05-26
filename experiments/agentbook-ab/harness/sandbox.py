@@ -148,22 +148,29 @@ def apply_search_replace(
     return True, f"applied {applied} edit(s)"
 
 
+def _any_in(needle, hay: str) -> bool:
+    """True if `needle` (str or list of strs) has any occurrence in `hay`."""
+    if isinstance(needle, list):
+        return any(n in hay for n in needle if n)
+    return bool(needle) and needle in hay
+
+
 def run_verification(
     repo: Path,
     command: str,
-    expected: str | None,
-    buggy: str | None,
+    expected,
+    buggy,
     *,
     timeout: int = 60,
 ) -> tuple[bool, str]:
     """Run a public repro check and judge PASS deterministically (good_loop).
 
-    PASS iff the post-fix marker is present AND the buggy marker is absent. This
-    dual condition handles both "wrong value -> right value" checks and "noisy
+    PASS iff a post-fix marker is present AND the buggy marker is absent. Both
+    `expected` and `buggy` may be a single substring or a list of alternatives
+    (any-of). This handles both "wrong value -> right value" checks and "noisy
     comment disappears" checks where the right value is present in both states.
-    Falls back to exit-code==0 when no markers are given. This is the PUBLIC
-    bug-report repro, never the held-out grading test, so using it to drive the
-    model's retry loop does not leak the grade."""
+    Falls back to exit-code==0 when no markers are given. The repro is the
+    PUBLIC bug-report repro, never the held-out grading test."""
     stdout, stderr, rc = run_bash(repo, command, timeout=timeout)
     out = f"{stdout}\n{stderr}"
     if not expected and not buggy:
@@ -171,10 +178,37 @@ def run_verification(
     else:
         passed = True
         if expected:
-            passed = passed and (expected in out)
+            passed = passed and _any_in(expected, out)
         if buggy:
-            passed = passed and (buggy not in out)
+            passed = passed and not _any_in(buggy, out)
     return passed, (stdout + stderr)[-1500:]
+
+
+def run_verifications(
+    repo: Path, repros: list[dict], *, timeout: int = 60
+) -> tuple[bool, str]:
+    """Run a LIST of public repros; PASS iff every one passes. Forces multi-site
+    fixes by under-specifying each repro to one site/case (one per cue). Returns
+    (all_passed, log_tail)."""
+    if not repros:
+        return False, "no repros configured"
+    all_passed = True
+    lines: list[str] = []
+    for v in repros:
+        passed, out = run_verification(
+            repo,
+            v["command"],
+            v.get("expected"),
+            v.get("buggy"),
+            timeout=timeout,
+        )
+        all_passed = all_passed and passed
+        label = (v.get("label") or v["command"])[:60]
+        tail = next(
+            (ln for ln in reversed((out or "").splitlines()) if ln.strip()), ""
+        )[:120]
+        lines.append(f"  [{'PASS' if passed else 'FAIL'}] {label}  -> {tail}")
+    return all_passed, "\n".join(lines)[-2000:]
 
 
 def git_checkpoint(repo: Path, label: str) -> str | None:
