@@ -148,6 +148,58 @@ def apply_search_replace(
     return True, f"applied {applied} edit(s)"
 
 
+def run_verification(
+    repo: Path,
+    command: str,
+    expected: str | None,
+    buggy: str | None,
+    *,
+    timeout: int = 60,
+) -> tuple[bool, str]:
+    """Run a public repro check and judge PASS deterministically (good_loop).
+
+    PASS iff the post-fix marker is present AND the buggy marker is absent. This
+    dual condition handles both "wrong value -> right value" checks and "noisy
+    comment disappears" checks where the right value is present in both states.
+    Falls back to exit-code==0 when no markers are given. This is the PUBLIC
+    bug-report repro, never the held-out grading test, so using it to drive the
+    model's retry loop does not leak the grade."""
+    stdout, stderr, rc = run_bash(repo, command, timeout=timeout)
+    out = f"{stdout}\n{stderr}"
+    if not expected and not buggy:
+        passed = rc == 0
+    else:
+        passed = True
+        if expected:
+            passed = passed and (expected in out)
+        if buggy:
+            passed = passed and (buggy not in out)
+    return passed, (stdout + stderr)[-1500:]
+
+
+def git_checkpoint(repo: Path, label: str) -> str | None:
+    """Commit the current tree as a checkpoint; return its commit hash or None."""
+    subprocess.run(["git", "add", "-A"], cwd=repo, capture_output=True, timeout=60)
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True
+    ).stdout.strip()
+    if not status:
+        return None
+    subprocess.run(
+        ["git", "commit", "-q", "-m", label], cwd=repo, capture_output=True, timeout=60
+    )
+    r = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
+    )
+    return r.stdout.strip() or None
+
+
+def git_reset_to(repo: Path, commit: str) -> None:
+    """Hard-reset the working tree to a prior checkpoint (rollback)."""
+    subprocess.run(["git", "reset", "--hard", commit], cwd=repo, capture_output=True)
+    subprocess.run(["git", "clean", "-fd"], cwd=repo, capture_output=True)
+
+
 def commit_fix(repo: Path) -> bool:
     """Commit any working-tree changes as 'agent fix'; return has_agent_fix."""
     subprocess.run(["git", "add", "-A"], cwd=repo, capture_output=True, timeout=60)

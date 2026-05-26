@@ -14,7 +14,14 @@ from harness.prompts import (
     is_done,
     wants_apply_patch,
 )
-from harness.sandbox import apply_search_replace, apply_unified_diff, run_bash
+from harness.sandbox import (
+    apply_search_replace,
+    apply_unified_diff,
+    git_checkpoint,
+    git_reset_to,
+    run_bash,
+    run_verification,
+)
 from harness.transcript import Episode, Turn
 
 _NO_BLOCK_HINT = (
@@ -46,6 +53,7 @@ def run_episode(
     seed: int = 0,
     bash_timeout: int = 120,
     apply_patch: str | None = None,
+    verification: dict | None = None,
 ) -> Episode:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -53,6 +61,65 @@ def run_episode(
     ]
     episode = Episode()
     consecutive_parse_failures = 0
+
+    # good_loop: harness-owned apply->verify->retry. `verification` carries the
+    # public repro {command, expected, buggy}; the harness runs it after every
+    # edit, gates `done` on a pass, and rolls back to the last passing edit. The
+    # knowledge stays general (good_synth) -- only the execution CONDITION changes.
+    vstate = {"passed": False, "pass_commit": None, "rejected_done": 0}
+    vcmd = (verification or {}).get("command")
+
+    def _edit_feedback(ok: bool, ok_msg: str, fail_msg: str) -> str:
+        """Default edit observation, augmented with a verification verdict when
+        good_loop is active. Updates vstate (pass flag + rollback checkpoint)."""
+        if not ok or not vcmd:
+            return ok_msg if ok else fail_msg
+        passed, out = run_verification(
+            repo,
+            vcmd,
+            verification.get("expected"),
+            verification.get("buggy"),
+        )
+        episode.turns.append(
+            Turn(
+                turn=turn,
+                command="<verify>",
+                stdout_tail=out,
+                stderr_tail="",
+                returncode=0 if passed else 1,
+                latency_ms=0,
+            )
+        )
+        vstate["passed"] = passed
+        if passed:
+            vstate["pass_commit"] = (
+                git_checkpoint(repo, "loop-pass") or vstate["pass_commit"]
+            )
+            return (
+                "edit applied and the verification check now PASSES:\n"
+                f"{out}\nIf the fix is complete, reply ```bash\\necho AGENT_DONE\\n```."
+            )
+        return (
+            "edit applied but the verification check still FAILS:\n"
+            f"{out}\nExpected to see {verification.get('expected')!r}. Inspect the "
+            "site again and refine the fix; do not finish yet."
+        )
+
+    if vcmd:
+        passed, out = run_verification(
+            repo, vcmd, verification.get("expected"), verification.get("buggy")
+        )
+        vstate["passed"] = passed
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    "Before you start, here is the current output of the "
+                    f"verification check (it should fail now):\n{out}\nFix the bug so "
+                    "this check passes, then finish."
+                ),
+            }
+        )
 
     for turn in range(1, step_budget + 1):
         try:
@@ -117,11 +184,11 @@ def run_episode(
                     latency_ms=int((time.time() - t0) * 1000),
                 )
             )
-            obs = (
-                f"edit {msg}. Verify, then run a quick check or `echo AGENT_DONE`."
-                if ok
-                else f"edit did NOT apply: {msg}. Re-copy the exact SEARCH lines "
-                "from the file (or use a ```diff / direct edit)."
+            obs = _edit_feedback(
+                ok,
+                f"edit {msg}. Verify, then run a quick check or `echo AGENT_DONE`.",
+                f"edit did NOT apply: {msg}. Re-copy the exact SEARCH lines from the "
+                "file (or use a ```diff / direct edit).",
             )
             messages.append({"role": "user", "content": obs})
             continue
@@ -143,12 +210,12 @@ def run_episode(
                     latency_ms=int((time.time() - t0) * 1000),
                 )
             )
-            obs = (
+            obs = _edit_feedback(
+                ok,
                 f"diff applied: {msg}. Verify, then run a quick check or "
-                "`echo AGENT_DONE`."
-                if ok
-                else f"diff did NOT apply: {msg}. Fix the diff context and retry, "
-                "or edit directly."
+                "`echo AGENT_DONE`.",
+                f"diff did NOT apply: {msg}. Fix the diff context and retry, or edit "
+                "directly.",
             )
             messages.append({"role": "user", "content": obs})
             continue
@@ -167,6 +234,22 @@ def run_episode(
         consecutive_parse_failures = 0
 
         if is_done(command):
+            # done-gate: in good_loop, refuse to finish while the verification
+            # check still fails (up to 3 nudges), so the budget is spent retrying
+            # rather than declaring a broken fix complete.
+            if vcmd and not vstate["passed"] and vstate["rejected_done"] < 3:
+                vstate["rejected_done"] += 1
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Not done yet: the verification check is still failing. "
+                            "Re-read the failing site and refine the edit, then re-run "
+                            "the check. Do not reply AGENT_DONE until it passes."
+                        ),
+                    }
+                )
+                continue
             episode.stop_reason = "done"
             episode.turns_used = turn
             break
@@ -188,6 +271,15 @@ def run_episode(
     else:
         episode.stop_reason = "budget"
         episode.turns_used = step_budget
+
+    # rollback: if good_loop ends in a failing state but a prior edit passed the
+    # check, restore that last-passing tree so the model's best attempt is graded.
+    if vcmd and not vstate["passed"] and vstate["pass_commit"]:
+        git_reset_to(repo, vstate["pass_commit"])
+        episode.notes.append(
+            f"rolled back to passing checkpoint {vstate['pass_commit']}"
+        )
+    episode.verification_passed = vstate["passed"] if vcmd else None
 
     if not episode.turns_used:
         episode.turns_used = len(episode.turns)

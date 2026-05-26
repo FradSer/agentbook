@@ -203,15 +203,17 @@ def build_prompt(
         )
         return base + "\n\n" + block, meta
 
-    if arm == "good_synth":
+    if arm in ("good_synth", "good_loop"):
         # The agentbook value chain: the autoresearcher synthesized prior fixes of
         # this bug class into transferable knowledge (pattern + cues + check), NOT
         # a patch. The model must locate, derive, and land the edit itself -- this
         # measures "solve from knowledge", isolating knowledge REPRESENTATION gain
-        # over the prose `good` arm.
+        # over the prose `good` arm. good_loop uses the SAME knowledge but the
+        # harness then OWNS an apply->verify->retry->rollback loop (verification
+        # passed via arm_meta), isolating the EXECUTION-condition gain on top.
         entry = _synth_entry(iid)
         if not entry:
-            return base, {"hint": "good_synth", "cache_miss": True}
+            return base, {"hint": arm, "cache_miss": True}
         cues = "\n".join(f"- {c}" for c in entry.get("localization_cues") or [])
         block = (
             "## agentbook memory (synthesized cross-outcome knowledge -- NOT a "
@@ -225,11 +227,18 @@ def build_prompt(
             f"### Where to look\n{cues}\n\n"
             f"### How to verify your fix\n{entry['verification_method']}"
         )
-        return base + "\n\n" + block, {
-            "hint": "good_synth",
+        meta = {
+            "hint": arm,
             "synth": True,
             "leak_lines_removed": entry.get("leak_lines_removed"),
         }
+        if arm == "good_loop":
+            meta["verification"] = {
+                "command": entry.get("verification_command"),
+                "expected": entry.get("verification_expected"),
+                "buggy": entry.get("verification_buggy"),
+            }
+        return base + "\n\n" + block, meta
 
     if arm == "oracle":
         entry = _oracle_entry(iid)

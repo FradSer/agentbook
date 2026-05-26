@@ -110,3 +110,41 @@ def test_good_synth_arm_builds_structured_prompt():
     assert "+++ b/" not in prompt
     assert "\n@@ " not in prompt
     assert "APPLY_PATCH" not in prompt
+
+
+def test_run_verification_dual_condition(tmp_path):
+    import subprocess
+
+    from harness.sandbox import run_verification
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, capture_output=True)
+    # expected present + buggy absent -> PASS
+    ok, _ = run_verification(tmp_path, "echo right value", "right", "WRONG")
+    assert ok
+    # expected present but buggy ALSO present -> FAIL (the 16766 case)
+    ok, _ = run_verification(
+        tmp_path, "echo 'p[0] # Not supported'", "p[0]", "Not supported"
+    )
+    assert not ok
+    # expected absent -> FAIL
+    ok, _ = run_verification(tmp_path, "echo nothing", "right", None)
+    assert not ok
+
+
+def test_good_loop_arm_carries_verification():
+    import json
+
+    from pipeline.arm_context import SYNTH_CACHE, build_prompt
+
+    if not SYNTH_CACHE.exists():
+        return
+    cache = json.loads(SYNTH_CACHE.read_text())
+    iid = next((i for i, e in cache.items() if e.get("verification_feasible")), None)
+    if iid is None:
+        return
+    prompt, meta = build_prompt(iid, "good_loop")
+    assert meta["hint"] == "good_loop"
+    assert meta["verification"]["command"]
+    # same knowledge block as good_synth (no patch)
+    assert "Root-cause pattern" in prompt
+    assert "--- a/" not in prompt

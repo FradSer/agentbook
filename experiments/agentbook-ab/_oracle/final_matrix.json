@@ -77,5 +77,25 @@
     },
     "union_good_or_good_synth": { "gpt-oss-20b": "6/17", "gemma4-e4b": "6/17" },
     "finding": "good_synth (abstract) does NOT lift over good (prose): ties on gpt-oss 4=4, loses on gemma 3<5. But the two representations are COMPLEMENTARY -- each solves 2 tasks the other misses; union = 6/17 on both models. Direction: keep multiple representations / push synthesis toward structured ready-to-apply patches, not abstraction."
+  },
+  "good_loop_eval_2026_05_26": {
+    "note": "good_loop = SAME general abstract knowledge as good_synth + harness-owned apply->verify->retry->done-gate->rollback. Verification = public repro (command/expected/buggy from synth_cache), NOT the hidden grading test. Only the execution CONDITION changes; knowledge unchanged.",
+    "gpt-oss-20b_good_loop": {
+      "resolved": 7,
+      "tasks": 17,
+      "reasoning": "high",
+      "step_budget": 30,
+      "verification_passed_cells": 5,
+      "wins": ["16792", "17139", "17318", "17655", "18189", "18211", "19954"]
+    },
+    "gemma4-e4b_good_loop": {
+      "resolved": 5,
+      "tasks": 17,
+      "step_budget": 12,
+      "verification_passed_cells": 9,
+      "wins": ["15809", "16792", "16886", "18211", "19637"]
+    },
+    "lift_over_good_synth": { "gpt-oss-20b": "+3 (4->7)", "gemma4-e4b": "+2 (3->5)" },
+    "finding": "The execution/iteration CONDITION is the real lever, and it does NOT narrow knowledge. With the SAME general abstract knowledge, harness-owned verify+retry+rollback lifts good_synth +3 (gpt-oss) / +2 (gemma), most on the weaker model. good_loop 7/17 is the best NON-CACHE arm and beats prose good (4) on gpt-oss. Same lever as oracle->good_apply (+12-15) but on general knowledge instead of a same-task cached patch. Caveat: public repro is necessary-not-sufficient -- gemma passed repro on 9 but resolved 5 (under-specified repro -> overfit); gpt-oss resolved 7 but the substring check only registered 5 (false negatives). Ceiling still bounded by irreducible multi-site localization/diagnosis (5-7 << Opus 17)."
   }
 }

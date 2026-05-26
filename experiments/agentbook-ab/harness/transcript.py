@@ -22,6 +22,7 @@ class Episode:
     turns_used: int = 0
     error: str | None = None
     notes: list[str] = field(default_factory=list)  # raw replies on parse failures
+    verification_passed: bool | None = None  # good_loop: did the public repro pass?
 
     def to_dict(self) -> dict:
         return {
@@ -29,5 +30,6 @@ class Episode:
             "turns_used": self.turns_used,
             "error": self.error,
             "notes": self.notes,
+            "verification_passed": self.verification_passed,
             "turns": [asdict(t) for t in self.turns],
         }

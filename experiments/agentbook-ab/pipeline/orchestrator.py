@@ -59,6 +59,7 @@ def run_cell(cell, llm, client, *, step_budget, temperature, seed_base, bash_tim
         seed=seed,
         bash_timeout=bash_timeout,
         apply_patch=arm_meta.get("apply_patch"),
+        verification=arm_meta.get("verification"),
     )
     commit_fix(repo)
     score = score_run_dir(meta, cell.run_dir, arm=cell.arm)
@@ -210,15 +211,18 @@ def main() -> None:
     mem_ids = (
         set(json.loads(RECALL_CACHE.read_text())) if RECALL_CACHE.exists() else set()
     )
-    synth_ids = (
-        set(json.loads(SYNTH_CACHE.read_text())) if SYNTH_CACHE.exists() else set()
-    )
+    synth = json.loads(SYNTH_CACHE.read_text()) if SYNTH_CACHE.exists() else {}
+    synth_ids = set(synth)
+    # good_loop additionally needs a runnable verification check for that task.
+    loop_ids = {i for i, e in synth.items() if e.get("verification_feasible")}
 
     def _has_memory(c) -> bool:
         if c.arm in ("good", "good_apply"):
             return c.iid in mem_ids
         if c.arm == "good_synth":
             return c.iid in synth_ids
+        if c.arm == "good_loop":
+            return c.iid in loop_ids
         return True
 
     cells = [c for c in cells if _has_memory(c)]
@@ -231,7 +235,7 @@ def main() -> None:
         from pipeline.arm_context import _oracle_entry
 
         _oracle_entry(ids[0])
-    if "good_synth" in arms and ids:
+    if ("good_synth" in arms or "good_loop" in arms) and ids:
         from pipeline.arm_context import _synth_entry
 
         _synth_entry(ids[0])

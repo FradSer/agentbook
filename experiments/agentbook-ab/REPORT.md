@@ -111,9 +111,25 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 逐 cell 产物 `runs_v2/*good_synth*`、综合缓存 `_oracle/synth_cache.json`、矩阵 `_oracle/final_matrix.json` 的 `good_synth_eval_2026_05_26`。
 
+## 附录 B:good_loop(执行/验证条件)实测(2026-05-26)
+
+不窄化知识的能力杠杆。`good_loop` = **与 good_synth 完全相同的通用抽象知识** + harness 拥有 **apply→跑公开 repro→读失败→重试→done-gate→回滚** 控制流(`sandbox.run_verification` 双条件判定;验证来自 Opus 抽取的公开 repro,非隐藏评分测试)。只改执行条件。
+
+| 臂 | gpt-oss:20b | gemma4:e4b | 知识 | 执行 |
+|---|---|---|---|---|
+| control | 0/17 | 2/17 | 无 | 模型 |
+| good(散文) | 4/17 | 5/17 | 具体 | 模型 |
+| good_synth(抽象) | 4/17 | 3/17 | 抽象通用 | 模型 |
+| **good_loop(抽象+验证循环)** | **7/17** | **5/17** | 抽象通用 | **harness 验证+重试+回滚** |
+| good_apply(缓存,非目标) | 14/17 | 17/17 | 同题精确补丁 | harness 应用 |
+
+**核心结论:** 知识保持通用,单加「可验证 + harness 拥有迭代」就把 good_synth **+3(gpt-oss 4→7)/+2(gemma 3→5)**,在更弱的 gpt-oss 上抬最多;good_loop 是**最强非缓存臂**,gpt-oss 上超过散文 good。`oracle→good_apply(+12-15)` 与 `good_synth→good_loop(+2/+3)` 是同一执行杠杆的「缓存版」与「通用知识版」。⇒ 小模型逼近更大模型的正确路径 = **保持知识通用 + 强化可验证执行条件**,而非窄化成即用补丁。
+
+**诚实边界:** 公开 repro 必要非充分——gemma repro 过 9 但 resolved 5(欠定→过拟合);gpt-oss resolved 7 但子串检查只判过 5(假阴)。天花板受不可约的多点定位/诊断限制(5-7 ≪ Opus 17)。逐 cell 产物 `runs_v2/*good_loop*`、验证字段在 `_oracle/synth_cache.json`。
+
 ## 附:产物
-- `_oracle/final_matrix.json` — 全臂最终矩阵(含 `good_synth_eval_2026_05_26`)
-- `_oracle/synth_cache.json` — good_synth 综合知识缓存(17 条)
+- `_oracle/final_matrix.json` — 全臂最终矩阵(含 `good_synth_eval_2026_05_26`、`good_loop_eval_2026_05_26`)
+- `_oracle/synth_cache.json` — good_synth 综合知识缓存(17 条) + good_loop 验证字段
 - `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
 - `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`
 - `_oracle/patch_cache.json`(peer 验证补丁)、`memories.json`、`oracle.json`、`red_clean.json`、`published_benchmarks.json`
