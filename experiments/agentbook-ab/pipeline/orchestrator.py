@@ -46,7 +46,9 @@ def _meta(iid: str) -> dict:
 def run_cell(cell, llm, client, *, step_budget, temperature, seed_base, bash_timeout):
     meta = _meta(cell.iid)
     repo = prepare_cell(cell.iid, cell.arm, cell.model_slug, cell.sample_idx)
-    user_prompt, arm_meta = build_prompt(cell.iid, cell.arm, client=client)
+    user_prompt, arm_meta = build_prompt(
+        cell.iid, cell.arm, client=client, model_slug=cell.model_slug
+    )
     seed = seed_base + cell.sample_idx
 
     episode = run_episode(
@@ -226,6 +228,10 @@ def main() -> None:
         if c.arm == "good_multi_loop":
             # needs BOTH a prose recall AND a multi-repro verification cache
             return c.iid in mem_ids and c.iid in loop_ids
+        if c.arm == "good_router":
+            # router dispatches across all 4 recall arms; gate on the broadest
+            # requirement so every chosen sub-arm has data.
+            return c.iid in mem_ids and c.iid in synth_ids
         return True
 
     cells = [c for c in cells if _has_memory(c)]

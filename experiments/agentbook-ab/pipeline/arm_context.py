@@ -121,9 +121,14 @@ def _synth_entry(iid: str) -> dict | None:
 
 
 def build_prompt(
-    iid: str, arm: str, *, client: AgentbookClient | None = None
+    iid: str,
+    arm: str,
+    *,
+    client: AgentbookClient | None = None,
+    model_slug: str | None = None,
 ) -> tuple[str, dict]:
-    """Return (user_prompt, arm_meta) for one cell."""
+    """Return (user_prompt, arm_meta) for one cell. `model_slug` is only used by
+    the `good_router` arm to route per-model; other arms ignore it."""
     bug = (TASKS / iid / "BUG.md").read_text()
     base = bug + _BASE_INSTRUCTION
 
@@ -202,6 +207,23 @@ def build_prompt(
             "against the actual source before applying.\n\n" + recall
         )
         return base + "\n\n" + block, meta
+
+    if arm == "good_router":
+        # The learnable arm: pick which downstream sub-arm to dispatch to from
+        # (iid features × model_slug × accumulated outcomes log) and delegate.
+        # No new knowledge -- this is purely a policy over the existing arms.
+        from pipeline.router import select_arms
+
+        if not model_slug:
+            return base, {"hint": "good_router", "missing_model": True}
+        chosen = select_arms(iid, model_slug, k=1)
+        sub_arm = chosen[0] if chosen else "good"
+        prompt, meta = build_prompt(iid, sub_arm, client=client, model_slug=model_slug)
+        meta = dict(meta)
+        meta["routed_from"] = "good_router"
+        meta["routed_to"] = sub_arm
+        meta["hint"] = "good_router"
+        return prompt, meta
 
     if arm == "good_multi_loop":
         # Multi-representation + multi-repro: BOTH the prose recall (good) AND

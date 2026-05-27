@@ -110,6 +110,25 @@
 
 **产品落点:** 不存在最优单臂,直接做 **arm-router**(agentbook recall 阶段并行多臂或按规则路由)。当前 82%/65% 是这条路径在此知识库上的真实天花板,再上靠强化知识或换更强小模型。
 
+## 2g. arm-router 实测(2026-05-27)—— 把 5 臂变成可学习策略空间
+
+`pipeline/router.py`:5 个臂的 170 行 outcomes 持久化到 `_oracle/outcomes_log.json`,两种策略同 API:`RuleRouter`(确定性规则)、`KNNRouter`(LOO 邻居加权,outcome 一来就自动重拟)。`good_router` 运行时读特征 + outcomes,委派到 good / good_synth / good_loop / good_multi_loop;`update_from_outcome` 是 agentbook `report` MCP 工具的生产入口。
+
+**离线 LOO 评测(5 臂 × 17 题 × 2 模型纯模拟):**
+
+| policy | k | gpt-oss | gemma | 占运行时天花板比例 |
+|---|---|---|---|---|
+| rule | 2 | 7/17 | **11/17** | 54% / **100%(=天花板)** |
+| knn | 3 | **11/17** | 10/17 | **85%** / 91% |
+
+**关键点(回答用户「让 5 臂变成可学习策略空间」):**
+1. **静态规则就能让 gemma 达到运行时天花板(11/11)**——「multi-site → multi_loop + loop_v2 并行」一条规则覆盖全部可解任务。
+2. **KNN 在小样本(n=16)下已超过任何单臂**(gpt-oss 11/13 = 85% 天花板,gemma 10/11 = 91%)。**关键属性:outcome 越多越准**——这是 agentbook 唯一靠生产数据持续自改进的形态。
+3. **端到端 smoke**:`good_router` 跑 15017 gemma 自动路由到 `good_multi_loop`,91s/9 轮解出。
+4. **天花板已被坐实** = 5 个手工臂的 union(gpt-oss 14/17、gemma 11/17),要更高靠强化知识或换更强小模型,**不再靠加新臂**。
+
+⇒ §2-2f 演进的产品收束:**arm-router + outcomes 反馈 = agentbook 的真正产品形态**,把 recall 从「服务一份记忆」变成「服务一个学习中的路由策略」。
+
 ## 3. 通往"真正逼近 Opus"的难度阶梯
 
 关键设计杠杆:**把 query 任务与记忆任务解耦**。

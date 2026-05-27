@@ -171,9 +171,28 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 逐 cell 产物 `runs_v2/*good_multi_loop*`、全矩阵 `_oracle/final_matrix.json` 的 `good_multi_loop_eval_2026_05_27`。
 
+## 附录 E:arm-router(可学习策略空间)实测(2026-05-27)
+
+`pipeline/router.py` 把 5 臂的 outcomes 持久化为 `_oracle/outcomes_log.json`,两种策略同 API:`RuleRouter`(确定规则,无需训练)、`KNNRouter`(LOO 邻居加权,outcome 自动重拟)。`good_router` 运行时按 (任务特征 × 模型) 委派到 good/good_synth/good_loop/good_multi_loop。`update_from_outcome` 是 agentbook `report` 的生产入口。
+
+**离线 LOO 评测(5 臂 × 17 题 × 2 模型纯模拟,无新运行):**
+
+| policy | k | gpt-oss | gemma | 占运行时天花板(13/17、11/17)比例 |
+|---|---|---|---|---|
+| rule | 2 | 7/17 | **11/17** | 54% / **100%** |
+| knn | 3 | **11/17** | 10/17 | **85%** / 91% |
+
+**关键:**
+1. 静态 rule k=2 就让 gemma 达运行时天花板。
+2. KNN k=3 在小样本下让 gpt-oss 达 85% 天花板,且 **outcome 越多越准**——agentbook 唯一靠生产数据持续自改进的形态。
+3. 端到端 smoke:`good_router` 跑 15017 gemma 路由到 `good_multi_loop`,91s/9 轮解出。
+4. 离线评测细节 `_oracle/router_offline_eval.json`。
+
 ## 附:产物
 - `_oracle/final_matrix.json` — 全臂最终矩阵(含 v1/v2/multi 详细块 + 全臂并集)
 - `_oracle/synth_cache.json` — good_synth 综合知识(17 条) + 每条 2-5 个独立 verification repros
+- `_oracle/outcomes_log.json` — 5 臂 outcomes(router 训练数据;agentbook `report` 的生产入口)
+- `_oracle/router_offline_eval.json` — router LOO 评测结果
 - `runs_v2.good_loop_v1_single_repro/` — v1 单 repro 归档(用于 v1 vs v2 对照)
 - `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
 - `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`

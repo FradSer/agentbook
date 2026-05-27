@@ -212,6 +212,61 @@ def test_run_verifications_all_must_pass(tmp_path):
     assert not ok
 
 
+def test_router_features_and_rule_policy():
+    import json
+
+    from pipeline.arm_context import SYNTH_CACHE
+    from pipeline.router import RuleRouter, extract_features
+
+    cache = json.loads(SYNTH_CACHE.read_text())
+    e = cache["sympy__sympy-15017"]  # canonical multi-site case
+    feats = extract_features(e)
+    assert feats["n_repros"] >= 4
+    assert feats["is_multisite"] == 1.0
+    # multi-site + gemma -> rule picks good_multi_loop first
+    r = RuleRouter()
+    assert r.select(feats, "gemma4_e4b", k=1) == ["good_multi_loop"]
+    assert r.select(feats, "gpt-oss_20b", k=2) == ["good_multi_loop", "good_loop"]
+
+
+def test_router_outcome_update_round_trips(tmp_path, monkeypatch):
+    import json
+
+    from pipeline import router
+
+    log = tmp_path / "outcomes.json"
+    monkeypatch.setattr(router, "OUTCOMES_LOG", log)
+    log.write_text("[]")
+    router.update_from_outcome("gpt-oss_20b", "sympy__sympy-999", "good_loop", True)
+    router.update_from_outcome(
+        "gpt-oss_20b", "sympy__sympy-999", "good_loop", False
+    )  # overwrite
+    rows = json.loads(log.read_text())
+    assert len(rows) == 1
+    assert rows[0]["resolved"] is False
+
+
+def test_good_router_delegates_to_sub_arm():
+
+    from pipeline.arm_context import SYNTH_CACHE, build_prompt
+
+    if not SYNTH_CACHE.exists():
+        return
+    # gemma multi-site task -> router picks good_multi_loop, prompt should
+    # therefore contain both views.
+    prompt, meta = build_prompt(
+        "sympy__sympy-15017", "good_router", model_slug="gemma4_e4b"
+    )
+    assert meta["hint"] == "good_router"
+    assert meta["routed_from"] == "good_router"
+    assert meta["routed_to"] in (
+        "good",
+        "good_synth",
+        "good_loop",
+        "good_multi_loop",
+    )
+
+
 def test_run_verification_accepts_alternative_expected(tmp_path):
     import subprocess
 
