@@ -3,1230 +3,2758 @@
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-14976",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-14976",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15017",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15017",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15017",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15017",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good_loop",
+    "sample_idx": 2,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15017",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good_router",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15017",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15017",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15809",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15809",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15809",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15809",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good_loop",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15809",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15809",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15809",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-15976",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-15976",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16450",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16450",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16766",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16766",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16792",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16792",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16792",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16792",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good_loop",
+    "sample_idx": 2,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16792",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16792",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16792",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16886",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16886",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16886",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16886",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good_loop",
+    "sample_idx": 2,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16886",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-16886",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-16886",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17139",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17139",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17318",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17318",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17655",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17655",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17655",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17655",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good_loop",
+    "sample_idx": 2,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17655",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-17655",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-17655",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18189",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18189",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18189",
     "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18189",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18189",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18189",
     "arm": "good_synth",
-    "resolved": true
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18189",
+    "arm": "good_synth",
+    "sample_idx": 2,
+    "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "good_synth",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "loo_sibling",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18211",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18211",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18698",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18698",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18698",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18698",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18698",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-18698",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-18698",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "good_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "good_synth",
+    "sample_idx": 2,
+    "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19346",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19346",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "control",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "good",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good",
+    "sample_idx": 2,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "good_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "loo_sibling",
+    "sample_idx": 0,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "loo_sibling",
+    "sample_idx": 1,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19637",
     "arm": "loo_sibling_apply",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19637",
+    "arm": "loo_sibling_apply",
+    "sample_idx": 1,
     "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19954",
     "arm": "control",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "control",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "control",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19954",
     "arm": "good",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good",
+    "sample_idx": 2,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19954",
     "arm": "good_loop",
-    "resolved": false
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good_loop",
+    "sample_idx": 2,
+    "resolved": true
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19954",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19954",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good_multi_loop",
+    "sample_idx": 1,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good_multi_loop",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gemma4_e4b",
     "iid": "sympy__sympy-19954",
     "arm": "good_synth",
+    "sample_idx": 0,
+    "resolved": false
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good_synth",
+    "sample_idx": 1,
+    "resolved": true
+  },
+  {
+    "model_slug": "gemma4_e4b",
+    "iid": "sympy__sympy-19954",
+    "arm": "good_synth",
+    "sample_idx": 2,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-14976",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-14976",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-14976",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-14976",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-14976",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15017",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15017",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15017",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15017",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15017",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15809",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15809",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15809",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15809",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15809",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15976",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15976",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15976",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15976",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-15976",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16450",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16450",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16450",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16450",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16450",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16766",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16766",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16766",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16766",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16766",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16792",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16792",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16792",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16792",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16792",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16886",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16886",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16886",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16886",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-16886",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17139",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17139",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17139",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17139",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17139",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17318",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17318",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17318",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17318",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17318",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17655",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17655",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17655",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17655",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-17655",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18189",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18189",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18189",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18189",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18189",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18211",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18211",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18211",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18211",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18211",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18698",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18698",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18698",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18698",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-18698",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19346",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19346",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19346",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19346",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19346",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19637",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19637",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19637",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19637",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19637",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19954",
     "arm": "good",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19954",
     "arm": "good_loop",
+    "sample_idx": 0,
     "resolved": false
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19954",
     "arm": "good_loop_v1",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19954",
     "arm": "good_multi_loop",
+    "sample_idx": 0,
     "resolved": true
   },
   {
     "model_slug": "gpt-oss_20b",
     "iid": "sympy__sympy-19954",
     "arm": "good_synth",
+    "sample_idx": 0,
     "resolved": false
   }
 ]

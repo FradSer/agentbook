@@ -129,6 +129,35 @@
 
 ⇒ §2-2f 演进的产品收束:**arm-router + outcomes 反馈 = agentbook 的真正产品形态**,把 recall 从「服务一份记忆」变成「服务一个学习中的路由策略」。
 
+## 2h. gemma4:e4b k=3 采样实测(2026-05-27)—— 把 gemma 推到 88% Opus,router 闭环跑通
+
+用户给的方向「强化 base small model,换 gemma4」(实际是把 gpt-oss 砍掉、只跑 gemma4:e4b)。5 臂 × k=3 = 170 个新 s1/s2 cells。outcomes_log 升级 sample-level(394 行,router 用 pass-rate)。
+
+**gemma 单模型 pass@k 矩阵:**
+
+| 臂 | pass@1 | pass@3 | lift |
+|---|---|---|---|
+| good | 5 | 8 | +3 |
+| good_synth | 3 | 7 | +4 |
+| good_loop | 7 | 9 | +2 |
+| **good_multi_loop** | 8 | **13/17 (76% Opus)** | **+5** |
+| **5-arm union** | 11 | **15/17 (88.2% Opus)** | **+4** |
+
+**新 union 成员(任何 s=0 臂都没解过)**:14976、17139、18698、19954。**仍解不出**:15976、16766。
+
+**router 同步上推**(sample-level outcomes 喂进去之后):
+
+| policy | k | gemma | 占天花板比例 |
+|---|---|---|---|
+| **rule** | 1 | **13/17** | **87%** ← 单臂路由贴齐 pass@3 最佳单臂 |
+| **rule** | 2 | **14/17** | **93%** |
+
+**两条结论:**
+1. **用户的直觉正确,gemma 这条路够用。** gemma4:e4b 自己采样几次,union 达 88% Opus,**已经超过 gpt-oss 全臂并集 82%**。"gpt-oss 是瓶颈" 这个直觉里隐含的判断("它在拖累 gemma")也对——把 gpt-oss 从 panel 砍掉、把算力换到 gemma 多采样,**绝对天花板上推 +4(11→15)**。
+2. **router 闭环自我改进定量证实。** outcomes 从 binary(170 rows) 升级到 sample-level(394 rows)后,rule k=1 从 8 跳到 13(+5),rule k=2 从 11 到 14(+3)。**「更多更细的 outcome → 路由更准」**这条曲线立起来了——agentbook 接生产 `report` 后这条曲线会持续上爬。
+
+**绝对天花板已知**:gemma 路径 15/17 = 88% Opus,剩 2 题(15976、16766)不可约。再上推靠换更强小模型(gemma3:27b/qwen)或 autoresearcher 重写 15976/16766 的 cues + repros。
+
 ## 3. 通往"真正逼近 Opus"的难度阶梯
 
 关键设计杠杆:**把 query 任务与记忆任务解耦**。

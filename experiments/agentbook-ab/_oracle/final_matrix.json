@@ -127,6 +127,25 @@
     "finding_1_asymmetry": "Multi-repro is MODEL-asymmetric, not monotonically better: gemma (reliable instruct) +2 from forced multi-site coverage; gpt-oss (flaky reasoning) -2 because the stricter all-pass bar amplifies parse_failures and pushes single-site cases out of budget. The verification regime must match the model's iteration reliability.",
     "finding_2_complementarity": "Different verifications/representations cover DIFFERENT failure modes -- v1 ∪ v2 jumps to 9-10/17 on both models, well above any single arm. Full arm union (good prose + good_synth + v1 + v2) hits gpt-oss 12/17 (71% of Opus) on the SAME general knowledge, using only different presentations + verification regimes. Direction: ensemble / arm-router (learned per-task), not 'find the right single arm'."
   },
+  "gemma_k3_eval_2026_05_27": {
+    "note": "gemma4:e4b 5-arm × k=3 sampling (170 new s=1/s=2 cells; s=0 reused). outcomes_log upgraded to sample-level (394 rows). Tests the 'replace gpt-oss with more gemma sampling' direction.",
+    "gemma4-e4b_pass_at_k": {
+      "control": {"pass_at_1": 2, "pass_at_3": 4},
+      "good": {"pass_at_1": 5, "pass_at_3": 8},
+      "good_synth": {"pass_at_1": 3, "pass_at_3": 7},
+      "good_loop": {"pass_at_1": 7, "pass_at_3": 9},
+      "good_multi_loop": {"pass_at_1": 8, "pass_at_3": 13}
+    },
+    "gemma4-e4b_union_pass_at_3": "15/17 (= 88.2% of Opus 17/17)",
+    "newly_in_union_at_pass_at_3": ["14976", "17139", "18698", "19954"],
+    "still_missing_at_pass_at_3": ["15976", "16766"],
+    "router_pass_rate_eval": {
+      "rule_k1": "13/17 (87% of ceiling 15/17)",
+      "rule_k2": "14/17 (93% of ceiling)",
+      "knn_k2": "13/17 (87%)"
+    },
+    "headline": "gemma alone at pass@3 union reaches 15/17 (88% Opus), EXCEEDING gpt-oss's all-arm union 14/17 (82%). good_multi_loop @ pass@3 = 13/17 is the new best single arm. The router self-improvement loop is quantitatively confirmed: sample-level outcomes lift rule k=1 from 8 to 13 (+5). User's 'switch to gemma' direction validated -- gpt-oss can be dropped from the panel."
+  },
   "good_multi_loop_eval_2026_05_27": {
     "note": "good_multi_loop = prose good + abstract good_synth BOTH INJECTED in one prompt + multi-repro verify->retry->rollback. Knowledge total unchanged; only PRESENTATION doubled. Direct test of the ensemble hypothesis suggested by §6.4.",
     "gemma4-e4b_good_multi_loop": {

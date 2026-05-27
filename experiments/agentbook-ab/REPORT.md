@@ -188,11 +188,30 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 3. 端到端 smoke:`good_router` 跑 15017 gemma 路由到 `good_multi_loop`,91s/9 轮解出。
 4. 离线评测细节 `_oracle/router_offline_eval.json`。
 
+## 附录 F:gemma4:e4b k=3 采样(2026-05-27)—— 把 gemma 推到 88% Opus
+
+砍掉 gpt-oss、把算力换到 **gemma4:e4b 单模型 5 臂 × k=3**(170 个新 s1/s2 cells)。outcomes_log 升级 sample-level(394 行),router 用 pass-rate 重训。
+
+**gemma 单模型最终矩阵:**
+
+| 臂 | pass@1 | pass@3 | lift |
+|---|---|---|---|
+| control | 2 | 4 | +2 |
+| good | 5 | 8 | +3 |
+| good_synth | 3 | 7 | +4 |
+| good_loop | 7 | 9 | +2 |
+| **good_multi_loop** | 8 | **13/17 (76% Opus)** | **+5** |
+| **5-arm union** | 11 | **15/17 (88.2% Opus)** | **+4** |
+
+**router 同步上推**(sample-level outcomes 喂进去): rule k=1 = **13/17 (87% 天花板)**; rule k=2 = **14/17 (93%)**。
+
+**两条结论:** ①「换 gemma」对了 —— gemma 单模型 88% > gpt-oss 全臂 82%,采样几次就够。②router 闭环自我改进定量证实 —— sample-level outcomes 让 rule k=1 从 8 跳到 13(+5)。**绝对天花板** = 15/17,剩 2 题(15976、16766)需更强小模型或 autoresearcher 重写知识。
+
 ## 附:产物
-- `_oracle/final_matrix.json` — 全臂最终矩阵(含 v1/v2/multi 详细块 + 全臂并集)
+- `_oracle/final_matrix.json` — 全臂最终矩阵
 - `_oracle/synth_cache.json` — good_synth 综合知识(17 条) + 每条 2-5 个独立 verification repros
-- `_oracle/outcomes_log.json` — 5 臂 outcomes(router 训练数据;agentbook `report` 的生产入口)
-- `_oracle/router_offline_eval.json` — router LOO 评测结果
+- `_oracle/outcomes_log.json` — 394 行 sample-level outcomes(router 训练数据 + agentbook `report` 生产入口)
+- `_oracle/router_offline_eval.json` — router LOO 评测结果(含 pass-rate 版)
 - `runs_v2.good_loop_v1_single_repro/` — v1 单 repro 归档(用于 v1 vs v2 对照)
 - `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
 - `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`

@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-05-27",
-  "note": "Offline leave-one-out CV on the bootstrapped outcomes log (170 rows = 5 runtime arms x 17 tasks x 2 models, + 35 v1-archive rows informationally). Ceiling = union of all RUNTIME arms (good/good_synth/good_loop=v2/good_multi_loop).",
+  "note": "Offline LOO CV with sample-level outcomes (394 rows incl. k=3 sampling). pass@k semantics: (model, iid, arm) counts as resolved if ANY sample did.",
   "evaluations": [
     {
       "policy": "rule",
@@ -35,11 +35,11 @@
         },
         "gemma4_e4b": {
           "tasks": 17,
-          "resolved": 8,
-          "coverage": "8/17",
+          "resolved": 13,
+          "coverage": "13/17",
           "best_static_arm": "good_multi_loop",
-          "best_static_coverage": "8/17",
-          "ceiling_all_arms_union": "11/17",
+          "best_static_coverage": "13/17",
+          "ceiling_all_arms_union": "15/17",
           "arms_used_count": {
             "good": 2,
             "good_multi_loop": 15
@@ -48,12 +48,7 @@
             "14976",
             "15976",
             "16766",
-            "16792",
-            "17139",
-            "17655",
-            "18698",
-            "19346",
-            "19954"
+            "16792"
           ]
         }
       }
@@ -89,11 +84,11 @@
         },
         "gemma4_e4b": {
           "tasks": 17,
-          "resolved": 11,
-          "coverage": "11/17",
+          "resolved": 14,
+          "coverage": "14/17",
           "best_static_arm": "good_multi_loop",
-          "best_static_coverage": "8/17",
-          "ceiling_all_arms_union": "11/17",
+          "best_static_coverage": "13/17",
+          "ceiling_all_arms_union": "15/17",
           "arms_used_count": {
             "good": 2,
             "good_loop": 17,
@@ -102,10 +97,7 @@
           "misses": [
             "14976",
             "15976",
-            "16766",
-            "17139",
-            "18698",
-            "19954"
+            "16766"
           ]
         }
       }
@@ -139,11 +131,11 @@
         },
         "gemma4_e4b": {
           "tasks": 17,
-          "resolved": 11,
-          "coverage": "11/17",
+          "resolved": 14,
+          "coverage": "14/17",
           "best_static_arm": "good_multi_loop",
-          "best_static_coverage": "8/17",
-          "ceiling_all_arms_union": "11/17",
+          "best_static_coverage": "13/17",
+          "ceiling_all_arms_union": "15/17",
           "arms_used_count": {
             "good": 17,
             "good_loop": 17,
@@ -153,10 +145,7 @@
           "misses": [
             "14976",
             "15976",
-            "16766",
-            "17139",
-            "18698",
-            "19954"
+            "16766"
           ]
         }
       }
@@ -167,14 +156,14 @@
       "models": {
         "gpt-oss_20b": {
           "tasks": 17,
-          "resolved": 6,
-          "coverage": "6/17",
+          "resolved": 5,
+          "coverage": "5/17",
           "best_static_arm": "good_multi_loop",
           "best_static_coverage": "6/17",
           "ceiling_all_arms_union": "13/17",
           "arms_used_count": {
-            "good_multi_loop": 11,
-            "good_loop": 6
+            "good_multi_loop": 12,
+            "good_loop": 5
           },
           "misses": [
             "15809",
@@ -183,6 +172,7 @@
             "16792",
             "16886",
             "17318",
+            "17655",
             "18189",
             "18211",
             "18698",
@@ -192,27 +182,20 @@
         },
         "gemma4_e4b": {
           "tasks": 17,
-          "resolved": 5,
-          "coverage": "5/17",
+          "resolved": 12,
+          "coverage": "12/17",
           "best_static_arm": "good_multi_loop",
-          "best_static_coverage": "8/17",
-          "ceiling_all_arms_union": "11/17",
+          "best_static_coverage": "13/17",
+          "ceiling_all_arms_union": "15/17",
           "arms_used_count": {
-            "good_multi_loop": 10,
-            "good_loop": 7
+            "good_loop": 1,
+            "good_multi_loop": 16
           },
           "misses": [
             "14976",
-            "15809",
             "15976",
             "16766",
             "16792",
-            "17139",
-            "17318",
-            "18189",
-            "18211",
-            "18698",
-            "19346",
             "19954"
           ]
         }
@@ -224,16 +207,16 @@
       "models": {
         "gpt-oss_20b": {
           "tasks": 17,
-          "resolved": 10,
-          "coverage": "10/17",
+          "resolved": 9,
+          "coverage": "9/17",
           "best_static_arm": "good_multi_loop",
           "best_static_coverage": "6/17",
           "ceiling_all_arms_union": "13/17",
           "arms_used_count": {
-            "good_multi_loop": 15,
-            "good_loop": 10,
+            "good_multi_loop": 14,
+            "good_loop": 9,
             "good": 8,
-            "good_synth": 1
+            "good_synth": 3
           },
           "misses": [
             "15809",
@@ -241,30 +224,28 @@
             "16766",
             "16792",
             "17318",
+            "17655",
             "18698",
             "19637"
           ]
         },
         "gemma4_e4b": {
           "tasks": 17,
-          "resolved": 10,
-          "coverage": "10/17",
+          "resolved": 13,
+          "coverage": "13/17",
           "best_static_arm": "good_multi_loop",
-          "best_static_coverage": "8/17",
-          "ceiling_all_arms_union": "11/17",
+          "best_static_coverage": "13/17",
+          "ceiling_all_arms_union": "15/17",
           "arms_used_count": {
-            "good_multi_loop": 17,
-            "good_loop": 16,
-            "good": 1
+            "good_loop": 9,
+            "good": 9,
+            "good_multi_loop": 16
           },
           "misses": [
             "14976",
             "15976",
             "16766",
-            "16792",
-            "17139",
-            "18698",
-            "19954"
+            "16792"
           ]
         }
       }
@@ -282,8 +263,8 @@
           "ceiling_all_arms_union": "13/17",
           "arms_used_count": {
             "good_multi_loop": 17,
-            "good_loop": 11,
-            "good": 14,
+            "good_loop": 13,
+            "good": 12,
             "good_synth": 9
           },
           "misses": [
@@ -297,25 +278,21 @@
         },
         "gemma4_e4b": {
           "tasks": 17,
-          "resolved": 10,
-          "coverage": "10/17",
+          "resolved": 14,
+          "coverage": "14/17",
           "best_static_arm": "good_multi_loop",
-          "best_static_coverage": "8/17",
-          "ceiling_all_arms_union": "11/17",
+          "best_static_coverage": "13/17",
+          "ceiling_all_arms_union": "15/17",
           "arms_used_count": {
-            "good_multi_loop": 17,
-            "good_loop": 16,
+            "good_loop": 17,
             "good": 17,
-            "good_synth": 1
+            "good_synth": 1,
+            "good_multi_loop": 16
           },
           "misses": [
             "14976",
             "15976",
-            "16766",
-            "16792",
-            "17139",
-            "18698",
-            "19954"
+            "16766"
           ]
         }
       }

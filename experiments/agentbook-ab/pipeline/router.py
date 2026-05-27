@@ -116,6 +116,7 @@ def _harvest_runs(runs_dir: Path, arm_label: str | None = None) -> list[dict]:
                 "model_slug": r.get("model_slug"),
                 "iid": r.get("instance_id"),
                 "arm": arm_label or r.get("arm"),
+                "sample_idx": int(r.get("sample_idx", 0)),
                 "resolved": bool(r.get("resolved")),
             }
         )
@@ -129,11 +130,19 @@ def bootstrap_outcomes_log() -> list[dict]:
     rows += _harvest_runs(
         ROOT / "runs_v2.good_loop_v1_single_repro", arm_label="good_loop_v1"
     )
-    # de-dup by (model, iid, arm) keeping last
-    by_key = {(r["model_slug"], r["iid"], r["arm"]): r for r in rows}
+    # de-dup by (model, iid, arm, sample_idx) so k>1 sampling is preserved and
+    # the router can learn from pass-rate, not just pass@1.
+    by_key = {
+        (r["model_slug"], r["iid"], r["arm"], r.get("sample_idx", 0)): r for r in rows
+    }
     out = sorted(
         by_key.values(),
-        key=lambda r: (r["model_slug"] or "", r["iid"] or "", r["arm"] or ""),
+        key=lambda r: (
+            r["model_slug"] or "",
+            r["iid"] or "",
+            r["arm"] or "",
+            r.get("sample_idx", 0),
+        ),
     )
     OUTCOMES_LOG.write_text(json.dumps(out, indent=2) + "\n")
     return out
@@ -145,20 +154,36 @@ def load_outcomes() -> list[dict]:
     return bootstrap_outcomes_log()
 
 
-def update_from_outcome(model_slug: str, iid: str, arm: str, resolved: bool) -> None:
-    """Production hook: append/update a (model, task, arm) outcome row. Triggers
-    the next select_arms() to refit on the larger sample. Idempotent."""
+def update_from_outcome(
+    model_slug: str,
+    iid: str,
+    arm: str,
+    resolved: bool,
+    *,
+    sample_idx: int = 0,
+) -> None:
+    """Production hook: append/update one (model, task, arm, sample) outcome
+    row. Triggers the next select_arms() to refit on the larger sample.
+    Idempotent on (model, iid, arm, sample_idx)."""
     rows = load_outcomes()
-    by_key = {(r["model_slug"], r["iid"], r["arm"]): r for r in rows}
-    by_key[(model_slug, iid, arm)] = {
+    by_key = {
+        (r["model_slug"], r["iid"], r["arm"], r.get("sample_idx", 0)): r for r in rows
+    }
+    by_key[(model_slug, iid, arm, sample_idx)] = {
         "model_slug": model_slug,
         "iid": iid,
         "arm": arm,
+        "sample_idx": int(sample_idx),
         "resolved": bool(resolved),
     }
     out = sorted(
         by_key.values(),
-        key=lambda r: (r["model_slug"] or "", r["iid"] or "", r["arm"] or ""),
+        key=lambda r: (
+            r["model_slug"] or "",
+            r["iid"] or "",
+            r["arm"] or "",
+            r.get("sample_idx", 0),
+        ),
     )
     OUTCOMES_LOG.write_text(json.dumps(out, indent=2) + "\n")
 
@@ -275,7 +300,11 @@ def evaluate_offline(
     counts as resolved if ANY chosen arm resolved it. Pure simulation, no runs."""
     outcomes = load_outcomes()
     cache = json.loads(SYNTH_CACHE.read_text())
-    by_key = {(r["model_slug"], r["iid"], r["arm"]): r["resolved"] for r in outcomes}
+    # pass@k semantics: (model, iid, arm) counts as resolved if ANY sample did.
+    by_key: dict[tuple[str, str, str], bool] = {}
+    for r in outcomes:
+        key = (r["model_slug"], r["iid"], r["arm"])
+        by_key[key] = by_key.get(key, False) or bool(r["resolved"])
 
     out: dict = {"policy": router.name, "k": k, "models": {}}
     for model in models:
