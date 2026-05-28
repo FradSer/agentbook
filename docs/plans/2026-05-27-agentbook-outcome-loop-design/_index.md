@@ -1,7 +1,7 @@
 # Design: agentbook Outcome-Feedback Loop (lift gemma4:e4b 15/17 → 17/17)
 
-**Status:** design complete, ready for plan-writing.
-**Date:** 2026-05-27.
+**Status:** design complete, sequenced for batched execution (addendum 2026-05-28).
+**Date:** 2026-05-27 (batching strategy added 2026-05-28).
 **Scope:** `experiments/agentbook-ab/` — no changes outside the experiment harness.
 
 ## Context
@@ -83,6 +83,8 @@ Canonical labels for cross-document consistency. Rejected variants in parenthese
 
 **Why three coupled subsystems instead of one big change**: the two unsolved tasks fail for *different reasons* (cue underspecification vs edit-parser truncation). A single intervention against one class would leave the other untouched. Subsystem 3 (`good_rotate`) is the smallest forward-looking addition: it costs nothing when no arm dead-ends and gains union benefit when one does.
 
+**Why ship them sequentially rather than as one merge**: the three subsystems are independent in code paths but coupled in narrative — if Batch 1 (parser) alone unsticks 15976, Batch 2 (cue refinement) targets a different unsolved class; if Batch 2 fails to unstick anything, Batch 3 (rotation) has no mixed-outcome surface to rotate over and should be deferred. Sequencing with mid-batch measurements lets us **drop later batches without sunk effort** when an earlier batch already covers their target. See [batching-strategy.md](./batching-strategy.md) for entry/exit gates and the optimization signals each batch exposes.
+
 **Why `revisions: list[dict]` over mutation or sibling file**: preserves before/after signal (the whole point of the experiment); single reader path; alias contract keeps `extract_features` and existing arms untouched.
 
 **Why a separate `select_arm_for_sample` method rather than extending `select_arms`**: different semantics (returns one arm, not a ranked list; conditioned on in-trial history that has no equivalent in the static-pick path). Overloading `select_arms` would force every existing caller to opt into the new conditioning logic; a parallel method is cleanly opt-in.
@@ -108,9 +110,11 @@ See:
 - `architecture.md` — file map, function signatures, data flow, schema diffs.
 - `bdd-specs.md` — Gherkin scenarios across 5 features (36 total: 10 refinement + 10 parser-lenient + 5 parser-feedback + 8 rotation + 3 rotation-offline-eval).
 - `best-practices.md` — anti-leak contract, performance budget, common pitfalls.
+- `batching-strategy.md` — pre-flight + 3-batch execution sequence with per-batch entry/exit gates and the optimization signals each batch exposes.
 
 ## Design Documents
 
 - [architecture.md](./architecture.md) — system layout, components, integration points, data flow diagram
 - [bdd-specs.md](./bdd-specs.md) — full Gherkin scenarios (36 total; breakdown above)
 - [best-practices.md](./best-practices.md) — anti-leak invariants, performance budget, pitfalls to forbid, comparison protocol
+- [batching-strategy.md](./batching-strategy.md) — pre-flight + 3 sequential batches, entry/exit gates, mid-batch measurements that surface the next optimization target

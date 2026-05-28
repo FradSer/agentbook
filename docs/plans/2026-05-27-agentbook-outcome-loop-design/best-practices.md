@@ -78,6 +78,8 @@ Operational and code-quality invariants for the three subsystems. Organized as: 
 
 4. **Don't blur the per-revision lineage.** Every refinement appends `revisions[len(revisions)]`, sets `parent_revision = len(revisions) - 1`, fills `created_at` (ISO UTC), `source` (e.g. `"refine_from_outcomes failure-evidence batch 2026-05-27"`), `failure_evidence_count`, `stuck_criterion`, `refined_from` (list of full run dirnames), `change_rationale`. The lineage is the audit surface.
 
+   **Alias-invariant enforcement**: the top-level alias fields (`root_cause_pattern`, `localization_cues`, `verification_method`, `leak_lines_removed`) are mirrors of `revisions[-1]`. `write_revision` is the **only** writer; any future code that writes a top-level knowledge field without appending a revision corrupts history. Pin the invariant with `test_refine_from_outcomes.py::test_top_level_alias_invariant` (after `write_revision`, every aliased field equals `revisions[-1].<field>`) and `::test_no_external_aliased_writes` (grep the source tree for assignments to those keys outside `write_revision`).
+
 5. **Don't ship without a comparison protocol.** Pre/post refinement results are NOT directly comparable (selection bias: refinement targets the tasks the model already failed on). The fair comparison is:
    - **Absolute**: `K_post / 17` total resolved tasks under refined cues across all arms.
    - **Stuck-task recovery rate**: `(K_post − K_pre) / (17 − K_pre)` — the fraction of previously-stuck tasks that the refined cues unstuck.
@@ -119,7 +121,7 @@ Reporting in any post-run summary MUST include:
 | `K_per_arm_post` | per-arm pass@3 under the refined cues for each runtime arm |
 | `regression_count` | tasks resolved under `revisions[0]` but unresolved under `revisions[-1]` (expected: 0) |
 
-Any `regression_count > 0` should be investigated before the refined revision is promoted. A `--rollback-to-rev N` flag on `refine_from_outcomes.py` (future) lets operators revert.
+**`regression_count > 0` is a HARD fail**, not a soft warning. `refine_from_outcomes.py --require-no-regression` (default ON, opt-out only via `--allow-regression --reason "<text>"` which logs the reason on the revision) exits non-zero on any regression. When it exits non-zero, **the new revision is still written to disk for inspection but the top-level aliases are NOT advanced** — `extract_features` and every existing arm continue to read the prior revision until the regression is resolved. A `--rollback-to-rev N` flag on `refine_from_outcomes.py` lets operators explicitly revert a promoted revision.
 
 ## Code quality and style
 
