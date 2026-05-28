@@ -125,11 +125,21 @@ def _harvest_runs(runs_dir: Path, arm_label: str | None = None) -> list[dict]:
 
 def bootstrap_outcomes_log() -> list[dict]:
     """Build the initial outcomes log from local runs (so the router has data
-    before any production outcome reports land). Writes _oracle/outcomes_log.json."""
+    before any production outcome reports land). Writes _oracle/outcomes_log.json.
+
+    Harvests the active `runs_v2/` AND every archived `runs_v2.*/` directory so
+    the router's KNN training data carries full lineage across batches. The v1
+    single-repro archive keeps its historical `good_loop_v1` relabel; every
+    other archive contributes rows under their on-disk arm label."""
     rows = _harvest_runs(ROOT / "runs_v2")
-    rows += _harvest_runs(
-        ROOT / "runs_v2.good_loop_v1_single_repro", arm_label="good_loop_v1"
-    )
+    v1_archive_name = "runs_v2.good_loop_v1_single_repro"
+    for archive in sorted(ROOT.glob("runs_v2.*")):
+        if not archive.is_dir():
+            continue
+        if archive.name == v1_archive_name:
+            rows += _harvest_runs(archive, arm_label="good_loop_v1")
+        else:
+            rows += _harvest_runs(archive)
     # de-dup by (model, iid, arm, sample_idx) so k>1 sampling is preserved and
     # the router can learn from pass-rate, not just pass@1.
     by_key = {
@@ -419,6 +429,97 @@ def evaluate_offline(
     return out
 
 
+def evaluate_offline_rotate(
+    router,
+    *,
+    k: int = 3,
+    models: tuple[str, ...] = ("gemma4_e4b",),
+) -> dict[str, dict]:
+    """Simulate good_rotate against the existing outcomes log under LOO.
+
+    For each (model, iid):
+      - rank-and-pick an arm per sample via `router.select_arm_for_sample`
+        (passing `exclude_iid=iid` when the router accepts it, so KNN's score
+        computation never sees the held-out task);
+      - consume the next available outcome row for that arm via `consume_idx`;
+      - on missing sample slot, fall back to the s=0 row and increment
+        `unmet_samples`;
+      - short-circuit when an arm resolves the task (REPLAY_WIN already
+        covered by `_pick_unexplored`).
+
+    Returns `{model: {coverage_rotate, ceiling_all_arms_union,
+    arms_used_count, unmet_samples}}` mirroring the architecture spec.
+    """
+    outcomes = load_outcomes()
+    cache = json.loads(SYNTH_CACHE.read_text())
+
+    # Sample-level lookup: (model, iid, arm, sample_idx) -> resolved bool.
+    by_sample: dict[tuple[str, str, str, int], bool] = {}
+    for r in outcomes:
+        key = (r["model_slug"], r["iid"], r["arm"], int(r.get("sample_idx", 0)))
+        by_sample[key] = bool(r["resolved"])
+    # Arm-level pass@k: (model, iid, arm) resolved if ANY sample did.
+    by_arm: dict[tuple[str, str, str], bool] = {}
+    for r in outcomes:
+        key = (r["model_slug"], r["iid"], r["arm"])
+        by_arm[key] = by_arm.get(key, False) or bool(r["resolved"])
+
+    knn_capable = hasattr(router, "_features_by_iid")
+    out: dict[str, dict] = {}
+    for model in models:
+        iids = sorted({r["iid"] for r in outcomes if r["model_slug"] == model})
+        coverage_rotate = 0
+        unmet_samples = 0
+        arms_dispatched: set[str] = set()
+        for iid in iids:
+            if iid not in cache:
+                continue
+            features = extract_features(cache[iid])
+            tried: dict[str, list[bool]] = {}
+            consume_idx: dict[str, int] = defaultdict(int)
+            resolved_any = False
+            for s in range(k):
+                kwargs = {}
+                if knn_capable:
+                    kwargs = {"outcomes": outcomes, "exclude_iid": iid}
+                arm = router.select_arm_for_sample(
+                    features,
+                    model,
+                    sample_idx=s,
+                    tried_arms_results=tried,
+                    **kwargs,
+                )
+                arms_dispatched.add(arm)
+                slot = consume_idx[arm]
+                key = (model, iid, arm, slot)
+                if key in by_sample:
+                    resolved = by_sample[key]
+                else:
+                    fallback_key = (model, iid, arm, 0)
+                    resolved = by_sample.get(fallback_key, False)
+                    unmet_samples += 1
+                tried.setdefault(arm, []).append(resolved)
+                consume_idx[arm] = slot + 1
+                if resolved:
+                    resolved_any = True
+                    break
+            if resolved_any:
+                coverage_rotate += 1
+        ceiling = sum(
+            1
+            for iid in iids
+            if any(by_arm.get((model, iid, a), False) for a in RUNTIME_ARMS)
+        )
+        out[model] = {
+            "tasks": len(iids),
+            "coverage_rotate": f"{coverage_rotate}/{len(iids)}",
+            "ceiling_all_arms_union": f"{ceiling}/{len(iids)}",
+            "arms_used_count": len(arms_dispatched),
+            "unmet_samples": unmet_samples,
+        }
+    return out
+
+
 # --------------------------- runtime entry ---------------------------------
 
 _ACTIVE_ROUTER = RuleRouter()
@@ -456,6 +557,18 @@ def main() -> None:
                     f"best_static={info['best_static_arm']}({info['best_static_coverage']})  "
                     f"ceiling(all_arms)={info['ceiling_all_arms_union']}  "
                     f"arms_used={info['arms_used_count']}"
+                )
+        for k in (3,):
+            rotate_res = evaluate_offline_rotate(
+                r, k=k, models=("gpt-oss_20b", "gemma4_e4b")
+            )
+            print(f"\npolicy={r.name}  k={k}  rotation=True")
+            for m, info in rotate_res.items():
+                print(
+                    f"  {m:14s} coverage={info['coverage_rotate']:>5s}  "
+                    f"ceiling(all_arms)={info['ceiling_all_arms_union']}  "
+                    f"arms_used={info['arms_used_count']}  "
+                    f"unmet_samples={info['unmet_samples']}"
                 )
     print("=" * 78)
 

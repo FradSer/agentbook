@@ -18,6 +18,8 @@ import argparse
 import json
 import sys
 import time
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,7 +49,11 @@ def run_cell(cell, llm, client, *, step_budget, temperature, seed_base, bash_tim
     meta = _meta(cell.iid)
     repo = prepare_cell(cell.iid, cell.arm, cell.model_slug, cell.sample_idx)
     user_prompt, arm_meta = build_prompt(
-        cell.iid, cell.arm, client=client, model_slug=cell.model_slug
+        cell.iid,
+        cell.arm,
+        client=client,
+        model_slug=cell.model_slug,
+        sample_idx=cell.sample_idx,
     )
     seed = seed_base + cell.sample_idx
 
@@ -97,6 +103,174 @@ def run_cell(cell, llm, client, *, step_budget, temperature, seed_base, bash_tim
     )
     cell.result_path.write_text(json.dumps(result, indent=2) + "\n")
     return result
+
+
+def _has_memory(c, mem_ids: set[str], synth_ids: set[str], loop_ids: set[str]) -> bool:
+    """Per-arm memory-prerequisite gate. A cell is dispatched only when its
+    iid carries the cache its arm needs.
+
+    `good_rotate` is the union gate: every sub-arm the rotation dispatcher may
+    pick (`good`, `good_synth`, `good_loop`, `good_multi_loop`) must be backed
+    by data for the iid, otherwise the recursive sub-arm call inside
+    `build_prompt` would crash on a missing-cache lookup at runtime.
+    """
+    if c.arm in ("good", "good_apply"):
+        return c.iid in mem_ids
+    if c.arm == "good_synth":
+        return c.iid in synth_ids
+    if c.arm == "good_loop":
+        return c.iid in loop_ids
+    if c.arm == "good_multi_loop":
+        # needs BOTH a prose recall AND a multi-repro verification cache
+        return c.iid in mem_ids and c.iid in loop_ids
+    if c.arm == "good_router":
+        # router dispatches across all 4 recall arms; gate on the broadest
+        # requirement so every chosen sub-arm has data.
+        return c.iid in mem_ids and c.iid in synth_ids
+    if c.arm == "good_rotate":
+        # rotation may dispatch to ANY runtime sub-arm across samples; require
+        # all three sub-arm prerequisites so no sample slot crashes.
+        return c.iid in mem_ids and c.iid in synth_ids and c.iid in loop_ids
+    return True
+
+
+def run_chain(
+    chain: list,
+    llm,
+    client,
+    *,
+    step_budget: int,
+    temperature: float,
+    seed_base: int,
+    bash_timeout: int,
+) -> list:
+    """Run a per-(iid, model) chain of good_rotate cells serially.
+
+    Sample N writes its result.json before sample N+1's run_cell call, so
+    `_load_prior_sample_outcomes(iid, model_slug, N+1)` finds sample N's row on
+    disk. No ThreadPoolExecutor inside the chain -- the serial loop is the
+    load-bearing invariant for the rotation arm. Cells are run in `sample_idx`
+    order regardless of the input list's order so the caller does not need to
+    pre-sort.
+    """
+    ordered = sorted(chain, key=lambda c: c.sample_idx)
+    results: list = []
+    for cell in ordered:
+        res = run_cell(
+            cell,
+            llm,
+            client,
+            step_budget=step_budget,
+            temperature=temperature,
+            seed_base=seed_base,
+            bash_timeout=bash_timeout,
+        )
+        results.append(res)
+    return results
+
+
+def _dispatch_todo(
+    todo: list,
+    *,
+    llm,
+    client,
+    workers: int,
+    step_budget: int,
+    temperature: float,
+    seed_base: int,
+    bash_timeout: int,
+    on_result=None,
+    on_error=None,
+) -> tuple[int, int]:
+    """Split scheduling per architecture.md:
+
+      - `good_rotate` cells are grouped into per-`(iid, model)` chains and
+        dispatched via `run_chain` -- the in-chain `run_cell` calls execute
+        serially so sample N writes `result.json` before sample N+1 reads it.
+      - everything else goes through the existing parallel pool.
+
+    Pool A (other_cells) and Pool B (chains) run in parallel: `workers` caps
+    chain-level concurrency for rotate AND cell-level concurrency for the rest,
+    so the operator's existing `--workers` knob still bounds total in-flight
+    LLM calls.
+
+    Callers may pass `on_result(cell, res, dt)` / `on_error(cell, exc, dt)`
+    hooks to receive per-cell completions. Returns `(ran, errors)`.
+    """
+    rotate_cells = [c for c in todo if c.arm == "good_rotate"]
+    other_cells = [c for c in todo if c.arm != "good_rotate"]
+    chains: dict[tuple[str, str], list] = defaultdict(list)
+    for c in rotate_cells:
+        chains[(c.iid, c.model)].append(c)
+    for chain in chains.values():
+        chain.sort(key=lambda c: c.sample_idx)
+
+    def _cell_task(cell):
+        t0 = time.time()
+        try:
+            res = run_cell(
+                cell,
+                llm,
+                client,
+                step_budget=step_budget,
+                temperature=temperature,
+                seed_base=seed_base,
+                bash_timeout=bash_timeout,
+            )
+            return cell, res, time.time() - t0, None
+        except Exception as exc:  # noqa: BLE001 -- isolate one cell's failure
+            return cell, None, time.time() - t0, exc
+
+    def _chain_task(chain):
+        t0 = time.time()
+        try:
+            results = run_chain(
+                chain,
+                llm,
+                client,
+                step_budget=step_budget,
+                temperature=temperature,
+                seed_base=seed_base,
+                bash_timeout=bash_timeout,
+            )
+            return chain, results, time.time() - t0, None
+        except Exception as exc:  # noqa: BLE001 -- isolate one chain's failure
+            return chain, None, time.time() - t0, exc
+
+    ran = errors = 0
+    with (
+        ThreadPoolExecutor(max_workers=max(workers, 1)) as pool_a,
+        ThreadPoolExecutor(max_workers=max(workers, 1)) as pool_b,
+    ):
+        cell_futs = [pool_a.submit(_cell_task, c) for c in other_cells]
+        chain_futs = [pool_b.submit(_chain_task, ch) for ch in chains.values()]
+
+        for fut in as_completed(cell_futs):
+            cell, res, dt, exc = fut.result()
+            ran += 1
+            if exc is not None:
+                errors += 1
+                if on_error is not None:
+                    on_error(cell, exc, dt)
+            elif on_result is not None:
+                on_result(cell, res, dt)
+
+        for fut in as_completed(chain_futs):
+            chain, results, dt, exc = fut.result()
+            if exc is not None:
+                # Whole chain failed: count one error and skip per-cell hooks
+                # (the chain's first cell raised; subsequent cells did not run).
+                errors += 1
+                ran += 1
+                if on_error is not None:
+                    on_error(chain[0], exc, dt)
+                continue
+            for cell, res in zip(chain, results, strict=True):
+                ran += 1
+                if on_result is not None:
+                    on_result(cell, res, dt)
+
+    return ran, errors
 
 
 def main() -> None:
@@ -218,23 +392,7 @@ def main() -> None:
     # good_loop additionally needs a runnable verification check for that task.
     loop_ids = {i for i, e in synth.items() if e.get("verification_feasible")}
 
-    def _has_memory(c) -> bool:
-        if c.arm in ("good", "good_apply"):
-            return c.iid in mem_ids
-        if c.arm == "good_synth":
-            return c.iid in synth_ids
-        if c.arm == "good_loop":
-            return c.iid in loop_ids
-        if c.arm == "good_multi_loop":
-            # needs BOTH a prose recall AND a multi-repro verification cache
-            return c.iid in mem_ids and c.iid in loop_ids
-        if c.arm == "good_router":
-            # router dispatches across all 4 recall arms; gate on the broadest
-            # requirement so every chosen sub-arm has data.
-            return c.iid in mem_ids and c.iid in synth_ids
-        return True
-
-    cells = [c for c in cells if _has_memory(c)]
+    cells = [c for c in cells if _has_memory(c, mem_ids, synth_ids, loop_ids)]
     todo = [c for c in cells if args.force or not c.is_fresh()]
     done = len(cells) - len(todo)
     print(f"todo {len(todo)} cells ({done} already fresh) | {args.workers} workers")
@@ -250,40 +408,36 @@ def main() -> None:
         _synth_entry(ids[0])
     harness_git_commit()
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    progress = {"i": 0}
 
-    def task(cell):
-        t0 = time.time()
-        try:
-            res = run_cell(
-                cell,
-                llm,
-                client,
-                step_budget=args.step_budget,
-                temperature=args.temperature,
-                seed_base=args.seed_base,
-                bash_timeout=args.bash_timeout,
-            )
-            return cell, res, time.time() - t0, None
-        except Exception as exc:  # noqa: BLE001 -- isolate one cell's failure
-            return cell, None, time.time() - t0, exc
+    def _on_result(cell, res, dt):
+        progress["i"] += 1
+        print(
+            f"  [{progress['i']}/{len(todo)}] {cell.dirname}: "
+            f"resolved={res['resolved']} submitted={res['submitted']} "
+            f"stop={res['stop_reason']} turns={res['turns_used']} ({dt:.0f}s)",
+            flush=True,
+        )
 
-    ran = errors = 0
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = [ex.submit(task, c) for c in todo]
-        for fut in as_completed(futs):
-            cell, res, dt, exc = fut.result()
-            ran += 1
-            if exc is not None:
-                errors += 1
-                print(f"  [{ran}/{len(todo)}] {cell.dirname}: ERROR {exc}", flush=True)
-                continue
-            print(
-                f"  [{ran}/{len(todo)}] {cell.dirname}: resolved={res['resolved']} "
-                f"submitted={res['submitted']} stop={res['stop_reason']} "
-                f"turns={res['turns_used']} ({dt:.0f}s)",
-                flush=True,
-            )
+    def _on_error(cell, exc, dt):
+        progress["i"] += 1
+        print(
+            f"  [{progress['i']}/{len(todo)}] {cell.dirname}: ERROR {exc}",
+            flush=True,
+        )
+
+    ran, errors = _dispatch_todo(
+        todo,
+        llm=llm,
+        client=client,
+        workers=args.workers,
+        step_budget=args.step_budget,
+        temperature=args.temperature,
+        seed_base=args.seed_base,
+        bash_timeout=args.bash_timeout,
+        on_result=_on_result,
+        on_error=_on_error,
+    )
 
     if client:
         client.close()
