@@ -25,6 +25,7 @@ from benchmark.agentbook_client import (  # noqa: E402
 )
 from benchmark.bugfields import build_query  # noqa: E402
 from benchmark.paths import ORACLE, TASKS  # noqa: E402
+from harness.sandbox import RUNS_V2 as _DEFAULT_RUNS_V2  # noqa: E402
 
 ORACLE_CORPUS = ORACLE / "oracle.json"
 RECALL_CACHE = ORACLE / "recall_cache.json"
@@ -32,6 +33,9 @@ PATCH_CACHE = ORACLE / "patch_cache.json"
 SIB_PAIRS = ORACLE / "sib_pairs.json"
 MEMORIES_FILE = ORACLE / "memories.json"
 SYNTH_CACHE = ORACLE / "synth_cache.json"
+# Re-exported so the good_rotate branch can read prior-sample result.json files
+# without coupling to harness.sandbox at call time; tests monkeypatch this.
+RUNS_V2 = _DEFAULT_RUNS_V2
 
 _sib_data: dict | None = None
 _mem_by_iid: dict | None = None
@@ -142,15 +146,51 @@ def _synth_entry(iid: str) -> dict | None:
     return entry
 
 
+def _load_prior_sample_outcomes(
+    iid: str, model_slug: str, sample_idx: int
+) -> dict[str, list[bool]]:
+    """Read sibling `runs_v2/<iid>__good_rotate__<model_slug>__s<j>/result.json`
+    files for `j in range(sample_idx)` and aggregate
+    `{arm_meta.routed_to: [resolved_bool, ...]}`.
+
+    Returns `{}` when `sample_idx == 0`. Missing directories or unreadable
+    files are skipped silently (good_rotate's first sample of a chain naturally
+    has no prior history; later samples may also be processed before any prior
+    cell's result.json is on disk if the orchestrator is mid-startup)."""
+    history: dict[str, list[bool]] = {}
+    if sample_idx <= 0:
+        return history
+    for j in range(sample_idx):
+        cell_dir = RUNS_V2 / f"{iid}__good_rotate__{model_slug}__s{j}"
+        result_path = cell_dir / "result.json"
+        if not result_path.is_file():
+            continue
+        try:
+            data = json.loads(result_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        arm_meta = data.get("arm_meta") or {}
+        routed_to = arm_meta.get("routed_to")
+        if not routed_to:
+            continue
+        resolved = bool(data.get("resolved"))
+        history.setdefault(routed_to, []).append(resolved)
+    return history
+
+
 def build_prompt(
     iid: str,
     arm: str,
     *,
     client: AgentbookClient | None = None,
     model_slug: str | None = None,
+    sample_idx: int | None = None,
 ) -> tuple[str, dict]:
-    """Return (user_prompt, arm_meta) for one cell. `model_slug` is only used by
-    the `good_router` arm to route per-model; other arms ignore it."""
+    """Return (user_prompt, arm_meta) for one cell. `model_slug` is used by the
+    `good_router` and `good_rotate` arms to route per-model; other arms ignore
+    it. `sample_idx` is consumed by the `good_rotate` branch to read prior
+    sibling-sample outcomes and rotate to a different sub-arm; other arms
+    ignore it."""
     bug = (TASKS / iid / "BUG.md").read_text()
     base = bug + _BASE_INSTRUCTION
 
@@ -245,6 +285,38 @@ def build_prompt(
         meta["routed_from"] = "good_router"
         meta["routed_to"] = sub_arm
         meta["hint"] = "good_router"
+        return prompt, meta
+
+    if arm == "good_rotate":
+        # Adaptive sample rotation: read prior siblings of THIS (iid, model)
+        # chain from runs_v2/, consult the active router for the next sub-arm
+        # to try, and delegate. Knowledge is whatever the chosen sub-arm
+        # carries -- no new memory is injected here.
+        from pipeline.router import _ACTIVE_ROUTER, extract_features
+
+        if not model_slug:
+            return base, {"hint": "good_rotate", "missing_model": True}
+        cache = json.loads(SYNTH_CACHE.read_text()) if SYNTH_CACHE.exists() else {}
+        if iid not in cache:
+            return base, {"hint": "good_rotate", "no_features": True}
+        features = extract_features(cache[iid])
+        tried = _load_prior_sample_outcomes(iid, model_slug, sample_idx or 0)
+        sub_arm = _ACTIVE_ROUTER.select_arm_for_sample(
+            features, model_slug, sample_idx or 0, tried
+        )
+        prompt, meta = build_prompt(
+            iid,
+            sub_arm,
+            client=client,
+            model_slug=model_slug,
+            sample_idx=sample_idx,
+        )
+        meta = dict(meta)
+        meta["routed_from"] = "good_rotate"
+        meta["routed_to"] = sub_arm
+        meta["rotate_sample_idx"] = sample_idx
+        meta["rotate_tried_history"] = tried
+        meta["hint"] = "good_rotate"
         return prompt, meta
 
     if arm == "good_multi_loop":

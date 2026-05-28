@@ -191,6 +191,33 @@ def update_from_outcome(
 # ----------------------------- policies ------------------------------------
 
 
+def _pick_unexplored(
+    ranking: list[str], tried_arms_results: dict[str, list[bool]]
+) -> str:
+    """Decision shared by RuleRouter.select_arm_for_sample and KNNRouter
+    .select_arm_for_sample (and reused by the offline rotate simulator in
+    task-015). Branches in order:
+
+      1. REPLAY_WIN -- a prior sample for this task already passed; replay it.
+      2. FRESH_ARM -- highest-ranked arm not yet tried.
+      3. EXHAUSTED_RANKING -- ranking exhausted but RUNTIME_ARMS may still
+         have an unseen arm; fall through to one of those.
+      4. BURN_REPLAY -- every runtime arm tried, all failed; replay the
+         router's strongest pick (ranking[0]).
+    """
+    for arm, results in tried_arms_results.items():
+        if any(results):
+            return arm
+    tried = set(tried_arms_results)
+    for arm in ranking:
+        if arm not in tried:
+            return arm
+    for arm in RUNTIME_ARMS:
+        if arm not in tried:
+            return arm
+    return ranking[0]
+
+
 class RuleRouter:
     """Deterministic rules derived from observed per-model patterns. No fit."""
 
@@ -219,6 +246,20 @@ class RuleRouter:
                 else ["good", "good_loop", "good_synth"]
             )
         return ranked[:k]
+
+    def select_arm_for_sample(
+        self,
+        features: dict,
+        model_slug: str,
+        sample_idx: int,
+        tried_arms_results: dict[str, list[bool]],
+    ) -> str:
+        """Rotation entry: rank by static rules, then pick the next arm to try
+        per `_pick_unexplored`. `sample_idx` is accepted for symmetry with the
+        KNN variant and to keep the call-site signature stable for the offline
+        rotate simulator (task-015)."""
+        ranking = self.select(features, model_slug, k=len(RUNTIME_ARMS))
+        return _pick_unexplored(ranking, tried_arms_results)
 
 
 class KNNRouter:
@@ -283,6 +324,28 @@ class KNNRouter:
             ),
         )
         return ranked[:k]
+
+    def select_arm_for_sample(
+        self,
+        features: dict,
+        model_slug: str,
+        sample_idx: int,
+        tried_arms_results: dict[str, list[bool]],
+        *,
+        outcomes: list[dict] | None = None,
+        exclude_iid: str | None = None,
+    ) -> str:
+        """Rotation entry for KNN. `outcomes` and `exclude_iid` flow through to
+        `self.select` so leave-one-out safety is preserved when the offline
+        rotate simulator (task-015) drives this method per held-out task."""
+        ranking = self.select(
+            features,
+            model_slug,
+            k=len(RUNTIME_ARMS),
+            outcomes=outcomes,
+            exclude_iid=exclude_iid,
+        )
+        return _pick_unexplored(ranking, tried_arms_results)
 
 
 # --------------------------- offline evaluation ----------------------------
