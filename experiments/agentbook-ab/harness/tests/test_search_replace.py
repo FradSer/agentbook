@@ -282,3 +282,319 @@ def test_run_verification_accepts_alternative_expected(tmp_path):
         tmp_path, "echo nothing", ["RESULT: oo", "IS_OO: True"], None
     )
     assert not ok
+
+
+# ---------------------------------------------------------------------------
+# Feature 2: extract_edits recovers truncated / off-fence SEARCH/REPLACE blocks
+# ---------------------------------------------------------------------------
+
+
+def test_lenient_closing_fence_missing():
+    """Then it returns exactly one tuple ("path/x.py", "a = 1", "a = 2").
+
+    Scenario: Closing fence missing because the model hit max_tokens.
+    """
+    text = (
+        "```edit\npath/x.py\n<<<<<<< SEARCH\na = 1\n=======\na = 2\n>>>>>>> REPLACE\n"
+    )
+    edits = extract_edits(text)
+    assert edits == [("path/x.py", "a = 1", "a = 2")]
+
+
+def test_lenient_python_fence():
+    """Then it returns exactly one tuple and the path comes from the first
+    non-empty pre-SEARCH line inside the block.
+
+    Scenario: Fence tagged ```python instead of ```edit is still parsed.
+    """
+    text = (
+        "Here is a fix.\n\n"
+        "```python\n"
+        "sympy/foo.py\n"
+        "<<<<<<< SEARCH\n"
+        "x = 1\n"
+        "=======\n"
+        "x = 2\n"
+        ">>>>>>> REPLACE\n"
+        "```\n"
+    )
+    edits = extract_edits(text)
+    assert edits == [("sympy/foo.py", "x = 1", "x = 2")]
+
+
+def test_lenient_raw_markers_with_preceding_path():
+    """Then it returns exactly one tuple ("path/x.py", "x = 1", "x = 2").
+
+    Scenario: Raw SEARCH/REPLACE markers with no opening fence are recovered
+    when a path precedes them.
+    """
+    text = (
+        "Here is the fix.\n\n"
+        "path/x.py\n"
+        "<<<<<<< SEARCH\n"
+        "x = 1\n"
+        "=======\n"
+        "x = 2\n"
+        ">>>>>>> REPLACE\n"
+    )
+    edits = extract_edits(text)
+    assert edits == [("path/x.py", "x = 1", "x = 2")]
+
+
+def test_lenient_whitespace_tolerance():
+    """Then it returns exactly one tuple and the search/replace bodies are
+    stripped of leading/trailing whitespace correctly.
+
+    Scenario: Carets-and-equals whitespace tolerance. Truncated (no closing
+    fence) so the lenient SR regex must accept mixed caret counts and trailing
+    whitespace on the separator.
+    """
+    text = (
+        "```edit\n"
+        "sympy/foo.py\n"
+        "<<<<< SEARCH\n"
+        "old\n"
+        "=======   \n"  # trailing spaces on the separator
+        "new\n"
+        ">>>>>>>> REPLACE\n"
+        # no closing fence -- lenient path required
+    )
+    edits = extract_edits(text)
+    assert len(edits) == 1
+    path, search, replace = edits[0]
+    assert path == "sympy/foo.py"
+    assert search.strip() == "old"
+    assert replace.strip() == "new"
+
+
+def test_lenient_path_on_fence_line():
+    """Then it returns exactly one tuple ("path/x.py", "old", "new").
+
+    Scenario: Path-on-fence-line ("```edit path/x.py").
+    """
+    text = (
+        "```edit path/x.py\n<<<<<<< SEARCH\nold\n=======\nnew\n>>>>>>> REPLACE\n```\n"
+    )
+    edits = extract_edits(text)
+    assert edits == [("path/x.py", "old", "new")]
+
+
+def test_lenient_two_complete_pairs_unfenced():
+    """Then it returns 2 tuples sharing the same path.
+
+    Scenario: Two complete SEARCH/REPLACE pairs in one unfenced block both
+    recover.
+    """
+    text = (
+        "```edit\n"
+        "sympy/foo.py\n"
+        "<<<<<<< SEARCH\n"
+        "a = 1\n"
+        "=======\n"
+        "a = 2\n"
+        ">>>>>>> REPLACE\n"
+        "<<<<<<< SEARCH\n"
+        "b = 3\n"
+        "=======\n"
+        "b = 4\n"
+        ">>>>>>> REPLACE\n"
+        # no closing fence -- truncated
+    )
+    edits = extract_edits(text)
+    assert len(edits) == 2
+    assert {e[0] for e in edits} == {"sympy/foo.py"}
+    assert ("sympy/foo.py", "a = 1", "a = 2") in edits
+    assert ("sympy/foo.py", "b = 3", "b = 4") in edits
+
+
+def test_lenient_truncated_final_pair_dropped():
+    """Then it returns exactly 1 tuple (the complete pair) and the incomplete
+    pair is silently discarded.
+
+    Scenario: Truncated final pair is dropped, prior complete pairs kept.
+    """
+    text = (
+        "```edit\n"
+        "sympy/foo.py\n"
+        "<<<<<<< SEARCH\n"
+        "a = 1\n"
+        "=======\n"
+        "a = 2\n"
+        ">>>>>>> REPLACE\n"
+        "<<<<<<< SEARCH\n"
+        "a = 1\n"
+        "=====<truncated>"
+    )
+    edits = extract_edits(text)
+    assert edits == [("sympy/foo.py", "a = 1", "a = 2")]
+
+
+def test_lenient_truncated_recovers_and_applies(tmp_path):
+    """Then mod.py is rewritten to "def f():\\n    return 1\\n", AND when the
+    lenient recovery surfaces a tuple under tests/, apply_search_replace
+    returns (False, msg) where msg contains "test file" and the working tree
+    is unchanged.
+
+    Scenarios: End-to-end -- truncated edit block parses AND applies to a real
+    file; test-file edit refusal still fires for a recovered (unfenced) block.
+    """
+    _write(tmp_path, "def f():\n    return 0\n")
+    text = (
+        "```edit\n"
+        "mod.py\n"
+        "<<<<<<< SEARCH\n"
+        "return 0\n"
+        "=======\n"
+        "return 1\n"
+        ">>>>>>> REPLACE\n"
+        # no closing fence -- truncated
+    )
+    edits = extract_edits(text)
+    assert edits == [("mod.py", "return 0", "return 1")]
+    ok, msg = apply_search_replace(tmp_path, edits)
+    assert ok, msg
+    assert (tmp_path / "mod.py").read_text() == "def f():\n    return 1\n"
+
+    # Test-file refusal still fires for a tuple that the lenient parser would
+    # also surface (path = tests/test_x.py). apply_search_replace is the gate.
+    (tmp_path / "tests").mkdir()
+    target = tmp_path / "tests" / "test_x.py"
+    target.write_text("assert True\n")
+    text_under_tests = (
+        "```edit\n"
+        "tests/test_x.py\n"
+        "<<<<<<< SEARCH\n"
+        "assert True\n"
+        "=======\n"
+        "assert False\n"
+        ">>>>>>> REPLACE\n"
+        # no closing fence -- lenient path must still surface this tuple
+    )
+    leak_edits = extract_edits(text_under_tests)
+    assert leak_edits == [("tests/test_x.py", "assert True", "assert False")]
+    ok2, msg2 = apply_search_replace(tmp_path, leak_edits)
+    assert not ok2
+    assert "test file" in msg2
+    assert target.read_text() == "assert True\n"
+
+
+# ---------------------------------------------------------------------------
+# Feature 3: agent_loop breaks the doom-loop on unparseable edit intent
+# ---------------------------------------------------------------------------
+
+
+def test_looks_like_edit_intent_partial_markers():
+    """Then looks_like_edit_intent returns true / true / false on the three
+    inputs. Also covers the Feature 2 "neither SR markers nor ```edit returns
+    empty list -- lenient fallback is NOT entered (no _INTENT_RE match)"
+    contract: a bash-only reply produces no intent AND extract_edits returns [].
+
+    Scenarios: looks_like_edit_intent detects partial markers; lenient
+    fallback short-circuits on non-intent text.
+    """
+    from harness.prompts import looks_like_edit_intent
+
+    assert looks_like_edit_intent("```edit\n...\n") is True
+    assert looks_like_edit_intent("<<<<<<< SEARCH\nfoo\n") is True
+    non_intent = "Let me think. I will grep next.\n\n```bash\nls\n```\n"
+    assert looks_like_edit_intent(non_intent) is False
+    # Lenient fallback is NOT entered for non-intent text.
+    assert extract_edits(non_intent) == []
+
+
+def test_diagnose_edit_block_classifies():
+    """Then the returned string contains "closing triple-backtick" /
+    "=======" or "separator" / "REPLACE" for the three scenarios.
+
+    Scenarios: diagnose_edit_block classifies the missing closing fence /
+    missing separator / truncated mid-block.
+    """
+    from harness.prompts import diagnose_edit_block
+
+    # Missing closing fence.
+    no_close = "```edit\nmod.py\n<<<<<<< SEARCH\nold\n=======\nnew\n>>>>>>> REPLACE\n"
+    assert "closing triple-backtick" in diagnose_edit_block(no_close)
+
+    # Missing ======= separator.
+    no_sep = "```edit\nmod.py\n<<<<<<< SEARCH\nold\n>>>>>>> REPLACE\n```\n"
+    diag = diagnose_edit_block(no_sep)
+    assert ("=======" in diag) or ("separator" in diag)
+
+    # Truncated mid-block -- never reaches the REPLACE marker.
+    truncated = "```edit\nmod.py\n<<<<<<< SEARCH\nold\n=======\nnew\n"
+    assert "REPLACE" in diagnose_edit_block(truncated)
+
+
+def test_agent_loop_emits_edit_malformed_hint(tmp_path):
+    """Then the next user message contains the diagnosis, does NOT contain
+    "Respond with EXACTLY ONE ```bash", consecutive_parse_failures increments
+    by 1, and the episode does NOT abort yet.
+
+    Scenario: agent_loop emits _EDIT_MALFORMED_HINT instead of _NO_BLOCK_HINT.
+    """
+    import subprocess
+
+    from harness.agent_loop import run_episode
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, capture_output=True)
+
+    # The reply has SEARCH/REPLACE intent and an opening ```edit fence but no
+    # path line precedes the SEARCH marker AND no closing fence -- the lenient
+    # parser cannot recover a tuple, so extract_edits returns [] while
+    # looks_like_edit_intent returns True. diagnose_edit_block classifies it as
+    # "missing closing triple-backtick" because the equals separator and the
+    # REPLACE marker are both present.
+    truncated_edit_reply = (
+        "Here is the fix.\n\n"
+        "```edit\n"
+        "<<<<<<< SEARCH\n"
+        "old\n"
+        "=======\n"
+        "new\n"
+        ">>>>>>> REPLACE\n"
+        # no closing fence -- the doom-loop trigger
+    )
+    done_reply = "```bash\necho AGENT_DONE\n```\n"
+
+    class _StubLLM:
+        """In-memory LLM stub conforming to harness.llm_ollama.OllamaLLM.chat."""
+
+        def __init__(self, replies):
+            self.replies = list(replies)
+            self.calls = []
+
+        def chat(self, model, messages, *, temperature=0.7, seed=0):
+            # Record the message list as seen by the model on this turn.
+            self.calls.append([dict(m) for m in messages])
+            if self.replies:
+                return self.replies.pop(0)
+            return ""
+
+    stub = _StubLLM([truncated_edit_reply, done_reply])
+    episode = run_episode(
+        tmp_path,
+        "fix the bug",
+        stub,  # duck-typed; only `chat` is consumed
+        "gemma4:e4b",
+        step_budget=2,
+        temperature=0.0,
+        seed=0,
+    )
+
+    # 2 chat() calls were made (turn 1: truncated edit; turn 2: AGENT_DONE).
+    assert len(stub.calls) == 2
+    turn2_messages = stub.calls[1]
+    # The user message appended after turn 1 is the last user-role message.
+    user_msgs = [m for m in turn2_messages if m.get("role") == "user"]
+    assert user_msgs, "no user message recorded for turn 2"
+    last_user = user_msgs[-1]["content"]
+    # The diagnosis substring must appear (closing-backtick was the case here).
+    assert "closing triple-backtick" in last_user
+    # And the generic no-block hint must NOT have leaked into this branch.
+    assert "Respond with EXACTLY ONE ```bash" not in last_user
+    # 6-strike abort did NOT fire on a single strike.
+    assert episode.stop_reason != "parse_failures"
+    # consecutive_parse_failures reached exactly 1 -- captured in the notes log
+    # (one "unparseable-edit" note appended on turn 1).
+    edit_notes = [n for n in episode.notes if "unparseable-edit" in n]
+    assert len(edit_notes) == 1

@@ -8,10 +8,12 @@ from pathlib import Path
 from harness.llm_openrouter import BudgetExhausted, LLMError, OpenRouterLLM
 from harness.prompts import (
     SYSTEM_PROMPT,
+    diagnose_edit_block,
     extract_command,
     extract_diff,
     extract_edits,
     is_done,
+    looks_like_edit_intent,
     wants_apply_patch,
 )
 from harness.sandbox import (
@@ -28,6 +30,26 @@ _NO_BLOCK_HINT = (
     "No bash code block found in your reply. Respond with EXACTLY ONE ```bash "
     "block containing a single command, or ```bash\\necho AGENT_DONE\\n``` when "
     "the fix is complete."
+)
+
+# Malformed-edit feedback for the third dispatch branch. Used when the reply
+# shows visible SEARCH/REPLACE intent (looks_like_edit_intent) but extract_edits
+# could not isolate a pair. Tells the model the specific structural problem so
+# it stops doom-looping the same truncated body. MUST NOT contain the
+# "Respond with EXACTLY ONE ```bash" string from _NO_BLOCK_HINT -- the Feature 3
+# scenario explicitly forbids that leaking into this branch.
+_EDIT_MALFORMED_HINT = (
+    "I could not apply your edit: {diag}. "
+    "Re-emit ONE complete ```edit block with all five lines:\n"
+    "  ```edit\n"
+    "  path/to/file.py\n"
+    "  <<<<<<< SEARCH\n"
+    "  <lines to find>\n"
+    "  =======\n"
+    "  <lines to put in their place>\n"
+    "  >>>>>>> REPLACE\n"
+    "  ```\n"
+    "Keep the body short (a single hunk) so the block fits in one reply."
 )
 
 
@@ -214,6 +236,28 @@ def run_episode(
                 "directly.",
             )
             messages.append({"role": "user", "content": obs})
+            continue
+
+        # Edit-intent recovery: a SEARCH/REPLACE attempt that parsed to no
+        # edits. Tell the model the specific structural problem, not the
+        # generic "emit bash" hint -- otherwise the model doom-loops the same
+        # truncated block (observed 4 identical turns in
+        # good_multi_loop__sympy-15976__gemma4_e4b__s0). consecutive_parse_failures
+        # still increments so the 6-strike abort fires; the doom-loop breaks
+        # because the feedback CONTENT changes, not because the cap shrinks.
+        if looks_like_edit_intent(text):
+            consecutive_parse_failures += 1
+            diag = diagnose_edit_block(text)
+            episode.notes.append(
+                f"turn {turn} unparseable-edit ({diag}): {(text or '').strip()[:300]}"
+            )
+            messages.append(
+                {"role": "user", "content": _EDIT_MALFORMED_HINT.format(diag=diag)}
+            )
+            if consecutive_parse_failures >= 6:
+                episode.stop_reason = "parse_failures"
+                episode.turns_used = turn
+                break
             continue
 
         command = extract_command(text)
