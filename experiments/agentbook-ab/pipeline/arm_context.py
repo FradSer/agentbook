@@ -111,13 +111,35 @@ def _recall_entry(iid: str) -> dict | None:
 
 def _synth_entry(iid: str) -> dict | None:
     """Autoresearcher-synthesized structured knowledge (memory/synthesize.py):
-    root-cause pattern + localization cues + verification method, no patch."""
+    root-cause pattern + localization cues + verification method, no patch.
+
+    When `revisions` is present (post-refinement), return a merged view of
+    `revisions[-1]` knowledge fields over the base entry metadata so callers
+    see the latest cues without round-tripping through the alias mirror.
+    Entries without `revisions` are returned unchanged for backwards compat.
+    """
     global _synth_data
     if _synth_data is None:
         _synth_data = (
             json.loads(SYNTH_CACHE.read_text()) if SYNTH_CACHE.exists() else {}
         )
-    return _synth_data.get(iid)
+    entry = _synth_data.get(iid)
+    if entry is None:
+        return None
+    revisions = entry.get("revisions")
+    if revisions:
+        merged = dict(entry)
+        for field in (
+            "root_cause_pattern",
+            "localization_cues",
+            "verification_method",
+            "verifications",
+            "leak_lines_removed",
+        ):
+            if field in revisions[-1]:
+                merged[field] = revisions[-1][field]
+        return merged
+    return entry
 
 
 def build_prompt(
