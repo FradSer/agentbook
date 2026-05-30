@@ -91,6 +91,86 @@ def _flex_locate(hay: list[str], needle: list[str]) -> int | None:
     return None
 
 
+def _locate_block(hay: list[str], needle: list[str]) -> tuple[int, int] | None:
+    """Return the hay span (start, end_exclusive) matching `needle`, or None.
+
+    Tries strict strip-equality first (`_flex_locate`), then a blank-line-
+    insensitive match: the needle's non-blank stripped lines must appear as a
+    contiguous run of hay's non-blank lines, with blank lines interleaved in hay
+    absorbed into the span. Weak models routinely drop or insert blank lines in
+    their SEARCH block; exact-count matching breaks on that. Content must still
+    match exactly (modulo whitespace), so it never edits the wrong region."""
+    n = len(needle)
+    if n == 0:
+        return None
+    strict = _flex_locate(hay, needle)
+    if strict is not None:
+        return strict, strict + n
+    nb = [ln.strip() for ln in needle if ln.strip()]
+    if not nb:
+        return None
+    for i in range(len(hay)):
+        if hay[i].strip() != nb[0]:
+            continue
+        ni, j = 1, i + 1
+        while ni < len(nb) and j < len(hay):
+            hs = hay[j].strip()
+            if hs == "":
+                j += 1  # absorb interleaved blank lines in the file
+                continue
+            if hs == nb[ni]:
+                ni += 1
+                j += 1
+            else:
+                break
+        if ni == len(nb):
+            return i, j
+    return None
+
+
+def search_not_found_hint(
+    repo: Path, edits: list[tuple[str, str, str]], *, context: int = 2
+) -> str:
+    """Feedback for a failed SEARCH: echo the ACTUAL file lines around the
+    model's best-matching anchor so it copies real text instead of re-emitting
+    the same wrong SEARCH (the failed-apply doom-loop). Returns '' when there is
+    nothing useful to add."""
+    if not edits:
+        return ""
+    path, search, _ = edits[0]
+    rel = path.lstrip("./")
+    target = repo / rel
+    if not target.exists():
+        return ""
+    hay = target.read_text(errors="replace").splitlines()
+    needle_nb = [ln.strip() for ln in search.splitlines() if ln.strip()]
+    if not needle_nb:
+        return ""
+    # Anchor on the needle line that appears in the file and is most distinctive
+    # (fewest occurrences, then longest) -- the model usually has one real line.
+    best = None  # (occurrences, -length, first_index)
+    for nl in needle_nb:
+        idxs = [k for k, hl in enumerate(hay) if hl.strip() == nl]
+        if idxs:
+            cand = (len(idxs), -len(nl), idxs[0])
+            best = cand if best is None or cand < best else best
+    if best is None:
+        return (
+            f"None of your SEARCH lines exist in {rel}. Re-read the file first "
+            f"(e.g. `sed -n '1,80p' {rel}`) and copy lines verbatim before editing."
+        )
+    anchor = best[2]
+    lo = max(0, anchor - context)
+    hi = min(len(hay), anchor + len(needle_nb) + context)
+    region = "\n".join(f"{k + 1}: {hay[k]}" for k in range(lo, hi))[:1200]
+    return (
+        f"Your SEARCH text was not found in {rel}. The ACTUAL current content "
+        f"around your target (lines {lo + 1}-{hi}) is:\n```\n{region}\n```\n"
+        f"Copy these lines EXACTLY (verbatim) into a new ```edit SEARCH block, "
+        f"changing only what the fix requires."
+    )
+
+
 def _reindent(replace_lines: list[str], delta: int) -> list[str]:
     """Shift every non-blank replacement line by `delta` spaces (the indent gap
     between the matched site and the model's SEARCH block)."""
@@ -132,16 +212,21 @@ def apply_search_replace(
             applied += 1
             continue
 
-        # 2. whitespace-tolerant line-block match
+        # 2. whitespace- and blank-line-tolerant line-block match
         hay = text.splitlines()
         needle = search_norm.splitlines()
-        start = _flex_locate(hay, needle)
-        if start is None:
+        span = _locate_block(hay, needle)
+        if span is None:
             return False, f"SEARCH block not found in {rel}"
-        base_match = len(hay[start]) - len(hay[start].lstrip(" "))
-        base_needle = len(needle[0]) - len(needle[0].lstrip(" "))
+        start, end = span
+        match_line = next(
+            (hay[k] for k in range(start, end) if hay[k].strip()), hay[start]
+        )
+        needle_first = next((ln for ln in needle if ln.strip()), needle[0])
+        base_match = len(match_line) - len(match_line.lstrip(" "))
+        base_needle = len(needle_first) - len(needle_first.lstrip(" "))
         new_lines = _reindent(replace_norm.splitlines(), base_match - base_needle)
-        hay[start : start + len(needle)] = new_lines
+        hay[start:end] = new_lines
         trailing = "\n" if text.endswith("\n") else ""
         target.write_text("\n".join(hay) + trailing)
         applied += 1

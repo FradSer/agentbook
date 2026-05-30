@@ -23,6 +23,7 @@ from harness.sandbox import (
     git_reset_to,
     run_bash,
     run_verifications,
+    search_not_found_hint,
 )
 from harness.transcript import Episode, Turn
 
@@ -51,6 +52,13 @@ _EDIT_MALFORMED_HINT = (
     "  ```\n"
     "Keep the body short (a single hunk) so the block fits in one reply."
 )
+
+
+# Consecutive failed apply attempts (parse-OK SEARCH/REPLACE or diff that does
+# not locate) before aborting. Mirrors the 6-strike parse-failure cap: a weak
+# model that re-emits the same non-matching block churns the whole budget on
+# minutes-long generations otherwise (observed 15 identical fails on -15976).
+_APPLY_FAIL_LIMIT = 5
 
 
 def _observation(stdout: str, stderr: str, rc: int) -> str:
@@ -83,6 +91,7 @@ def run_episode(
     ]
     episode = Episode()
     consecutive_parse_failures = 0
+    consecutive_apply_failures = 0
 
     # good_loop: harness-owned apply->verify->retry. `verification.repros` is a
     # LIST of public repros (one per site for multi-site bugs); the harness runs
@@ -202,13 +211,28 @@ def run_episode(
                     latency_ms=int((time.time() - t0) * 1000),
                 )
             )
+            # On a non-match, echo the ACTUAL nearby file lines so the model
+            # copies real text instead of re-emitting the same wrong SEARCH
+            # (observed failed-apply doom-loop: 10+ identical non-matching blocks).
+            fail_hint = (
+                search_not_found_hint(repo, edits)
+                if not ok and "not found" in msg
+                else ""
+            ) or (
+                "Re-copy the exact SEARCH lines from the file (or use a "
+                "```diff / direct edit)."
+            )
             obs = _edit_feedback(
                 ok,
                 f"edit {msg}. Verify, then run a quick check or `echo AGENT_DONE`.",
-                f"edit did NOT apply: {msg}. Re-copy the exact SEARCH lines from the "
-                "file (or use a ```diff / direct edit).",
+                f"edit did NOT apply: {msg}. {fail_hint}",
             )
             messages.append({"role": "user", "content": obs})
+            consecutive_apply_failures = 0 if ok else consecutive_apply_failures + 1
+            if consecutive_apply_failures >= _APPLY_FAIL_LIMIT:
+                episode.stop_reason = "apply_failures"
+                episode.turns_used = turn
+                break
             continue
 
         # A ```diff block is applied by the harness (git apply) -- the reliable
@@ -236,6 +260,11 @@ def run_episode(
                 "directly.",
             )
             messages.append({"role": "user", "content": obs})
+            consecutive_apply_failures = 0 if ok else consecutive_apply_failures + 1
+            if consecutive_apply_failures >= _APPLY_FAIL_LIMIT:
+                episode.stop_reason = "apply_failures"
+                episode.turns_used = turn
+                break
             continue
 
         # Edit-intent recovery: a SEARCH/REPLACE attempt that parsed to no

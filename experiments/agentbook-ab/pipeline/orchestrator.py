@@ -294,9 +294,14 @@ def main() -> None:
     ap.add_argument("--allow-paid-fallback", action="store_true")
     ap.add_argument(
         "--provider",
-        choices=["openrouter", "ollama"],
+        choices=["openrouter", "ollama", "gemini", "openai_compat"],
         default="openrouter",
         help="LLM backend (ollama = local, no rate limits)",
+    )
+    ap.add_argument(
+        "--base-url",
+        default=None,
+        help="base URL for --provider openai_compat (default: internal gateway)",
     )
     ap.add_argument(
         "--reasoning-effort",
@@ -313,8 +318,10 @@ def main() -> None:
     if args.only:
         ids = [i for i in ids if i in set(args.only)]
     arms = list(args.arms)
-    if args.provider == "ollama":
-        models = args.models or sys.exit("--provider ollama requires --models")
+    if args.provider in ("ollama", "gemini"):
+        models = args.models or sys.exit(
+            f"--provider {args.provider} requires --models"
+        )
     else:
         models = args.models or resolve_panel()
     k = args.samples
@@ -354,7 +361,19 @@ def main() -> None:
                     "good arm will rely on the offline recall_cache."
                 )
 
-    if args.provider == "ollama":
+    if args.provider == "openai_compat":
+        from harness.llm_openai_compat import OpenAICompatLLM
+
+        llm = OpenAICompatLLM(
+            base_url=args.base_url, rpm=args.rpm, max_tokens=args.max_tokens
+        )
+    elif args.provider == "gemini":
+        from harness.llm_gemini import GeminiLLM
+
+        llm = GeminiLLM(
+            rpm=args.rpm, day_cap=args.day_budget, max_tokens=args.max_tokens
+        )
+    elif args.provider == "ollama":
         from harness.llm_ollama import OllamaLLM
 
         llm = OllamaLLM(

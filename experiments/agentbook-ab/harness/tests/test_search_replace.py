@@ -91,6 +91,136 @@ def test_refuses_test_file(tmp_path):
     assert "test file" in msg
 
 
+# --- blank-line-insensitive matching: weak models drop/insert blank lines in
+# their SEARCH block relative to the file; exact-count matching breaks on that.
+def test_blank_insensitive_match_when_search_omits_blank(tmp_path):
+    # File has a blank line between the two statements; model's SEARCH omits it.
+    _write(tmp_path, "def f():\n    a = 1\n\n    b = 2\n    return a + b\n")
+    edits = [("mod.py", "a = 1\nb = 2", "a = 10\nb = 20")]
+    ok, msg = apply_search_replace(tmp_path, edits)
+    assert ok, msg
+    # The matched span (a=1, blank, b=2) is replaced; the in-between blank is absorbed.
+    assert (tmp_path / "mod.py").read_text() == (
+        "def f():\n    a = 10\n    b = 20\n    return a + b\n"
+    )
+
+
+def test_blank_insensitive_match_when_search_adds_blank(tmp_path):
+    # Model's SEARCH inserts a blank line the file does not have.
+    _write(tmp_path, "def f():\n    a = 1\n    b = 2\n")
+    edits = [("mod.py", "a = 1\n\nb = 2", "a = 10\nb = 20")]
+    ok, msg = apply_search_replace(tmp_path, edits)
+    assert ok, msg
+    assert (tmp_path / "mod.py").read_text() == "def f():\n    a = 10\n    b = 20\n"
+
+
+def test_blank_insensitive_does_not_match_wrong_content(tmp_path):
+    # Safety: the model hallucinated a 2nd line not adjacent in the file (the real
+    # sympy-15017 failure). Must still refuse -- never edit the wrong region.
+    _write(tmp_path, "def __len__(self):\n    return len(self._array)\n")
+    ok, msg = apply_search_replace(
+        tmp_path,
+        [("mod.py", "def __len__(self):\n    return self._loop_size", "x")],
+    )
+    assert not ok
+    assert "not found" in msg
+    assert (tmp_path / "mod.py").read_text() == (
+        "def __len__(self):\n    return len(self._array)\n"
+    )
+
+
+# --- failed-apply feedback: echo the ACTUAL nearby file region so the model
+# copies real text instead of re-emitting the same wrong SEARCH (doom-loop).
+def test_search_not_found_hint_echoes_real_region(tmp_path):
+    from harness.sandbox import search_not_found_hint
+
+    _write(
+        tmp_path,
+        "def f(language):\n"
+        "    code_gen = get_code_generator(language)\n"
+        "    if argument_sequence is not None:\n"
+        "        pass\n",
+    )
+    # anchored on a real line, but the model's 2nd SEARCH line lives elsewhere
+    edits = [
+        (
+            "mod.py",
+            "code_gen = get_code_generator(language)\nreturn code_gen.routine(name)",
+            "...",
+        )
+    ]
+    hint = search_not_found_hint(tmp_path, edits)
+    assert "code_gen = get_code_generator(language)" in hint  # real anchor echoed
+    assert "if argument_sequence is not None:" in hint  # the ACTUAL adjacent line
+    assert "mod.py" in hint
+    assert "return code_gen.routine(name)" not in hint  # not the model's guess
+
+
+def test_search_not_found_hint_when_no_anchor(tmp_path):
+    from harness.sandbox import search_not_found_hint
+
+    _write(tmp_path, "def f():\n    return 0\n")
+    hint = search_not_found_hint(
+        tmp_path, [("mod.py", "completely_unrelated_symbol_xyz = 1", "x")]
+    )
+    assert hint  # non-empty guidance
+    low = hint.lower()
+    assert "sed" in low or "re-read" in low or "none of" in low
+
+
+def test_agent_loop_failed_apply_echoes_region(tmp_path):
+    # Wiring guard: on a non-matching SEARCH, run_episode must feed the model the
+    # ACTUAL file lines (search_not_found_hint), not the generic message. Catches
+    # the import/call being silently dropped -- a path no other unit test hits.
+    from harness.agent_loop import run_episode
+
+    (tmp_path / "mod.py").write_text(
+        "def f():\n    real_line = 1\n    return real_line\n"
+    )
+    seen: dict = {}
+
+    class FakeLLM:
+        def __init__(self):
+            self.n = 0
+
+        def chat(self, model, messages, *, temperature=0.0, seed=0):
+            self.n += 1
+            if self.n == 1:  # emit an edit whose 2nd SEARCH line is hallucinated
+                return (
+                    "```edit\nmod.py\n<<<<<<< SEARCH\n    real_line = 1\n"
+                    "    hallucinated = 2\n=======\n    real_line = 99\n"
+                    ">>>>>>> REPLACE\n```"
+                )
+            seen["messages"] = list(messages)  # capture feedback handed back
+            return "```bash\necho AGENT_DONE\n```"
+
+    run_episode(tmp_path, "fix it", FakeLLM(), "fake", step_budget=4)
+    fb = "\n".join(m["content"] for m in seen["messages"] if m["role"] == "user")
+    assert "real_line = 1" in fb  # actual file content echoed back
+    assert "return real_line" in fb  # nearby real line, not the model's guess
+    assert "hallucinated = 2" not in fb
+
+
+def test_consecutive_failed_applies_abort(tmp_path):
+    # A model that keeps emitting a non-matching SEARCH must abort early instead
+    # of churning the whole budget (the observed failed-apply doom-loop: 15
+    # identical fails burning 20 turns and minutes of generation).
+    from harness.agent_loop import run_episode
+
+    (tmp_path / "mod.py").write_text("def f():\n    return 0\n")
+
+    class FakeLLM:
+        def chat(self, model, messages, *, temperature=0.0, seed=0):
+            return (
+                "```edit\nmod.py\n<<<<<<< SEARCH\n    nonexistent_line = 1\n"
+                "=======\n    x = 2\n>>>>>>> REPLACE\n```"
+            )
+
+    ep = run_episode(tmp_path, "fix", FakeLLM(), "fake", step_budget=20)
+    assert ep.stop_reason == "apply_failures"
+    assert ep.turns_used <= 6  # aborts well before the 20-turn budget
+
+
 def test_good_synth_arm_builds_structured_prompt():
     import json
 
