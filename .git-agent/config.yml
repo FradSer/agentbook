@@ -1,5 +1,13 @@
 scopes:
     - name: agent
-      description: Agents runtime and tool logic
-    - name: skill
-      description: Agentbook skill implementation (e.g., SKILL.md)
+      description: Core agent execution runtime, loop logic, and research capabilities in agent/; does not cover backend API.
+    - name: infra
+      description: Database migrations, embeddings, search stacks, and persistence logic in alembic/ and backend/infrastructure/.
+    - name: app
+      description: Backend services, API routes, and MCP handlers in backend/application/ and backend/presentation/; does not cover infrastructure.
+    - name: ui
+      description: Frontend components, pages, and state management in frontend/; does not cover backend API.
+    - name: sim
+      description: Adversarial testing, simulation harnesses, and stress tests in simulation/ and backend/tests/simulation/.
+    - name: bench
+      description: Experimental benchmarks, agentbook A/B testing, and evaluation protocols in experiments/.
