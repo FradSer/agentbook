@@ -3,6 +3,10 @@ constant across arms; only the injected memory block differs, so control / good 
 oracle stay strictly comparable.
 
   control    -- bug description only.
+  control_loop -- control's bug prompt + good_loop's verification repros (so the
+                harness apply->verify->retry loop fires) but NO memory injected.
+                Isolates the loop+apply-fix scaffold from the recalled memory:
+                control vs control_loop measures the scaffold alone.
   good       -- live GET /v1/search recall of the leakage-free peer-agent memory.
   good_synth -- autoresearcher-style synthesized knowledge (root-cause pattern +
                 localization cues + verification method; NO patch, NO raw prose).
@@ -196,6 +200,20 @@ def build_prompt(
 
     if arm == "control":
         return base, {"hint": None}
+
+    if arm == "control_loop":
+        # Confound isolation: the bare control prompt (no memory) plus the SAME
+        # verification repros good_loop carries, so the harness apply->verify->
+        # retry loop, done-gate, and rollback fire identically. The control vs
+        # control_loop delta is the loop+apply-fix scaffold alone; control_loop
+        # vs good_loop is the memory's marginal contribution on top.
+        entry = _synth_entry(iid)
+        if not entry:
+            return base, {"hint": "control_loop", "cache_miss": True}
+        return base, {
+            "hint": "control_loop",
+            "verification": {"repros": entry.get("verifications") or []},
+        }
 
     if arm in ("loo_sibling", "loo_sibling_apply"):
         # Leave-one-out transfer: inject a SAME-MODULE sibling's memory (NOT this

@@ -331,5 +331,41 @@ def test_orchestrator_main_splits_rotate_cells_into_chains(tmp_path, monkeypatch
     )
 
 
+# --------------------------------------------------------------------------- #
+# control_loop confound-isolation arm: _has_memory gates on loop_ids           #
+# --------------------------------------------------------------------------- #
+
+
+def test_has_memory_control_loop_gates_on_loop_ids():
+    """`control_loop` reuses good_loop's verification cache (no memory block),
+    so `_has_memory` must gate it on `loop_ids` exactly like good_loop -- not on
+    mem_ids/synth_ids. A control_loop cell whose iid lacks a runnable repro
+    check would equal plain control, so it must be skipped.
+    """
+    iid_loop = "sympy__sympy-15017"
+    iid_no_loop = "sympy__sympy-16450"
+
+    mem_ids = {iid_loop, iid_no_loop}
+    synth_ids = {iid_loop, iid_no_loop}
+    loop_ids = {iid_loop}
+
+    def _cell(iid: str):
+        return Cell(
+            iid=iid,
+            arm="control_loop",
+            model="google/gemma-3-4b-it",
+            sample_idx=0,
+        )
+
+    has_memory = orch_mod._has_memory
+
+    assert has_memory(_cell(iid_loop), mem_ids, synth_ids, loop_ids) is True, (
+        "control_loop with a verification cache should be allowed"
+    )
+    assert has_memory(_cell(iid_no_loop), mem_ids, synth_ids, loop_ids) is False, (
+        "control_loop without a verification cache should be gated out"
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

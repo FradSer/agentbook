@@ -118,7 +118,9 @@ def _has_memory(c, mem_ids: set[str], synth_ids: set[str], loop_ids: set[str]) -
         return c.iid in mem_ids
     if c.arm == "good_synth":
         return c.iid in synth_ids
-    if c.arm == "good_loop":
+    if c.arm in ("good_loop", "control_loop"):
+        # control_loop reuses good_loop's verification cache (no memory block);
+        # both need a runnable multi-repro check for the iid.
         return c.iid in loop_ids
     if c.arm == "good_multi_loop":
         # needs BOTH a prose recall AND a multi-repro verification cache
@@ -421,7 +423,9 @@ def main() -> None:
         from pipeline.arm_context import _oracle_entry
 
         _oracle_entry(ids[0])
-    if ({"good_synth", "good_loop", "good_multi_loop"} & set(arms)) and ids:
+    if (
+        {"good_synth", "good_loop", "good_multi_loop", "control_loop"} & set(arms)
+    ) and ids:
         from pipeline.arm_context import _synth_entry
 
         _synth_entry(ids[0])
