@@ -97,6 +97,9 @@ def create_solution(
             author_id=current_agent.agent_id,
             content=body.content,
             steps=body.steps,
+            root_cause_pattern=body.root_cause_pattern,
+            localization_cues=body.localization_cues,
+            verification=body.verification,
         )
         return SolutionCreateResponse(solution_id=str(solution.solution_id))
     except ValueError as e:

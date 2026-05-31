@@ -443,6 +443,9 @@ class AgentbookService:
         steps: list[str] | None = None,
         parent_solution_id: UUID | None = None,
         llm_model: str | None = None,
+        root_cause_pattern: str | None = None,
+        localization_cues: list[str] | None = None,
+        verification: list[dict] | None = None,
     ) -> Solution:
         self._ensure_agent_exists(author_id)
         problem = self._problems.get(problem_id)
@@ -459,6 +462,9 @@ class AgentbookService:
             parent_solution_id=parent_solution_id,
             review_status="approved",
             llm_model=self._llm_model_for_author(author_id, llm_model),
+            root_cause_pattern=root_cause_pattern,
+            localization_cues=localization_cues or [],
+            verification=verification or [],
         )
         self._solutions.add(solution)
         problem.solution_count += 1
@@ -1187,6 +1193,9 @@ class AgentbookService:
                 "solution_id": str(canonical_sol.solution_id),
                 "content": canonical_sol.content,
                 "steps": canonical_sol.steps,
+                "root_cause_pattern": canonical_sol.root_cause_pattern,
+                "localization_cues": canonical_sol.localization_cues,
+                "verification": canonical_sol.verification,
                 "confidence": canonical_sol.confidence,
                 "outcome_count": canonical_sol.outcome_count,
                 "success_count": canonical_sol.success_count,
@@ -1210,6 +1219,9 @@ class AgentbookService:
                 "solution_id": str(s.solution_id),
                 "content": s.content,
                 "steps": s.steps,
+                "root_cause_pattern": s.root_cause_pattern,
+                "localization_cues": s.localization_cues,
+                "verification": s.verification,
                 "confidence": s.confidence,
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
@@ -1363,6 +1375,9 @@ class AgentbookService:
             "confidence": best.confidence,
             "content_preview": content_preview,
             "steps": list(best.steps or []),
+            "root_cause_pattern": best.root_cause_pattern,
+            "localization_cues": list(best.localization_cues or []),
+            "verification": list(best.verification or []),
             "outcome_count": best.outcome_count,
         }
 
@@ -1467,6 +1482,9 @@ class AgentbookService:
         tags: list[str] | None = None,
         solution_content: str | None = None,
         solution_steps: list[str] | None = None,
+        solution_root_cause_pattern: str | None = None,
+        solution_localization_cues: list[str] | None = None,
+        solution_verification: list[dict] | None = None,
         problem_id: UUID | None = None,
     ) -> dict:
         # If a specific problem_id is given, add solution to that existing problem
@@ -1481,6 +1499,9 @@ class AgentbookService:
                     author_id=author_id,
                     content=solution_content,
                     steps=solution_steps,
+                    root_cause_pattern=solution_root_cause_pattern,
+                    localization_cues=solution_localization_cues,
+                    verification=solution_verification,
                 )
                 solution_id = new_solution.solution_id
             return {
@@ -1521,6 +1542,9 @@ class AgentbookService:
                 author_id=author_id,
                 content=solution_content,
                 steps=solution_steps,
+                root_cause_pattern=solution_root_cause_pattern,
+                localization_cues=solution_localization_cues,
+                verification=solution_verification,
             )
             solution_id = new_solution.solution_id
 
@@ -2091,6 +2115,9 @@ class AgentbookService:
         improved_steps: list[str] | None,
         reasoning: str,
         llm_model: str | None = None,
+        root_cause_pattern: str | None = None,
+        localization_cues: list[str] | None = None,
+        verification: list[dict] | None = None,
         max_retries: int = 3,
     ) -> dict:
         """Wrapper with retry logic for concurrent modification handling."""
@@ -2103,6 +2130,9 @@ class AgentbookService:
                     improved_steps,
                     reasoning,
                     llm_model,
+                    root_cause_pattern=root_cause_pattern,
+                    localization_cues=localization_cues,
+                    verification=verification,
                 )
             except ConcurrentModificationError as e:
                 if attempt == max_retries - 1:
@@ -2127,6 +2157,9 @@ class AgentbookService:
         reasoning: str = "",
         author_id: UUID | None = None,
         llm_model: str | None = None,
+        root_cause_pattern: str | None = None,
+        localization_cues: list[str] | None = None,
+        verification: list[dict] | None = None,
     ) -> dict:
         """Public API with retry logic."""
         _author_id = author_id or UUID("00000000-0000-0000-0000-000000000001")
@@ -2137,6 +2170,9 @@ class AgentbookService:
             improved_steps,
             reasoning,
             llm_model,
+            root_cause_pattern=root_cause_pattern,
+            localization_cues=localization_cues,
+            verification=verification,
         )
 
     def verify_solution(self, solution_id: UUID, agent_id: UUID) -> dict:
@@ -2177,6 +2213,9 @@ class AgentbookService:
         improved_steps: list[str] | None = None,
         reasoning: str = "",
         llm_model: str | None = None,
+        root_cause_pattern: str | None = None,
+        localization_cues: list[str] | None = None,
+        verification: list[dict] | None = None,
     ) -> dict:
         existing = self._solutions.get(solution_id)
         if existing is None:
@@ -2227,6 +2266,17 @@ class AgentbookService:
             # outcome reports promote it.
             review_status="approved",
             llm_model=resolved_llm,
+            # Inherit the parent's structured knowledge when the caller does not
+            # override it, so an improvement refines rather than drops it.
+            root_cause_pattern=root_cause_pattern
+            if root_cause_pattern is not None
+            else existing.root_cause_pattern,
+            localization_cues=localization_cues
+            if localization_cues is not None
+            else list(existing.localization_cues),
+            verification=verification
+            if verification is not None
+            else list(existing.verification),
         )
         self._solutions.add(new_solution)
 
@@ -2793,6 +2843,29 @@ class AgentbookService:
                 active[0].content if active else "Synthesized solution"
             )
 
+        # Carry the structured, weak-model-actionable knowledge forward into the
+        # canonical solution instead of dropping it: the root-cause pattern from
+        # the highest-confidence source that has one, plus the union of
+        # localization cues and verification repros across the synthesized sources.
+        ranked = sorted(active, key=lambda s: s.confidence, reverse=True)
+        merged_root_cause = next(
+            (s.root_cause_pattern for s in ranked if s.root_cause_pattern), None
+        )
+        merged_cues: list[str] = []
+        for s in ranked:
+            for cue in s.localization_cues:
+                if cue not in merged_cues:
+                    merged_cues.append(cue)
+        merged_verification: list[dict] = []
+        seen_cmds: set[str] = set()
+        for s in ranked:
+            for v in s.verification:
+                cmd = v.get("command") if isinstance(v, dict) else None
+                if cmd is None or cmd not in seen_cmds:
+                    merged_verification.append(v)
+                    if cmd is not None:
+                        seen_cmds.add(cmd)
+
         canonical = Solution(
             problem_id=problem_id,
             author_id=_author_id,
@@ -2801,6 +2874,9 @@ class AgentbookService:
             success_count=total_successes,
             failure_count=total_failures,
             llm_model=self._llm_model_for_author(_author_id, llm_model),
+            root_cause_pattern=merged_root_cause,
+            localization_cues=merged_cues,
+            verification=merged_verification,
         )
         canonical.confidence = max(confidence, canonical.confidence)
         canonical.review_status = "approved"
@@ -3284,6 +3360,10 @@ def _solution_to_dict(s: Solution, author_model: str | None = None) -> dict:
         "problem_id": s.problem_id,
         "author_id": s.author_id,
         "content": s.content,
+        "steps": s.steps,
+        "root_cause_pattern": s.root_cause_pattern,
+        "localization_cues": s.localization_cues,
+        "verification": s.verification,
         "confidence": s.confidence,
         "outcome_count": s.outcome_count,
         "success_count": s.success_count,

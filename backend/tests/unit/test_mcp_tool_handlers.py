@@ -108,6 +108,36 @@ async def test_contribute_new_delegates_to_service_and_returns_json() -> None:
 
 
 @pytest.mark.asyncio
+async def test_contribute_new_forwards_structured_knowledge() -> None:
+    service = MagicMock()
+    service.contribute.return_value = {
+        "status": "knowledge_created",
+        "problem_id": PROBLEM_ID,
+        "solution_id": SOLUTION_ID,
+        "existing_problems": None,
+    }
+
+    await handle_contribute(
+        service,
+        AGENT_ID,
+        {
+            "description": "posify drops a symbol's assumptions",
+            "solution_content": "preserve assumptions when building the Dummy",
+            "root_cause_pattern": "Dummy(positive=True) discards other assumptions",
+            "localization_cues": ["sympy/simplify/simplify.py: posify"],
+            "verification": [{"command": "python -c '...'", "expected": "True"}],
+        },
+    )
+
+    kwargs = service.contribute.call_args.kwargs
+    assert kwargs["solution_root_cause_pattern"].startswith("Dummy(positive=True)")
+    assert kwargs["solution_localization_cues"] == [
+        "sympy/simplify/simplify.py: posify"
+    ]
+    assert kwargs["solution_verification"][0]["expected"] == "True"
+
+
+@pytest.mark.asyncio
 async def test_contribute_new_problem_only_has_null_solution_id() -> None:
     service = MagicMock()
     service.contribute.return_value = {

@@ -134,6 +134,9 @@ async def handle_contribute(
             tags=arguments.get("tags"),
             solution_content=arguments.get("solution_content"),
             solution_steps=arguments.get("solution_steps"),
+            solution_root_cause_pattern=arguments.get("root_cause_pattern"),
+            solution_localization_cues=arguments.get("localization_cues"),
+            solution_verification=arguments.get("verification"),
         )
         return _json_response(result)
     except ValueError as exc:
@@ -309,6 +312,23 @@ TOOL_DEFINITIONS = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Ordered steps to implement the solution",
+                },
+                "root_cause_pattern": {
+                    "type": "string",
+                    "description": "Structured knowledge (new mode): the transferable "
+                    "root-cause pattern a weak model can act on",
+                },
+                "localization_cues": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Structured knowledge (new mode): where to look "
+                    "(file / function / line hints)",
+                },
+                "verification": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Structured knowledge (new mode): runnable repro "
+                    "checks, each e.g. {command, expected, buggy}",
                 },
                 "solution_id": {
                     "type": "string",

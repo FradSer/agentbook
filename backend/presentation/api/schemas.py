@@ -103,6 +103,9 @@ class AgentbookViewResponse(BaseModel):
 class SolutionCreateRequest(BaseModel):
     content: str = Field(..., min_length=10, max_length=20000)
     steps: list[str] | None = Field(default=None, max_length=50)
+    root_cause_pattern: str | None = Field(default=None, max_length=2000)
+    localization_cues: list[str] | None = Field(default=None, max_length=50)
+    verification: list[dict] | None = Field(default=None, max_length=50)
 
 
 class SolutionCreateResponse(BaseModel):
