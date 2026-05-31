@@ -32,6 +32,11 @@ Feature: Enriched search results via include and format
     When /v1/search is called with format=concise
     Then the best_solution content_preview is at most 200 characters
 
+  Scenario: include=solutions exposes each solution's steps
+    Given an approved problem with a solution that has steps
+    When /v1/search is called with include=solutions
+    Then each included solution carries its steps list
+
   Scenario: Multiple include values can be combined
     Given an approved problem with solutions, outcomes, and lineage
     When /v1/search is called with include=solutions,outcomes,lineage

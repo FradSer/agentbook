@@ -160,6 +160,131 @@ def test_include_lineage_returns_parent_chain() -> None:
     assert str(row["lineage"][0]["solution_id"]) == str(parent.solution_id)
 
 
+def test_include_solutions_exposes_steps_per_solution() -> None:
+    service, ctx = _build_service()
+    problem = _make_problem("nginx 502 upstream timeout", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    sol = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "raise proxy_read_timeout", 0.9
+    )
+    sol.steps = ["Open nginx.conf", "Set proxy_read_timeout 120s"]
+    ctx["solutions"].add(sol)
+
+    payload = service.search_problems(
+        query="nginx 502 timeout", limit=5, include={"solutions"}
+    )
+    sols = payload["results"][0]["solutions"]
+    assert sols[0]["steps"] == ["Open nginx.conf", "Set proxy_read_timeout 120s"]
+
+
+def test_structured_knowledge_served_in_best_solution_and_include() -> None:
+    service, ctx = _build_service()
+    problem = _make_problem("posify drops assumptions", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    sol = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "preserve assumptions", 0.9
+    )
+    sol.root_cause_pattern = "Dummy(positive=True) drops the symbol's other assumptions"
+    sol.localization_cues = ["sympy/simplify/simplify.py: posify Dummy(...)"]
+    sol.verification = [{"command": "python -c '...'", "expected": "True"}]
+    ctx["solutions"].add(sol)
+
+    payload = service.search_problems(
+        query="posify assumptions", limit=5, include={"solutions"}
+    )
+    row = payload["results"][0]
+    served = row["solutions"][0]
+    assert served["root_cause_pattern"].startswith("Dummy(positive=True)")
+    assert served["localization_cues"] == [
+        "sympy/simplify/simplify.py: posify Dummy(...)"
+    ]
+    assert served["verification"][0]["expected"] == "True"
+    best = row["best_solution"]
+    assert best["root_cause_pattern"].startswith("Dummy(positive=True)")
+    assert best["localization_cues"] and best["verification"]
+
+
+def test_contribute_persists_and_serves_structured_knowledge() -> None:
+    service, ctx = _build_service()
+    res = service.contribute(
+        author_id=ctx["author"].agent_id,
+        description="celery worker hangs on SIGTERM during warm shutdown",
+        solution_content="handle SIGTERM to drain tasks",
+        solution_steps=["trap SIGTERM", "drain then exit"],
+        solution_root_cause_pattern="warm_shutdown ignores SIGTERM, blocks on prefetch",
+        solution_localization_cues=["celery/worker/consumer.py: on_close"],
+        solution_verification=[{"command": "pytest -k sigterm", "expected": "passed"}],
+    )
+    assert res["solution_id"] is not None
+
+    payload = service.search_problems(
+        query="celery SIGTERM warm shutdown", limit=5, include={"solutions"}
+    )
+    best = payload["results"][0]["best_solution"]
+    assert best["root_cause_pattern"].startswith("warm_shutdown ignores SIGTERM")
+    assert best["localization_cues"] == ["celery/worker/consumer.py: on_close"]
+    assert best["verification"][0]["expected"] == "passed"
+
+
+def test_improve_inherits_parent_structured_knowledge() -> None:
+    service, ctx = _build_service()
+    problem = _make_problem("pg pool exhausted under load", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    parent = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "raise the pool size", 0.5
+    )
+    parent.root_cause_pattern = "pool max below peak concurrency"
+    parent.localization_cues = ["db.py: create_pool"]
+    parent.verification = [{"command": "pytest -k pool", "expected": "passed"}]
+    ctx["solutions"].add(parent)
+
+    service.improve_solution(
+        solution_id=parent.solution_id,
+        improved_content="raise the pool size and add overflow handling for spikes",
+        author_id=ctx["author"].agent_id,
+    )
+
+    child = next(
+        s
+        for s in service._solutions.list_by_problem(problem.problem_id)
+        if s.parent_solution_id == parent.solution_id
+    )
+    assert child.root_cause_pattern == "pool max below peak concurrency"
+    assert child.localization_cues == ["db.py: create_pool"]
+    assert child.verification[0]["command"] == "pytest -k pool"
+
+
+def test_synthesis_carries_structured_knowledge_forward() -> None:
+    service, ctx = _build_service()
+    problem = _make_problem("flaky ssl handshake after fork", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    s1 = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "pin the TLS version", 0.6
+    )
+    s1.root_cause_pattern = "ssl session reused across forked workers"
+    s1.localization_cues = ["ssl_ctx.py: wrap_socket"]
+    s1.verification = [{"command": "pytest -k tls", "expected": "passed"}]
+    ctx["solutions"].add(s1)
+    s2 = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "disable the session cache", 0.9
+    )
+    s2.localization_cues = ["pool.py: checkout"]
+    s2.verification = [{"command": "pytest -k handshake", "expected": "passed"}]
+    ctx["solutions"].add(s2)
+
+    res = service.synthesize_solutions(problem.problem_id)
+    assert res is not None
+
+    canonical = service._solutions.get(problem.canonical_solution_id)
+    assert canonical is not None
+    assert canonical.root_cause_pattern == "ssl session reused across forked workers"
+    assert set(canonical.localization_cues) == {
+        "ssl_ctx.py: wrap_socket",
+        "pool.py: checkout",
+    }
+    assert len(canonical.verification) == 2
+
+
 def test_format_full_returns_untruncated_best_solution_content() -> None:
     service, ctx = _build_service()
     problem = _make_problem("long description matching query", ctx["author"].agent_id)
