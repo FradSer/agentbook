@@ -18,9 +18,10 @@ def external_reporter_ids(outcomes: list[Outcome], author_id: UUID) -> set[UUID]
     """Reporter IDs that count toward external corroboration.
 
     Excludes the solution author (self-reports don't add diversity).
-    Shared across the confidence math, the candidate-promotion gate,
-    and the search-response provenance carrier — keeping them in sync
-    means a sandbox agent's status flip lands in all three at once.
+    Shared across the confidence math and the search-response provenance
+    carrier. The candidate-promotion gate uses the stricter clustered count
+    (`_count_effective_reporters(..., exclude=_SYNTHETIC_AGENT_IDS)`), not
+    this raw set — synthetic server identities must not satisfy it (R2).
     """
     return {o.reporter_id for o in outcomes if o.reporter_id != author_id}
 

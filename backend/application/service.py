@@ -14,7 +14,11 @@ if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
     from backend.domain.search import SearchDiagnostics, SearchMode
 
-from backend.application.clustering import detect_clusters
+from backend.application.clustering import (
+    EVALUATOR_AGENT_ID,
+    SANDBOX_AGENT_ID,
+    detect_clusters,
+)
 from backend.application.confidence import (
     BASELINE_CONFIDENCE,
     COLD_START_FLOOR,
@@ -96,10 +100,9 @@ def _truncate_with_ellipsis(text: str, n: int = 80) -> str:
 # seconds of utc_now(). Older timestamps are treated as stale (agent crash).
 RESEARCH_TIMEOUT_SECONDS: int = 360
 
-# Dedicated UUID for the LLM evaluator agent so synthetic outcomes count
-# as "external" in the Bayesian reporter-diversity penalty.
-EVALUATOR_AGENT_ID = UUID("00000000-0000-0000-0000-000000000002")
-SANDBOX_AGENT_ID = UUID("00000000-0000-0000-0000-000000000003")
+# EVALUATOR_AGENT_ID / SANDBOX_AGENT_ID are defined once in clustering.py (the
+# layer that reserves them from anti-Sybil collapsing) and re-exported here for
+# the modules that import them from service.
 
 
 def _is_noop_sandbox(provider: object) -> bool:
@@ -287,31 +290,6 @@ def _improvement_detail(
     )
 
 
-def _count_effective_reporters(
-    outcomes: list[Outcome],
-    agents: AgentRepository,
-    author_id: UUID,
-) -> int:
-    """Count effective external reporters using anti-Sybil clustering.
-
-    Collapses agents linked by ip_hash, fingerprint_hash, or registration
-    window into single identities before counting. The synthetic
-    EVALUATOR_AGENT_ID / SANDBOX_AGENT_ID identities each count as one
-    cluster here — that is the input the confidence math expects; its v6
-    caps neutralise the inflation. The *promotion* gate is stricter and
-    uses ``_count_genuine_effective_reporters`` instead.
-    """
-    reporter_ids = {o.reporter_id for o in outcomes if o.reporter_id != author_id}
-    if not reporter_ids:
-        return 0
-    reporter_agents = [a for rid in reporter_ids if (a := agents.get(rid)) is not None]
-    if not reporter_agents:
-        return 0
-    clusters = detect_clusters(reporter_agents)
-    # Each cluster = one effective identity
-    return len(clusters)
-
-
 # Synthetic server identities never count as real-world corroboration for
 # the candidate-promotion gate. They legitimately count toward the
 # confidence math (which has its own v6 caps), but letting them satisfy the
@@ -320,23 +298,27 @@ def _count_effective_reporters(
 _SYNTHETIC_AGENT_IDS = frozenset({EVALUATOR_AGENT_ID, SANDBOX_AGENT_ID})
 
 
-def _count_genuine_effective_reporters(
+def _count_effective_reporters(
     outcomes: list[Outcome],
     agents: AgentRepository,
     author_id: UUID,
+    *,
+    exclude: frozenset[UUID] = frozenset(),
 ) -> int:
-    """Effective external reporters excluding synthetic server identities.
+    """Count effective external reporters using anti-Sybil clustering.
 
-    Same anti-Sybil clustering as ``_count_effective_reporters`` but drops
-    the author and the EVALUATOR/SANDBOX synthetic agents before counting.
-    This is the count the candidate-promotion gate must clear: a candidate
-    may only supersede its parent once at least one *genuine* external
-    identity has corroborated it.
+    Collapses agents linked by ip_hash, fingerprint_hash, or registration
+    window into single identities before counting. ``exclude`` drops extra
+    reporter ids before clustering: the confidence math passes nothing (the
+    synthetic EVALUATOR_AGENT_ID / SANDBOX_AGENT_ID each count as one cluster,
+    the input its v6 caps expect), while the stricter candidate-promotion gate
+    passes ``_SYNTHETIC_AGENT_IDS`` so those server identities cannot satisfy
+    the supersede check on their own (design risk R2).
     """
     reporter_ids = {
         o.reporter_id
         for o in outcomes
-        if o.reporter_id != author_id and o.reporter_id not in _SYNTHETIC_AGENT_IDS
+        if o.reporter_id != author_id and o.reporter_id not in exclude
     }
     if not reporter_ids:
         return 0
@@ -1639,8 +1621,11 @@ class AgentbookService:
                 # confidence math relies on, minus the EVALUATOR/SANDBOX
                 # agents that would otherwise let the autonomous loop
                 # supersede a parent with zero real corroboration (R2).
-                genuine_reporters = _count_genuine_effective_reporters(
-                    all_outcomes, self._agents, solution.author_id
+                genuine_reporters = _count_effective_reporters(
+                    all_outcomes,
+                    self._agents,
+                    solution.author_id,
+                    exclude=_SYNTHETIC_AGENT_IDS,
                 )
                 if genuine_reporters >= 1 and new_confidence >= parent.confidence:
                     # Confirmed improvement — promote and supersede parent
