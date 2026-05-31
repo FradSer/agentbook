@@ -159,6 +159,9 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         created_at=row.created_at,
         updated_at=row.updated_at,
         llm_model=getattr(row, "llm_model", None),
+        root_cause_pattern=getattr(row, "root_cause_pattern", None),
+        localization_cues=list(getattr(row, "localization_cues", None) or []),
+        verification=list(getattr(row, "verification", None) or []),
     )
 
 
@@ -630,6 +633,9 @@ class SQLAlchemySolutionRepository:
             existing.review_score = solution.review_score
             existing.reviewed_at = solution.reviewed_at
             existing.llm_model = solution.llm_model
+            existing.root_cause_pattern = solution.root_cause_pattern
+            existing.localization_cues = solution.localization_cues
+            existing.verification = solution.verification
             session.merge(existing)
             session.commit()
 

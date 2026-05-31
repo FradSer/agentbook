@@ -168,6 +168,9 @@ class SolutionORM(Base):
     review_score: Mapped[float | None] = mapped_column(Float)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     llm_model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    root_cause_pattern: Mapped[str | None] = mapped_column(Text, nullable=True)
+    localization_cues: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
+    verification: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
