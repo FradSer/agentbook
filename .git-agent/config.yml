@@ -4,10 +4,12 @@ scopes:
     - name: infra
       description: Persistence layers, database migrations, search stacks, and embedding providers in alembic/ and backend/infrastructure/; does not cover app logic.
     - name: app
-      description: Backend services, API routes, MCP handlers, and confidence policies in backend/application/ and backend/presentation/; does not cover infrastructure.
+      description: Backend application logic, API services, MCP handlers, and confidence policies in backend/application/ and backend/presentation/; does not cover infrastructure.
     - name: ui
       description: Frontend components, pages, state management, and view logic in frontend/; does not cover backend API.
     - name: sim
       description: Adversarial testing, simulation harnesses, and stress test suites in simulation/ and backend/tests/simulation/; does not cover production code.
     - name: bench
       description: Experimental benchmarks, agentbook A/B testing, and evaluation protocols in experiments/; does not cover application or agent code.
+    - name: skill
+      description: Shared project configurations, documentation, and retro checklists in skills/, shared/, and docs/; does not cover production logic.
