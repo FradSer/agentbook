@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from backend.application.errors import RateLimitError
+from backend.application.service import EVALUATOR_AGENT_ID, SANDBOX_AGENT_ID
 
 
 def _make_service():
@@ -184,3 +185,124 @@ def test_outcome_count_and_success_count_increment():
     updated = service._solutions.get(s.solution_id)
     assert updated.outcome_count == 2
     assert updated.success_count == 1
+
+
+# --- R2: candidate promotion must require a genuine external reporter ---
+
+
+def _register_agent(service, label):
+    """Register and return a fresh genuine agent id."""
+    from backend.domain.models import Agent
+
+    aid = uuid4()
+    service._agents.add(
+        Agent(api_key_hash=f"{label}-hash", model_type="test", agent_id=aid)
+    )
+    return aid
+
+
+def _register_synthetic(service, agent_id, label):
+    """Seed a synthetic server agent row (FK requirement)."""
+    from backend.domain.models import Agent
+
+    if service._agents.get(agent_id) is None:
+        service._agents.add(
+            Agent(api_key_hash=f"{label}-hash", model_type=label, agent_id=agent_id)
+        )
+
+
+def _setup_candidate(service, author_id):
+    """Create an approved parent solution and a pending candidate child.
+
+    The candidate is set to a confidence >= parent so the *only* thing
+    standing between it and promotion is the external-reporter gate.
+    """
+    p = service.create_problem(
+        author_id=author_id,
+        description="ImportError: cannot import name 'foo' from partially init module",
+    )
+    p.review_status = "approved"
+    service._problems.update(p)
+    parent = service.create_solution(
+        problem_id=p.problem_id,
+        author_id=author_id,
+        content="Reorder imports to break the circular dependency",
+    )
+    parent.confidence = 0.3
+    service._solutions.update(parent)
+    candidate = service.create_solution(
+        problem_id=p.problem_id,
+        author_id=author_id,
+        content="Move the shared symbol into a dedicated module and import from there",
+        parent_solution_id=parent.solution_id,
+    )
+    candidate.promotion_status = "candidate"
+    candidate.confidence = 0.3
+    service._solutions.update(candidate)
+    return p, parent, candidate
+
+
+def test_candidate_not_promoted_by_synthetic_evaluator_only():
+    """R2: the synthetic LLM evaluator (EVALUATOR_AGENT_ID) is not real-world
+    corroboration. A candidate confirmed only by the evaluator (and author
+    self-reports) must stay a candidate — otherwise the autonomous agent
+    promotes its own proposal over a working parent with zero external
+    confirmation."""
+    service, alice_id, _bob = _make_service()
+    _p, _parent, candidate = _setup_candidate(service, alice_id)
+
+    _register_synthetic(service, EVALUATOR_AGENT_ID, "evaluator")
+    service.report_outcome(
+        reporter_id=EVALUATOR_AGENT_ID, solution_id=candidate.solution_id, success=True
+    )
+
+    updated = service._solutions.get(candidate.solution_id)
+    assert updated.promotion_status == "candidate"
+
+
+def test_candidate_not_promoted_by_synthetic_sandbox_only():
+    """R2: a sandbox-verified outcome (SANDBOX_AGENT_ID) is a synthetic
+    server identity. On its own it must not supersede a working parent."""
+    service, alice_id, _bob = _make_service()
+    _p, _parent, candidate = _setup_candidate(service, alice_id)
+
+    _register_synthetic(service, SANDBOX_AGENT_ID, "sandbox")
+    service.report_outcome(
+        reporter_id=SANDBOX_AGENT_ID, solution_id=candidate.solution_id, success=True
+    )
+
+    updated = service._solutions.get(candidate.solution_id)
+    assert updated.promotion_status == "candidate"
+
+
+def test_candidate_promoted_by_one_genuine_external_reporter():
+    """A single genuine external reporter promotes the candidate over its
+    parent — the gate must not block real corroboration."""
+    service, alice_id, bob_id = _make_service()
+    _p, _parent, candidate = _setup_candidate(service, alice_id)
+
+    service.report_outcome(
+        reporter_id=bob_id, solution_id=candidate.solution_id, success=True
+    )
+
+    updated = service._solutions.get(candidate.solution_id)
+    assert updated.promotion_status == "promoted"
+
+
+def test_candidate_promoted_when_genuine_reporter_joins_synthetic():
+    """Synthetic outcomes are allowed alongside a genuine reporter; the
+    presence of EVALUATOR/SANDBOX outcomes must not suppress promotion once
+    a real external identity has confirmed the candidate."""
+    service, alice_id, bob_id = _make_service()
+    _p, _parent, candidate = _setup_candidate(service, alice_id)
+
+    _register_synthetic(service, EVALUATOR_AGENT_ID, "evaluator")
+    service.report_outcome(
+        reporter_id=EVALUATOR_AGENT_ID, solution_id=candidate.solution_id, success=True
+    )
+    service.report_outcome(
+        reporter_id=bob_id, solution_id=candidate.solution_id, success=True
+    )
+
+    updated = service._solutions.get(candidate.solution_id)
+    assert updated.promotion_status == "promoted"

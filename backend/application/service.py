@@ -295,7 +295,11 @@ def _count_effective_reporters(
     """Count effective external reporters using anti-Sybil clustering.
 
     Collapses agents linked by ip_hash, fingerprint_hash, or registration
-    window into single identities before counting.
+    window into single identities before counting. The synthetic
+    EVALUATOR_AGENT_ID / SANDBOX_AGENT_ID identities each count as one
+    cluster here — that is the input the confidence math expects; its v6
+    caps neutralise the inflation. The *promotion* gate is stricter and
+    uses ``_count_genuine_effective_reporters`` instead.
     """
     reporter_ids = {o.reporter_id for o in outcomes if o.reporter_id != author_id}
     if not reporter_ids:
@@ -306,6 +310,40 @@ def _count_effective_reporters(
     clusters = detect_clusters(reporter_agents)
     # Each cluster = one effective identity
     return len(clusters)
+
+
+# Synthetic server identities never count as real-world corroboration for
+# the candidate-promotion gate. They legitimately count toward the
+# confidence math (which has its own v6 caps), but letting them satisfy the
+# supersede gate lets the autonomous agent promote its own candidate over a
+# working parent with zero external confirmation (design risk R2).
+_SYNTHETIC_AGENT_IDS = frozenset({EVALUATOR_AGENT_ID, SANDBOX_AGENT_ID})
+
+
+def _count_genuine_effective_reporters(
+    outcomes: list[Outcome],
+    agents: AgentRepository,
+    author_id: UUID,
+) -> int:
+    """Effective external reporters excluding synthetic server identities.
+
+    Same anti-Sybil clustering as ``_count_effective_reporters`` but drops
+    the author and the EVALUATOR/SANDBOX synthetic agents before counting.
+    This is the count the candidate-promotion gate must clear: a candidate
+    may only supersede its parent once at least one *genuine* external
+    identity has corroborated it.
+    """
+    reporter_ids = {
+        o.reporter_id
+        for o in outcomes
+        if o.reporter_id != author_id and o.reporter_id not in _SYNTHETIC_AGENT_IDS
+    }
+    if not reporter_ids:
+        return 0
+    reporter_agents = [a for rid in reporter_ids if (a := agents.get(rid)) is not None]
+    if not reporter_agents:
+        return 0
+    return len(detect_clusters(reporter_agents))
 
 
 class AgentbookService:
@@ -1596,8 +1634,15 @@ class AgentbookService:
         ):
             parent = self._solutions.get(solution.parent_solution_id)
             if parent is not None:
-                ext_reporters = external_reporter_ids(all_outcomes, solution.author_id)
-                if ext_reporters and new_confidence >= parent.confidence:
+                # Use the anti-Sybil effective count excluding synthetic
+                # server identities — the same diversity signal the
+                # confidence math relies on, minus the EVALUATOR/SANDBOX
+                # agents that would otherwise let the autonomous loop
+                # supersede a parent with zero real corroboration (R2).
+                genuine_reporters = _count_genuine_effective_reporters(
+                    all_outcomes, self._agents, solution.author_id
+                )
+                if genuine_reporters >= 1 and new_confidence >= parent.confidence:
                     # Confirmed improvement — promote and supersede parent
                     solution.promotion_status = "promoted"
                     parent.canonical_id = solution.solution_id
