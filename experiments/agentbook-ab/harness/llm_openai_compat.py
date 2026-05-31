@@ -2,8 +2,9 @@
 
 Same chat() interface as OpenRouterLLM/OllamaLLM so the agentic loop stays
 provider-agnostic. Points at any base_url exposing POST {base}/chat/completions.
-No day budget (internal endpoints are unmetered); a token-bucket rate limiter and
-backoff on 429/5xx/transport drops keep it polite under concurrency.
+No day budget (internal endpoints are unmetered); the shared sliding-window
+RateLimiter plus backoff on 429/5xx/transport drops keep it polite under
+concurrency.
 
 Reasoning models (e.g. qwen3.6) return their chain-of-thought in a separate
 `reasoning_content` field and the final answer in `content`; we read `content`
@@ -13,33 +14,11 @@ first and fall back to `reasoning_content` only when content is empty.
 from __future__ import annotations
 
 import os
-import threading
 import time
-from collections import deque
 
 import httpx
 
-from harness.llm_openrouter import LLMError
-
-
-class _RateLimiter:
-    def __init__(self, rpm: int) -> None:
-        self.rpm = max(rpm, 1)
-        self._calls: deque[float] = deque()
-        self._lock = threading.Lock()
-
-    def acquire(self) -> None:
-        with self._lock:
-            now = time.time()
-            while self._calls and now - self._calls[0] > 60:
-                self._calls.popleft()
-            if len(self._calls) >= self.rpm:
-                sleep_for = 60 - (now - self._calls[0]) + 0.05
-                time.sleep(max(sleep_for, 0))
-                now = time.time()
-                while self._calls and now - self._calls[0] > 60:
-                    self._calls.popleft()
-            self._calls.append(time.time())
+from harness.llm_openrouter import LLMError, RateLimiter
 
 
 class OpenAICompatLLM:
@@ -62,7 +41,11 @@ class OpenAICompatLLM:
         self.max_tokens = max_tokens
         self.max_retries = max_retries
         self.backoff_base = backoff_base
-        self.limiter = _RateLimiter(rpm)
+        self.limiter = RateLimiter(max(rpm, 1))
+        self._headers = {
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+        }
         self._client = httpx.Client(timeout=timeout)
 
     def close(self) -> None:
@@ -82,16 +65,12 @@ class OpenAICompatLLM:
             "temperature": temperature,
             "max_tokens": self.max_tokens,
         }
-        headers = {
-            "Authorization": f"Bearer {self.key}",
-            "Content-Type": "application/json",
-        }
         last_err = ""
         for attempt in range(self.max_retries):
             self.limiter.acquire()
             try:
                 r = self._client.post(
-                    f"{self.base}/chat/completions", json=body, headers=headers
+                    f"{self.base}/chat/completions", json=body, headers=self._headers
                 )
             except httpx.HTTPError as exc:
                 last_err = f"transport: {exc}"

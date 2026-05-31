@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -146,20 +147,23 @@ def search_not_found_hint(
     needle_nb = [ln.strip() for ln in search.splitlines() if ln.strip()]
     if not needle_nb:
         return ""
-    # Anchor on the needle line that appears in the file and is most distinctive
-    # (fewest occurrences, then longest) -- the model usually has one real line.
-    best = None  # (occurrences, -length, first_index)
-    for nl in needle_nb:
-        idxs = [k for k, hl in enumerate(hay) if hl.strip() == nl]
-        if idxs:
-            cand = (len(idxs), -len(nl), idxs[0])
-            best = cand if best is None or cand < best else best
-    if best is None:
+    # One pass over the file maps each stripped line to its indices; anchor on
+    # the model's most distinctive needle line (fewest occurrences, then
+    # longest) -- the model usually has one real line.
+    line_indices: dict[str, list[int]] = defaultdict(list)
+    for k, hl in enumerate(hay):
+        line_indices[hl.strip()].append(k)
+    anchored = [
+        (len(idxs), -len(nl), idxs[0])
+        for nl in needle_nb
+        if (idxs := line_indices.get(nl))
+    ]
+    if not anchored:
         return (
             f"None of your SEARCH lines exist in {rel}. Re-read the file first "
             f"(e.g. `sed -n '1,80p' {rel}`) and copy lines verbatim before editing."
         )
-    anchor = best[2]
+    anchor = min(anchored)[2]
     lo = max(0, anchor - context)
     hi = min(len(hay), anchor + len(needle_nb) + context)
     region = "\n".join(f"{k + 1}: {hay[k]}" for k in range(lo, hi))[:1200]

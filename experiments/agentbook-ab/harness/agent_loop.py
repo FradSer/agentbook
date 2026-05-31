@@ -132,6 +132,19 @@ def run_episode(
             "broken -- inspect it and extend the fix. Do not finish yet."
         )
 
+    def _register_apply(ok: bool) -> bool:
+        """Post-apply bookkeeping shared by the edit and diff branches: reset the
+        strike count on success, else count one and return True once the limit
+        is hit so the caller breaks. A weak model re-emitting the same
+        non-matching block otherwise churns the whole budget."""
+        nonlocal consecutive_apply_failures
+        consecutive_apply_failures = 0 if ok else consecutive_apply_failures + 1
+        if consecutive_apply_failures >= _APPLY_FAIL_LIMIT:
+            episode.stop_reason = "apply_failures"
+            episode.turns_used = turn
+            return True
+        return False
+
     if repros:
         passed, out = run_verifications(repo, repros)
         vstate["passed"] = passed
@@ -228,10 +241,7 @@ def run_episode(
                 f"edit did NOT apply: {msg}. {fail_hint}",
             )
             messages.append({"role": "user", "content": obs})
-            consecutive_apply_failures = 0 if ok else consecutive_apply_failures + 1
-            if consecutive_apply_failures >= _APPLY_FAIL_LIMIT:
-                episode.stop_reason = "apply_failures"
-                episode.turns_used = turn
+            if _register_apply(ok):
                 break
             continue
 
@@ -260,10 +270,7 @@ def run_episode(
                 "directly.",
             )
             messages.append({"role": "user", "content": obs})
-            consecutive_apply_failures = 0 if ok else consecutive_apply_failures + 1
-            if consecutive_apply_failures >= _APPLY_FAIL_LIMIT:
-                episode.stop_reason = "apply_failures"
-                episode.turns_used = turn
+            if _register_apply(ok):
                 break
             continue
 
