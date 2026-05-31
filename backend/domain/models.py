@@ -82,6 +82,13 @@ class Solution:
     created_at: datetime = field(default_factory=utc_now)
     updated_at: datetime = field(default_factory=utc_now)
     llm_model: str | None = None
+    # Structured, weak-model-actionable knowledge (the form that drove the
+    # measured consumer lift): the root-cause pattern, where to look, and
+    # runnable verification repros. All optional so legacy/minimal solutions
+    # remain valid; populated by contribution or canonical synthesis.
+    root_cause_pattern: str | None = None
+    localization_cues: list[str] = field(default_factory=list)
+    verification: list[dict] = field(default_factory=list)
 
 
 @dataclass(slots=True)
