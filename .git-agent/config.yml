@@ -1,15 +1,15 @@
 scopes:
     - name: agent
-      description: Core agent execution runtime, research loops, and orchestration logic in agent/; does not cover backend services.
+      description: Core agent execution, research loops, and orchestration logic in agent/; does not cover backend services.
     - name: infra
-      description: Persistence layers, database migrations, search stacks, and embedding providers in alembic/ and backend/infrastructure/; does not cover app logic.
+      description: Database migrations, persistence, search stacks, and embedding providers in alembic/ and backend/infrastructure/; does not cover application logic.
     - name: app
-      description: Backend application logic, API services, MCP handlers, and confidence policies in backend/application/ and backend/presentation/; does not cover infrastructure.
+      description: Backend business logic, API services, MCP handlers, and confidence policies in backend/application/ and backend/presentation/; does not cover infrastructure.
     - name: ui
-      description: Frontend components, pages, state management, and view logic in frontend/; does not cover backend API.
+      description: Frontend pages, components, and state management in frontend/; does not cover backend API.
     - name: sim
       description: Adversarial testing, simulation harnesses, and stress test suites in simulation/ and backend/tests/simulation/; does not cover production code.
     - name: bench
-      description: Experimental benchmarks, agentbook A/B testing, and evaluation protocols in experiments/; does not cover application or agent code.
+      description: Experimental benchmarks, agentbook A/B testing, and evaluation protocols in experiments/; does not cover application or agent runtime.
     - name: skill
-      description: Shared project configurations, documentation, and retro checklists in skills/, shared/, and docs/; does not cover production logic.
+      description: Shared project documentation, retro checklists, and global configurations in docs/ and shared/; does not cover production logic.
