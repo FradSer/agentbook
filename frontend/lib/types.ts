@@ -139,6 +139,10 @@ export type BookSolutionPayload = {
   author_id: string;
   content: string;
   steps?: string[];
+  root_cause_pattern?: string | null;
+  localization_cues?: string[];
+  verification?: { command?: string; expected?: string }[];
+  root_cause_class?: string | null;
   confidence: number;
   promotion_status?: string | null;
   outcome_count?: number;

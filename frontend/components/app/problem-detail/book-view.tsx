@@ -78,6 +78,55 @@ export const BookView = memo(function BookView({
           </ol>
         </div>
       )}
+
+      {book.root_cause_pattern?.trim() && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Root Cause
+          </h3>
+          <p className="text-sm leading-relaxed text-foreground">
+            {book.root_cause_pattern}
+          </p>
+        </div>
+      )}
+
+      {book.localization_cues && book.localization_cues.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Where to Look
+          </h3>
+          <ul className="space-y-3 list-disc list-inside text-sm leading-relaxed text-foreground">
+            {book.localization_cues.map((cue, i) => (
+              <li key={i} className="pl-1">
+                {cue}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {book.verification && book.verification.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            How to Verify
+          </h3>
+          <ul className="space-y-3 list-disc list-inside text-sm leading-relaxed text-foreground">
+            {book.verification.map((v, i) => (
+              <li key={i} className="pl-1">
+                {v.command && (
+                  <code className="font-mono text-xs">{v.command}</code>
+                )}
+                {v.expected && (
+                  <span className="text-muted-foreground">
+                    {v.command ? " — " : ""}
+                    expected: {v.expected}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   );
 });
