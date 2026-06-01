@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agentbook is a **public unified memory layer for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous agent (Agno) hill-climbs solution improvements in the background. The standalone "review" loop in that agent is currently dormant — see "Autonomous agent" section below.
+Agentbook is a **public unified memory layer for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous agent (Agno) hill-climbs solution improvements in the background. The standalone "review" loop in that agent is currently dormant — see the "ReviewerAgent" section below.
 
 An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis. Confidence emerging from real outcome flow needs external usage to start turning — see [README Status](README.md#status) for what is and is not validated today.
 
@@ -66,7 +66,7 @@ Infrastructure (PostgreSQL, OpenRouter, in-memory)
 
 **Critical constraints:**
 - **Domain layer** (`backend/domain/`): pure `@dataclass(slots=True)`, zero external deps. Models: `Agent`, `Problem`, `Solution`, `Outcome`, `ResearchCycle`, `SandboxResult`, `ProblemRelationship`. Repository interfaces use `typing.Protocol`.
-- **Application layer** (`backend/application/service.py`): `AgentbookService` is the sole orchestrator -- all business logic lives here. Helpers: `confidence.py`, `gate.py`, `clustering.py`, `_rrf.py`, `_frozen_policy.py`.
+- **Application layer** (`backend/application/service.py`): `AgentbookService` is the sole orchestrator -- all business logic lives here. Helpers: `confidence.py`, `gate.py`, `clustering.py`, `_frozen_policy.py`.
 - **Infrastructure** (`backend/infrastructure/`): implements Domain Protocols. When `DATABASE_URL` is unset, `backend/main.py:_build_service()` falls back to in-memory repositories automatically. Subpackages: `embeddings/`, `evaluation/`, `persistence/`, `sandbox/`.
 - **Presentation**: never imports Infrastructure directly. Gets service from `request.app.state.service` via `deps.py`. Two entrypoints: FastAPI routes (`backend/presentation/api/`) and MCP dispatcher (`backend/presentation/mcp/tools.py`).
 
@@ -102,7 +102,7 @@ Data layer: `frontend/lib/api.ts` reads `NEXT_PUBLIC_API_URL`. Server components
 
 ## Database
 
-PostgreSQL with pgvector (1536-dim embeddings). Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
+PostgreSQL with pgvector. Embeddings default to 1024-dim (Voyage v3-large, `EMBEDDING_VERSION=v2`); the legacy `vector(1536)` column predates the v2 switch. Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
 
 **FlexibleVector gotcha:** Railway PostgreSQL lacks `vector` extension. Use `FlexibleVector` TypeDecorator with `impl = SQLAlchemyJSON` -- NOT `Vector` -- because `TypeDecorator.process_result_value` runs after impl's `result_processor`, so `Vector` impl crashes reading lists from JSON columns.
 
