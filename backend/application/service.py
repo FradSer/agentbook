@@ -75,6 +75,13 @@ logger = logging.getLogger(__name__)
 _SEARCH_CACHE_MAXSIZE = 256
 _SEARCH_CACHE_TTL_SECONDS = 300.0
 _MIN_SEARCH_RELEVANCE = 0.25
+# Score floor for a cross-task root-cause-class (``pattern:<slug>``) tag match.
+# Such siblings share an abstract failure mode but little surface text, so dense
+# similarity is ~0.05; the tag leg surfaces them just below the "partial" tier,
+# never above a genuine same-task hit. See experiments/agentbook-ab/_report/
+# 04_cross_task_retrieval.md (taxonomy validated at n=56: retrieval 0% -> 55%).
+_PATTERN_MATCH_SCORE = 0.3
+_PATTERN_TAG_PREFIX = "pattern:"
 # Match-quality tiers a caller should treat as a real hit. ``partial`` /
 # ``poor`` rows are still returned (the caller may want to skim them) but
 # they do not clear ``no_good_match`` — a low-similarity, wrong-bug result
@@ -483,6 +490,7 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
+        pattern_class: str | None = None,
     ) -> dict:
 
         cache_key = (
@@ -491,6 +499,7 @@ class AgentbookService:
             limit,
             tuple(sorted(include)) if include else None,
             format,
+            pattern_class,
         )
         cached = self._search_cache.get(cache_key)
         if cached is not None:
@@ -501,6 +510,7 @@ class AgentbookService:
             error_log=error_log,
             include=include,
             format=format,
+            pattern_class=pattern_class,
         )
         payload = {
             "results": rows,
@@ -522,6 +532,7 @@ class AgentbookService:
         error_log: str | None = None,
         include: set[str] | None = None,
         format: str = "concise",
+        pattern_class: str | None = None,
     ) -> tuple[list[dict], SearchMode]:
         """Execute the layered retrieval pipeline.
 
@@ -564,6 +575,20 @@ class AgentbookService:
                 or row["similarity_score"] > existing["similarity_score"]
             ):
                 rows_by_id[row["problem_id"]] = row
+
+        def add_pattern_candidate(problem: Problem) -> None:
+            """Cross-task tag leg: surface a same-root-cause sibling that the
+            dense/lexical legs miss. Bypasses ``_MIN_SEARCH_RELEVANCE`` (siblings
+            score ~0.05 on text) with a fixed floor, and never downgrades a
+            problem already matched at a higher score by another leg."""
+            pid = str(problem.problem_id)
+            if pid in rows_by_id:
+                return
+            row = self._row_from_problem(problem, 0.0, full, search_text=search_text)
+            row["similarity_score"] = _PATTERN_MATCH_SCORE
+            row["match_quality"] = "pattern"
+            row["match_reasons"] = [f"root-cause class match: {pattern_class}"]
+            rows_by_id[pid] = row
 
         # raw_score=0.0 so the vector / RRF leg decides ranking; quality
         # tier still derives from token analysis in _classify_match_quality.
@@ -613,6 +638,19 @@ class AgentbookService:
                 add_candidate(problem, 0.2)
                 keyword_fallback_used = True
 
+        # Cross-task root-cause leg (additive): the caller classifies the bug
+        # into a root-cause class and passes ``pattern_class``; problems carrying
+        # the matching ``pattern:<slug>`` tag are surfaced even when their surface
+        # text is unrelated. Runs after the dense/lexical legs so a genuine
+        # same-task hit keeps its higher score and rank.
+        if pattern_class:
+            wanted_tag = f"{_PATTERN_TAG_PREFIX}{pattern_class}"
+            for problem in self._problems.list_all():
+                if problem.review_status != "approved":
+                    continue
+                if wanted_tag in (problem.tags or []):
+                    add_pattern_candidate(problem)
+
         rows = list(rows_by_id.values())
         # Phase 2 reranking: apply the cross-encoder to the top
         # ``rerank_top_k`` candidates by ``similarity_score`` before final
@@ -621,7 +659,13 @@ class AgentbookService:
         # tier ordering so a "poor" lexical hit cannot leapfrog a true
         # ``"exact"`` substring match no matter what the reranker says.
         rows = self._apply_reranker(search_text, rows)
-        _quality_rank = {"exact": 0, "strong": 1, "partial": 2, "poor": 3}
+        _quality_rank = {
+            "exact": 0,
+            "strong": 1,
+            "partial": 2,
+            "pattern": 3,
+            "poor": 4,
+        }
         rows.sort(
             key=lambda item: (
                 _quality_rank.get(item["match_quality"], 4),
@@ -2804,6 +2848,7 @@ class AgentbookService:
         synthesized_root_cause_pattern: str | None = None,
         synthesized_localization_cues: list[str] | None = None,
         synthesized_verification: list[dict] | None = None,
+        synthesized_root_cause_class: str | None = None,
     ) -> dict | None:
         """Create a canonical solution synthesized from multiple active solutions.
 
@@ -2854,6 +2899,9 @@ class AgentbookService:
         merged_root_cause = next(
             (s.root_cause_pattern for s in ranked if s.root_cause_pattern), None
         )
+        merged_root_cause_class = next(
+            (s.root_cause_class for s in ranked if s.root_cause_class), None
+        )
         merged_cues: list[str] = []
         for s in ranked:
             for cue in s.localization_cues:
@@ -2888,6 +2936,11 @@ class AgentbookService:
             if synthesized_verification is not None
             else merged_verification
         )
+        final_root_cause_class = (
+            synthesized_root_cause_class
+            if synthesized_root_cause_class is not None
+            else merged_root_cause_class
+        )
 
         canonical = Solution(
             problem_id=problem_id,
@@ -2900,6 +2953,7 @@ class AgentbookService:
             root_cause_pattern=final_root_cause,
             localization_cues=final_cues,
             verification=final_verification,
+            root_cause_class=final_root_cause_class,
         )
         canonical.confidence = max(confidence, canonical.confidence)
         canonical.review_status = "approved"
@@ -2912,6 +2966,14 @@ class AgentbookService:
         problem.canonical_solution_id = canonical.solution_id
         if canonical.confidence > problem.best_confidence:
             problem.best_confidence = canonical.confidence
+        # Mirror the root-cause class onto the problem as a pattern:<slug> tag so
+        # cross-task retrieval can match this problem from a sibling's query.
+        if final_root_cause_class:
+            pattern_tag = f"{_PATTERN_TAG_PREFIX}{final_root_cause_class}"
+            tags = list(problem.tags or [])
+            if pattern_tag not in tags:
+                tags.append(pattern_tag)
+                problem.tags = tags
         self._problems.update(problem)
 
         return {

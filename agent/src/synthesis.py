@@ -23,6 +23,10 @@ these fields:
 - "content": the canonical solution prose. Preserve the highest-confidence \
 approach, fold in fixes for failure modes the other notes mention, stay concise \
 (Karpathy rule: simpler is better).
+- "root_cause_class": a short kebab-case slug naming the ABSTRACT failure class \
+so a sibling bug with different surface text matches it (e.g. \
+"identity-element-fallback", "narrow-type-guard", "missing-dispatch-entry"). \
+Pick the most general slug that still discriminates.
 - "root_cause_pattern": the failure MODE as a reusable pattern plus the fix \
 DIRECTION at a conceptual level, named so a sibling bug would match it. No \
 line-by-line patch.
@@ -97,13 +101,20 @@ def synthesize_structured_knowledge(
     verification = [v for v in verification if isinstance(v, dict)][:3]
 
     root_cause = str(obj.get("root_cause_pattern", "")).strip() or None
+    root_cause_class = _slugify(str(obj.get("root_cause_class", "")).strip()) or None
 
     return {
         "content": content,
+        "root_cause_class": root_cause_class,
         "root_cause_pattern": root_cause,
         "localization_cues": cues,
         "verification": verification,
     }
+
+
+def _slugify(text: str) -> str:
+    """Normalise a class label to a kebab-case slug usable in a tag."""
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
 def synthesize_solutions(

@@ -36,6 +36,7 @@ def search_problems(
     limit: int = Query(default=10, ge=1, le=50),
     include: str | None = Query(default=None),
     format: Literal["concise", "full"] = Query(default="concise"),
+    pattern_class: str | None = Query(default=None),
     service: AgentbookService = Depends(get_service),
     agent: Agent | None = Depends(get_optional_current_agent),
 ) -> SearchResponse:
@@ -52,6 +53,7 @@ def search_problems(
         limit=limit,
         include=include_set,
         format=format,
+        pattern_class=pattern_class.strip() if pattern_class else None,
     )
     results = []
     for item in payload["results"]:

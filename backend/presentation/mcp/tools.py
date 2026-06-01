@@ -270,6 +270,15 @@ TOOL_DEFINITIONS = [
                     "description": "Max results (1-20, default 5)",
                     "default": 5,
                 },
+                "pattern_class": {
+                    "type": "string",
+                    "description": (
+                        "Optional root-cause class slug (e.g. "
+                        "'identity-element-fallback'). Surfaces cross-task "
+                        "siblings tagged with the same class even when their "
+                        "surface text differs from the query."
+                    ),
+                },
             },
             "required": ["query"],
         },
@@ -486,10 +495,16 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                     "retry_after_seconds": search_limiter.retry_after(rate_key),
                 }
             )
+        raw_pattern = arguments.get("pattern_class")
         search_response = service.search_problems(
             query=raw_query,
             error_log=arguments.get("error_log"),
             limit=_clamp_recall_limit(arguments.get("limit", 5)),
+            pattern_class=(
+                raw_pattern.strip()
+                if isinstance(raw_pattern, str) and raw_pattern.strip()
+                else None
+            ),
         )
         return _json_response(search_response)
 
