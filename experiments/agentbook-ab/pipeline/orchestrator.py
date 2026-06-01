@@ -122,6 +122,13 @@ def _has_memory(c, mem_ids: set[str], synth_ids: set[str], loop_ids: set[str]) -
         # control_loop reuses good_loop's verification cache (no memory block);
         # both need a runnable multi-repro check for the iid.
         return c.iid in loop_ids
+    if c.arm == "sibling_loop":
+        # needs THIS task's loop repros AND a taxonomy-selected sibling that
+        # carries synthesized knowledge to inject.
+        from pipeline.arm_context import _taxonomy_sibling
+
+        sib = _taxonomy_sibling(c.iid)
+        return c.iid in loop_ids and bool(sib) and sib in synth_ids
     if c.arm == "good_multi_loop":
         # needs BOTH a prose recall AND a multi-repro verification cache
         return c.iid in mem_ids and c.iid in loop_ids

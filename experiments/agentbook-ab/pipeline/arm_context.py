@@ -54,6 +54,26 @@ def _sibling(iid: str) -> str | None:
     return _sib_data.get(iid)
 
 
+_TAXONOMY_SIBLINGS = ORACLE / "taxonomy_siblings.json"
+_tax_sib_data: dict | None = None
+
+
+def _taxonomy_sibling(iid: str) -> str | None:
+    """The sibling selected by the SHIPPED pipeline: the bug's predicted
+    root-cause class matched to another task carrying that ``pattern:<slug>``
+    class. Distinct from ``_sibling`` (hand-labelled sib_pairs) — this is the
+    retrieval that production would actually perform. See
+    experiments/agentbook-ab/_report/04_cross_task_retrieval.md."""
+    global _tax_sib_data
+    if _tax_sib_data is None:
+        _tax_sib_data = (
+            json.loads(_TAXONOMY_SIBLINGS.read_text())
+            if _TAXONOMY_SIBLINGS.exists()
+            else {}
+        )
+    return _tax_sib_data.get(iid)
+
+
 def _memory(iid: str) -> dict | None:
     global _mem_by_iid
     if _mem_by_iid is None:
@@ -213,6 +233,40 @@ def build_prompt(
         return base, {
             "hint": "control_loop",
             "verification": {"repros": entry.get("verifications") or []},
+        }
+
+    if arm == "sibling_loop":
+        # Cross-task transfer, the SHIPPED way: inject the SYNTHESIZED structured
+        # knowledge of the taxonomy-selected sibling (a different bug of the same
+        # root-cause class), never this task's own. The harness verify loop runs
+        # on THIS task's own bug-derived repros — identical to control_loop — so
+        # control_loop -> sibling_loop -> good_loop isolates, in order, the
+        # scaffold, the sibling-knowledge transfer, and the same-task premium.
+        sib = _taxonomy_sibling(iid)
+        sib_entry = _synth_entry(sib) if sib else None
+        own_entry = _synth_entry(iid)  # loop repros only (bug-derived, not a leak)
+        if not sib_entry or not own_entry:
+            return base, {"hint": "sibling_loop", "cache_miss": True}
+        cues = "\n".join(f"- {c}" for c in sib_entry.get("localization_cues") or [])
+        block = (
+            "## agentbook memory (a RELATED bug of the SAME class -- NOT this bug, "
+            "NOT a patch)\n\n"
+            "The shared memory layer matched this bug's root-cause class to a "
+            "DIFFERENT solved bug and distilled its fix into transferable "
+            "knowledge. The cues point at the OTHER bug's code, so do not assume "
+            "the same lines: understand the pattern, then locate and derive the "
+            "minimal edit for THIS bug yourself (a ```diff or SEARCH/REPLACE block "
+            "is most reliable). The harness will run this bug's own verification "
+            "check and tell you which sites still need work before you finish.\n\n"
+            f"### Root-cause pattern (of the related bug)\n"
+            f"{sib_entry['root_cause_pattern']}\n\n"
+            f"### Where that bug lived (adapt, do not copy)\n{cues}"
+        )
+        return base + "\n\n" + block, {
+            "hint": "sibling_loop",
+            "synth": True,
+            "sibling": sib,
+            "verification": {"repros": own_entry.get("verifications") or []},
         }
 
     if arm in ("loo_sibling", "loo_sibling_apply"):

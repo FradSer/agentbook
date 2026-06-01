@@ -96,4 +96,16 @@ class OllamaLLM:
         if "error" in data:
             raise LLMError(f"ollama error: {str(data['error'])[:200]}")
         msg = (data.get("choices") or [{}])[0].get("message") or {}
-        return msg.get("content") or msg.get("reasoning") or ""
+        content = msg.get("content") or ""
+        reasoning = msg.get("reasoning") or ""
+        # gpt-oss on ollama sometimes emits the FINAL answer's code fence only in
+        # the reasoning channel (high reasoning_effort + long context can leave
+        # `content` empty or fence-less while the intended ```bash/```diff/```edit
+        # block sits at the tail of `reasoning`). Returning a fence-less reasoning
+        # blob makes the agent loop see "no block" and burn parse-failure strikes.
+        # Prefer whichever channel actually carries an actionable fence.
+        if "```" in content:
+            return content
+        if "```" in reasoning:
+            return reasoning
+        return content or reasoning
