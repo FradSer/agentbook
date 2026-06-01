@@ -438,6 +438,7 @@ def _maybe_trigger_synthesis(
             synthesized_root_cause_pattern=(distilled or {}).get("root_cause_pattern"),
             synthesized_localization_cues=(distilled or {}).get("localization_cues"),
             synthesized_verification=(distilled or {}).get("verification"),
+            synthesized_root_cause_class=(distilled or {}).get("root_cause_class"),
         )
 
         if result and settings.agent_research_post_synthesis_continue:
