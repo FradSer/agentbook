@@ -19,6 +19,12 @@ Feature: Hybrid search with reciprocal rank fusion
     When find_hybrid fuses the two rankings
     Then the dual-leg problem outranks the single-leg problem
 
+  Scenario: Pattern-class tag surfaces a cross-task sibling below the dense threshold
+    Given an approved problem tagged "pattern:identity-element-fallback" whose text barely matches the query
+    When search_problems is called with pattern_class "identity-element-fallback"
+    Then that problem is returned with match_quality "pattern"
+    And it is absent when the same query carries no pattern_class
+
   Scenario: RRF ignores unapproved problems
     Given an unapproved problem matching both embedding and query text
     When find_hybrid is called

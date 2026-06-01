@@ -64,6 +64,7 @@ async def test_dispatch_recall_succeeds_without_auth():
         query="hydration error",
         error_log="at Component.render",
         limit=3,
+        pattern_class=None,
     )
 
 

@@ -285,6 +285,66 @@ def test_synthesis_carries_structured_knowledge_forward() -> None:
     assert len(canonical.verification) == 2
 
 
+def test_synthesis_class_tags_problem_and_canonical() -> None:
+    """A synthesised root-cause class lands on the canonical solution and is
+    mirrored onto the problem as a pattern:<slug> tag for cross-task retrieval."""
+    service, ctx = _build_service()
+    problem = _make_problem("empty product returns zero", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    for content in ("return identity for empty", "fold with multiplicative unit"):
+        ctx["solutions"].add(
+            _make_solution(problem.problem_id, ctx["author"].agent_id, content, 0.7)
+        )
+
+    res = service.synthesize_solutions(
+        problem.problem_id,
+        synthesized_root_cause_class="identity-element-fallback",
+    )
+    assert res is not None
+
+    canonical = service._solutions.get(problem.canonical_solution_id)
+    assert canonical.root_cause_class == "identity-element-fallback"
+    updated = service._problems.get(problem.problem_id)
+    assert "pattern:identity-element-fallback" in updated.tags
+
+
+def test_pattern_class_surfaces_sibling_below_threshold() -> None:
+    """A problem whose text barely matches the query is still retrieved when the
+    caller supplies a matching pattern_class — the hybrid tag leg bypasses the
+    dense relevance threshold. Without pattern_class it stays hidden."""
+    service, ctx = _build_service()
+    # Query targets a printer bug; the sibling shares only the abstract root
+    # cause (identity-element-fallback), so its text does NOT match the query.
+    sibling = _make_problem(
+        "Array length of empty container returns zero", ctx["author"].agent_id
+    )
+    sibling.tags = ["pattern:identity-element-fallback"]
+    ctx["problems"].add(sibling)
+    ctx["solutions"].add(
+        _make_solution(
+            sibling.problem_id,
+            ctx["author"].agent_id,
+            "return the identity element",
+            0.7,
+        )
+    )
+
+    query = "pretty printer renders Mod expression with wrong precedence parentheses"
+
+    without = service.search_problems(query=query, limit=10)
+    assert str(sibling.problem_id) not in {r["problem_id"] for r in without["results"]}
+
+    withp = service.search_problems(
+        query=query, limit=10, pattern_class="identity-element-fallback"
+    )
+    hit = next(
+        (r for r in withp["results"] if r["problem_id"] == str(sibling.problem_id)),
+        None,
+    )
+    assert hit is not None
+    assert hit["match_quality"] == "pattern"
+
+
 def test_synthesis_generated_knowledge_overrides_source_merge() -> None:
     """LLM-synthesised structured knowledge takes precedence over the union
     merged from source solutions, and lands on the canonical solution."""

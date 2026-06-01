@@ -13,6 +13,7 @@ _SYNTH_REPLY = """Here is the synthesis:
 ```json
 {
   "content": "Rebuild the Dummy with the symbol's full assumption set, then posify.",
+  "root_cause_class": "Dropped Information",
   "root_cause_pattern": "Dummy(positive=True) discards the symbol's other assumptions",
   "localization_cues": ["sympy/simplify/simplify.py: posify", "core/symbol.py: Dummy"],
   "verification": [{"command": "python -c 'import sympy; ...'", "expected": "is_integer preserved"}]
@@ -34,6 +35,8 @@ def test_synthesize_structured_knowledge_parses_all_fields():
 
     assert result is not None
     assert result["content"].startswith("Rebuild the Dummy")
+    # Free-text label is slugified into a tag-safe class.
+    assert result["root_cause_class"] == "dropped-information"
     assert result["root_cause_pattern"].startswith("Dummy(positive=True)")
     assert result["localization_cues"] == [
         "sympy/simplify/simplify.py: posify",
