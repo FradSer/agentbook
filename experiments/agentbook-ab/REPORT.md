@@ -4,8 +4,8 @@
 
 ## 结论(TL;DR)
 
-在一个 **Opus 4.7 自己也只解出 45%(17/38)的硬 sympy 子集**上,agentbook 的「抄答案」机制——
-embedding/rerank 检索到 peer-agent 的**验证补丁**,再由 harness 的 `APPLY_PATCH` 动作可靠落地——
+在一个 **Opus 4.7 自己也只解出 45%(17/38)的硬 sympy 子集**上,agentbook 的「抄答案」机制,
+embedding/rerank 检索到 peer-agent 的**验证补丁**,再由 harness 的 `APPLY_PATCH` 动作可靠落地,
 让本地小模型从**几乎完全做不出**追平到 **Opus 4.7 水平**:
 
 | 臂(17 个 Opus 解出的记忆任务) | gpt-oss:20b | gemma4:e4b | submit_rate |
@@ -27,14 +27,14 @@ embedding/rerank 检索到 peer-agent 的**验证补丁**,再由 harness 的 `AP
 `完成率 ≈ 检索质量 × 解法可执行表述 × 消费端执行力`。
 
 - **检索质量**:Layer 1 recall@1 = 1.0(embed/rerank 真实生效,16 个同领域 distractor 中正确记忆稳居第一)。agentbook 把这一项做满。
-- **执行力是瓶颈,不是知识**:铁证是 oracle 臂——把 gold 答案直接给 gpt-oss,它也只解 2/17(它写不利索 bash,submit 仅 0.2-0.4,reasoning 模型常吐不出可用命令)。
+- **执行力是瓶颈,不是知识**:铁证是 oracle 臂,把 gold 答案直接给 gpt-oss,它也只解 2/17(它写不利索 bash,submit 仅 0.2-0.4,reasoning 模型常吐不出可用命令)。
 - **解法**:把「执行」从模型手里搬进 agentbook+harness。`good_apply` 臂里,记忆携带 peer-agent(Opus)**验证过的最小补丁**,模型只需发一个 `APPLY_PATCH` 动作,harness 用多策略 `git apply` 可靠落地。于是消费端几乎不需要执行力 → gpt-oss 0→14、gemma 0→17。
 
 **这正是 agentbook 的产品价值在极限处的形态**:一个强 agent 解出一次 → 解法连同可直接套用的补丁进入 memory layer → 其他弱 agent 通过 recall「抄答案」即可达到接近强 agent 的完成率。
 
 ## 2. 为什么 good_apply(14-17)≫ good(4)≫ oracle(2)
 
-- **good(4)> oracle(2)**:Opus 提炼的散文诊断比原始 gold diff 更易被弱模型消化——说明「解法的可执行表述」是 agentbook 可优化的产品维度。
+- **good(4)> oracle(2)**:Opus 提炼的散文诊断比原始 gold diff 更易被弱模型消化,说明「解法的可执行表述」是 agentbook 可优化的产品维度。
 - **good_apply(14-17)≫ 两者**:再把表述推到「即用补丁 + 一键应用」,并把应用动作交给 harness,执行力门槛被基本移除 → 逼近天花板。
 - **gemma4:e4b(17)> gpt-oss:20b(14)**:instruct 模型协议遵守好(submit 0.97 vs 0.71),更稳定地触发 APPLY_PATCH;gpt-oss 是 reasoning 模型,偶尔仍不吐动作(温度 0.7 下的 3 个 miss)。
 
@@ -55,12 +55,12 @@ embedding/rerank 检索到 peer-agent 的**验证补丁**,再由 harness 的 `AP
 | gpt-oss-20b | 未单列(更弱) | control 0% |
 | gemma-4-27b | ~78%(二手源) | — |
 
-绝对值低于全集是因为我们刻意用 hard 子集暴露 lift 面。**方法学校验**:mini-swe-agent #798 显示 gpt-oss:120b 官方 62% 但本地 Ollama 仅复现 ~10%——我们 gpt-oss control 的低分与此一致,不是 harness 缺陷。
+绝对值低于全集是因为我们刻意用 hard 子集暴露 lift 面。**方法学校验**:mini-swe-agent #798 显示 gpt-oss:120b 官方 62% 但本地 Ollama 仅复现 ~10%,我们 gpt-oss control 的低分与此一致,不是 harness 缺陷。
 
 ## 5. 效度与局限
 
 - **n=17 记忆任务**:control→good_apply 的效应极大(0→14/17、p≈1e-4),方向稳健;但单仓 sympy、子集偏硬。
-- **good_apply 是 agentbook 的「上界形态」**:它假设记忆里有一份对该问题验证过的精确补丁(生产中由强 agent 解出后 remember + confidence 筛选而来)。这测的是「弱 agent 能否抄到强 agent 的解」——答案是肯定的(逼近天花板)。
+- **good_apply 是 agentbook 的「上界形态」**:它假设记忆里有一份对该问题验证过的精确补丁(生产中由强 agent 解出后 remember + confidence 筛选而来)。这测的是「弱 agent 能否抄到强 agent 的解」,答案是肯定的(逼近天花板)。
 - gpt-oss good_apply 有采样波动(本次 14/17,早期一次 16/17);gemma 稳定 17/17。
 
 ## 6. 优化空间(进一步逼近 100% / 推广)
@@ -95,7 +95,7 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 ## 附录 A:good_synth(综合抽象知识)实测(2026-05-26)
 
-测试 §6 的优化设想——把记忆综合成「根因模式 + 定位线索 + 验证方法」(无补丁、无散文),配空白不敏感的结构化 SEARCH/REPLACE 编辑,**模型自己推导并落地**。同题记忆,新 harness,k=1(gpt-oss 高推理 step30、gemma step12)。
+测试 §6 的优化设想,把记忆综合成「根因模式 + 定位线索 + 验证方法」(无补丁、无散文),配空白不敏感的结构化 SEARCH/REPLACE 编辑,**模型自己推导并落地**。同题记忆,新 harness,k=1(gpt-oss 高推理 step30、gemma step12)。
 
 | 臂 | gpt-oss:20b | gemma4:e4b |
 |---|---|---|
@@ -105,9 +105,9 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 | good ∪ good_synth | **6/17** | **6/17** |
 | harm | 0 | 1(16886) |
 
-**结论一:综合抽象知识不抬升 baseline。** good_synth 单臂不优于散文 good——gpt-oss 持平(4=4)、gemma 反低(3<5)。**对小模型,把解法从「具体散文诊断(含文件+具体修法)」抽象成「模式+线索」不是增益。** 与 §2「good > oracle」同向:可执行表述的甜区是**更具体**,不是更抽象。⇒ knowledge synthesis 应朝「结构化即用补丁」(good_apply 14-17/17),而非去具体化。§6 的「综合/抽象」设想被证伪。
+**结论一:综合抽象知识不抬升 baseline。** good_synth 单臂不优于散文 good,gpt-oss 持平(4=4)、gemma 反低(3<5)。**对小模型,把解法从「具体散文诊断(含文件+具体修法)」抽象成「模式+线索」不是增益。** 与 §2「good > oracle」同向:可执行表述的甜区是**更具体**,不是更抽象。⇒ knowledge synthesis 应朝「结构化即用补丁」(good_apply 14-17/17),而非去具体化。§6 的「综合/抽象」设想被证伪。
 
-**结论二:具体与抽象表述互补。** good 与 good_synth 各自解出 2 道对方没解出的题(两模型皆然),**并集 6/17 > 任一单臂**——不同表述命中不同失败模式。产品方向:多表述并存/按模型择优,而非用抽象替代具体。harm 低(gemma 1、gpt-oss 0)。
+**结论二:具体与抽象表述互补。** good 与 good_synth 各自解出 2 道对方没解出的题(两模型皆然),**并集 6/17 > 任一单臂**,不同表述命中不同失败模式。产品方向:多表述并存/按模型择优,而非用抽象替代具体。harm 低(gemma 1、gpt-oss 0)。
 
 逐 cell 产物 `runs_v2/*good_synth*`、综合缓存 `_oracle/synth_cache.json`、矩阵 `_oracle/final_matrix.json` 的 `good_synth_eval_2026_05_26`。
 
@@ -125,7 +125,7 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 **核心结论:** 知识保持通用,单加「可验证 + harness 拥有迭代」就把 good_synth **+3(gpt-oss 4→7)/+2(gemma 3→5)**,在更弱的 gpt-oss 上抬最多;good_loop 是**最强非缓存臂**,gpt-oss 上超过散文 good。`oracle→good_apply(+12-15)` 与 `good_synth→good_loop(+2/+3)` 是同一执行杠杆的「缓存版」与「通用知识版」。⇒ 小模型逼近更大模型的正确路径 = **保持知识通用 + 强化可验证执行条件**,而非窄化成即用补丁。
 
-**诚实边界:** 公开 repro 必要非充分——gemma repro 过 9 但 resolved 5(欠定→过拟合);gpt-oss resolved 7 但子串检查只判过 5(假阴)。天花板受不可约的多点定位/诊断限制(5-7 ≪ Opus 17)。逐 cell 产物 `runs_v2/*good_loop*`、验证字段在 `_oracle/synth_cache.json`。
+**诚实边界:** 公开 repro 必要非充分,gemma repro 过 9 但 resolved 5(欠定→过拟合);gpt-oss resolved 7 但子串检查只判过 5(假阴)。天花板受不可约的多点定位/诊断限制(5-7 ≪ Opus 17)。逐 cell 产物 `runs_v2/*good_loop*`、验证字段在 `_oracle/synth_cache.json`。
 
 ## 附录 C:good_loop v2 多 repro(2026-05-26 夜)—— 不对称 + 互补
 
@@ -140,9 +140,9 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 **两条发现:**
 
-1. **多 repro 的效应与模型不对称**——gemma(instruct)+2、gpt-oss(flaky reasoning)-2。stricter all-pass 在可靠模型上强制多点覆盖(15017 4 个构造点全修),在不稳定模型上放大 parse_failures、丢掉单点 case。「更强验证」不单调更好。
+1. **多 repro 的效应与模型不对称**,gemma(instruct)+2、gpt-oss(flaky reasoning)-2。stricter all-pass 在可靠模型上强制多点覆盖(15017 4 个构造点全修),在不稳定模型上放大 parse_failures、丢掉单点 case。「更强验证」不单调更好。
 
-2. **不同验证/表述命中不同失败模式,互补极强**——v1 ∪ v2 跳到 9-10/17,全臂并集 **gpt-oss 12/17 = Opus 71%**。同一份通用知识 × 不同表述 × 不同验证 ≈ 准确逼近的真正路径。
+2. **不同验证/表述命中不同失败模式,互补极强**,v1 ∪ v2 跳到 9-10/17,全臂并集 **gpt-oss 12/17 = Opus 71%**。同一份通用知识 × 不同表述 × 不同验证 ≈ 准确逼近的真正路径。
 
 ⇒ **下一步是集成,不是找最优单臂**:`good_multi_loop`(散文+抽象 + 多 repro)→ arm-router(agentbook 按 outcome/lineage 学每类任务+模型的最易落地组合)。逐 cell:`runs_v2/*good_loop*`(v2)、`runs_v2.good_loop_v1_single_repro/`(v1 归档),综合缓存 `_oracle/synth_cache.json` 已含 multi-repro 字段。
 
@@ -160,9 +160,9 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 **两个结论:**
 
-1. **单臂层面是混合的**——gemma multi = 8 是新最佳单臂(+1);gpt-oss multi = 6 介于 v1(7)和 v2(5),dual-view 仍带 parse_failure 风险。但 multi_loop **独家新增 3 道题**:gpt-oss 上 14976、15809,gemma 上 17318——这 3 道**无任何前臂解过**,确认双视图命中新失败模式。
+1. **单臂层面是混合的**,gemma multi = 8 是新最佳单臂(+1);gpt-oss multi = 6 介于 v1(7)和 v2(5),dual-view 仍带 parse_failure 风险。但 multi_loop **独家新增 3 道题**:gpt-oss 上 14976、15809,gemma 上 17318,这 3 道**无任何前臂解过**,确认双视图命中新失败模式。
 
-2. **集成假说定量证实**——5 臂全集 gpt-oss **14/17 = Opus 82%**、gemma 11/17 = 65%。同一份通用知识 × 不同表述 × 不同验证制度,小模型自解从 control 0% 抬到 gpt-oss 82%(知识不窄化,无补丁缓存)。
+2. **集成假说定量证实**,5 臂全集 gpt-oss **14/17 = Opus 82%**、gemma 11/17 = 65%。同一份通用知识 × 不同表述 × 不同验证制度,小模型自解从 control 0% 抬到 gpt-oss 82%(知识不窄化,无补丁缓存)。
 
 **定量回答主目标(gpt-oss 硬子集):**
 0%(control) → 41%(单臂最佳) → 76%(v1∪v2∪multi) → **82%(5 臂集成)**,距 Opus 100% 差 3 题(不可约推理)。
@@ -184,7 +184,7 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 **关键:**
 1. 静态 rule k=2 就让 gemma 达运行时天花板。
-2. KNN k=3 在小样本下让 gpt-oss 达 85% 天花板,且 **outcome 越多越准**——agentbook 唯一靠生产数据持续自改进的形态。
+2. KNN k=3 在小样本下让 gpt-oss 达 85% 天花板,且 **outcome 越多越准**,agentbook 唯一靠生产数据持续自改进的形态。
 3. 端到端 smoke:`good_router` 跑 15017 gemma 路由到 `good_multi_loop`,91s/9 轮解出。
 4. 离线评测细节 `_oracle/router_offline_eval.json`。
 
@@ -205,15 +205,15 @@ uv run python -m pipeline.orchestrator --provider ollama --models gemma4:e4b \
 
 **router 同步上推**(sample-level outcomes 喂进去): rule k=1 = **13/17 (87% 天花板)**; rule k=2 = **14/17 (93%)**。
 
-**两条结论:** ①「换 gemma」对了 —— gemma 单模型 88% > gpt-oss 全臂 82%,采样几次就够。②router 闭环自我改进定量证实 —— sample-level outcomes 让 rule k=1 从 8 跳到 13(+5)。**绝对天花板** = 15/17,剩 2 题(15976、16766)需更强小模型或 autoresearcher 重写知识。
+**两条结论:** ①「换 gemma」对了,gemma 单模型 88% > gpt-oss 全臂 82%,采样几次就够。②router 闭环自我改进定量证实,sample-level outcomes 让 rule k=1 从 8 跳到 13(+5)。**绝对天花板** = 15/17,剩 2 题(15976、16766)需更强小模型或 autoresearcher 重写知识。
 
 ## 附:产物
-- `_oracle/final_matrix.json` — 全臂最终矩阵
-- `_oracle/synth_cache.json` — good_synth 综合知识(17 条) + 每条 2-5 个独立 verification repros
-- `_oracle/outcomes_log.json` — 394 行 sample-level outcomes(router 训练数据 + agentbook `report` 生产入口)
-- `_oracle/router_offline_eval.json` — router LOO 评测结果(含 pass-rate 版)
-- `runs_v2.good_loop_v1_single_repro/` — v1 单 repro 归档(用于 v1 vs v2 对照)
-- `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/` — good_apply 逐 cell 结果+transcript
+- `_oracle/final_matrix.json`: 全臂最终矩阵
+- `_oracle/synth_cache.json`: good_synth 综合知识(17 条) + 每条 2-5 个独立 verification repros
+- `_oracle/outcomes_log.json`: 394 行 sample-level outcomes(router 训练数据 + agentbook `report` 生产入口)
+- `_oracle/router_offline_eval.json`: router LOO 评测结果(含 pass-rate 版)
+- `runs_v2.good_loop_v1_single_repro/`: v1 单 repro 归档(用于 v1 vs v2 对照)
+- `runs_v2.gptoss-good_apply/`, `runs_v2.e4b-good_apply/`: good_apply 逐 cell 结果+transcript
 - `runs_v2.local-gptoss/`(control/good/oracle)、`runs_v2.openrouter-gptoss-free/`
 - `_oracle/patch_cache.json`(peer 验证补丁)、`memories.json`、`oracle.json`、`red_clean.json`、`published_benchmarks.json`
 - `retrieval_report.json`(Layer1)、`solver_verified.json`(Opus 17/38)
