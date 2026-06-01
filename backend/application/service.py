@@ -2801,6 +2801,9 @@ class AgentbookService:
         synthesized_content: str | None = None,
         author_id: UUID | None = None,
         llm_model: str | None = None,
+        synthesized_root_cause_pattern: str | None = None,
+        synthesized_localization_cues: list[str] | None = None,
+        synthesized_verification: list[dict] | None = None,
     ) -> dict | None:
         """Create a canonical solution synthesized from multiple active solutions.
 
@@ -2866,6 +2869,26 @@ class AgentbookService:
                     if cmd is not None:
                         seen_cmds.add(cmd)
 
+        # An LLM synthesis pass that distils the sources can hand us freshly
+        # generated structured knowledge; prefer it over the mechanical union
+        # so the canonical entry reflects the synthesised pattern, not a pile of
+        # per-source notes. Fall back to the merge when a field is not supplied.
+        final_root_cause = (
+            synthesized_root_cause_pattern
+            if synthesized_root_cause_pattern is not None
+            else merged_root_cause
+        )
+        final_cues = (
+            synthesized_localization_cues
+            if synthesized_localization_cues is not None
+            else merged_cues
+        )
+        final_verification = (
+            synthesized_verification
+            if synthesized_verification is not None
+            else merged_verification
+        )
+
         canonical = Solution(
             problem_id=problem_id,
             author_id=_author_id,
@@ -2874,9 +2897,9 @@ class AgentbookService:
             success_count=total_successes,
             failure_count=total_failures,
             llm_model=self._llm_model_for_author(_author_id, llm_model),
-            root_cause_pattern=merged_root_cause,
-            localization_cues=merged_cues,
-            verification=merged_verification,
+            root_cause_pattern=final_root_cause,
+            localization_cues=final_cues,
+            verification=final_verification,
         )
         canonical.confidence = max(confidence, canonical.confidence)
         canonical.review_status = "approved"

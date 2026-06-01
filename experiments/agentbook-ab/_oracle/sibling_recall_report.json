@@ -1,0 +1,397 @@
+{
+  "tasks_with_sibling": 9,
+  "embedding_provider": "voyage",
+  "sibling_recall@1": 0.0,
+  "sibling_recall@3": 0.0,
+  "sibling_recall@5": 0.0,
+  "sibling_mrr_holdout": 0.081,
+  "per_task": [
+    {
+      "instance_id": "sympy__sympy-14976",
+      "sibling": "sympy__sympy-15976",
+      "sibling_rank_holdout": 15,
+      "self_was_top": true,
+      "n_results": 32,
+      "sibling_score": 0.133,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-14976",
+          1.0
+        ],
+        [
+          null,
+          0.1
+        ],
+        [
+          null,
+          0.133
+        ],
+        [
+          null,
+          0.1
+        ],
+        [
+          "sympy__sympy-16766",
+          0.133
+        ],
+        [
+          "sympy__sympy-16450",
+          0.1
+        ],
+        [
+          "sympy__sympy-16792",
+          0.167
+        ],
+        [
+          "sympy__sympy-15809",
+          0.1
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-15976",
+      "sibling": "sympy__sympy-14976",
+      "sibling_rank_holdout": 8,
+      "self_was_top": true,
+      "n_results": 36,
+      "sibling_score": 0.103,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-15976",
+          1.0
+        ],
+        [
+          "sympy__sympy-16792",
+          0.154
+        ],
+        [
+          "sympy__sympy-19954",
+          0.128
+        ],
+        [
+          "sympy__sympy-19637",
+          0.128
+        ],
+        [
+          null,
+          0.128
+        ],
+        [
+          null,
+          0.128
+        ],
+        [
+          "sympy__sympy-16450",
+          0.128
+        ],
+        [
+          "sympy__sympy-15017",
+          0.103
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-16450",
+      "sibling": "sympy__sympy-17139",
+      "sibling_rank_holdout": 18,
+      "self_was_top": true,
+      "n_results": 35,
+      "sibling_score": 0.031,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-16450",
+          1.0
+        ],
+        [
+          null,
+          0.062
+        ],
+        [
+          "sympy__sympy-14976",
+          0.094
+        ],
+        [
+          "sympy__sympy-18211",
+          0.125
+        ],
+        [
+          "sympy__sympy-15017",
+          0.156
+        ],
+        [
+          "sympy__sympy-15976",
+          0.125
+        ],
+        [
+          null,
+          0.062
+        ],
+        [
+          null,
+          0.094
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-16766",
+      "sibling": "sympy__sympy-14976",
+      "sibling_rank_holdout": 13,
+      "self_was_top": true,
+      "n_results": 33,
+      "sibling_score": 0.083,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-16766",
+          1.0
+        ],
+        [
+          "sympy__sympy-16792",
+          0.306
+        ],
+        [
+          "sympy__sympy-15017",
+          0.278
+        ],
+        [
+          "sympy__sympy-17655",
+          0.194
+        ],
+        [
+          "sympy__sympy-19954",
+          0.167
+        ],
+        [
+          null,
+          0.167
+        ],
+        [
+          "sympy__sympy-15809",
+          0.167
+        ],
+        [
+          "sympy__sympy-18211",
+          0.167
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-17139",
+      "sibling": "sympy__sympy-16450",
+      "sibling_rank_holdout": 9,
+      "self_was_top": true,
+      "n_results": 19,
+      "sibling_score": 0.1,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-17139",
+          1.0
+        ],
+        [
+          null,
+          0.3
+        ],
+        [
+          "sympy__sympy-15017",
+          0.2
+        ],
+        [
+          "sympy__sympy-19954",
+          0.2
+        ],
+        [
+          "sympy__sympy-16792",
+          0.2
+        ],
+        [
+          "sympy__sympy-18698",
+          0.2
+        ],
+        [
+          null,
+          0.1
+        ],
+        [
+          null,
+          0.1
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-17318",
+      "sibling": "sympy__sympy-16450",
+      "sibling_rank_holdout": 11,
+      "self_was_top": true,
+      "n_results": 31,
+      "sibling_score": 0.1,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-17318",
+          1.0
+        ],
+        [
+          "sympy__sympy-19954",
+          0.233
+        ],
+        [
+          "sympy__sympy-18211",
+          0.233
+        ],
+        [
+          "sympy__sympy-19346",
+          0.233
+        ],
+        [
+          "sympy__sympy-16792",
+          0.2
+        ],
+        [
+          "sympy__sympy-15017",
+          0.167
+        ],
+        [
+          "sympy__sympy-15809",
+          0.167
+        ],
+        [
+          null,
+          0.167
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-18211",
+      "sibling": "sympy__sympy-19637",
+      "sibling_rank_holdout": 28,
+      "self_was_top": true,
+      "n_results": 35,
+      "sibling_score": 0.065,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-18211",
+          1.0
+        ],
+        [
+          "sympy__sympy-16792",
+          0.323
+        ],
+        [
+          "sympy__sympy-17318",
+          0.258
+        ],
+        [
+          null,
+          0.226
+        ],
+        [
+          "sympy__sympy-15017",
+          0.226
+        ],
+        [
+          "sympy__sympy-16766",
+          0.226
+        ],
+        [
+          "sympy__sympy-18698",
+          0.194
+        ],
+        [
+          "sympy__sympy-17655",
+          0.194
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-19346",
+      "sibling": "sympy__sympy-14976",
+      "sibling_rank_holdout": 13,
+      "self_was_top": true,
+      "n_results": 31,
+      "sibling_score": 0.133,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-19346",
+          1.0
+        ],
+        [
+          "sympy__sympy-15017",
+          0.233
+        ],
+        [
+          "sympy__sympy-16792",
+          0.233
+        ],
+        [
+          "sympy__sympy-17318",
+          0.233
+        ],
+        [
+          "sympy__sympy-17655",
+          0.2
+        ],
+        [
+          null,
+          0.167
+        ],
+        [
+          "sympy__sympy-16886",
+          0.167
+        ],
+        [
+          "sympy__sympy-18698",
+          0.167
+        ]
+      ]
+    },
+    {
+      "instance_id": "sympy__sympy-19637",
+      "sibling": "sympy__sympy-18211",
+      "sibling_rank_holdout": 11,
+      "self_was_top": true,
+      "n_results": 15,
+      "sibling_score": 0.05,
+      "embedding_provider": "voyage",
+      "scored": [
+        [
+          "sympy__sympy-19637",
+          1.0
+        ],
+        [
+          "sympy__sympy-15976",
+          0.2
+        ],
+        [
+          "sympy__sympy-19954",
+          0.2
+        ],
+        [
+          "sympy__sympy-18698",
+          0.15
+        ],
+        [
+          null,
+          0.1
+        ],
+        [
+          "sympy__sympy-14976",
+          0.1
+        ],
+        [
+          "sympy__sympy-16792",
+          0.1
+        ],
+        [
+          null,
+          0.05
+        ]
+      ]
+    }
+  ]
+}

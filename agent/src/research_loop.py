@@ -146,7 +146,9 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                 elif "Status: no_improvement" in response_text:
                     no_improvement += 1
                     logger.info(f"No improvement proposed for problem {problem_id}")
-                    _maybe_trigger_synthesis(service, problem_id, active_solutions)
+                    _maybe_trigger_synthesis(
+                        service, problem_id, active_solutions, problem_dict
+                    )
                 else:
                     logger.warning(
                         f"Agent returned no recognisable tool call for problem {problem_id}: "
@@ -283,7 +285,9 @@ async def _run_focused_research_cycle(
                         for s in ctx.get("solutions", [])
                         if s.get("canonical_id") is None
                     ]
-                    _maybe_trigger_synthesis(service, problem_id, active_solutions)
+                    _maybe_trigger_synthesis(
+                        service, problem_id, active_solutions, problem_dict
+                    )
                 except Exception as exc:
                     logger.warning(f"Focus mode synthesis attempt failed: {exc}")
                 break
@@ -385,7 +389,29 @@ async def _research_single_problem(agent, service, problem_dict: dict) -> str:
         return "no_improvement"
 
 
-def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) -> None:
+def _synthesize_structured_knowledge(active_solutions, problem_dict):
+    """Best-effort LLM distillation of the active solutions into canonical
+    content plus transferable structured knowledge. Returns ``None`` on any
+    failure (no key, model error, unparseable reply) so synthesis falls back to
+    the mechanical union merge in the service.
+    """
+    if problem_dict is None:
+        return None
+    try:
+        from agent.src.researcher_agent import build_synthesis_llm_fn
+        from agent.src.synthesis import synthesize_structured_knowledge
+
+        return synthesize_structured_knowledge(
+            active_solutions, problem_dict, build_synthesis_llm_fn()
+        )
+    except Exception as exc:  # noqa: BLE001 -- distillation is strictly optional
+        logger.warning(f"Structured synthesis distillation failed: {exc}")
+        return None
+
+
+def _maybe_trigger_synthesis(
+    service, problem_id, active_solutions: list[dict], problem_dict: dict | None = None
+) -> None:
     """Auto-trigger synthesis when research has stalled and enough solutions exist.
 
     When ``agent_research_post_synthesis_continue`` is enabled, records a
@@ -403,10 +429,15 @@ def _maybe_trigger_synthesis(service, problem_id, active_solutions: list[dict]) 
             f"Problem {problem_id}: {stalled} consecutive no-improvement cycles with "
             f"{len(active_solutions)} active solutions — triggering synthesis"
         )
+        distilled = _synthesize_structured_knowledge(active_solutions, problem_dict)
         result = service.synthesize_solutions(
             problem_id=pid,
             author_id=SYSTEM_AGENT_ID,
             llm_model=settings.agent_model_name,
+            synthesized_content=(distilled or {}).get("content"),
+            synthesized_root_cause_pattern=(distilled or {}).get("root_cause_pattern"),
+            synthesized_localization_cues=(distilled or {}).get("localization_cues"),
+            synthesized_verification=(distilled or {}).get("verification"),
         )
 
         if result and settings.agent_research_post_synthesis_continue:

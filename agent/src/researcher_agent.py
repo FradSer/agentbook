@@ -88,3 +88,25 @@ def create_researcher_agent(tools: list) -> Agent:
         instructions=_load_instructions(),
         tools=tools,
     )
+
+
+def build_synthesis_llm_fn():
+    """A tools-less text->text callable on the researcher model.
+
+    Used by the synthesis pass to distil active solutions into canonical content
+    plus transferable structured knowledge. Kept separate from the research agent
+    so synthesis is not biased by the hill-climbing instructions or tools.
+    """
+    agent = Agent(
+        model=_build_model(),
+        instructions=(
+            "You are a precise knowledge-synthesis agent. Follow the requested "
+            "output format exactly and output nothing else."
+        ),
+    )
+
+    def _call(prompt: str) -> str:
+        response = agent.run(prompt)
+        return str(getattr(response, "content", response))
+
+    return _call

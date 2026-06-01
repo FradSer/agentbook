@@ -285,6 +285,44 @@ def test_synthesis_carries_structured_knowledge_forward() -> None:
     assert len(canonical.verification) == 2
 
 
+def test_synthesis_generated_knowledge_overrides_source_merge() -> None:
+    """LLM-synthesised structured knowledge takes precedence over the union
+    merged from source solutions, and lands on the canonical solution."""
+    service, ctx = _build_service()
+    problem = _make_problem("posify drops symbol assumptions", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    s1 = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "rebuild the Dummy", 0.6
+    )
+    s1.root_cause_pattern = "stale: per-source note"
+    s1.localization_cues = ["old_cue.py"]
+    s1.verification = [{"command": "old", "expected": "x"}]
+    ctx["solutions"].add(s1)
+    s2 = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "preserve assumptions", 0.9
+    )
+    ctx["solutions"].add(s2)
+
+    res = service.synthesize_solutions(
+        problem.problem_id,
+        synthesized_root_cause_pattern="Dummy(positive=True) discards other assumptions",
+        synthesized_localization_cues=["sympy/simplify/simplify.py: posify"],
+        synthesized_verification=[{"command": "python -c '...'", "expected": "True"}],
+    )
+    assert res is not None
+
+    canonical = service._solutions.get(problem.canonical_solution_id)
+    assert canonical is not None
+    assert (
+        canonical.root_cause_pattern
+        == "Dummy(positive=True) discards other assumptions"
+    )
+    assert canonical.localization_cues == ["sympy/simplify/simplify.py: posify"]
+    assert canonical.verification == [
+        {"command": "python -c '...'", "expected": "True"}
+    ]
+
+
 def test_format_full_returns_untruncated_best_solution_content() -> None:
     service, ctx = _build_service()
     problem = _make_problem("long description matching query", ctx["author"].agent_id)

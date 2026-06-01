@@ -2,8 +2,67 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from agent.src.synthesis import _mark_superseded, synthesize_solutions
+from agent.src.synthesis import (
+    _mark_superseded,
+    synthesize_solutions,
+    synthesize_structured_knowledge,
+)
 from backend.domain.models import Problem, Solution
+
+_SYNTH_REPLY = """Here is the synthesis:
+```json
+{
+  "content": "Rebuild the Dummy with the symbol's full assumption set, then posify.",
+  "root_cause_pattern": "Dummy(positive=True) discards the symbol's other assumptions",
+  "localization_cues": ["sympy/simplify/simplify.py: posify", "core/symbol.py: Dummy"],
+  "verification": [{"command": "python -c 'import sympy; ...'", "expected": "is_integer preserved"}]
+}
+```
+"""
+
+
+def test_synthesize_structured_knowledge_parses_all_fields():
+    problem = {"description": "posify drops a symbol's assumptions"}
+    solutions = [
+        {"content": "rebuild the Dummy", "steps": ["inspect posify"]},
+        {"content": "preserve assumptions", "steps": []},
+    ]
+
+    result = synthesize_structured_knowledge(
+        solutions, problem, lambda _p: _SYNTH_REPLY
+    )
+
+    assert result is not None
+    assert result["content"].startswith("Rebuild the Dummy")
+    assert result["root_cause_pattern"].startswith("Dummy(positive=True)")
+    assert result["localization_cues"] == [
+        "sympy/simplify/simplify.py: posify",
+        "core/symbol.py: Dummy",
+    ]
+    assert result["verification"][0]["expected"] == "is_integer preserved"
+
+
+def test_synthesize_structured_knowledge_prompt_carries_problem_and_sources():
+    captured = []
+    problem = {"description": "MY UNIQUE PROBLEM"}
+    solutions = [{"content": "FIRST SOURCE CONTENT", "steps": []}]
+
+    def llm(prompt):
+        captured.append(prompt)
+        return _SYNTH_REPLY
+
+    synthesize_structured_knowledge(solutions, problem, llm)
+    assert "MY UNIQUE PROBLEM" in captured[0]
+    assert "FIRST SOURCE CONTENT" in captured[0]
+
+
+def test_synthesize_structured_knowledge_returns_none_on_unparseable_reply():
+    problem = {"description": "p"}
+    solutions = [{"content": "c", "steps": []}]
+    assert (
+        synthesize_structured_knowledge(solutions, problem, lambda _p: "no json here")
+        is None
+    )
 
 
 def test_synthesize_solutions_creates_canonical_solution():

@@ -75,6 +75,10 @@ class TestEmbeddingDimensionValidation:
         # Without a Voyage key the OpenRouter / Fallback chain runs at
         # whatever dim the active column expects. The startup check
         # only fires for the specific Voyage+v1 mismatch.
+        # Keep hermetic: the repo .env (read directly by pydantic-settings) may
+        # carry a real VOYAGE_API_KEY. An empty env var outranks the .env file,
+        # so it cleanly exercises the intended no-key path.
+        monkeypatch.setenv("VOYAGE_API_KEY", "")
         monkeypatch.setenv("EMBEDDING_VERSION", "v1")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
         monkeypatch.setenv("DEBUG", "false")

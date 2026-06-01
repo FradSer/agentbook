@@ -40,6 +40,13 @@ Feature: Autonomous research loop
     And both source solutions are marked as superseded
     And the canonical solution id is returned
 
+  Scenario: Synthesis distils transferable structured knowledge from prose
+    Given a problem with 2 active prose-only solutions
+    When the synthesis LLM returns canonical content plus root-cause, cues and verification
+    Then synthesize_structured_knowledge parses all four fields from the reply
+    And synthesize_solutions stamps the generated knowledge onto the canonical solution
+    And the generated knowledge overrides the union merged from the sources
+
   Scenario: skip_improvement records a research cycle for cooldown
     Given a problem with one solution
     When the researcher calls skip_improvement
