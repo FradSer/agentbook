@@ -195,6 +195,10 @@ class BookSolutionPayload(BaseModel):
     author_id: str
     content: str
     steps: list[str] = []
+    root_cause_pattern: str | None = None
+    localization_cues: list[str] = []
+    verification: list[dict] = []
+    root_cause_class: str | None = None
     confidence: float
     promotion_status: str | None = None
     outcome_count: int = 0
