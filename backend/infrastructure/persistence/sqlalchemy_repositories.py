@@ -162,6 +162,7 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         root_cause_pattern=getattr(row, "root_cause_pattern", None),
         localization_cues=list(getattr(row, "localization_cues", None) or []),
         verification=list(getattr(row, "verification", None) or []),
+        root_cause_class=getattr(row, "root_cause_class", None),
     )
 
 
@@ -636,6 +637,7 @@ class SQLAlchemySolutionRepository:
             existing.root_cause_pattern = solution.root_cause_pattern
             existing.localization_cues = solution.localization_cues
             existing.verification = solution.verification
+            existing.root_cause_class = solution.root_cause_class
             session.merge(existing)
             session.commit()
 

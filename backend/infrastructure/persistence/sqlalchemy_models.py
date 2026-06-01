@@ -171,6 +171,7 @@ class SolutionORM(Base):
     root_cause_pattern: Mapped[str | None] = mapped_column(Text, nullable=True)
     localization_cues: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     verification: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
+    root_cause_class: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
