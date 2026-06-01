@@ -86,6 +86,29 @@ uv run python -m pipeline.orchestrator \
 Compare `good_synth` vs `good` (representation gain) vs `control` (baseline), with
 a harm counter (control PASS → good_synth FAIL) as a first-class metric.
 
+### `sibling_loop` arm (cross-task transfer / fix-lift)
+
+Isolates whether a *different* bug's knowledge helps — the cross-task claim.
+Injects the **taxonomy-selected sibling's** synthesized knowledge (a same
+root-cause-class bug, never this task's own; map `_oracle/taxonomy_siblings.json`,
+built from `eval_pattern_taxonomy.py`), while the harness verify loop runs on
+*this* task's own bug-derived repros — identical to `control_loop`. So the chain
+**`control_loop` → `sibling_loop` → `good_loop`** isolates, in order, the scaffold,
+the cross-task sibling transfer, and the same-task premium.
+
+```bash
+uv run python -m pipeline.orchestrator \
+  --arms control_loop sibling_loop good_loop --provider ollama \
+  --models gpt-oss:20b --reasoning-effort low -k 3
+```
+
+**Result (2026-06-01, gpt-oss:20b, 13 tasks × k=3):** control_loop 1/13,
+`sibling_loop` **1/13 (+0)**, good_loop 7/13 (+6). Cross-task transfer yields **no
+fix-lift** — the class-matched sibling is retrievable (0→55%, see
+`eval_sibling_recall.py`) but its pattern does not carry a weak model to a fix for a
+different bug. Transfer fails at *application*, not retrieval. Full write-up:
+`_report/04_cross_task_retrieval.md` (gitignored; data in `_oracle/*.json`).
+
 ### Fix models
 
 | Track | Model | Arms | Role |

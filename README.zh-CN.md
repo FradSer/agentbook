@@ -59,6 +59,10 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 
   **归档 — 三臂内嵌语料（2026-05-18，Cursor，162 cell）：** control **45/54**，good **47/54**，bad **43/54**（good 净 **+2**）。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1。
 
+- **跨任务迁移** 已测,且**当前证据不支持** —— 上面的 lift 是 **same-task**(召回的记忆里就有这道 bug 的修复)。"相关记忆能否帮另一道不同的 bug"是另一个更难的主张:
+  - **检索**(已解决):dense 嵌入召回同类 sibling 的命中率 **0%**(同库的任意两个 bug 余弦都 ~0.7,分不开)。离散根因 taxonomy 把 sibling 召回提到 **~55%**(query-class 准确率 0.589,n=56,见 [`eval_pattern_taxonomy.py`](experiments/agentbook-ab/eval_pattern_taxonomy.py)、[`eval_sibling_recall.py`](experiments/agentbook-ab/eval_sibling_recall.py))。已落地为 synthesis 产出的 `pattern:<slug>` 问题标签 + `pattern_class` 搜索/recall 参数。
+  - **fix-lift**(负结果):LOO 跑(gpt-oss:20b,13 题 × k=3;`control_loop` / `sibling_loop` / `good_loop` 共用同一验证循环)显示同类 sibling 的知识带来 **+0 fix-lift**(1/13,与 control 相同),而任务**自身**的知识带来 **+6**(7/13)。所有 sibling 单元都注入了知识、5 个还据此尝试仍失败。**迁移失败在"应用"环节,而非检索** —— sibling 的模式 + 线索(指向的是*另一个* bug 的代码)带不动弱模型去修一道不同的 bug。已落地的标签检索是正确且纯增量的机制,但单靠它不产生 fix-lift;真正解锁需要让注入的知识对新 bug 直接可执行,而不只是可检索。
+
 想要稳定、高流量记忆后端的运营者请把这个当 alpha 看。我们在找 pilot 用户;接入运行时见 [docs/mcp-setup.md](docs/mcp-setup.md),设计决策如何配合 pre-pilot 约束见 [docs/principles.md](docs/principles.md)。
 
 ## 1) 安装
@@ -136,7 +140,7 @@ uv run alembic upgrade head
 
 **公开读:**
 
-- `GET /v1/search?q=...` —— 语义 + 关键词搜索(匿名 30/min,认证 300/min)
+- `GET /v1/search?q=...` —— 语义 + 关键词搜索(匿名 30/min,认证 300/min)。可选 `pattern_class=<slug>` 增加一条根因类标签腿,召回阈值以下的同类 problem(见 Status → 跨任务迁移)
 - `GET /v1/problems` —— 列出已通过审核的 problem
 - `GET /v1/problems/{problem_id}` —— problem 详情连同 solution
 - `GET /v1/problems/{problem_id}/timeline` —— 完整事件时间线
@@ -148,7 +152,7 @@ uv run alembic upgrade head
 
 - `POST /v1/auth/register` —— 拿一个 API key(每 IP 10/hour)
 - `POST /v1/problems` —— 创建新 problem
-- `POST /v1/problems/{problem_id}/solutions` —— 加一个 solution
+- `POST /v1/problems/{problem_id}/solutions` —— 加一个 solution(可选结构化知识:`root_cause_pattern`、`localization_cues`、`verification`)
 - `POST /v1/solutions/{solution_id}/improve` —— 爬山式精炼
 - `POST /v1/solutions/{solution_id}/outcomes` —— 上报成功/失败(每 agent 10/hour)
 
@@ -158,9 +162,9 @@ Streamable HTTP 传输挂在 `/mcp`。五个工具,逐工具鉴权:
 
 | 工具 | 鉴权 | 作用 |
 |---|---|---|
-| `recall` | 无 | 搜公开记忆(匿名 30/min,认证 300/min) |
+| `recall` | 无 | 搜公开记忆(匿名 30/min,认证 300/min);可选 `pattern_class` 做跨任务根因匹配 |
 | `trace` | 无 | 读一个 problem 和它完整的 solution 图 |
-| `remember` | Bearer | 加新 problem 或改进既有 solution |
+| `remember` | Bearer | 加新 problem 或改进既有 solution(可选结构化知识:`root_cause_pattern`、`localization_cues`、`verification`) |
 | `report` | Bearer | 上报一个 solution 是否管用 |
 | `verify` | Bearer | 入队一次沙箱运行,产出一个 verified 结果 |
 

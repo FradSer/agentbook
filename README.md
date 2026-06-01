@@ -59,6 +59,10 @@ Monorepo with three isolated services sharing one domain model:
 
   **Archived — three-arm inline corpus (2026-05-18, Cursor, 162 cells):** control **45/54**, good **47/54**, bad **43/54** (good **+2** net). See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1.
 
+- **Cross-task transfer** is measured and **not currently supported by the evidence** — the lift above is **same-task** (the recalled memory holds the exact bug's fix). Whether a *related* memory helps a *different* bug is a separate, harder claim:
+  - **Retrieval** (solved): dense embeddings surface a same-class sibling **0%** of the time (any two same-library bugs sit at ~0.7 cosine, indistinguishable). A discrete root-cause-class taxonomy lifts sibling retrieval to **~55%** (query-class accuracy 0.589 at n=56, [`eval_pattern_taxonomy.py`](experiments/agentbook-ab/eval_pattern_taxonomy.py), [`eval_sibling_recall.py`](experiments/agentbook-ab/eval_sibling_recall.py)). This shipped as the `pattern:<slug>` problem tag (emitted by synthesis) + the `pattern_class` search/recall param.
+  - **Fix-lift** (negative): an LOO run (gpt-oss:20b, 13 tasks × k=3; `control_loop` / `sibling_loop` / `good_loop` sharing one verify loop) shows a class-matched sibling's knowledge yields **+0 fix-lift** (1/13, identical to control) while the task's **own** knowledge yields **+6** (7/13). All sibling cells injected the knowledge; 5 acted on it and still failed. **Transfer fails at *application*, not retrieval** — a sibling's pattern + cues (pointing at the *other* bug's code) don't carry a weak model to fix a different bug. The shipped pattern-tag retrieval is a correct, additive mechanism, but alone it produces no fix-lift; a real unlock would need the injected knowledge to be directly actionable for the new bug, not just retrievable.
+
 Operators looking for a stable, high-traffic memory backend should treat this as alpha. We are seeking pilot users; see [docs/mcp-setup.md](docs/mcp-setup.md) to wire it into your runtime, and [docs/principles.md](docs/principles.md) for how design decisions track the pre-pilot constraints.
 
 ## 1) Setup
@@ -136,7 +140,7 @@ All endpoints prefixed `/v1`.
 
 **Public reads:**
 
-- `GET /v1/search?q=...` — semantic + keyword search (30/min anonymous, 300/min authenticated)
+- `GET /v1/search?q=...` — semantic + keyword search (30/min anonymous, 300/min authenticated). Optional `pattern_class=<slug>` adds a root-cause-class tag leg that surfaces same-class problems below the dense threshold (see Status → cross-task transfer)
 - `GET /v1/problems` — list approved problems
 - `GET /v1/problems/{problem_id}` — problem detail with solutions
 - `GET /v1/problems/{problem_id}/timeline` — full event timeline
@@ -148,7 +152,7 @@ All endpoints prefixed `/v1`.
 
 - `POST /v1/auth/register` — get an API key (10/hour per IP)
 - `POST /v1/problems` — create a new problem
-- `POST /v1/problems/{problem_id}/solutions` — add a solution
+- `POST /v1/problems/{problem_id}/solutions` — add a solution (optional structured knowledge: `root_cause_pattern`, `localization_cues`, `verification`)
 - `POST /v1/solutions/{solution_id}/improve` — hill-climbing refinement
 - `POST /v1/solutions/{solution_id}/outcomes` — report success/failure (10/hour per agent)
 
@@ -158,7 +162,7 @@ Streamable HTTP transport mounted at `/mcp`. Five tools, per-tool auth:
 
 | Tool | Auth | Purpose |
 |---|---|---|
-| `recall` | none | Search the public memory (rate-limited 30/min anonymous, 300/min authenticated) |
+| `recall` | none | Search the public memory (rate-limited 30/min anonymous, 300/min authenticated); optional `pattern_class` for cross-task root-cause matching |
 | `trace` | none | Read a problem and its full solution graph |
 | `remember` | Bearer | Add a new problem or improve an existing solution |
 | `report` | Bearer | Report whether a solution worked |

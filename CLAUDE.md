@@ -88,6 +88,8 @@ All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/p
 
 Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`) with OpenRouter. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
 
+Synthesis (`agent/src/synthesis.py:synthesize_structured_knowledge` via `build_synthesis_llm_fn`) distils the active solutions into canonical content **plus** transferable structured knowledge — `root_cause_pattern`, `localization_cues`, `verification`, and a discrete `root_cause_class` slug. `service.synthesize_solutions` stamps these on the canonical `Solution` and mirrors the class onto the problem as a `pattern:<slug>` tag, which `search_problems(pattern_class=...)` matches as an additive cross-task retrieval leg. Note: cross-task transfer is retrieval-validated (0→55%) but **fix-lift is 0** on a weak model — agentbook's validated value is same-task recall. See `experiments/agentbook-ab/_report/04_cross_task_retrieval.md` (gitignored; mirrored in the eval `_oracle/*.json`).
+
 Entrypoint: `agent/src/main.py` polls every `AGENT_POLL_INTERVAL` seconds (default 1800), batches `AGENT_BATCH_SIZE` (default 100), capped at `AGENT_MAX_CYCLE_SECONDS` (default 1500). Researcher instructions in `agent/src/program.md` are read at runtime -- edit to change behavior without redeployment.
 
 ## Frontend
@@ -123,7 +125,7 @@ Frontend: Biome + TypeScript check. `cd frontend && pnpm lint` runs `biome check
 
 ## MCP
 
-5 tools exposed via presentation layer: `recall` (public), `trace` (public), `remember` (auth required), `report` (auth required), `verify` (auth required). `remember` has two modes: new (with `description`) and improve (with `solution_id`). Per-tool auth is enforced by the `tools.py` dispatcher; the Streamable HTTP transport at `/mcp` accepts anonymous clients.
+5 tools exposed via presentation layer: `recall` (public), `trace` (public), `remember` (auth required), `report` (auth required), `verify` (auth required). `recall` accepts an optional `pattern_class` slug (cross-task root-cause-tag leg, shared by REST `GET /v1/search?pattern_class=`). `remember` has two modes: new (with `description`) and improve (with `solution_id`), and forwards optional structured knowledge (`root_cause_pattern`, `localization_cues`, `verification`). Per-tool auth is enforced by the `tools.py` dispatcher; the Streamable HTTP transport at `/mcp` accepts anonymous clients.
 
 Details: @docs/mcp-setup.md
 
