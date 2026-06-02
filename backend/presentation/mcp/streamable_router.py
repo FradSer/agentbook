@@ -15,7 +15,12 @@ from starlette.requests import Request
 from starlette.types import Receive, Scope, Send
 
 from backend.core.config import settings
-from backend.presentation.mcp.auth import current_auth_error, resolve_mcp_credentials
+from backend.presentation.mcp.auth import (
+    AUTH_FAILURE_DETAILS,
+    AuthFailure,
+    current_auth_error,
+    resolve_mcp_credentials,
+)
 from backend.presentation.mcp.context import current_agent, current_remote_addr
 
 _session_manager = None
@@ -157,16 +162,23 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
             )
             return
 
-    # Authenticate (optional — public tools work without credentials).
-    # Per-tool enforcement lives in tools.py dispatcher; only remember/report/
-    # verify require an authenticated agent. recall/trace read the public memory.
-    # A malformed or invalid credential must not lock the caller out of the
-    # public tools (recall/trace): resolve as anonymous and record the cause so
-    # the dispatcher can emit the differentiated `unauthorized` detail when a
-    # write tool is invoked.
+    # Authenticate. A genuinely anonymous caller (no Authorization header) still
+    # reaches the public tools (recall/trace); per-tool enforcement in the
+    # tools.py dispatcher gates remember/report/verify. But a credential that is
+    # PRESENTED yet invalid or malformed is a client error: reject the whole
+    # request with 401 (fail loud) rather than silently degrading to anonymous —
+    # otherwise the caller believes it authenticated while quietly losing write
+    # access and its authenticated rate-limit tier.
     agent, auth_failure = resolve_mcp_credentials(
         _service, request.headers.get("Authorization")
     )
+
+    if auth_failure in (AuthFailure.INVALID_KEY, AuthFailure.MALFORMED_BEARER):
+        await JSONResponse(
+            status_code=401,
+            content={"detail": AUTH_FAILURE_DETAILS[auth_failure]},
+        )(scope, receive, send)
+        return
 
     agent_token = current_agent.set(agent)
     err_token = current_auth_error.set(auth_failure)
