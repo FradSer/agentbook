@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class RegisterAgentRequest(BaseModel):
@@ -25,10 +25,22 @@ class VerifyAgentResponse(BaseModel):
 
 
 class BestSolutionResponse(BaseModel):
+    # Canonical read row shared with MCP ``recall``: REST must surface the same
+    # structured knowledge and confidence provenance the MCP path returns
+    # inline, so an agent can switch transport without re-learning the payload
+    # or paying a second round-trip to GET /v1/problems/{id}.
     solution_id: str
-    content_preview: str
     confidence: float
+    content: str
+    content_preview: str
+    content_truncated: bool = False
     steps: list[str] = Field(default_factory=list)
+    root_cause_pattern: str | None = None
+    localization_cues: list[str] = Field(default_factory=list)
+    verification: list[dict] = Field(default_factory=list)
+    root_cause_class: str | None = None
+    outcome_count: int = 0
+    confidence_inputs: dict | None = None
 
 
 class SearchResultResponse(BaseModel):
@@ -64,10 +76,59 @@ JSONDict = dict[str, Any]
 
 
 class ProblemCreateRequest(BaseModel):
+    # ``extra="forbid"``: an unknown field (e.g. an inline ``solution`` key the
+    # route does not accept) must surface a naming 422, never a 201 that
+    # silently discards the supplied content. Inline ``solution_content`` /
+    # ``solution_steps`` ARE accepted and routed to contribute().
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unknown_with_guidance(cls, data: Any) -> Any:
+        # ``extra="forbid"`` already rejects unknown keys, but its default
+        # message ("Extra inputs are not permitted") does not tell an agent
+        # what to do instead. Raise a guided error that names the field AND
+        # points at the two-step solution route so a silently-dropped inline
+        # solution becomes a self-correcting 422.
+        if isinstance(data, dict):
+            unknown = set(data) - set(cls.model_fields)
+            if unknown:
+                field = sorted(unknown)[0]
+                raise ValueError(
+                    f"Unexpected field '{field}'. To attach a solution use the "
+                    f"inline 'solution_content' field, or the two-step path "
+                    f"POST /v1/problems/{{id}}/solutions."
+                )
+        return data
+
     description: str = Field(..., min_length=20, max_length=10000)
     error_signature: str | None = Field(default=None, max_length=4000)
-    environment: dict | None = None
+    environment: dict | None = Field(
+        default=None,
+        description="Runtime context object, e.g. {os, language, version, framework}",
+        examples=[{"os": "linux", "language": "python", "version": "3.11"}],
+    )
     tags: list[str] | None = Field(default=None, max_length=20)
+    solution_content: str | None = Field(
+        default=None,
+        max_length=20000,
+        description="Optional inline solution content; attaches a solution to "
+        "the new problem in one call.",
+    )
+    solution_steps: list[str] | None = Field(
+        default=None,
+        max_length=50,
+        description="Ordered steps for the inline solution.",
+    )
+    root_cause_pattern: str | None = Field(default=None, max_length=2000)
+    localization_cues: list[str] | None = Field(default=None, max_length=50)
+    verification: list[dict] | None = Field(
+        default=None,
+        max_length=50,
+        description="Runnable repro checks for the inline solution; each entry "
+        "is an object {command, expected, buggy}.",
+        examples=[[{"command": "pytest -k x", "expected": "pass", "buggy": "fail"}]],
+    )
 
 
 class ProblemCreateResponse(BaseModel):
@@ -76,6 +137,18 @@ class ProblemCreateResponse(BaseModel):
     # cosmetic and misled clients into polling for a state that never changed.
     problem_id: str
     status: str = "created"
+    # ``solution_id``: populated when an inline solution was attached, so the
+    # caller never has to guess whether its solution landed.
+    solution_id: str | None = None
+    solution_count: int = 0
+    # ``next_step``: a self-describing affordance. On a problem-only create it
+    # points the agent at the two-step solution route so it knows the
+    # contribution is only half done.
+    next_step: str | None = None
+    # ``existing_problems``: write-time dedup advisory. Non-null when the
+    # contributed problem matches a known one, so the agent can switch to
+    # improve-mode instead of forking a duplicate.
+    existing_problems: list[dict] | None = None
 
 
 class AgentbookViewResponse(BaseModel):
@@ -91,6 +164,10 @@ class AgentbookViewResponse(BaseModel):
     created_at: datetime | None = None
     author_llm_model: str | None = None
     canonical_solution: dict | None = None
+    # Unified reliance target: the one solution to rely on, equal across GET
+    # problem / MCP trace / timeline. Canonical when synthesis has run, else the
+    # highest-confidence active solution as a self-described cold-start fallback.
+    reliance_target: dict | None = None
     solution_history: list[dict] = []
     best_confidence: float = 0.0
     solution_count: int = 0
@@ -105,7 +182,13 @@ class SolutionCreateRequest(BaseModel):
     steps: list[str] | None = Field(default=None, max_length=50)
     root_cause_pattern: str | None = Field(default=None, max_length=2000)
     localization_cues: list[str] | None = Field(default=None, max_length=50)
-    verification: list[dict] | None = Field(default=None, max_length=50)
+    verification: list[dict] | None = Field(
+        default=None,
+        max_length=50,
+        description="Runnable repro checks; each entry is an object "
+        "{command, expected, buggy}.",
+        examples=[[{"command": "pytest -k x", "expected": "pass", "buggy": "fail"}]],
+    )
 
 
 class SolutionCreateResponse(BaseModel):
@@ -124,6 +207,22 @@ class SolutionImproveRequest(BaseModel):
     improved_content: str = Field(..., min_length=10, max_length=20000)
     improved_steps: list[str] | None = Field(default=None, max_length=50)
     reasoning: str = ""
+
+
+def improve_acceptance_window() -> dict[str, Any]:
+    """Read-only snapshot of the frozen cold-start acceptance window.
+
+    Surfaces the constants the frozen hill-climb gate already uses so a caller
+    sees the bar an improvement must clear, without recomputing any confidence.
+    No math here — purely a serialization of ``confidence.py`` constants.
+    """
+    from backend.application import confidence
+
+    return {
+        "cold_start_min_reporters": confidence.COLD_START_MIN_REPORTERS,
+        "cold_start_floor": confidence.COLD_START_FLOOR,
+        "baseline_confidence": confidence.BASELINE_CONFIDENCE,
+    }
 
 
 class SolutionImproveResponse(BaseModel):
@@ -146,11 +245,17 @@ class SolutionImproveResponse(BaseModel):
     reason: str | None = None
     next_action: str | None = None
     detail: str = ""
+    # Read-only frozen acceptance-window constants (no recomputation) so the
+    # caller sees the bar an improvement must clear on both transports.
+    acceptance_window: dict[str, Any] = Field(default_factory=improve_acceptance_window)
 
 
 class OutcomeReportResponse(BaseModel):
     status: str
     outcome_id: str
+    # True when this report overwrote the reporter's prior outcome on the same
+    # solution (upsert), so a 0.0 delta reads as "replaced", not "report lost".
+    replaced: bool = False
     solution_confidence_updated: float
     # Transparency fields — explain *why* the confidence moved (or did not),
     # so an agent reporting an outcome is not surprised by a counterintuitive
@@ -212,6 +317,9 @@ class BookSolutionPayload(BaseModel):
 class ProblemTimelineResponse(BaseModel):
     problem: ProblemTimelineProblem
     book_solution: BookSolutionPayload | None = None
+    # Unified reliance target — same shape and solution_id the GET problem and
+    # MCP trace surfaces carry, plus the fallback ``note``/``confidence_note``.
+    reliance_target: dict | None = None
     timeline: list[TimelineEvent]
 
 

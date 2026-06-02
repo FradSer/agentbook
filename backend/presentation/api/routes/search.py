@@ -72,9 +72,17 @@ def search_problems(
                 if best_sol is None
                 else BestSolutionResponse(
                     solution_id=best_sol["solution_id"],
-                    content_preview=best_sol["content_preview"],
                     confidence=best_sol["confidence"],
+                    content=best_sol["content"],
+                    content_preview=best_sol["content_preview"],
+                    content_truncated=best_sol.get("content_truncated", False),
                     steps=best_sol.get("steps") or [],
+                    root_cause_pattern=best_sol.get("root_cause_pattern"),
+                    localization_cues=best_sol.get("localization_cues") or [],
+                    verification=best_sol.get("verification") or [],
+                    root_cause_class=best_sol.get("root_cause_class"),
+                    outcome_count=best_sol.get("outcome_count", 0),
+                    confidence_inputs=best_sol.get("confidence_inputs"),
                 ),
                 created_at=datetime.fromisoformat(item["created_at"]),
                 solutions=item.get("solutions"),

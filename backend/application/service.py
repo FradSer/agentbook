@@ -87,6 +87,19 @@ _PATTERN_TAG_PREFIX = "pattern:"
 # they do not clear ``no_good_match`` — a low-similarity, wrong-bug result
 # must not read to an agent as "the memory layer answered your question".
 _GOOD_MATCH_TIERS = frozenset({"exact", "strong"})
+# A row whose ``best_solution`` is None offers no actionable help. Its quality
+# tier is capped to ``_NO_SOLUTION_TIER`` (deliberately outside
+# ``_GOOD_MATCH_TIERS``) so a hollow signature match cannot read to an agent as
+# "the memory layer answered your question" or, on its own, clear
+# ``no_good_match``.
+_NO_SOLUTION_TIER = "no_solution"
+
+# Search modes where no dense vector actually ranked the result, so the
+# boot-configured embedding/rerank provider names must not be reported as the
+# mechanism that served the query (see search_problems payload assembly).
+_KEYWORD_ONLY_SEARCH_MODES = frozenset(
+    {"in_memory_scan", "keyword_fallback", "no_match"}
+)
 
 # Spam protection; unrelated to the removed token economy.
 _RATE_LIMIT = 10
@@ -94,6 +107,26 @@ _RATE_WINDOW_HOURS = 1
 # Minimum outcomes before a candidate can be demoted: a 2-bot sybil
 # can't pay this much, and the anti-sybil clustering compounds.
 _DEMOTION_MIN_OUTCOMES = 5
+# Character budget for the concise-mode ``content_preview`` on a search row.
+_SEARCH_PREVIEW_BUDGET = 200
+
+
+def _clean_preview(content: str, budget: int) -> tuple[str, bool]:
+    """Return ``(preview, truncated)`` for ``content`` within ``budget`` chars.
+
+    Truncation backs off to the last whitespace inside the budget so the
+    preview never cuts a token in half. A single token longer than the budget
+    has no interior whitespace to back off to, so it is hard-cut at the budget
+    (still flagged as truncated).
+    """
+    if len(content) <= budget:
+        return content, False
+    window = content[:budget]
+    cut = window.rstrip()
+    space = cut.rfind(" ")
+    if space > 0:
+        cut = cut[:space].rstrip()
+    return cut, True
 
 
 def _truncate_with_ellipsis(text: str, n: int = 80) -> str:
@@ -512,6 +545,12 @@ class AgentbookService:
             format=format,
             pattern_class=pattern_class,
         )
+        # When no dense vector actually ranked the result — in-memory scan,
+        # in-process keyword recovery, or an empty match — the boot-configured
+        # provider name ("voyage") would be a lie. Report the mechanism that
+        # truly served the query so a misconfigured deployment (Voyage key on a
+        # 1536-dim column) cannot keep advertising dense recall it never used.
+        dense_used = search_mode not in _KEYWORD_ONLY_SEARCH_MODES
         payload = {
             "results": rows,
             "total": len(rows),
@@ -519,8 +558,11 @@ class AgentbookService:
                 row.get("match_quality") in _GOOD_MATCH_TIERS for row in rows
             ),
             "search_mode": search_mode,
-            "embedding_provider": self._embedding_provider_name,
-            "rerank_provider": self._rerank_provider_name,
+            "dense_used": dense_used,
+            "embedding_provider": (
+                self._embedding_provider_name if dense_used else "keyword"
+            ),
+            "rerank_provider": (self._rerank_provider_name if dense_used else None),
         }
         self._search_cache.set(cache_key, payload)
         return payload
@@ -679,6 +721,16 @@ class AgentbookService:
         # outcome lookups scale with response size, not the unfiltered
         # candidate pool (~50× before truncation).
         self._attach_search_provenance(rows)
+
+        # Honest match labeling: a row with no best_solution offers no
+        # actionable help. Stamp an explicit ``has_help`` flag and demote its
+        # ``match_quality`` so a hollow signature/keyword hit cannot present as
+        # a strong recall result or, on its own, clear ``no_good_match``.
+        for row in rows:
+            has_help = row.get("best_solution") is not None
+            row["has_help"] = has_help
+            if not has_help:
+                row["match_quality"] = _NO_SOLUTION_TIER
 
         if include:
             for row in rows:
@@ -1287,46 +1339,41 @@ class AgentbookService:
             or s.solution_id != problem.canonical_solution_id
         ]
 
-        # Outcome summary for the best solution (cheap research signal)
-        best_sol = canonical_sol or (
-            visible_solutions[0] if visible_solutions else None
-        )
+        # Outcome summary across ALL visible solutions of the problem — a
+        # reading agent judges how battle-tested the whole agentbook is, so a
+        # non-top solution's failure must not be invisible in the headline
+        # metric. Canonical source solutions are visible-equivalent for the
+        # count even when hidden from the history list.
+        summary_solution_ids = [s.solution_id for s in visible_solutions]
+        if canonical_sol:
+            summary_solution_ids.append(canonical_sol.solution_id)
+            summary_solution_ids.extend(
+                s.solution_id
+                for s in all_solutions
+                if s.canonical_id == canonical_sol.solution_id
+            )
+        summary_solution_ids = list(dict.fromkeys(summary_solution_ids))
+
         outcome_summary = {
             "total": 0,
             "successes": 0,
             "failures": 0,
             "recent_failure_notes": [],
         }
-        if best_sol:
-            summary_solution_ids = [best_sol.solution_id]
-            if canonical_sol and best_sol.solution_id == canonical_sol.solution_id:
-                source_ids = [
-                    s.solution_id
-                    for s in all_solutions
-                    if s.canonical_id == canonical_sol.solution_id
-                ]
-                summary_solution_ids.extend(source_ids)
-
-            best_outcomes = self._outcomes.list_by_problem(
+        if summary_solution_ids:
+            problem_outcomes = self._outcomes.list_by_problem(
                 problem_id, summary_solution_ids
             )
-            if best_outcomes:
-                successes = sum(1 for o in best_outcomes if o.success)
+            if problem_outcomes:
+                successes = sum(1 for o in problem_outcomes if o.success)
                 failure_notes = [
-                    o.notes for o in best_outcomes if not o.success and o.notes
+                    o.notes for o in problem_outcomes if not o.success and o.notes
                 ][-3:]
                 outcome_summary = {
-                    "total": len(best_outcomes),
+                    "total": len(problem_outcomes),
                     "successes": successes,
-                    "failures": len(best_outcomes) - successes,
+                    "failures": len(problem_outcomes) - successes,
                     "recent_failure_notes": failure_notes,
-                }
-            elif best_sol.outcome_count > 0:
-                outcome_summary = {
-                    "total": best_sol.outcome_count,
-                    "successes": best_sol.success_count,
-                    "failures": best_sol.failure_count,
-                    "recent_failure_notes": [],
                 }
 
         # Research summary (stall detection for autoresearch)
@@ -1359,6 +1406,7 @@ class AgentbookService:
             "created_at": problem.created_at.isoformat(),
             "author_llm_model": self._display_llm(models, problem.author_id, None),
             "canonical_solution": canonical,
+            "reliance_target": self._resolve_reliance_target(problem_id),
             "solution_history": history,
             "best_confidence": problem.best_confidence,
             # Count only the validated solutions actually presented here
@@ -1414,12 +1462,19 @@ class AgentbookService:
         if not approved:
             return None
         best = max(approved, key=lambda s: s.confidence)
-        content_preview = best.content if full else best.content[:200]
+        if full:
+            content_preview, content_truncated = best.content, False
+        else:
+            content_preview, content_truncated = _clean_preview(
+                best.content, _SEARCH_PREVIEW_BUDGET
+            )
         return {
             "solution_id": str(best.solution_id),
             "_solution_obj": best,  # popped during enrichment
             "confidence": best.confidence,
+            "content": best.content,
             "content_preview": content_preview,
+            "content_truncated": content_truncated,
             "steps": list(best.steps or []),
             "root_cause_pattern": best.root_cause_pattern,
             "localization_cues": list(best.localization_cues or []),
@@ -1569,18 +1624,7 @@ class AgentbookService:
             tags=tags,
         )
 
-        existing_similar: list[Problem] = []
-        if new_problem.embedding is not None:
-            # create_problem already stored the embedding, so find_similar
-            # now returns new_problem itself — drop it before reporting
-            # the remainder as pre-existing duplicates.
-            existing_similar = [
-                p
-                for p in self._problems.find_similar(
-                    new_problem.embedding, threshold=0.9
-                )
-                if p.problem_id != new_problem.problem_id
-            ]
+        existing_similar = self._dedup_advisory(new_problem, description)
 
         solution_id = None
         if solution_content is not None:
@@ -1602,12 +1646,75 @@ class AgentbookService:
         else:
             status = "problem_created"
 
-        return {
+        result = {
             "status": status,
             "problem_id": str(new_problem.problem_id),
             "solution_id": str(solution_id) if solution_id is not None else None,
-            "existing_problems": [str(p.problem_id) for p in existing_similar] or None,
+            "existing_problems": existing_similar or None,
         }
+        if existing_similar:
+            # Steer the agent to improve-mode instead of forking a duplicate:
+            # one evolving agentbook per problem is what feeds synthesis.
+            result["advice"] = (
+                "A matching problem already exists. Provide solution_id to "
+                "improve its solution instead of creating a duplicate."
+            )
+        return result
+
+    def _dedup_advisory(self, new_problem: Problem, description: str) -> list[dict]:
+        """Write-time dedup advisory, independent of embedding availability.
+
+        Folds three legs against the just-created ``new_problem``:
+
+        * exact ``error_signature`` match via
+          ``ProblemRepository.find_by_error_signature`` (keyword-only, always
+          available),
+        * keyword error-signature candidates (lexical token / Jaccard),
+        * semantic ``find_similar`` neighbours when an embedding was attached.
+
+        Each surviving candidate is classified with the same tiering the read
+        path uses (``_score_problem_relevance``); only ``exact`` / ``strong``
+        tiers are reported so a paraphrase or identical signature surfaces the
+        prior problem while unrelated lexical noise does not. Sorted strongest
+        first.
+        """
+        search_text = description
+        if new_problem.error_signature:
+            search_text = f"{description} {new_problem.error_signature}"
+
+        candidates: dict[UUID, Problem] = {}
+        if new_problem.error_signature:
+            prior = self._problems.find_by_error_signature(new_problem.error_signature)
+            if prior is not None and prior.problem_id != new_problem.problem_id:
+                candidates[prior.problem_id] = prior
+        for p in self._exact_error_signature_candidates(search_text):
+            if p.problem_id != new_problem.problem_id:
+                candidates[p.problem_id] = p
+        if new_problem.embedding is not None:
+            for p in self._problems.find_similar(new_problem.embedding, threshold=0.9):
+                if p.problem_id != new_problem.problem_id:
+                    candidates[p.problem_id] = p
+
+        advisory: list[dict] = []
+        for problem in candidates.values():
+            score, quality, _reasons = self._score_problem_relevance(
+                problem, search_text, 0.0
+            )
+            if quality not in _GOOD_MATCH_TIERS:
+                continue
+            advisory.append(
+                {
+                    "problem_id": str(problem.problem_id),
+                    "match_quality": quality,
+                    "similarity_score": score,
+                    "description_preview": problem.description[:200],
+                }
+            )
+
+        advisory.sort(
+            key=lambda row: (row["match_quality"] != "exact", -row["similarity_score"])
+        )
+        return advisory
 
     def report_outcome(
         self,
@@ -1645,7 +1752,7 @@ class AgentbookService:
             "verified" if reporter_id == SANDBOX_AGENT_ID else "observed"
         )
 
-        outcome, _inserted = self._outcomes.upsert(
+        outcome, inserted = self._outcomes.upsert(
             Outcome(
                 solution_id=solution_id,
                 reporter_id=reporter_id,
@@ -1761,6 +1868,11 @@ class AgentbookService:
         return {
             "status": "reported",
             "outcome_id": str(outcome.outcome_id),
+            # A re-report by the same reporter on the same solution REPLACES the
+            # prior outcome (upsert) rather than appending — so a reporter sees
+            # one row per solution and a 0.0 delta is never confused with a lost
+            # write. ``replaced`` is True iff this report overwrote a prior one.
+            "replaced": not inserted,
             "solution_confidence_updated": new_confidence,
             # `or 0.0` collapses negative zero: round() of a tiny negative
             # recency drift yields -0.0, which JSON serializes as "-0.0".
@@ -1853,6 +1965,15 @@ class AgentbookService:
                     # available — return an explicit empty list so callers
                     # can tell "no similar problems" from "key omitted".
                     result["similar"] = []
+            # Expose the documented canonical/history/outcome keys (and the
+            # unified reliance target) the API detail endpoint surfaces, so
+            # MCP trace and GET /v1/problems/{id} agree rather than diverging
+            # into trace-only ``data``/``solutions`` keys.
+            agentbook = self.get_agentbook(problem.problem_id)
+            result["canonical_solution"] = agentbook["canonical_solution"]
+            result["solution_history"] = agentbook["solution_history"]
+            result["outcome_summary"] = agentbook["outcome_summary"]
+            result["reliance_target"] = agentbook["reliance_target"]
             return result
 
         solution = self._solutions.get(resource_id)
@@ -3244,6 +3365,67 @@ class AgentbookService:
             return serialize(fallback[0])
         return None
 
+    def _reliance_confidence_note(self, solution: Solution) -> str:
+        """Read-surface note explaining where the solution's confidence sits.
+
+        Reuses the same ``_confidence_explainer`` the write path uses so a
+        reader sees the identical cold-start / author-self-report wording the
+        reporter would. No new math — the confidence is read off the solution
+        and the effective external reporter count is recomputed from outcomes.
+        """
+        outcomes = self._outcomes.list_by_solution(solution.solution_id)
+        num_effective = _count_effective_reporters(
+            outcomes, self._agents, solution.author_id
+        )
+        capped = (
+            num_effective < COLD_START_MIN_REPORTERS
+            and solution.confidence >= COLD_START_FLOOR
+        )
+        return _confidence_explainer(
+            new_confidence=solution.confidence,
+            previous_confidence=solution.confidence,
+            external_reporters=num_effective,
+            capped=capped,
+            outcome_success=True,
+        )
+
+    def _resolve_reliance_target(self, problem_id: UUID) -> dict | None:
+        """The one solution a reading agent should rely on, on every surface.
+
+        Canonical (synthesized) solution when synthesis has run; otherwise the
+        highest-confidence active solution as a self-described cold-start
+        fallback. The returned row carries ``is_synthesized``, a ``note`` that
+        explains the fallback, and a ``confidence_note`` mirroring the write
+        path's cold-start explanation — so GET problem, MCP trace and the
+        timeline all agree on what to rely on and why.
+        """
+        SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
+        problem = self._problems.get(problem_id)
+        if problem is None:
+            return None
+        all_solutions = self._solutions.list_by_problem(problem_id)
+        agent_ids: set[UUID] = {s.author_id for s in all_solutions}
+        models = self._agent_models_map(agent_ids)
+        target = self._resolve_book_solution(
+            problem, all_solutions, models, SYSTEM_AGENT_ID
+        )
+        if target is None:
+            return None
+        solution = self._solutions.get(UUID(target["solution_id"]))
+        if target["is_synthesized"]:
+            target["note"] = (
+                "This is the synthesized canonical solution: the research agent "
+                "merged the problem's solutions into one entry."
+            )
+        else:
+            target["note"] = (
+                "No synthesis pass has run, so rely on the highest-confidence "
+                "active solution until synthesis produces a canonical entry."
+            )
+        if solution is not None:
+            target["confidence_note"] = self._reliance_confidence_note(solution)
+        return target
+
     def get_problem_timeline(self, problem_id: UUID) -> dict:
         SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -3403,6 +3585,7 @@ class AgentbookService:
                 "is_being_researched": _is_being_researched(problem),
             },
             "book_solution": book_solution,
+            "reliance_target": self._resolve_reliance_target(problem_id),
             "timeline": events,
         }
 

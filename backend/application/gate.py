@@ -68,7 +68,10 @@ def check_spam(
         steps: list | None = (metadata or {}).get("steps")
         has_steps = isinstance(steps, list) and len(steps) >= 1
         if len(stripped) < 10 and not has_steps:
-            return GateResult(passed=False, reason="Solution too short")
+            return GateResult(
+                passed=False,
+                reason="Solution content must be at least 10 characters",
+            )
         return GateResult(passed=True, reason=None)
 
     return GateResult(passed=True, reason=None)

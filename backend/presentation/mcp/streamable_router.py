@@ -6,6 +6,7 @@ https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#stream
 
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
 
 from fastapi.responses import JSONResponse
@@ -14,11 +15,63 @@ from starlette.requests import Request
 from starlette.types import Receive, Scope, Send
 
 from backend.core.config import settings
-from backend.presentation.mcp.auth import TokenVerifier
+from backend.presentation.mcp.auth import current_auth_error, resolve_mcp_credentials
 from backend.presentation.mcp.context import current_agent, current_remote_addr
 
 _session_manager = None
 _service = None
+
+# JSON-RPC methods the MCP server actually serves. A request naming anything
+# else is "Method not found" (-32601) — surfaced at the transport edge because
+# the SDK request union would otherwise collapse it into a -32602 params error,
+# which a client cannot distinguish from a known method called with bad params.
+_KNOWN_MCP_METHODS = frozenset(
+    {
+        "initialize",
+        "ping",
+        "tools/list",
+        "tools/call",
+        "resources/list",
+        "resources/read",
+        "resources/templates/list",
+        "resources/subscribe",
+        "resources/unsubscribe",
+        "prompts/list",
+        "prompts/get",
+        "logging/setLevel",
+        "completion/complete",
+    }
+)
+
+
+def _unknown_method_error(body: bytes) -> dict | None:
+    """Return a -32601 JSON-RPC error envelope when *body* names an unknown
+    method, else ``None``.
+
+    Notifications (``notifications/*``) and any malformed / non-request body are
+    passed through untouched so the SDK still owns -32700 parse errors and
+    notification handling. Only a well-formed request object whose ``method`` is
+    neither known nor a notification is intercepted.
+    """
+    try:
+        payload = json.loads(body)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    method = payload.get("method")
+    if not isinstance(method, str) or method in _KNOWN_MCP_METHODS:
+        return None
+    if method.startswith("notifications/"):
+        return None
+    return {
+        "jsonrpc": "2.0",
+        "id": payload.get("id"),
+        "error": {
+            "code": -32601,
+            "message": f"Method not found: {method}",
+        },
+    }
 
 
 def setup_streamable_mcp(service) -> None:
@@ -85,27 +138,42 @@ async def handle_mcp_request(scope: Scope, receive: Receive, send: Send) -> None
             await response(scope, receive, send)
             return
 
+    # Reject an unknown JSON-RPC method at the transport edge with -32601
+    # "Method not found". The SDK request union collapses an unparseable method
+    # name into a -32602 params error, which a client cannot tell apart from a
+    # known method called with bad params. Buffer the body to inspect the
+    # method, then replay it to the SDK via a one-shot receive.
+    if request.method == "POST":
+        body = await request.body()
+
+        async def _replay_receive() -> dict:
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        receive = _replay_receive
+        method_error = _unknown_method_error(body)
+        if method_error is not None:
+            await JSONResponse(status_code=200, content=method_error)(
+                scope, receive, send
+            )
+            return
+
     # Authenticate (optional — public tools work without credentials).
     # Per-tool enforcement lives in tools.py dispatcher; only remember/report/
     # verify require an authenticated agent. recall/trace read the public memory.
-    authorization = request.headers.get("Authorization")
-
-    agent = None
-    if authorization:
-        verifier = TokenVerifier(service=_service)
-        try:
-            agent = verifier.verify(authorization=authorization)
-        except Exception:
-            # A malformed or invalid credential must not lock the caller out
-            # of the public tools (recall/trace). Fall through as anonymous:
-            # the per-tool dispatcher still rejects remember/report/verify
-            # with the documented `unauthorized` isError result.
-            agent = None
+    # A malformed or invalid credential must not lock the caller out of the
+    # public tools (recall/trace): resolve as anonymous and record the cause so
+    # the dispatcher can emit the differentiated `unauthorized` detail when a
+    # write tool is invoked.
+    agent, auth_failure = resolve_mcp_credentials(
+        _service, request.headers.get("Authorization")
+    )
 
     agent_token = current_agent.set(agent)
+    err_token = current_auth_error.set(auth_failure)
     addr_token = current_remote_addr.set(get_remote_address(request))
     try:
         await _session_manager.handle_request(scope, receive, send)
     finally:
         current_remote_addr.reset(addr_token)
+        current_auth_error.reset(err_token)
         current_agent.reset(agent_token)

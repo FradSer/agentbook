@@ -19,6 +19,12 @@ from backend.core.mcp_rate_limit import (
     mcp_verify_limiter,
     pick_mcp_search_limiter,
 )
+from backend.presentation.api.schemas import improve_acceptance_window
+from backend.presentation.mcp.auth import (
+    AUTH_FAILURE_DETAILS,
+    AuthFailure,
+)
+from backend.presentation.mcp.auth import current_auth_error as _current_auth_error_ctx
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
@@ -114,6 +120,14 @@ async def handle_contribute(
                 improved_steps=arguments.get("improved_steps"),
                 reasoning=arguments.get("reasoning", ""),
             )
+            result["acceptance_window"] = improve_acceptance_window()
+            # Transport parity: a frozen-gate rejection is REST 409; mirror it
+            # here so ``_as_structured_tool_result`` flips ``isError`` to true.
+            # The shared business verdict (``reason``/``next_action``) is left
+            # intact so a client keying off ``isError`` reaches the same
+            # conclusion it would over REST.
+            if not result["accepted"]:
+                result["error"] = "improvement_rejected"
             return _json_response(result)
         except NotFoundError:
             return _json_response({"error": "not_found"})
@@ -193,14 +207,44 @@ async def handle_report(
         return _json_response({"error": "not_found"})
 
 
+# ``trace`` accepts the resource id under any of these aliases so a caller does
+# not have to remap the identifier name across transports (REST exposes
+# ``problem_id`` / ``solution_id``; MCP historically only took ``id``).
+_TRACE_ID_ALIASES = ("id", "problem_id", "solution_id")
+_TRACE_KNOWN_ARGS = frozenset({*_TRACE_ID_ALIASES, "include"})
+
+
 async def handle_inspect(
     service,
     arguments: dict,
 ) -> list[Any]:
     """Retrieve problem/solution details, optionally including lineage."""
-    raw_id = arguments.get("id")
+    raw_id = next(
+        (arguments[alias] for alias in _TRACE_ID_ALIASES if arguments.get(alias)),
+        None,
+    )
     if not raw_id:
-        return _json_response({"error": "invalid_input", "detail": "id is required"})
+        # A supplied-but-misnamed argument must read as "unrecognized", not as
+        # "nothing was sent" — otherwise a caller who passed ``resourceId`` is
+        # told ``id`` is required and cannot tell the field name is wrong.
+        unexpected = sorted(set(arguments) - _TRACE_KNOWN_ARGS)
+        if unexpected:
+            named = ", ".join(unexpected)
+            return _json_response(
+                {
+                    "error": "invalid_input",
+                    "detail": (
+                        f"Unrecognized argument(s): {named}. Provide the "
+                        "resource id as 'id', 'problem_id', or 'solution_id'."
+                    ),
+                }
+            )
+        return _json_response(
+            {
+                "error": "invalid_input",
+                "detail": "id is required (accepts 'id', 'problem_id', or 'solution_id')",
+            }
+        )
 
     try:
         target_id = UUID(raw_id)
@@ -217,7 +261,12 @@ async def handle_inspect(
             resource_id=target_id, include=service_include
         )
     except NotFoundError:
-        return _json_response({"error": "not_found"})
+        return _json_response(
+            {
+                "error": "not_found",
+                "detail": f"No problem or solution found with id {target_id}",
+            }
+        )
 
     if wants_lineage and result.get("type") == "solution":
         try:
@@ -236,10 +285,12 @@ class _MCPAuthError(Exception):
 def _get_authenticated_agent(server: Server):
     agent = _current_agent_ctx.get(None)
     if agent is None:
-        raise _MCPAuthError(
-            "Authentication required: No authenticated agent found in MCP context. "
-            "Please provide a valid API key with 'ak_' prefix."
-        )
+        # Distinguish no-key / invalid-or-revoked / malformed-Bearer so the
+        # runtime can recover, defaulting to "no credentials" when the
+        # transport recorded no specific cause. The message never reveals
+        # whether a given account exists.
+        cause = _current_auth_error_ctx.get(None) or AuthFailure.NO_CREDENTIALS
+        raise _MCPAuthError(AUTH_FAILURE_DETAILS[cause])
     return agent
 
 
@@ -286,9 +337,13 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="remember",
         description=(
-            "Store knowledge into the shared agent memory layer. Two modes: "
-            "(1) New -- provide 'description' to create a memory with an "
-            "optional solution. (2) Improve -- provide 'solution_id' and "
+            "Store knowledge into the shared agent memory layer. Recall first: "
+            "if a matching problem already exists, do NOT create a duplicate -- "
+            "use improve-mode (provide 'solution_id') to evolve its solution. "
+            "The response surfaces 'existing_problems' when your contribution "
+            "matches a known problem so you can switch to improve-mode. "
+            "Two modes: (1) New -- provide 'description' to create a memory with "
+            "an optional solution. (2) Improve -- provide 'solution_id' and "
             "'improved_content' to propose a better version via hill-climbing. "
             "Improvements are evaluated automatically by the immutable "
             "scoring infrastructure."

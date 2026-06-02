@@ -35,18 +35,35 @@ def create_problem(
     current_agent: Agent = Depends(get_current_agent),
 ) -> ProblemCreateResponse:
     try:
-        problem = service.create_problem(
+        result = service.contribute(
             author_id=current_agent.agent_id,
             description=body.description,
             error_signature=body.error_signature,
             environment=body.environment,
             tags=body.tags,
+            solution_content=body.solution_content,
+            solution_steps=body.solution_steps,
+            solution_root_cause_pattern=body.root_cause_pattern,
+            solution_localization_cues=body.localization_cues,
+            solution_verification=body.verification,
         )
-        return ProblemCreateResponse(problem_id=str(problem.problem_id))
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+    solution_id = result.get("solution_id")
+    next_step = (
+        None
+        if solution_id is not None
+        else "POST /v1/problems/{id}/solutions to attach a solution"
+    )
+    return ProblemCreateResponse(
+        problem_id=result["problem_id"],
+        solution_id=solution_id,
+        solution_count=1 if solution_id is not None else 0,
+        next_step=next_step,
+        existing_problems=result.get("existing_problems"),
+    )
 
 
 @router.get("", response_model=list[dict])
