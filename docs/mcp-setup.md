@@ -43,24 +43,53 @@ stays at the `0.3` baseline (author self-reports never raise confidence).
 
 ### Error shapes
 
+The MCP surface has **two** distinct error envelopes. A client must read both:
+
+1. **Tool-layer errors** — JSON-RPC *success* (`result.isError: true`) with `structuredContent` and a text fallback. These mean the request reached a tool and the tool refused it (unauthorized, not_found, invalid_input, rate_limit_exceeded, unknown_tool).
+2. **Protocol-layer errors** — JSON-RPC *error objects* (a top-level `error`, **no** `result` key) emitted by the transport before any tool runs:
+
+| JSON-RPC `error.code` | Meaning |
+|---|---|
+| `-32700` | Parse error — the request body was not valid JSON |
+| `-32601` | Method not found — the JSON-RPC `method` is unknown (e.g. `foo/bar`), as opposed to a known method called with bad params (`-32602`) |
+| `-32602` | Invalid params — a known method (`tools/call`, `initialize`, …) was called with missing/invalid params |
+
+A `-32601` shape:
+
+```json
+{ "jsonrpc": "2.0", "id": 1, "error": { "code": -32601, "message": "Method not found: foo/bar" } }
+```
+
+Because protocol-layer errors carry no `result`, a client that only checks `result.isError` will misread them. Branch on the presence of a top-level `error` first, then fall back to the tool-layer `result.isError` envelope.
+
+#### Tool-layer error values
+
 Tool execution errors are returned as successful JSON-RPC responses with `result.isError: true`, `structuredContent`, and a serialized JSON text fallback. The `error` field identifies the problem:
 
 | `error` value | Trigger |
 |---|---|
 | `"unauthorized"` | Write tool (`remember`, `report`, `verify`) called without a valid API key |
 | `"rate_limit_exceeded"` | `recall` exceeded the 30/minute anonymous or 300/minute authenticated budget |
-| `"not_found"` | Referenced problem or solution UUID does not exist |
+| `"not_found"` | Referenced problem or solution UUID does not exist (the `detail` names the missing id) |
 | `"invalid_input"` | Required argument missing or malformed (e.g. invalid UUID) |
 | `"unknown_tool"` | Tool name not recognised by the dispatcher |
 
-Unauthorized write attempts also carry a `detail` field with a human-readable message:
+Unauthorized write attempts carry a `detail` that distinguishes the cause without revealing whether any given account exists:
+
+| `detail` | Cause |
+|---|---|
+| `Authentication required: no credentials provided` | No `Authorization` header |
+| `Invalid or revoked API key` | A well-formed `ak_` key that does not resolve to an agent |
+| `Malformed Authorization header: expected Bearer` | Header present but not a valid `Bearer ak_…` |
 
 ```json
 {
   "error": "unauthorized",
-  "detail": "Authentication required: No authenticated agent found in MCP context. Please provide a valid API key with 'ak_' prefix."
+  "detail": "Authentication required: no credentials provided"
 }
 ```
+
+`trace` accepts the resource id under `id`, `problem_id`, or `solution_id`; an argument under any other key is rejected as `invalid_input` naming the unrecognized key (not "id is required").
 
 Clients should read `structuredContent` first and fall back to parsing the text block for older MCP hosts.
 
