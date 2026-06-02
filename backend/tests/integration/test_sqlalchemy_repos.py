@@ -42,7 +42,12 @@ def session():
     """Provide a session that rolls back after each test."""
     with engine.connect() as conn:
         trans = conn.begin()
-        sess = Session(bind=conn)
+        # ``create_savepoint`` makes the repos' own ``session.commit()`` calls
+        # release a SAVEPOINT instead of committing the outer transaction, so
+        # the ``trans.rollback()`` below actually undoes the test's writes
+        # (without it the transaction is deassociated on first commit and the
+        # rollback is a no-op, leaking rows across tests).
+        sess = Session(bind=conn, join_transaction_mode="create_savepoint")
         _ensure_agent(sess, AUTHOR_ID)
         sess.flush()
         yield sess
@@ -139,14 +144,28 @@ def test_problem_find_by_error_signature_miss(session_factory) -> None:
     assert result is None
 
 
-def test_problem_find_similar_returns_results(session_factory) -> None:
-    """find_similar returns problems whose embeddings are close."""
+def test_problem_find_hybrid_text_returns_results(session_factory) -> None:
+    """find_hybrid retrieves a problem by text on the FlexibleVector/JSON schema.
+
+    The deployed schema stores embeddings as JSON (``FlexibleVector``), so the
+    pgvector ``cosine_distance`` SQL path is inert and ``find_similar`` returns
+    ``[]`` by design — production recall runs through the text/hybrid leg. This
+    exercises that live path: a query sharing salient terms with a seeded
+    problem's description returns it.
+    """
     repo = SQLAlchemyProblemRepository(session_factory)
-    embedding = [0.1] * 1536
-    p = _make_problem(embedding=embedding)
+    token = uuid4().hex
+    p = _make_problem(
+        description=f"QueuePool limit reached {token} on asyncpg shutdown",
+        review_status="approved",
+    )
     repo.add(p)
-    results = repo.find_similar(embedding, threshold=0.5)
-    ids = [r.problem_id for r in results]
+    results = repo.find_hybrid(
+        query_embedding=None,
+        query_text=f"QueuePool limit reached {token}",
+        limit=10,
+    )
+    ids = [problem.problem_id for problem, _score in results]
     assert p.problem_id in ids
 
 
@@ -239,19 +258,24 @@ def test_outcome_add_and_list_by_solution(session_factory, session) -> None:
 
 
 def test_outcome_count_by_reporter(session_factory, session) -> None:
-    """count_by_reporter counts outcomes within the time window."""
+    """count_by_reporter counts a reporter's outcomes within the time window.
+
+    The ``uq_outcome_reporter_solution`` constraint allows one outcome per
+    (solution, reporter), so a reporter with two outcomes has them on two
+    distinct solutions.
+    """
     prob_repo = SQLAlchemyProblemRepository(session_factory)
     sol_repo = SQLAlchemySolutionRepository(session_factory)
     out_repo = SQLAlchemyOutcomeRepository(session_factory)
     p = _make_problem()
     prob_repo.add(p)
-    s = _make_solution(p.problem_id)
-    sol_repo.add(s)
+    s1 = _make_solution(p.problem_id)
+    sol_repo.add(s1)
+    s2 = _make_solution(p.problem_id)
+    sol_repo.add(s2)
     reporter = uuid4()
-    o1 = _make_outcome(session, s.solution_id, reporter_id=reporter)
-    o2 = _make_outcome(session, s.solution_id, reporter_id=reporter)
-    out_repo.add(o1)
-    out_repo.add(o2)
+    out_repo.add(_make_outcome(session, s1.solution_id, reporter_id=reporter))
+    out_repo.add(_make_outcome(session, s2.solution_id, reporter_id=reporter))
     since = datetime.now(tz=UTC) - timedelta(hours=1)
     count = out_repo.count_by_reporter(reporter, since=since)
     assert count == 2

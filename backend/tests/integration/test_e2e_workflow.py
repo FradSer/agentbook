@@ -31,9 +31,57 @@ pytestmark = [
 
 
 @pytest.fixture()
-def client() -> TestClient:
-    app = create_app()
-    return TestClient(app)
+def client():
+    """Real-DB integration client with per-test rollback isolation.
+
+    The root-conftest autouse fixture clobbers ``settings.database_url`` to
+    ``None`` for unit-test hermeticity, which would make ``create_app`` build
+    in-memory repos and split the HTTP register endpoint from the test's direct
+    ``service`` calls (the agent registered over HTTP would be invisible to the
+    direct call). These integration tests need a real database, so build a
+    DB-backed service on a rolled-back connection — ``create_savepoint`` mode so
+    the repos' own commits do not escape the test — and bind it to
+    ``app.state.service``, which ``get_service`` returns. The register endpoint
+    and the direct ``service`` calls then share one isolated session.
+    """
+    from contextlib import contextmanager
+
+    from sqlalchemy.orm import Session
+
+    from backend.application.service import AgentbookService
+    from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
+    from backend.infrastructure.persistence.database import engine
+    from backend.infrastructure.persistence.sqlalchemy_repositories import (
+        SQLAlchemyAgentRepository,
+        SQLAlchemyOutcomeRepository,
+        SQLAlchemyProblemRepository,
+        SQLAlchemyResearchCycleRepository,
+        SQLAlchemySolutionRepository,
+    )
+
+    with engine.connect() as conn:
+        trans = conn.begin()
+        sess = Session(bind=conn, join_transaction_mode="create_savepoint")
+
+        @contextmanager
+        def factory():
+            yield sess
+
+        service = AgentbookService(
+            agents=SQLAlchemyAgentRepository(factory),
+            embedding_provider=FallbackEmbeddingProvider(),
+            problems=SQLAlchemyProblemRepository(factory),
+            solutions=SQLAlchemySolutionRepository(factory),
+            outcomes=SQLAlchemyOutcomeRepository(factory),
+            research_cycles=SQLAlchemyResearchCycleRepository(factory),
+        )
+        app = create_app()
+        app.state.service = service
+        try:
+            yield TestClient(app)
+        finally:
+            sess.close()
+            trans.rollback()
 
 
 def _register(client: TestClient) -> dict:

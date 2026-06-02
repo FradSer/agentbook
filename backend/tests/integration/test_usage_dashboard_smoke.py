@@ -52,7 +52,11 @@ def session():
     """Provide a session that rolls back after each test."""
     with engine.connect() as conn:
         trans = conn.begin()
-        sess = Session(bind=conn)
+        # ``create_savepoint`` makes the repos' own ``session.commit()`` calls
+        # release a SAVEPOINT instead of committing the outer transaction, so
+        # the ``trans.rollback()`` below actually undoes the test's writes —
+        # essential here because ``aggregate_usage_metrics`` is a global count.
+        sess = Session(bind=conn, join_transaction_mode="create_savepoint")
         _ensure_agent(sess, AUTHOR_ID)
         sess.flush()
         yield sess
@@ -176,29 +180,17 @@ def test_aggregate_usage_metrics_windows_split_correctly(service, session) -> No
     now = datetime.now(tz=UTC)
     problem = _seed_problem(service)
     solution = _seed_solution(service, problem.problem_id)
-    reporter = uuid4()
 
-    _seed_outcome(
-        service,
-        session,
-        solution_id=solution.solution_id,
-        reporter_id=reporter,
-        created_at=now - timedelta(days=1),
-    )
-    _seed_outcome(
-        service,
-        session,
-        solution_id=solution.solution_id,
-        reporter_id=reporter,
-        created_at=now - timedelta(days=8),
-    )
-    _seed_outcome(
-        service,
-        session,
-        solution_id=solution.solution_id,
-        reporter_id=reporter,
-        created_at=now - timedelta(days=35),
-    )
+    # Distinct reporter per outcome: ``uq_outcome_reporter_solution`` permits one
+    # outcome per (solution, reporter), and these window counts count outcomes.
+    for offset_days in (1, 8, 35):
+        _seed_outcome(
+            service,
+            session,
+            solution_id=solution.solution_id,
+            reporter_id=uuid4(),
+            created_at=now - timedelta(days=offset_days),
+        )
 
     metrics = service._outcomes.aggregate_usage_metrics(now)
     assert metrics["outcomes_total"] == 3
@@ -210,14 +202,15 @@ def test_aggregate_usage_metrics_kind_split(service, session) -> None:
     now = datetime.now(tz=UTC)
     problem = _seed_problem(service)
     solution = _seed_solution(service, problem.problem_id)
-    reporter = uuid4()
 
+    # Distinct reporter per outcome (one outcome per (solution, reporter)); the
+    # kind split counts outcomes by ``kind``, independent of reporter identity.
     for _ in range(2):
         _seed_outcome(
             service,
             session,
             solution_id=solution.solution_id,
-            reporter_id=reporter,
+            reporter_id=uuid4(),
             created_at=now - timedelta(hours=1),
             kind="verified",
         )
@@ -226,7 +219,7 @@ def test_aggregate_usage_metrics_kind_split(service, session) -> None:
             service,
             session,
             solution_id=solution.solution_id,
-            reporter_id=reporter,
+            reporter_id=uuid4(),
             created_at=now - timedelta(hours=1),
             kind="observed",
         )
@@ -285,14 +278,15 @@ def test_outcome_counts_by_solution_ids_groups_by_solution(service, session) -> 
     problem = _seed_problem(service)
     s1 = _seed_solution(service, problem.problem_id)
     s2 = _seed_solution(service, problem.problem_id)
-    reporter = uuid4()
 
+    # Distinct reporter per outcome (one outcome per (solution, reporter)); the
+    # grouping counts outcomes per solution, independent of reporter identity.
     for _ in range(5):
         _seed_outcome(
             service,
             session,
             solution_id=s1.solution_id,
-            reporter_id=reporter,
+            reporter_id=uuid4(),
             created_at=now,
         )
     for _ in range(2):
@@ -300,7 +294,7 @@ def test_outcome_counts_by_solution_ids_groups_by_solution(service, session) -> 
             service,
             session,
             solution_id=s2.solution_id,
-            reporter_id=reporter,
+            reporter_id=uuid4(),
             created_at=now,
         )
 
@@ -342,19 +336,20 @@ def test_get_usage_dashboard_end_to_end(service, session) -> None:
     """Cross-table join (problem→solutions→outcomes) returns ranked top
     list when run against a real Postgres backend."""
     now = datetime.now(tz=UTC)
-    reporter = uuid4()
 
     expected_counts = (5, 2, 1)
     seeded = []
     for outcome_count in expected_counts:
         problem = _seed_problem(service)
         solution = _seed_solution(service, problem.problem_id)
+        # Distinct reporter per outcome (one outcome per (solution, reporter));
+        # the ranking counts outcomes per problem, independent of reporter.
         for _ in range(outcome_count):
             _seed_outcome(
                 service,
                 session,
                 solution_id=solution.solution_id,
-                reporter_id=reporter,
+                reporter_id=uuid4(),
                 created_at=now,
             )
         seeded.append((problem.problem_id, outcome_count))
