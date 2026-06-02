@@ -100,6 +100,14 @@ def test_reranker_cannot_promote_poor_above_exact(monkeypatch):
         description="Auth flow regressed after deploy",
         error_signature="ConnectionRefusedError: redis://localhost:6379",
     )
+    # A solution keeps the exact-tier label after honest match labeling, which
+    # demotes hollow zero-solution rows to ``no_solution``.
+    service.create_solution(
+        problem_id=exact_target.problem_id,
+        author_id=author,
+        content="Start redis and point the client at the running host:port.",
+        steps=["start redis"],
+    )
 
     payload = service.search_problems(
         query="ConnectionRefusedError: redis://localhost:6379", limit=10
@@ -164,6 +172,13 @@ def test_noop_default_when_no_rerank_fn_supplied():
         author_id=author,
         description="Python venv not activated when running app.py",
         error_signature="ModuleNotFoundError: No module named 'requests'",
+    )
+    # A solution keeps the exact-tier label after honest match labeling.
+    service.create_solution(
+        problem_id=p.problem_id,
+        author_id=author,
+        content="Activate the venv, then pip install requests inside it.",
+        steps=["source .venv/bin/activate"],
     )
     payload = service.search_problems(
         query="ModuleNotFoundError: No module named 'requests'", limit=5

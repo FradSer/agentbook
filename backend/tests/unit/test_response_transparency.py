@@ -244,7 +244,11 @@ def test_no_good_match_true_when_only_weak_matches() -> None:
     )
 
     assert payload["total"] == 1, "the partial row is still returned to the caller"
-    assert payload["results"][0]["match_quality"] == "partial"
+    # The row carries no solution, so honest match labeling caps its quality to
+    # the ``no_solution`` tier (outside _GOOD_MATCH_TIERS) — it cannot read as a
+    # good match either way.
+    assert payload["results"][0]["match_quality"] == "no_solution"
+    assert payload["results"][0]["has_help"] is False
     assert payload["no_good_match"] is True
 
 
@@ -258,6 +262,15 @@ def test_no_good_match_false_on_exact_signature_hit() -> None:
     )
     problem.review_status = "approved"
     service._problems.update(problem)
+    # An exact signature hit only clears ``no_good_match`` when it actually
+    # carries help — honest labeling demotes hollow zero-solution rows.
+    service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Mark 'fs' external in next.config.js or guard it behind a "
+        "server-only import so the client bundle never resolves it.",
+        steps=["edit next.config.js"],
+    )
 
     payload = service.search_problems(
         query="Module not found: Can't resolve 'fs'", limit=5

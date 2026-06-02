@@ -47,7 +47,9 @@ def test_problem_rejected_too_short_reason_mentions_length():
 def test_solution_rejected_too_short_no_steps():
     result = check_spam("use pip", content_type="solution")
     assert result.passed is False
-    assert "short" in result.reason.lower()
+    # PR-18 length-floor: the message must state the minimum so an agent
+    # self-corrects in one shot instead of guessing the threshold.
+    assert "at least 10 characters" in result.reason.lower()
 
 
 def test_solution_with_short_content_and_valid_steps_passes():

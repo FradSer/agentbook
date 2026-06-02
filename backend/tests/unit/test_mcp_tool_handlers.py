@@ -176,10 +176,14 @@ async def test_contribute_improve_delegates_to_improve_solution() -> None:
     service = MagicMock()
     service.improve_solution.return_value = {
         "status": "improved",
+        "accepted": True,
+        "candidate_status": "candidate",
         "solution_id": SOLUTION_ID,
         "previous_confidence": 0.3,
         "previous_problem_best": 0.5,
         "new_confidence": 0.6,
+        "reason": "cold_start_better",
+        "next_action": "report_outcome_or_verify",
     }
 
     result = await handle_contribute(

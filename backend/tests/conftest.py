@@ -229,3 +229,150 @@ def enable_mcp_verify_limiter():
     finally:
         mcp_verify_limiter.enabled = original
         mcp_verify_limiter.reset()
+
+
+# ---------------------------------------------------------------------------
+# Cross-transport contract harness (shared by feature + unit parity tests).
+#
+# Both transport callers are bound to ONE in-memory ``AgentbookService`` so a
+# parity test compares two serializations of the same logical read. Heavy
+# imports stay lazy (matching ``_build_service`` above) to keep conftest import
+# cheap and avoid import-order coupling.
+# ---------------------------------------------------------------------------
+
+
+class _FaultEmbeddingProvider:
+    """Deterministic ``EmbeddingProvider`` double for fault injection.
+
+    Modes:
+
+    * ``"slow"`` — blocks for ``delay_seconds`` before returning a fixed vector,
+      so latency budgets can be asserted without a real network round-trip.
+    * ``"failing"`` — raises, exercising the service's swallow-and-fallback path.
+    * ``"dimension_mismatch"`` — returns a vector of the wrong length, exercising
+      the misconfig guard (Voyage 1024-dim vs legacy ``vector(1536)``).
+    """
+
+    def __init__(self, mode: str, *, delay_seconds: float = 0.5) -> None:
+        self._mode = mode
+        self._delay_seconds = delay_seconds
+
+    def embed(self, text: str, *, input_type: str = "query") -> list[float]:
+        if self._mode == "slow":
+            import time
+
+            time.sleep(self._delay_seconds)
+            return [0.0] * 1024
+        if self._mode == "failing":
+            raise RuntimeError("embedding provider unavailable")
+        if self._mode == "dimension_mismatch":
+            return [0.0] * 1536
+        raise ValueError(f"unknown embedding fault mode: {self._mode}")
+
+
+def _build_contract_service(*, embedding_provider=None):
+    """``(service, ctx)`` backed by in-memory repos for transport-parity tests."""
+    from backend.application.service import AgentbookService
+    from backend.domain.models import Agent
+    from backend.infrastructure.persistence.in_memory import (
+        InMemoryAgentRepository,
+        InMemoryOutcomeRepository,
+        InMemoryProblemRepository,
+        InMemoryResearchCycleRepository,
+        InMemorySolutionRepository,
+    )
+
+    agents = InMemoryAgentRepository()
+    problems = InMemoryProblemRepository()
+    solutions = InMemorySolutionRepository()
+    outcomes = InMemoryOutcomeRepository()
+    author = Agent(api_key_hash="h", model_type="claude-sonnet-4-5", agent_id=uuid4())
+    agents.add(author)
+    service = AgentbookService(
+        agents=agents,
+        problems=problems,
+        solutions=solutions,
+        outcomes=outcomes,
+        research_cycles=InMemoryResearchCycleRepository(),
+        embedding_provider=embedding_provider,
+    )
+    ctx = {
+        "agents": agents,
+        "problems": problems,
+        "solutions": solutions,
+        "outcomes": outcomes,
+        "author": author,
+    }
+    return service, ctx
+
+
+@pytest.fixture()
+def contract_service():
+    """``(service, ctx)`` backed by in-memory repos, no embedding provider."""
+    return _build_contract_service()
+
+
+@pytest.fixture()
+def rest_client(contract_service):
+    """REST ``/v1/search`` caller bound to the shared ``contract_service``."""
+    from backend.tests.unit._helpers.transports import rest_search
+
+    service, _ = contract_service
+
+    def _call(query, **kwargs):
+        return rest_search(service, query, **kwargs)
+
+    return _call
+
+
+@pytest.fixture()
+def mcp_client(contract_service):
+    """MCP ``recall`` caller bound to the shared ``contract_service``."""
+    from backend.tests.unit._helpers.transports import mcp_recall
+
+    service, _ = contract_service
+
+    def _call(query, **kwargs):
+        return mcp_recall(service, query, **kwargs)
+
+    return _call
+
+
+@pytest.fixture()
+def assert_transport_parity(rest_client, mcp_client):
+    """Assert REST and MCP ``best_solution`` agree on *fields* for one query.
+
+    Returns the REST ``best_solution`` dict so a caller can make additional
+    assertions on the agreed payload.
+    """
+    from backend.tests.unit._helpers.transports import best_solution_for
+
+    def _assert(query, fields):
+        rest_best = best_solution_for(rest_client(query))
+        mcp_best = best_solution_for(mcp_client(query))
+        assert rest_best is not None, "REST search returned no best_solution"
+        assert mcp_best is not None, "MCP recall returned no best_solution"
+        for field in fields:
+            assert field in rest_best, f"REST best_solution missing key {field!r}"
+            assert field in mcp_best, f"MCP best_solution missing key {field!r}"
+            assert rest_best[field] == mcp_best[field], (
+                f"transport divergence on {field!r}: "
+                f"REST={rest_best[field]!r} MCP={mcp_best[field]!r}"
+            )
+        return rest_best
+
+    return _assert
+
+
+@pytest.fixture()
+def embedding_fault():
+    """Factory for a deterministic faulty embedding provider.
+
+    ``embedding_fault("slow" | "failing" | "dimension_mismatch")`` returns a
+    provider double to pass into ``AgentbookService(embedding_provider=...)``.
+    """
+
+    def _factory(mode, *, delay_seconds=0.5):
+        return _FaultEmbeddingProvider(mode, delay_seconds=delay_seconds)
+
+    return _factory
