@@ -87,27 +87,49 @@ def test_embed_documents_empty_returns_empty(fake_voyageai):
     fake_voyageai.Client.return_value.embed.assert_not_called()
 
 
-def test_retry_on_transient_then_success(fake_voyageai, monkeypatch):
-    """First call raises, second succeeds — provider must return on attempt 2."""
+def test_backfill_retry_on_transient_then_success(fake_voyageai, monkeypatch):
+    """First call raises, second succeeds — the offline ``embed_documents``
+    backfill path must retry and return on attempt 2."""
     monkeypatch.setattr(voyage_mod.time, "sleep", lambda _s: None)
     fake_voyageai.Client.return_value.embed.side_effect = [
         RuntimeError("simulated 429"),
         SimpleNamespace(embeddings=[[0.7]]),
     ]
     provider = voyage_mod.VoyageEmbeddingProvider(api_key="ak_test")
-    assert provider.embed("retry me") == [0.7]
+    assert provider.embed_documents(["retry me"]) == [[0.7]]
     assert fake_voyageai.Client.return_value.embed.call_count == 2
 
 
-def test_retry_exhausts_then_raises(fake_voyageai, monkeypatch):
+def test_backfill_retry_exhausts_then_raises(fake_voyageai, monkeypatch):
+    """The offline backfill path retries up to the full budget, then re-raises."""
     monkeypatch.setattr(voyage_mod.time, "sleep", lambda _s: None)
     fake_voyageai.Client.return_value.embed.side_effect = RuntimeError("persistent")
     provider = voyage_mod.VoyageEmbeddingProvider(api_key="ak_test")
     with pytest.raises(RuntimeError, match="persistent"):
-        provider.embed("doomed")
+        provider.embed_documents(["doomed"])
     assert fake_voyageai.Client.return_value.embed.call_count == len(
         voyage_mod._RETRY_DELAYS_SECONDS
     )
+
+
+def test_live_query_embed_makes_single_attempt_no_retry(fake_voyageai):
+    """The live ``embed`` request path is capped: a persistent failure raises
+    immediately after one attempt, never blocking on the retry storm."""
+    fake_voyageai.Client.return_value.embed.side_effect = RuntimeError("persistent")
+    provider = voyage_mod.VoyageEmbeddingProvider(api_key="ak_test")
+    with pytest.raises(RuntimeError, match="persistent"):
+        provider.embed("doomed", input_type="query")
+    assert fake_voyageai.Client.return_value.embed.call_count == 1
+
+
+def test_live_client_built_with_bounded_timeout_and_no_sdk_retry(fake_voyageai):
+    """The Voyage client is constructed with a tight timeout and SDK-internal
+    retries disabled so a hung connection aborts at the client timeout."""
+    voyage_mod.VoyageEmbeddingProvider(api_key="ak_test")
+    init_kwargs = fake_voyageai.Client.call_args.kwargs
+    assert init_kwargs.get("timeout") is not None
+    assert init_kwargs["timeout"] <= 5.0
+    assert init_kwargs.get("max_retries") == 0
 
 
 def test_init_without_voyageai_installed_raises(monkeypatch):

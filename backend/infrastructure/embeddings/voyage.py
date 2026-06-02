@@ -35,8 +35,19 @@ except Exception:  # noqa: BLE001 - any import failure should disable the provid
 
 # Voyage rate limit on embed endpoint is 2000 RPM (paid). 429 is exceptional;
 # retry with jitter-free exponential backoff up to a small attempt cap so that
-# legitimate transient failures do not crash the request.
+# legitimate transient failures do not crash the request. This budget is used
+# only on the offline ``embed_documents`` backfill path, never on a live
+# request.
 _RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
+# Live request path (``embed``): no blocking retry sleeps. Recall is an agent's
+# near-free first move, so an unresponsive provider must abort fast and let the
+# caller's ``_safe_embed`` degrade to keyword fallback rather than block the
+# request thread through a 1s + 2s + 4s storm.
+_LIVE_RETRY_DELAYS_SECONDS: tuple[float, ...] = ()
+# Tight per-request client timeout so a hung connection aborts here instead of
+# hanging the recall. Combined with ``max_retries=0`` (SDK-internal retries
+# disabled) this bounds the worst-case live embed cost.
+_LIVE_QUERY_TIMEOUT_SECONDS = 2.0
 
 
 class VoyageEmbeddingProvider:
@@ -53,34 +64,58 @@ class VoyageEmbeddingProvider:
                 "voyageai package is not installed. Run `uv add voyageai` "
                 "before constructing VoyageEmbeddingProvider."
             )
-        self._client = voyageai.Client(api_key=api_key)
+        self._client = voyageai.Client(
+            api_key=api_key,
+            timeout=_LIVE_QUERY_TIMEOUT_SECONDS,
+            max_retries=0,
+        )
         self._model = model
         self._output_dimension = output_dimension
 
     def embed(self, text: str, *, input_type: str = "query") -> list[float]:
-        """Embed a single text. ``input_type`` must be ``"query"`` or
-        ``"document"``."""
+        """Embed a single text on the live request path.
+
+        ``input_type`` must be ``"query"`` or ``"document"``. This path carries
+        an empty retry budget (``_LIVE_RETRY_DELAYS_SECONDS``): the bounded
+        client timeout aborts a hung call and the caller's ``_safe_embed``
+        degrades to keyword fallback, so recall never blocks on a synchronous
+        retry storm."""
         if input_type not in {"query", "document"}:
             raise ValueError(
                 f"input_type must be 'query' or 'document', got {input_type!r}"
             )
-        vectors = self._embed_batch_with_retry([text], input_type)
+        vectors = self._embed_batch_with_retry(
+            [text], input_type, retry_delays=_LIVE_RETRY_DELAYS_SECONDS
+        )
         return vectors[0]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Native batch path used by ``backend/scripts/reembed_corpus.py``.
 
         Voyage accepts up to 1000 inputs per call; the backfill script
-        invokes this with batches of 128 to keep memory tame on Railway."""
+        invokes this with batches of 128 to keep memory tame on Railway. This
+        offline path retains the full ``_RETRY_DELAYS_SECONDS`` budget — it is
+        not on a live request thread, so a transient 429 is worth waiting out."""
         if not texts:
             return []
-        return self._embed_batch_with_retry(texts, "document")
+        return self._embed_batch_with_retry(
+            texts, "document", retry_delays=_RETRY_DELAYS_SECONDS
+        )
 
     def _embed_batch_with_retry(
-        self, texts: list[str], input_type: str
+        self,
+        texts: list[str],
+        input_type: str,
+        *,
+        retry_delays: tuple[float, ...] = _RETRY_DELAYS_SECONDS,
     ) -> list[list[float]]:
+        # ``retry_delays`` is the blocking sleep *before each retry*; the final
+        # attempt breaks without sleeping (matching the prior backfill cost of
+        # 3 attempts / 2 sleeps). An empty tuple means a single attempt with no
+        # sleep — the live request path.
+        attempts = max(len(retry_delays), 1)
         last_exc: Exception | None = None
-        for attempt, delay in enumerate(_RETRY_DELAYS_SECONDS):
+        for attempt in range(attempts):
             try:
                 response = self._client.embed(
                     texts=texts,
@@ -90,8 +125,9 @@ class VoyageEmbeddingProvider:
                 )
             except Exception as exc:  # noqa: BLE001 - retry any transient error
                 last_exc = exc
-                if attempt == len(_RETRY_DELAYS_SECONDS) - 1:
+                if attempt >= attempts - 1:
                     break
+                delay = retry_delays[attempt]
                 logger.warning(
                     "voyage-embed-retry attempt=%d delay=%.1fs error=%s",
                     attempt,

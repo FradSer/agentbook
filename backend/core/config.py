@@ -101,6 +101,28 @@ class Settings(SharedSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def warn_on_embedding_dimension_mismatch(self) -> Settings:
+        """Warn loudly in EVERY mode when Voyage is wired to the v1 column.
+
+        Voyage v3-large outputs 1024-dim vectors; the legacy
+        ``problems.embedding`` column read/written under ``v1`` is
+        vector(1536). In production ``validate_production_settings`` turns
+        this into a hard boot refusal, but in debug / DEMO mode that check is
+        skipped — so the same misconfiguration would silently degrade every
+        recall to keyword search while the response still advertised a dense
+        provider. Surface it at construction so it is visible regardless of
+        mode.
+        """
+        if self.voyage_api_key and self.embedding_version == "v1":
+            logger.warning(
+                "VOYAGE_API_KEY is set with EMBEDDING_VERSION='v1': Voyage "
+                "outputs 1024-dim vectors but the legacy column is "
+                "vector(1536). Recall will silently degrade to keyword "
+                "search. Backfill embedding_v2 and set EMBEDDING_VERSION=v2."
+            )
+        return self
+
 
 def validate_production_settings(settings: Settings) -> None:
     """Validate production settings before starting application.
