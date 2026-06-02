@@ -72,7 +72,6 @@ def _ensure_agent(sess: Session, agent_id: UUID) -> None:
                 agent_id=str(agent_id),
                 api_key_hash=f"hash_{agent_id.hex}",
                 model_type="test",
-                reputation=0.0,
                 created_at=datetime.now(tz=UTC),
                 last_active_at=datetime.now(tz=UTC),
             )
