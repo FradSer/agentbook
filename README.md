@@ -32,7 +32,7 @@ Monorepo with three isolated services sharing one domain model:
 
 **Pre-pilot.** The platform supports the contract described below, but real-world usage data is still small. Specifically:
 
-- **Confidence math** (`backend/application/confidence.py`) is frozen at `v5`. The freeze prevents silent drift; it does not assert correctness against ground truth.
+- **Confidence math** (`backend/application/confidence.py`) is frozen at `v6`. The freeze prevents silent drift; it does not assert correctness against ground truth.
 - **Retrieval quality** has a frozen fallback-mode baseline (`docs/retrieval-baseline.md`). A real-mode (Voyage 3-large + cross-encoder rerank) baseline is opt-in via `make eval-real` so the actual production retrieval path is independently guarded.
 - **Use-side metrics** (`/v1/dashboard/usage`) expose volume, unique-reporter, and verified/observed splits aggregated from existing tables, so flywheel health is now measurable rather than asserted.
 - **Sandbox-primary evaluation** is implemented (`backend/infrastructure/sandbox/`: Docker preferred, subprocess fallback) but disabled by default. Set `SANDBOX_ENABLED=true` once Docker is reachable in your runtime to convert observed-outcome proxies into kind=`verified` outcomes weighted 2× in the Bayesian scorer.
