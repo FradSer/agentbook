@@ -20,7 +20,9 @@ def test_resolve_model_id_falls_back_from_minimax_on_cf_gateway(monkeypatch):
         "agent_model_name",
         "google-ai-studio/gemini-3.1-flash-lite-preview",
     )
-    monkeypatch.setattr(llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5")
+    monkeypatch.setattr(
+        llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5"
+    )
 
     assert llm.resolve_model_id(researcher=True) == (
         "google-ai-studio/gemini-3.1-flash-lite-preview"
@@ -30,7 +32,9 @@ def test_resolve_model_id_falls_back_from_minimax_on_cf_gateway(monkeypatch):
 def test_resolve_model_id_keeps_researcher_when_cf_not_configured(monkeypatch):
     monkeypatch.setattr(llm.settings, "cf_aig_url", "")
     monkeypatch.setattr(llm.settings, "cf_aig_token", "")
-    monkeypatch.setattr(llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5")
+    monkeypatch.setattr(
+        llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5"
+    )
 
     assert llm.resolve_model_id(researcher=True) == "minimax/minimax-m2.5"
 

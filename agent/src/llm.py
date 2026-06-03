@@ -91,9 +91,7 @@ def build_agent_model(*, researcher: bool = False) -> OpenAILike:
 
     if provider == "nvidia":
         if not nvidia_configured():
-            raise ValueError(
-                "AGENT_LLM_PROVIDER=nvidia but NVIDIA_API_KEY is not set"
-            )
+            raise ValueError("AGENT_LLM_PROVIDER=nvidia but NVIDIA_API_KEY is not set")
         base_url = settings.nvidia_base_url or NVIDIA_DEFAULT_BASE_URL
         return OpenAILike(
             id=model_id,
