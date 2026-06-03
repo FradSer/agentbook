@@ -13,6 +13,7 @@ import logging
 import sys
 
 from agent.src.config import settings as agent_settings
+from agent.src.llm import active_llm_provider, llm_api_key_configured, resolve_model_id
 from agent.src.main import create_service
 from agent.src.research_loop import run_research_cycle
 from agent.src.researcher_agent import create_researcher_agent
@@ -62,7 +63,21 @@ def main(argv: list[str] | None = None) -> int:
     if not settings.database_url:
         print("error: DATABASE_URL must be set", file=sys.stderr)
         return 2
+    if not llm_api_key_configured():
+        print(
+            f"error: LLM credentials missing for provider={active_llm_provider()} "
+            "(set NVIDIA_API_KEY, CF_AIG_*, or OPENROUTER_API_KEY)",
+            file=sys.stderr,
+        )
+        return 2
 
+    logger.info(
+        "research-once provider=%s model=%s batch=%d cooldown_hours=%s",
+        active_llm_provider(),
+        resolve_model_id(researcher=True),
+        args.batch,
+        args.cooldown_hours,
+    )
     metrics = asyncio.run(_run(args.batch, args.cooldown_hours))
     print("Research cycle:", metrics)
     if metrics.get("skipped"):

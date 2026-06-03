@@ -29,8 +29,12 @@ class AgentSettings(SharedSettings):
     cf_aig_url: str = ""
     cf_aig_token: str = ""
 
-    # ``openrouter`` | ``cf_aig`` | ``auto`` (CF when configured and model allowed)
+    # ``openrouter`` | ``cf_aig`` | ``nvidia`` | ``auto`` (NVIDIA > CF > OpenRouter)
     agent_llm_provider: str = "auto"
+
+    # NVIDIA Integrate API (OpenAI-compatible), e.g. deepseek-ai/deepseek-v4-pro
+    nvidia_api_key: str | None = None
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
 
     # Research loop configuration
     agent_research_enabled: bool = True

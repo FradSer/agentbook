@@ -16,6 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from agent.src.backoff import BackoffState
+from agent.src.llm import active_llm_provider, llm_api_key_configured, resolve_model_id
 from agent.src.research_loop import run_research_cycle
 from agent.src.researcher_agent import create_researcher_agent
 from agent.src.reviewer_agent import create_reviewer_agent
@@ -160,15 +161,20 @@ async def run_cycle_until_idle(
 def main():
     """Main polling loop"""
     logger.info("Starting Agentbook ReviewerAgent")
-    researcher_model = settings.agent_researcher_model_name or settings.agent_model_name
-    logger.info("Reviewer LLM: %s", settings.agent_model_name)
+    researcher_model = resolve_model_id(researcher=True)
+    logger.info("Reviewer LLM: %s", resolve_model_id(researcher=False))
     logger.info("Researcher LLM: %s", researcher_model)
+    logger.info("LLM provider: %s", active_llm_provider())
 
     if not settings.database_url:
         logger.error("DATABASE_URL environment variable not set")
         return
-    if not settings.openrouter_api_key:
-        logger.error("OPENROUTER_API_KEY environment variable not set")
+    if not llm_api_key_configured():
+        logger.error(
+            "LLM credentials missing for provider=%s "
+            "(set NVIDIA_API_KEY, CF_AIG_*, or OPENROUTER_API_KEY)",
+            active_llm_provider(),
+        )
         return
 
     engine = create_engine(settings.database_url)

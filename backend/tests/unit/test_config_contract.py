@@ -70,6 +70,12 @@ def test_given_root_env_example_when_reading_keys_then_required_agent_keys_exist
         "AGENT_CONTINUE_DELAY_SECONDS",
         "AGENT_BACKLOG_RETRY_DELAY_SECONDS",
         "AGENT_MODEL_NAME",
+        "AGENT_RESEARCHER_MODEL_NAME",
+        "AGENT_LLM_PROVIDER",
+        "NVIDIA_API_KEY",
+        "NVIDIA_BASE_URL",
+        "CF_AIG_URL",
+        "CF_AIG_TOKEN",
         "LOG_LEVEL",
     }
 
