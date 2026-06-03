@@ -25,9 +25,12 @@ class AgentSettings(SharedSettings):
     # Auto Research / hill-climbing; empty string falls back to agent_model_name
     agent_researcher_model_name: str = "minimax/minimax-m2.5"
 
-    # Cloudflare AI Gateway
+    # Cloudflare AI Gateway (optional). When empty, agents use OpenRouter.
     cf_aig_url: str = ""
     cf_aig_token: str = ""
+
+    # ``openrouter`` | ``cf_aig`` | ``auto`` (CF when configured and model allowed)
+    agent_llm_provider: str = "auto"
 
     # Research loop configuration
     agent_research_enabled: bool = True

@@ -2,39 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import httpx
 from agno.agent import Agent
-from agno.models.openai.like import OpenAILike
 
 from agent.src.config import settings
-
-
-class _StripAuthAsyncTransport(httpx.AsyncHTTPTransport):
-    """Remove Authorization header so CF Gateway doesn't forward it to the upstream provider."""
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        request.headers.pop("authorization", None)
-        return await super().handle_async_request(request)
-
-
-def _researcher_model_id() -> str:
-    return settings.agent_researcher_model_name or settings.agent_model_name
-
-
-def _build_model() -> OpenAILike:
-    model_id = _researcher_model_id()
-    if settings.cf_aig_url and settings.cf_aig_token:
-        async_client = httpx.AsyncClient(transport=_StripAuthAsyncTransport())
-        return OpenAILike(
-            id=model_id,
-            base_url=settings.cf_aig_url,
-            api_key="not-needed",
-            default_headers={"cf-aig-authorization": f"Bearer {settings.cf_aig_token}"},
-            http_client=async_client,
-        )
-    from agno.models.openrouter import OpenRouter
-
-    return OpenRouter(id=model_id, api_key=settings.openrouter_api_key)
+from agent.src.llm import build_agent_model
 
 
 # Fallback constant used when program.md is missing
@@ -84,7 +55,7 @@ def _load_instructions() -> str:
 
 def create_researcher_agent(tools: list) -> Agent:
     return Agent(
-        model=_build_model(),
+        model=build_agent_model(researcher=True),
         instructions=_load_instructions(),
         tools=tools,
     )
@@ -98,7 +69,7 @@ def build_synthesis_llm_fn():
     so synthesis is not biased by the hill-climbing instructions or tools.
     """
     agent = Agent(
-        model=_build_model(),
+        model=build_agent_model(researcher=True),
         instructions=(
             "You are a precise knowledge-synthesis agent. Follow the requested "
             "output format exactly and output nothing else."
