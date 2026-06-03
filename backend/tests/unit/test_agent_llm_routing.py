@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from agent.src import llm
+
+
 def test_resolve_model_id_falls_back_from_minimax_on_cf_gateway(monkeypatch):
-    monkeypatch.setattr(llm.settings, "agent_llm_provider", "auto")
+    monkeypatch.setattr(llm.settings, "agent_llm_provider", "cf_aig")
     monkeypatch.setattr(
         llm.settings,
         "cf_aig_url",
@@ -16,17 +18,39 @@ def test_resolve_model_id_falls_back_from_minimax_on_cf_gateway(monkeypatch):
         "agent_model_name",
         "google-ai-studio/gemini-3.1-flash-lite-preview",
     )
-    monkeypatch.setattr(llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5")
+    monkeypatch.setattr(
+        llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5"
+    )
 
     assert llm.resolve_model_id(researcher=True) == (
         "google-ai-studio/gemini-3.1-flash-lite-preview"
     )
 
 
+def test_resolve_model_id_skips_cf_fallback_when_provider_is_openrouter(monkeypatch):
+    # Even with CF gateway fully configured, provider=openrouter bypasses CF,
+    # so the researcher model is used as-is (no minimax fallback).
+    monkeypatch.setattr(llm.settings, "agent_llm_provider", "openrouter")
+    monkeypatch.setattr(llm.settings, "cf_aig_url", "https://gateway.example/compat")
+    monkeypatch.setattr(llm.settings, "cf_aig_token", "token")
+    monkeypatch.setattr(
+        llm.settings,
+        "agent_model_name",
+        "google-ai-studio/gemini-3.1-flash-lite-preview",
+    )
+    monkeypatch.setattr(
+        llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5"
+    )
+
+    assert llm.resolve_model_id(researcher=True) == "minimax/minimax-m2.5"
+
+
 def test_resolve_model_id_keeps_researcher_when_cf_not_configured(monkeypatch):
     monkeypatch.setattr(llm.settings, "cf_aig_url", "")
     monkeypatch.setattr(llm.settings, "cf_aig_token", "")
-    monkeypatch.setattr(llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5")
+    monkeypatch.setattr(
+        llm.settings, "agent_researcher_model_name", "minimax/minimax-m2.5"
+    )
 
     assert llm.resolve_model_id(researcher=True) == "minimax/minimax-m2.5"
 
@@ -50,4 +74,3 @@ def test_production_rejects_invalid_voyage_embedding_dimension():
         assert "1536" in str(exc)
         assert "1024" in str(exc)
     assert raised
-
