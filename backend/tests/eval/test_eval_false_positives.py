@@ -64,12 +64,19 @@ def _make_service():
     return service, author_id
 
 
-def _seed_problem(service, author_id, payload: dict):
-    return service.create_problem(
+def _seed_problem(service, author_id, payload: dict, *, with_solution: bool = False):
+    problem = service.create_problem(
         author_id=author_id,
         description=payload["description"],
         error_signature=payload["error_signature"],
     )
+    if with_solution:
+        service.create_solution(
+            problem_id=problem.problem_id,
+            author_id=author_id,
+            content="Minimal eval fixture solution with enough characters.",
+        )
+    return problem
 
 
 def _ranks_by_problem_id(results: list[dict]) -> dict[str, int]:
@@ -93,7 +100,12 @@ def test_retrieval_quality(case: dict) -> None:
     if case["collider"] is not None:
         collider = _seed_problem(service, author_id, case["collider"])
 
-    target = _seed_problem(service, author_id, case["target"])
+    target = _seed_problem(
+        service,
+        author_id,
+        case["target"],
+        with_solution=case["kind"] == "true_positive_substring",
+    )
 
     payload = service.search_problems(query=case["query"], limit=10)
     results = payload["results"]
