@@ -57,7 +57,7 @@ async def test_write_tools_require_authentication(tool_name: str) -> None:
 
     body = _payload(result)
     assert body["error"] == "unauthorized"
-    assert "ak_" in body["detail"]
+    assert "credentials" in body["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -68,7 +68,7 @@ async def test_recall_delegates_to_service_search_problems() -> None:
     result = await dispatch_tool(server, "recall", {"query": "pgvector"})
 
     server._service.search_problems.assert_called_once_with(
-        query="pgvector", error_log=None, limit=5
+        query="pgvector", error_log=None, limit=5, pattern_class=None
     )
     assert _payload(result) == {"results": [], "total": 0}
 
