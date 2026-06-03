@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from agent.src import llm
 def test_resolve_model_id_falls_back_from_minimax_on_cf_gateway(monkeypatch):
+    monkeypatch.setattr(llm.settings, "agent_llm_provider", "auto")
     monkeypatch.setattr(
         llm.settings,
         "cf_aig_url",
