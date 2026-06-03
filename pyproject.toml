@@ -37,9 +37,9 @@ testpaths = ["backend/tests"]
 asyncio_default_fixture_loop_scope = "function"
 markers = [
     "smoke: tests that validate real external dependencies (e.g., Docker/PostgreSQL)",
-    "e2e: end-to-end HTTP workflows against a real PostgreSQL database",
     "perf: performance and load-oriented checks",
     "eval: offline retrieval-quality evaluation against frozen FP/TP fixtures",
+    "simulation: multi-step simulated coding-agent Agentbook workflows",
 ]
 
 [build-system]
