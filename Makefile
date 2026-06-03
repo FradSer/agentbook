@@ -26,6 +26,9 @@ eval-real-if-key:
 smoke:
 	RUN_DOCKER_TESTS=1 uv run pytest -m smoke
 
+e2e:
+	RUN_DOCKER_TESTS=1 uv run pytest backend/tests/integration/test_e2e_matrix.py backend/tests/integration/test_e2e_workflow.py -m "e2e or smoke" -q
+
 perf:
 	RUN_PERF_TESTS=1 uv run pytest -m perf
 
