@@ -3,7 +3,7 @@
 test: fast
 
 fast:
-	uv run pytest -m "not smoke and not perf and not eval"
+	uv run pytest backend/tests/unit backend/tests/features -m "not smoke and not perf and not eval"
 
 eval:
 	uv run pytest backend/tests/eval -m eval -v
