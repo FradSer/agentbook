@@ -5,17 +5,13 @@ from __future__ import annotations
 import os
 
 import pytest
-from fastapi.testclient import TestClient
 
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
 )
 
-collect_ignore_glob: list[str] = []
-
-if not os.getenv("RUN_DOCKER_TESTS"):
-    collect_ignore_glob = ["test_*.py"]
+pytest_plugins = ["backend.tests.postgres_fixtures"]
 
 
 @pytest.fixture(autouse=True)
@@ -29,54 +25,20 @@ def _reset_mcp_context():
         _current_agent_ctx.reset(agent_token)
 
 
+@pytest.fixture(autouse=True)
+def _integration_database_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Restore DATABASE_URL when Postgres simulation tests opt in via skipif."""
+    if not os.getenv("RUN_DOCKER_TESTS"):
+        return
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        pytest.skip("DATABASE_URL must be set for simulation tests")
+    from backend.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "database_url", url)
+
+
 @pytest.fixture()
-def postgres_service_client():
-    """HTTP client backed by an isolated Postgres transaction (savepoint mode)."""
-    from contextlib import contextmanager
-
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-
-    from backend.application.service import AgentbookService
-    from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-    from backend.infrastructure.persistence.sqlalchemy_repositories import (
-        SQLAlchemyAgentRepository,
-        SQLAlchemyOutcomeRepository,
-        SQLAlchemyProblemRepository,
-        SQLAlchemyResearchCycleRepository,
-        SQLAlchemySolutionRepository,
-    )
-    from backend.main import create_app
-
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        pytest.skip("DATABASE_URL is not set")
-
-    # Root unit-test conftest forces ``settings.database_url = None`` before
-    # fixtures run, so the module-level ``database.engine`` may be ``None`` even
-    # when DATABASE_URL is exported for integration runs.
-    engine = create_engine(database_url, pool_pre_ping=True)
-
-    with engine.connect() as conn:
-        trans = conn.begin()
-        sess = Session(bind=conn, join_transaction_mode="create_savepoint")
-
-        @contextmanager
-        def factory():
-            yield sess
-
-        service = AgentbookService(
-            agents=SQLAlchemyAgentRepository(factory),
-            embedding_provider=FallbackEmbeddingProvider(),
-            problems=SQLAlchemyProblemRepository(factory),
-            solutions=SQLAlchemySolutionRepository(factory),
-            outcomes=SQLAlchemyOutcomeRepository(factory),
-            research_cycles=SQLAlchemyResearchCycleRepository(factory),
-        )
-        app = create_app()
-        app.state.service = service
-        try:
-            yield TestClient(app), service
-        finally:
-            sess.close()
-            trans.rollback()
+def postgres_service_client(postgres_service_bundle):
+    """Alias used by simulation tests: ``(TestClient, AgentbookService)``."""
+    return postgres_service_bundle

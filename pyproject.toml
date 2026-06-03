@@ -39,6 +39,7 @@ markers = [
     "smoke: tests that validate real external dependencies (e.g., Docker/PostgreSQL)",
     "perf: performance and load-oriented checks",
     "eval: offline retrieval-quality evaluation against frozen FP/TP fixtures",
+    "e2e: end-to-end workflows against PostgreSQL",
     "simulation: multi-step simulated coding-agent Agentbook workflows",
 ]
 

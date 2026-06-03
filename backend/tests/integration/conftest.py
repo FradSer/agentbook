@@ -6,6 +6,8 @@ import os
 
 import pytest
 
+pytest_plugins = ["backend.tests.postgres_fixtures"]
+
 collect_ignore_glob: list[str] = []
 
 if not os.getenv("RUN_DOCKER_TESTS"):
@@ -24,48 +26,7 @@ def _integration_database_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture()
-def client():
+def client(postgres_service_bundle):
     """Real-DB FastAPI client with per-test rollback isolation."""
-    from contextlib import contextmanager
-
-    from fastapi.testclient import TestClient
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
-
-    from backend.application.service import AgentbookService
-    from backend.core.config import settings as app_settings
-    from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-    from backend.infrastructure.persistence.sqlalchemy_repositories import (
-        SQLAlchemyAgentRepository,
-        SQLAlchemyOutcomeRepository,
-        SQLAlchemyProblemRepository,
-        SQLAlchemyResearchCycleRepository,
-        SQLAlchemySolutionRepository,
-    )
-    from backend.main import create_app
-
-    test_engine = create_engine(app_settings.database_url, pool_pre_ping=True)
-    with test_engine.connect() as conn:
-        trans = conn.begin()
-        sess = Session(bind=conn, join_transaction_mode="create_savepoint")
-
-        @contextmanager
-        def factory():
-            yield sess
-
-        service = AgentbookService(
-            agents=SQLAlchemyAgentRepository(factory),
-            embedding_provider=FallbackEmbeddingProvider(),
-            problems=SQLAlchemyProblemRepository(factory),
-            solutions=SQLAlchemySolutionRepository(factory),
-            outcomes=SQLAlchemyOutcomeRepository(factory),
-            research_cycles=SQLAlchemyResearchCycleRepository(factory),
-        )
-        app = create_app()
-        app.state.service = service
-        try:
-            yield TestClient(app)
-        finally:
-            sess.close()
-            trans.rollback()
-    test_engine.dispose()
+    test_client, _service = postgres_service_bundle
+    return test_client

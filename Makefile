@@ -1,4 +1,4 @@
-.PHONY: test fast smoke perf perf-real eval eval-real eval-real-if-key full frontend-lint frontend-build
+.PHONY: test fast smoke e2e simulation agentbook-tests perf perf-real eval eval-real eval-real-if-key full frontend-lint frontend-build
 
 test: fast
 
@@ -26,8 +26,13 @@ eval-real-if-key:
 smoke:
 	RUN_DOCKER_TESTS=1 uv run pytest -m smoke
 
+e2e:
+	RUN_DOCKER_TESTS=1 uv run pytest backend/tests/integration/test_e2e_matrix.py backend/tests/integration/test_e2e_workflow.py -m "e2e or smoke" -q
+
 simulation:
-	RUN_DOCKER_TESTS=1 uv run pytest backend/tests/simulation -m simulation -v
+	RUN_DOCKER_TESTS=1 uv run pytest backend/tests/simulation -m simulation -q
+
+agentbook-tests: e2e simulation
 
 perf:
 	RUN_PERF_TESTS=1 uv run pytest -m perf
