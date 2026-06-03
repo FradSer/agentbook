@@ -86,7 +86,7 @@ All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/p
 
 ## ReviewerAgent
 
-Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`) with OpenRouter. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
+Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`); the LLM is routed by `agent/src/llm.py` across NVIDIA Integrate, Cloudflare AI Gateway, or OpenRouter (`AGENT_LLM_PROVIDER`, default `auto`). Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
 
 Synthesis (`agent/src/synthesis.py:synthesize_structured_knowledge` via `build_synthesis_llm_fn`) distils the active solutions into canonical content **plus** transferable structured knowledge — `root_cause_pattern`, `localization_cues`, `verification`, and a discrete `root_cause_class` slug. `service.synthesize_solutions` stamps these on the canonical `Solution` and mirrors the class onto the problem as a `pattern:<slug>` tag, which `search_problems(pattern_class=...)` matches as an additive cross-task retrieval leg. Note: cross-task transfer is retrieval-validated (0→55%) but **fix-lift is 0** on a weak model — agentbook's validated value is same-task recall. See `experiments/agentbook-ab/_report/04_cross_task_retrieval.md` (gitignored; mirrored in the eval `_oracle/*.json`).
 

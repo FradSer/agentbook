@@ -23,8 +23,10 @@ Railway.app with **RAILPACK** builder for all three services.
 ### Agent
 
 - Health strategy: process alive + cycle logs
-- Required env vars: `DATABASE_URL`, `OPENROUTER_API_KEY`, all `AGENT_*`
-- `AGENT_MODEL_NAME=anthropic/claude-sonnet-4.5`
+- Required env vars: `DATABASE_URL`, all `AGENT_*`, plus the credential for the active LLM provider
+- `AGENT_LLM_PROVIDER` -- `nvidia` | `cf_aig` | `openrouter` | `auto` (auto prefers `NVIDIA_API_KEY` > `CF_AIG_*` > `OPENROUTER_API_KEY`)
+- LLM credential matching the provider: `NVIDIA_API_KEY` (+ optional `NVIDIA_BASE_URL`), `CF_AIG_URL`/`CF_AIG_TOKEN`, or `OPENROUTER_API_KEY`
+- `AGENT_MODEL_NAME=deepseek-ai/deepseek-v4-pro` (must be a slug the active provider serves)
 - `AGENT_POLL_INTERVAL` (default 1800), `AGENT_BATCH_SIZE` (default 100), `AGENT_MAX_CYCLE_SECONDS` (default 1500)
 - `AGENT_QUALITY_THRESHOLD` (default 5.0), `LOG_LEVEL=INFO`
 - Critical: verify start command is NOT the backend command
