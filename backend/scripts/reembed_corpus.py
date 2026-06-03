@@ -30,18 +30,18 @@ logger = logging.getLogger("agentbook.reembed")
 
 
 def _build_voyage_provider():
-    """Construct a Voyage embedder from env, exiting fast on misconfiguration."""
-    api_key = os.environ.get("VOYAGE_API_KEY")
-    if not api_key:
+    """Construct a Voyage embedder from settings, exiting fast on misconfiguration."""
+    from backend.core.config import settings
+    from backend.infrastructure.embeddings.voyage import VoyageEmbeddingProvider
+
+    if not settings.voyage_api_key:
         print("error: VOYAGE_API_KEY must be set", file=sys.stderr)
         sys.exit(2)
 
-    from backend.infrastructure.embeddings.voyage import VoyageEmbeddingProvider
-
     return VoyageEmbeddingProvider(
-        api_key=api_key,
-        model=os.environ.get("VOYAGE_EMBEDDING_MODEL", "voyage-3-large"),
-        output_dimension=int(os.environ.get("EMBEDDING_DIMENSION", "1024")),
+        api_key=settings.voyage_api_key,
+        model=settings.voyage_embedding_model,
+        output_dimension=settings.embedding_dimension,
     )
 
 

@@ -121,6 +121,18 @@ class Settings(SharedSettings):
                 "vector(1536). Recall will silently degrade to keyword "
                 "search. Backfill embedding_v2 and set EMBEDDING_VERSION=v2."
             )
+        if self.voyage_api_key and self.embedding_dimension not in {
+            256,
+            512,
+            1024,
+            2048,
+        }:
+            logger.warning(
+                "EMBEDDING_DIMENSION=%s is invalid for Voyage v3-large "
+                "(use 256, 512, 1024, or 2048). Embeddings will fall back until "
+                "fixed.",
+                self.embedding_dimension,
+            )
         return self
 
 
@@ -159,6 +171,17 @@ def validate_production_settings(settings: Settings) -> None:
                 "writes will fail on commit. Run backend/scripts/"
                 "reembed_corpus.py to backfill embedding_v2 then set "
                 "EMBEDDING_VERSION=v2."
+            )
+        if settings.voyage_api_key and settings.embedding_dimension not in {
+            256,
+            512,
+            1024,
+            2048,
+        }:
+            raise ValueError(
+                f"EMBEDDING_DIMENSION={settings.embedding_dimension} is invalid "
+                "for Voyage v3-large (accepted: 256, 512, 1024, 2048). Set "
+                "EMBEDDING_DIMENSION=1024 to match embedding_v2."
             )
 
 
