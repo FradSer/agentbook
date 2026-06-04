@@ -24,6 +24,8 @@ MANIFEST = TASKS / "manifest.json"
 GENERATED_GLOBS = [
     "runs",
     "runs.*",
+    "runs_v2",
+    "runs_v2.*",
     "prompts.*.json",
     "prompts.json",
     "short_prompts.json",
@@ -88,7 +90,7 @@ def main() -> None:
     manifest_ids = load_manifest_ids()
     print(f"manifest: {len(manifest_ids)} verified tasks\n")
 
-    run_globs = ("runs", "runs.*")
+    run_globs = ("runs", "runs.*", "runs_v2", "runs_v2.*")
     if not args.keep_runs:
         print("run workspaces:")
         for pat in run_globs:

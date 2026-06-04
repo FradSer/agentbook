@@ -1,7 +1,6 @@
 """Red-phase tests for memory/refine_from_outcomes.py (Feature 1, bdd-specs.md).
 
-Each test maps 1:1 to a Gherkin scenario in
-docs/plans/2026-05-27-agentbook-outcome-loop-design/bdd-specs.md Feature 1.
+Each test maps to the outcome-driven cue refinement scenarios (Feature 1).
 
 Fixture strategy:
   - tmp_path holds a synthetic `_oracle/synth_cache.json` + `outcomes_log.json`

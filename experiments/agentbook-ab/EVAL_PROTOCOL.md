@@ -68,7 +68,7 @@ Good and oracle share **apply-first** instructions; only provenance differs.
 Isolates the value of *synthesizing* memories over relaying prose. The memory is
 autoresearcher-style structured knowledge, **root-cause pattern + localization
 cues + verification method, no patch, no raw prose**, so the model must locate,
-derive, and land the edit itself ("solve from knowledge", the GOAL.md target).
+derive, and land the edit itself ("solve from knowledge", the `GOAL.md` target in this directory).
 
 - **Build the cache** (Opus synthesis of leak-free memories; defense-in-depth
   gold scrub): `uv run python -m memory.synthesize` → `_oracle/synth_cache.json`.
