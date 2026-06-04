@@ -6,6 +6,7 @@ import random
 import re
 import time
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -50,6 +51,7 @@ from backend.domain.models import (
     OutcomeKind,
     Problem,
     ProblemRelationship,
+    QueryEvent,
     ResearchCycle,
     ResearchStatus,
     Solution,
@@ -59,6 +61,7 @@ from backend.domain.repositories import (
     AgentRepository,
     OutcomeRepository,
     ProblemRepository,
+    QueryEventRepository,
     ResearchCycleRepository,
     SolutionRepository,
 )
@@ -368,6 +371,22 @@ def _count_effective_reporters(
     return len(detect_clusters(reporter_agents))
 
 
+@dataclass(slots=True, frozen=True)
+class CallerContext:
+    """Identity of the caller behind a read, used to enrich a recorded
+    ``QueryEvent`` (self-hit / seed-replay detection, anonymous dedup).
+
+    A small carrier deliberately decoupled from any transport: the MCP/REST
+    presentation layer (Task 004) populates it from the authenticated agent or
+    the request's IP/fingerprint hashes. All fields optional so an anonymous
+    read still records an event.
+    """
+
+    agent_id: UUID | None = None
+    ip_hash: str | None = None
+    fingerprint_hash: str | None = None
+
+
 class AgentbookService:
     def __init__(
         self,
@@ -380,6 +399,7 @@ class AgentbookService:
         outcomes: OutcomeRepository = None,
         research_cycles: ResearchCycleRepository = None,
         problem_relationships: ProblemRelationshipRepository | None = None,
+        query_events: QueryEventRepository | None = None,
         rerank_fn: RerankFn | None = None,
         embedding_provider_name: str = "fallback",
         rerank_provider_name: str = "noop",
@@ -395,6 +415,7 @@ class AgentbookService:
         self._outcomes = outcomes
         self._research_cycles = research_cycles
         self._problem_relationships = problem_relationships
+        self._query_events = query_events
         # Reranker callable; default identity ordering keeps tests deterministic
         # without an API key. Production wires VoyageReranker via the resolver
         # in ``backend/main.py``.
@@ -524,6 +545,7 @@ class AgentbookService:
         include: set[str] | None = None,
         format: str = "concise",
         pattern_class: str | None = None,
+        caller: CallerContext | None = None,
     ) -> dict:
 
         cache_key = (
@@ -565,7 +587,87 @@ class AgentbookService:
             "rerank_provider": (self._rerank_provider_name if dense_used else None),
         }
         self._search_cache.set(cache_key, payload)
+        self._record_query_event(
+            query=query,
+            rows=rows,
+            payload=payload,
+            pattern_class=pattern_class,
+            caller=caller,
+        )
         return payload
+
+    def _record_query_event(
+        self,
+        *,
+        query: str,
+        rows: list[dict],
+        payload: dict,
+        pattern_class: str | None,
+        caller: CallerContext | None,
+    ) -> None:
+        """Best-effort recording of one dedup'd ``QueryEvent`` per search.
+
+        Derives the event's match fields from the already-computed ``rows`` /
+        ``payload``; a recording failure is swallowed and logged so an
+        instrumentation outage never fails the read path.
+        """
+        if self._query_events is None:
+            return
+        try:
+            caller = caller or CallerContext()
+            top_match = None if payload["no_good_match"] else rows[0]
+            if top_match is not None:
+                top_match_problem_id = UUID(top_match["problem_id"])
+                top_match_quality = top_match["match_quality"]
+                has_help = bool(top_match.get("has_help"))
+                is_self_hit = self._is_self_hit(top_match_problem_id, caller.agent_id)
+            else:
+                top_match_problem_id = None
+                top_match_quality = None
+                has_help = False
+                is_self_hit = False
+            event = QueryEvent(
+                query_text=query,
+                agent_id=caller.agent_id,
+                ip_hash=caller.ip_hash,
+                fingerprint_hash=caller.fingerprint_hash,
+                top_match_problem_id=top_match_problem_id,
+                top_match_quality=top_match_quality,
+                has_help=has_help,
+                is_self_hit=is_self_hit,
+                is_seed_replay=caller.agent_id in self._seed_agent_ids(),
+                pattern_class_hit=bool(
+                    pattern_class
+                    and any(row.get("match_quality") == "pattern" for row in rows)
+                ),
+            )
+            # Record every real-traffic event (only same-identity replays inside
+            # the window collapse); seed-replay / self-hit are NOT dropped here
+            # so they still count toward the denominator — the rollup math
+            # (compute_recurrence_rollup) applies the numerator exclusions.
+            self._query_events.add_with_dedup(
+                event,
+                self._agents,
+                exclude_seed_replay=False,
+                exclude_self_hits=False,
+            )
+        except Exception:
+            logger.exception("recurrence-density query-event recording failed")
+
+    def _is_self_hit(self, problem_id: UUID, caller_agent_id: UUID | None) -> bool:
+        """True when the caller authored the reliance target of the top match.
+
+        The matched contributor is the author of the problem's best solution
+        (the reliance target a recall surfaces); an anonymous caller can never
+        self-hit. Cheap repo reads only — wrapped by the caller's try/except.
+        """
+        if caller_agent_id is None:
+            return False
+        best = self._pick_best_solution(problem_id)
+        if best is None:
+            return False
+        solution = self._solutions.get(UUID(best["solution_id"]))
+        return solution is not None and solution.author_id == caller_agent_id
 
     def _search_problems(
         self,
@@ -2256,6 +2358,54 @@ class AgentbookService:
                 }
                 for p in ranked_with_outcomes[:10]
             ],
+        }
+
+    def _seed_agent_ids(self) -> frozenset[UUID]:
+        """Reserved seed/operator identities excluded from organic recurrence.
+
+        Single source for the seed set; starts with the reserved sandbox agent
+        so a seed-set replay can never inflate the organic-recurrence metric.
+        """
+        return frozenset({SANDBOX_AGENT_ID})
+
+    def get_recurrence_density(self) -> dict:
+        """Recurrence-density rollup over recorded real-traffic query events.
+
+        Delegates the metric math to the query-event repo (which uses the
+        shared ``compute_recurrence_rollup``); the service only seeds the
+        exclusion set, filters per-problem rows to approved problems, and
+        renames ``per_problem`` -> ``problems``. Returns the empty rollup when
+        no query-event repo is wired (e.g. DEMO_MODE / legacy boot).
+        """
+        if self._query_events is None:
+            return {
+                "recurrence_density": 0.0,
+                "organic_recurrence": 0.0,
+                "total_independent_queries": 0,
+                "problems": [],
+            }
+        rollup = self._query_events.recurrence_rollup(
+            seed_agent_ids=self._seed_agent_ids()
+        )
+        approved_ids = {
+            p.problem_id
+            for p in self._problems.list_all()
+            if p.review_status == "approved"
+        }
+        problems = [
+            {
+                "problem_id": str(row["problem_id"]),
+                "query_count": row["query_count"],
+                "organic_recurrence": row["organic_recurrence"],
+            }
+            for row in rollup.get("per_problem", [])
+            if row["problem_id"] in approved_ids
+        ]
+        return {
+            "recurrence_density": rollup["recurrence_density"],
+            "organic_recurrence": rollup["organic_recurrence"],
+            "total_independent_queries": rollup["total_independent_queries"],
+            "problems": problems,
         }
 
     # --- Research loop methods ---

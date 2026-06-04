@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID
 
+from backend.application._recurrence import compute_recurrence_rollup
+from backend.application.clustering import detect_clusters
 from backend.application.service import RESEARCH_TIMEOUT_SECONDS
 from backend.domain.models import (
     Agent,
     Outcome,
     Problem,
     ProblemRelationship,
+    QueryEvent,
     ResearchCycle,
     Solution,
 )
 from backend.domain.search import SearchDiagnostics
 from backend.infrastructure.persistence.vector_utils import cosine_similarity
+
+if TYPE_CHECKING:
+    from backend.domain.repositories import AgentRepository
 
 
 class InMemoryAgentRepository:
@@ -399,6 +406,87 @@ class InMemoryOutcomeRepository:
             return []
         target = set(solution_ids)
         return [o for o in self._outcomes if o.solution_id in target]
+
+
+class InMemoryQueryEventRepository:
+    def __init__(self) -> None:
+        self._events: list[QueryEvent] = []
+
+    def add(self, event: QueryEvent) -> None:
+        self._events.append(event)
+
+    def add_with_dedup(
+        self,
+        event: QueryEvent,
+        agents: AgentRepository,
+        *,
+        exclude_seed_replay: bool = True,
+        exclude_self_hits: bool = True,
+        dedup_window_seconds: int = 600,
+    ) -> bool:
+        if exclude_seed_replay and event.is_seed_replay:
+            return False
+        if exclude_self_hits and event.is_self_hit:
+            return False
+
+        window = timedelta(seconds=dedup_window_seconds)
+        for existing in self._events:
+            if existing.top_match_problem_id != event.top_match_problem_id:
+                continue
+            if abs(existing.created_at - event.created_at) > window:
+                continue
+            if self._same_identity(existing, event, agents):
+                return False
+
+        self._events.append(event)
+        return True
+
+    def _same_identity(
+        self, a: QueryEvent, b: QueryEvent, agents: AgentRepository
+    ) -> bool:
+        if a.agent_id is not None and b.agent_id is not None:
+            if a.agent_id == b.agent_id:
+                return True
+            agent_a = agents.get(a.agent_id)
+            agent_b = agents.get(b.agent_id)
+            if agent_a is None or agent_b is None:
+                return False
+            for cluster in detect_clusters([agent_a, agent_b]):
+                if a.agent_id in cluster and b.agent_id in cluster:
+                    return True
+            return False
+        # At least one anonymous caller — match on shared identity hashes.
+        if a.ip_hash and b.ip_hash and a.ip_hash == b.ip_hash:
+            return True
+        if (
+            a.fingerprint_hash
+            and b.fingerprint_hash
+            and a.fingerprint_hash == b.fingerprint_hash
+        ):
+            return True
+        return False
+
+    def list_all(self, since: datetime | None = None) -> list[QueryEvent]:
+        if since is None:
+            return list(self._events)
+        return [e for e in self._events if e.created_at >= since]
+
+    def query_count_for_problem(
+        self, problem_id: UUID, since: datetime | None = None
+    ) -> int:
+        return sum(
+            1
+            for e in self._events
+            if e.top_match_problem_id == problem_id
+            and not e.is_seed_replay
+            and not e.is_self_hit
+            and (since is None or e.created_at >= since)
+        )
+
+    def recurrence_rollup(
+        self, *, seed_agent_ids: frozenset[UUID] = frozenset()
+    ) -> dict:
+        return compute_recurrence_rollup(self._events, seed_agent_ids=seed_agent_ids)
 
 
 class InMemoryResearchCycleRepository:

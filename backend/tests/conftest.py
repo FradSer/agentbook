@@ -93,6 +93,7 @@ def _build_service(*, with_sandbox=None, with_evaluator=None):
         InMemoryAgentRepository,
         InMemoryOutcomeRepository,
         InMemoryProblemRepository,
+        InMemoryQueryEventRepository,
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
     )
@@ -107,6 +108,7 @@ def _build_service(*, with_sandbox=None, with_evaluator=None):
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
+        query_events=InMemoryQueryEventRepository(),
     )
     if with_sandbox is not None:
         kwargs["sandbox"] = with_sandbox

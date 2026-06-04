@@ -9,6 +9,7 @@ from backend.domain.models import (
     Outcome,
     Problem,
     ProblemRelationship,
+    QueryEvent,
     ResearchCycle,
     Solution,
 )
@@ -257,3 +258,43 @@ class ProblemRelationshipRepository(Protocol):
     ) -> list[ProblemRelationship]: ...
 
     def delete_by_source(self, source_problem_id: UUID) -> None: ...
+
+
+class QueryEventRepository(Protocol):
+    def add(self, event: QueryEvent) -> None: ...
+
+    def add_with_dedup(
+        self,
+        event: QueryEvent,
+        agents: AgentRepository,
+        *,
+        exclude_seed_replay: bool = True,
+        exclude_self_hits: bool = True,
+        dedup_window_seconds: int = 600,
+    ) -> bool:
+        """Record ``event`` unless a dedup/exclusion rule drops it.
+
+        Returns True when the event was recorded, False when it was
+        dropped: a seed-replay (``exclude_seed_replay``), a self-hit
+        (``exclude_self_hits``), or a replay from the same identity/IP
+        cluster on the same ``top_match_problem_id`` within
+        ``dedup_window_seconds``.
+        """
+        ...
+
+    def list_all(self, since: datetime | None = None) -> list[QueryEvent]: ...
+
+    def query_count_for_problem(
+        self, problem_id: UUID, since: datetime | None = None
+    ) -> int: ...
+
+    def recurrence_rollup(
+        self, *, seed_agent_ids: frozenset[UUID] = frozenset()
+    ) -> dict:
+        """Aggregate recorded events into recurrence metrics.
+
+        Returns a dict with ``recurrence_density``, ``organic_recurrence``,
+        ``total_independent_queries``, and ``per_problem``. Defined in the
+        infrastructure implementations (in-memory / SQLAlchemy).
+        """
+        ...

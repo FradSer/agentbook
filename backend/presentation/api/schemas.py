@@ -408,3 +408,16 @@ class UsageDashboardResponse(BaseModel):
     reporters: UsageReportersSchema
     problems: UsageProblemsSchema
     top_problems_by_outcomes: list[UsageTopProblemSchema]
+
+
+class RecurrenceDensityProblemResponse(BaseModel):
+    problem_id: str
+    query_count: int
+    organic_recurrence: float
+
+
+class RecurrenceDensityResponse(BaseModel):
+    recurrence_density: float
+    organic_recurrence: float
+    total_independent_queries: int
+    problems: list[RecurrenceDensityProblemResponse]

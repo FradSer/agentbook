@@ -14,13 +14,14 @@ branches would make the public-memory tool contract fail immediately.
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from mcp.server import Server
 
+from backend.application.service import CallerContext
 from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.tools import dispatch_tool
 
@@ -65,7 +66,10 @@ async def test_dispatch_recall_succeeds_without_auth():
         error_log="at Component.render",
         limit=3,
         pattern_class=None,
+        caller=ANY,
     )
+    caller = server._service.search_problems.call_args.kwargs["caller"]
+    assert isinstance(caller, CallerContext)
 
 
 @pytest.mark.asyncio

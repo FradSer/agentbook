@@ -10,11 +10,12 @@ CLAUDE.md, and they don't have direct coverage elsewhere -- the existing
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 from uuid import uuid4
 
 import pytest
 
+from backend.application.service import CallerContext
 from backend.core.mcp_rate_limit import mcp_search_limiter
 from backend.domain.models import Agent
 from backend.presentation.mcp import context as mcp_context
@@ -68,8 +69,10 @@ async def test_recall_delegates_to_service_search_problems() -> None:
     result = await dispatch_tool(server, "recall", {"query": "pgvector"})
 
     server._service.search_problems.assert_called_once_with(
-        query="pgvector", error_log=None, limit=5, pattern_class=None
+        query="pgvector", error_log=None, limit=5, pattern_class=None, caller=ANY
     )
+    caller = server._service.search_problems.call_args.kwargs["caller"]
+    assert isinstance(caller, CallerContext)
     assert _payload(result) == {"results": [], "total": 0}
 
 
