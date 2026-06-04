@@ -3,6 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Optional: reclaim disk from local experiment runs (gitignored, safe to re-run)
+if [ "${RELEASE_GATE_CLEAN_EXPERIMENTS:-0}" = "1" ]; then
+  uv run python experiments/agentbook-ab/cleanup_experiment.py
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'

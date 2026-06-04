@@ -8,7 +8,7 @@ scopes:
     - name: ui
       description: Frontend pages, components, and state management in frontend/; does not cover backend API.
     - name: sim
-      description: Adversarial testing, simulation harnesses, and stress test suites in simulation/ and backend/tests/simulation/; does not cover production code.
+      description: Adversarial REST harness in simulation/ and pytest MCP/stress suites in backend/tests/simulation/; does not cover production code.
     - name: bench
       description: Experimental benchmarks, agentbook A/B testing, and evaluation protocols in experiments/; does not cover application or agent runtime.
     - name: skill
