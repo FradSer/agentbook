@@ -47,7 +47,7 @@ Anti-Sybil reporter clustering integrated into confidence scoring. `calculate_co
 
 ## v4 — 2026-04-21
 
-Outcome.kind multiplier introduced. Verified outcomes (produced by `SANDBOX_AGENT_ID`) contribute `2.0 × base_weight`; observed outcomes retain `1.0 × base_weight`. Reporter-diversity check is unchanged — `SANDBOX_AGENT_ID` continues to count as a trusted external reporter. Plan: `docs/plans/2026-04-18-memory-layer-autoresearch-plan/_index.md`. Commit: see `feat(agent): add kind column and tool aliasing`.
+Outcome.kind multiplier introduced. Verified outcomes (produced by `SANDBOX_AGENT_ID`) contribute `2.0 × base_weight`; observed outcomes retain `1.0 × base_weight`. Reporter-diversity check is unchanged — `SANDBOX_AGENT_ID` continues to count as a trusted external reporter. See `docs/retros/retro-2026-04-18-memory-layer-autoresearch.md` for design context.
 
 ## v3 — reserved
 
