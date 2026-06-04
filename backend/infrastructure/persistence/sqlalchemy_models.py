@@ -228,6 +228,34 @@ class OutcomeORM(Base):
     )
 
 
+class QueryEventORM(Base):
+    __tablename__ = "query_events"
+
+    event_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    problem_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("problems.problem_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    agent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("agents.agent_id"), nullable=True, index=True
+    )
+    query_text: Mapped[str] = mapped_column(Text, nullable=False)
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fingerprint_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    top_match_quality: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    has_help: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_self_hit: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_seed_replay: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    pattern_class_hit: Mapped[bool] = mapped_column(
+        Boolean, server_default="0", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+
 def parse_uuid(uuid_text: str) -> UUID:
     return UUID(uuid_text)
 

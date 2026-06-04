@@ -8,19 +8,24 @@ from sqlalchemy import case, func, select, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
+from backend.application._recurrence import compute_recurrence_rollup
+from backend.application.clustering import detect_clusters
 from backend.application.service import RESEARCH_TIMEOUT_SECONDS
 from backend.domain.models import (
     Agent,
     Outcome,
     Problem,
+    QueryEvent,
     ResearchCycle,
     Solution,
 )
+from backend.domain.repositories import AgentRepository
 from backend.domain.search import SearchDiagnostics
 from backend.infrastructure.persistence.sqlalchemy_models import (
     AgentORM,
     OutcomeORM,
     ProblemORM,
+    QueryEventORM,
     ResearchCycleORM,
     SolutionORM,
     parse_uuid,
@@ -1015,3 +1020,152 @@ class SQLAlchemyResearchCycleRepository:
             else:
                 break
         return count
+
+
+def _to_query_event_domain(row: QueryEventORM) -> QueryEvent:
+    return QueryEvent(
+        event_id=parse_uuid(row.event_id),
+        query_text=row.query_text,
+        agent_id=parse_uuid(row.agent_id) if row.agent_id else None,
+        ip_hash=row.ip_hash,
+        fingerprint_hash=row.fingerprint_hash,
+        top_match_problem_id=parse_uuid(row.problem_id) if row.problem_id else None,
+        top_match_quality=row.top_match_quality,
+        has_help=row.has_help,
+        is_self_hit=row.is_self_hit,
+        is_seed_replay=row.is_seed_replay,
+        pattern_class_hit=row.pattern_class_hit,
+        created_at=row.created_at,
+    )
+
+
+def _orm_from_query_event(event: QueryEvent) -> QueryEventORM:
+    return QueryEventORM(
+        event_id=str(event.event_id),
+        problem_id=(
+            str(event.top_match_problem_id)
+            if event.top_match_problem_id is not None
+            else None
+        ),
+        agent_id=str(event.agent_id) if event.agent_id is not None else None,
+        query_text=event.query_text,
+        ip_hash=event.ip_hash,
+        fingerprint_hash=event.fingerprint_hash,
+        top_match_quality=event.top_match_quality,
+        has_help=event.has_help,
+        is_self_hit=event.is_self_hit,
+        is_seed_replay=event.is_seed_replay,
+        pattern_class_hit=event.pattern_class_hit,
+        created_at=event.created_at,
+    )
+
+
+class SQLAlchemyQueryEventRepository:
+    """Persists query events; rollup math is delegated to the shared helper.
+
+    The dedup window and exclusion rules mirror
+    ``InMemoryQueryEventRepository`` exactly so both backends report
+    identical recurrence metrics. Aggregation never reimplements the math:
+    ``recurrence_rollup`` loads the rows and hands them to
+    ``backend.application._recurrence.compute_recurrence_rollup``.
+    """
+
+    def __init__(self, session_factory: SessionFactory) -> None:
+        self._session_factory = session_factory
+
+    def add(self, event: QueryEvent) -> None:
+        with self._session_factory() as session:
+            session.add(_orm_from_query_event(event))
+            session.commit()
+
+    def add_with_dedup(
+        self,
+        event: QueryEvent,
+        agents: AgentRepository,
+        *,
+        exclude_seed_replay: bool = True,
+        exclude_self_hits: bool = True,
+        dedup_window_seconds: int = 600,
+    ) -> bool:
+        if exclude_seed_replay and event.is_seed_replay:
+            return False
+        if exclude_self_hits and event.is_self_hit:
+            return False
+
+        window = timedelta(seconds=dedup_window_seconds)
+        with self._session_factory() as session:
+            problem_id = (
+                str(event.top_match_problem_id)
+                if event.top_match_problem_id is not None
+                else None
+            )
+            stmt = select(QueryEventORM).where(
+                QueryEventORM.created_at >= event.created_at - window,
+                QueryEventORM.created_at <= event.created_at + window,
+            )
+            if problem_id is None:
+                stmt = stmt.where(QueryEventORM.problem_id.is_(None))
+            else:
+                stmt = stmt.where(QueryEventORM.problem_id == problem_id)
+            candidates = session.execute(stmt).scalars().all()
+            for existing in candidates:
+                if self._same_identity(_to_query_event_domain(existing), event, agents):
+                    return False
+
+            session.add(_orm_from_query_event(event))
+            session.commit()
+        return True
+
+    def _same_identity(
+        self, a: QueryEvent, b: QueryEvent, agents: AgentRepository
+    ) -> bool:
+        if a.agent_id is not None and b.agent_id is not None:
+            if a.agent_id == b.agent_id:
+                return True
+            agent_a = agents.get(a.agent_id)
+            agent_b = agents.get(b.agent_id)
+            if agent_a is None or agent_b is None:
+                return False
+            for cluster in detect_clusters([agent_a, agent_b]):
+                if a.agent_id in cluster and b.agent_id in cluster:
+                    return True
+            return False
+        # At least one anonymous caller — match on shared identity hashes.
+        if a.ip_hash and b.ip_hash and a.ip_hash == b.ip_hash:
+            return True
+        if (
+            a.fingerprint_hash
+            and b.fingerprint_hash
+            and a.fingerprint_hash == b.fingerprint_hash
+        ):
+            return True
+        return False
+
+    def list_all(self, since: datetime | None = None) -> list[QueryEvent]:
+        with self._session_factory() as session:
+            stmt = select(QueryEventORM)
+            if since is not None:
+                stmt = stmt.where(QueryEventORM.created_at >= since)
+            stmt = stmt.order_by(QueryEventORM.created_at.asc())
+            rows = session.execute(stmt).scalars().all()
+            return [_to_query_event_domain(r) for r in rows]
+
+    def query_count_for_problem(
+        self, problem_id: UUID, since: datetime | None = None
+    ) -> int:
+        with self._session_factory() as session:
+            stmt = (
+                select(func.count())
+                .select_from(QueryEventORM)
+                .where(QueryEventORM.problem_id == str(problem_id))
+                .where(QueryEventORM.is_seed_replay.is_(False))
+                .where(QueryEventORM.is_self_hit.is_(False))
+            )
+            if since is not None:
+                stmt = stmt.where(QueryEventORM.created_at >= since)
+            return session.execute(stmt).scalar_one()
+
+    def recurrence_rollup(
+        self, *, seed_agent_ids: frozenset[UUID] = frozenset()
+    ) -> dict:
+        return compute_recurrence_rollup(self.list_all(), seed_agent_ids=seed_agent_ids)

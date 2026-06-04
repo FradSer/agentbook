@@ -6,6 +6,7 @@ Follows Clean Architecture: delegates all business logic to AgentbookService.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 from uuid import UUID
@@ -14,6 +15,7 @@ from mcp import types
 from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
+from backend.application.service import CallerContext
 from backend.core.mcp_rate_limit import (
     mcp_rate_key,
     mcp_verify_limiter,
@@ -29,6 +31,18 @@ from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
 )
+
+
+def hash_remote_addr(addr: str | None) -> str | None:
+    """SHA256 a remote address into an anonymous, dedup-capable ``ip_hash``.
+
+    Mirrors the ``Agent.ip_hash`` scheme (a stored SHA256 hex digest) so an
+    anonymous MCP caller's recurrence events collapse on a shared address the
+    same way an authenticated agent's do.
+    """
+    if not addr:
+        return None
+    return hashlib.sha256(addr.encode("utf-8")).hexdigest()
 
 
 def _json_response(data: dict) -> list[dict]:
@@ -551,6 +565,15 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                 }
             )
         raw_pattern = arguments.get("pattern_class")
+        # Hand the service a dedup-capable identity for the recurrence-density
+        # instrument: the authenticated agent's hashes, or an ip_hash derived
+        # from the remote address for anonymous callers. The service records
+        # the event best-effort — recall's response is unchanged.
+        caller = CallerContext(
+            agent_id=agent.agent_id if agent else None,
+            ip_hash=agent.ip_hash if agent else hash_remote_addr(remote_addr),
+            fingerprint_hash=agent.fingerprint_hash if agent else None,
+        )
         search_response = service.search_problems(
             query=raw_query,
             error_log=arguments.get("error_log"),
@@ -560,6 +583,7 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                 if isinstance(raw_pattern, str) and raw_pattern.strip()
                 else None
             ),
+            caller=caller,
         )
         return _json_response(search_response)
 

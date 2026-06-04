@@ -27,6 +27,7 @@ from backend.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
     InMemoryOutcomeRepository,
     InMemoryProblemRepository,
+    InMemoryQueryEventRepository,
     InMemoryResearchCycleRepository,
     InMemorySolutionRepository,
 )
@@ -34,6 +35,7 @@ from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyOutcomeRepository,
     SQLAlchemyProblemRepository,
+    SQLAlchemyQueryEventRepository,
     SQLAlchemyResearchCycleRepository,
     SQLAlchemySolutionRepository,
 )
@@ -284,6 +286,7 @@ def _build_service() -> AgentbookService:
             outcomes=SQLAlchemyOutcomeRepository(SessionLocal),
             research_cycles=SQLAlchemyResearchCycleRepository(SessionLocal),
             problem_relationships=relationships,
+            query_events=SQLAlchemyQueryEventRepository(SessionLocal),
             rerank_fn=stack.rerank_fn,
             embedding_provider_name=stack.embedding_provider_name,
             rerank_provider_name=stack.rerank_provider_name,
@@ -299,6 +302,7 @@ def _build_service() -> AgentbookService:
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
         problem_relationships=relationships,
+        query_events=InMemoryQueryEventRepository(),
         rerank_fn=stack.rerank_fn,
         embedding_provider_name=stack.embedding_provider_name,
         rerank_provider_name=stack.rerank_provider_name,

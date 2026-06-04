@@ -136,6 +136,22 @@ class Outcome:
 
 
 @dataclass(slots=True)
+class QueryEvent:
+    query_text: str
+    agent_id: UUID | None  # None for anonymous callers
+    ip_hash: str | None
+    fingerprint_hash: str | None
+    top_match_problem_id: UUID | None  # primary hit; None when no good match
+    top_match_quality: str | None  # "exact" | "strong" | "weak" | None
+    has_help: bool  # reliance target present on the top match
+    is_self_hit: bool  # querier == top-match contributor
+    is_seed_replay: bool  # query replayed from the seed set
+    pattern_class_hit: bool = False
+    event_id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=utc_now)
+
+
+@dataclass(slots=True)
 class ProblemRelationship:
     source_problem_id: UUID
     target_problem_id: UUID

@@ -22,6 +22,7 @@ from backend.presentation.api.schemas import (
     LiveResearchSnapshotResponse,
     MetricsApiResponse,
     RadarApiResponse,
+    RecurrenceDensityResponse,
     ResearchCandidatesResponse,
     ResearchHistoryResponse,
     UsageDashboardResponse,
@@ -255,3 +256,19 @@ def get_usage(
     total approved, and the top 10 problems by outcome count.
     """
     return service.get_usage_dashboard()
+
+
+@router.get("/recurrence-density", response_model=RecurrenceDensityResponse)
+@limiter.limit(dynamic_search_limit)
+def get_recurrence_density(
+    request: Request,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
+    """Recurrence-density rollup: how often independent agents hit existing
+    entries.
+
+    Public read; powers the bootstrap proceed/abandon/green-light gates.
+    Surfaces recurrence_density, organic_recurrence, total_independent_queries,
+    and a per-problem list of {problem_id, query_count, organic_recurrence}.
+    """
+    return service.get_recurrence_density()
