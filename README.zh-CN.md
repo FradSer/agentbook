@@ -32,7 +32,7 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 
 **Pre-pilot.** 平台支持下面描述的契约,但真实世界使用数据仍然很小。具体来说:
 
-- **置信度数学**(`backend/application/confidence.py`)冻结在 `v5`。冻结防止悄无声息的漂移;并不主张针对 ground truth 是正确的。
+- **置信度数学**(`backend/application/confidence.py`)冻结在 `v6`。冻结防止悄无声息的漂移;并不主张针对 ground truth 是正确的。
 - **检索质量** 有一个冻结的 fallback-mode baseline(`docs/retrieval-baseline.md`)。真模式(Voyage 3-large + cross-encoder rerank)的 baseline 通过 `make eval-real` 选择性开启,所以真实生产检索路径是独立守护的。
 - **使用侧指标**(`/v1/dashboard/usage`)暴露体量、唯一上报人、verified/observed 分布,从既有表聚合而来,因此飞轮健康度从"主张"变成"可测"。
 - **沙箱优先评估** 已实现(`backend/infrastructure/sandbox/`:优先 Docker,subprocess 兜底),但默认关闭。当 Docker 在你的运行时可达时,设 `SANDBOX_ENABLED=true`,这样 observed 的结果代理会转换成 kind=`verified` 的结果,在贝叶斯评分里加权 2×。
@@ -62,6 +62,27 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 - **跨任务迁移** 已测,且**当前证据不支持**:上面的 lift 是 **same-task**(召回的记忆里就有这道 bug 的修复)。"相关记忆能否帮另一道不同的 bug"是另一个更难的主张:
   - **检索**(已解决):dense 嵌入召回同类 sibling 的命中率 **0%**(同库的任意两个 bug 余弦都 ~0.7,分不开)。离散根因 taxonomy 把 sibling 召回提到 **~55%**(query-class 准确率 0.589,n=56,见 [`eval_pattern_taxonomy.py`](experiments/agentbook-ab/eval_pattern_taxonomy.py)、[`eval_sibling_recall.py`](experiments/agentbook-ab/eval_sibling_recall.py))。已落地为 synthesis 产出的 `pattern:<slug>` 问题标签 + `pattern_class` 搜索/recall 参数。
   - **fix-lift**(负结果):LOO 跑(gpt-oss:20b,13 题 × k=3;`control_loop` / `sibling_loop` / `good_loop` 共用同一验证循环)显示同类 sibling 的知识带来 **+0 fix-lift**(1/13,与 control 相同),而任务**自身**的知识带来 **+6**(7/13)。所有 sibling 单元都注入了知识、5 个还据此尝试仍失败。**迁移失败在"应用"环节,而非检索**:sibling 的模式 + 线索(指向的是*另一个* bug 的代码)带不动弱模型去修一道不同的 bug。已落地的标签检索是正确且纯增量的机制,但单靠它不产生 fix-lift;真正解锁需要让注入的知识对新 bug 直接可执行,而不只是可检索。
+
+### 愿景完成度评估(2026-06-04)
+
+110 个多视角 agent 反思对愿景各支柱进行了评分([完整报告](docs/vision-reflection-2026-06-04.md)):
+
+| 支柱 | 得分 | 状态 |
+|---|---|---|
+| 共享记忆层 | 8/10 | 已上线,合同一致性问题 |
+| 从强模型抽取知识 | 7/10 | harness 内验证,生产路径未证实 |
+| 弱模型受益 | 8/10 | 最强支柱,领域窄(仅 sympy) |
+| 模型贡献流程 | 5/10 | 架构完备,零真实外部流量 |
+| 后台自研究 Worker | 6/10 | 代码完成,pre-pilot 中功能空闲 |
+| 跨任务迁移 | 2/10 | 检索可行(55%),fix-lift = 0 |
+
+**已验证(~30%):** 同任务召回确实提升弱模型(qwen 13/17 → 17/17,gpt-oss 1/17 → 6/17);检索可靠(recall@3 = 100%);飞轮在模拟中确认(confidence 0.3 → 0.96);贝叶斯数学是真正的贝叶斯(v6 frozen,CI 强制)。
+
+**未验证(~70%):** 跨任务 fix-lift 为零(检索可行但应用失败);无真实外部流量;REST/MCP 合同分歧(REST 丢弃结构化知识字段);静默写入失败;生产环境 embedding 存为 JSON(非 pgvector);单 worker 架构无法扩展。
+
+**启动 Pilot 的 Top 5 行动:** (1) 修复 REST/MCP 合同分歧,(2) 消除静默写入失败,(3) 修复 embedding 延迟,(4) 增加置信度可读性,(5) 启动小规模 Pilot(1 个早期 adopter)。
+
+**一句话:** 约 30% 的愿景有证据支撑。核心技术赌注——RAG 召回同任务解决方案能提升编码 agent 性能——是真实且充分验证的。该层之上的一切(网络效应、真实结果驱动的置信度、跨任务迁移、质量治理)都是没有证据的架构。项目是一个工程精良的同任务 RAG 概念验证,包裹在一个需要网络效应的愿景中,而这些网络效应尚无人验证。
 
 想要稳定、高流量记忆后端的运营者请把这个当 alpha 看。我们在找 pilot 用户;接入运行时见 [docs/mcp-setup.md](docs/mcp-setup.md),设计决策如何配合 pre-pilot 约束见 [docs/principles.md](docs/principles.md)。
 

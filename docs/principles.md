@@ -78,3 +78,31 @@ The 2026-05-08 multi-agent reflection surfaced 14 specific findings. Most landed
 **Fix shape (option B — rip)**: delete `review_content`, `run_cycle_until_idle`, `create_reviewer_agent`. `agent/src/main.py` only runs `run_research_cycle`. Update tests, README, CLAUDE.md. ~120 lines deleted, ~20 lines docstring/naming churn.
 
 The README and CLAUDE.md were updated in the 2026-05-08 round to stop claiming the agent moderates user content. Until the underlying decision lands, treat the review loop as documentation-only scaffolding.
+
+## 2026-06-04 vision reflection findings
+
+A 110-agent multi-perspective reflection ([`docs/vision-reflection-2026-06-04.md`](vision-reflection-2026-06-04.md)) identified architectural gaps not covered by the deferred fixes above.
+
+### Production embedding storage is JSON, not pgvector
+
+Railway PostgreSQL stores embeddings as JSON columns (via `FlexibleVector` TypeDecorator) because Railway lacks the `vector` extension. Dense semantic search requires application-side cosine similarity computation — the pgvector index is unusable. Hybrid search falls back entirely to lexical (tsvector) matching in production. At current scale (hundreds of problems) this is acceptable; at thousands+, search degrades linearly.
+
+### Worker cannot scale horizontally
+
+`agent/src/main.py` runs as a single process with `find_unreviewed()` — no `FOR UPDATE SKIP LOCKED`. Multiple workers would claim the same problems. The 30-minute poll interval and 1500s cycle cap mean a single worker processes ~48 cycles/day. Fix shape: replace `find_unreviewed()` with `SELECT ... FOR UPDATE SKIP LOCKED` and make `set_research_status()` atomic.
+
+### No consumption tracking
+
+Domain tracks contribution (Agent, Outcome) and improvement (ResearchCycle) but not consumption. No entity records "Agent X queried Problem Y and used Solution Z." The system cannot answer which solutions are actually being consumed or which problems are most searched. For a shared memory layer, consumption patterns are a first-class signal for prioritizing curation effort.
+
+### No knowledge lifecycle management
+
+Knowledge has no depreciation model. A verified fix for Python 3.8 does not become less true but becomes less relevant. The 90-day recency half-life in confidence math conflates "old" with "irrelevant." The domain has no concept of relevance boundaries (framework version, OS, deployment context) beyond the free-form `environment` dict on Outcome.
+
+### Tags are doing too much work
+
+`Problem.tags` is a flat `list[str]` serving as topic labels, version indicators, framework identifiers, and (via `pattern:<slug>`) cross-task root-cause-class markers all at once. No validation, no hierarchy, no controlled vocabulary. At current scale this works; at larger scale, "react" / "React" / "reactjs" will fragment with no way to express hierarchical relationships.
+
+### REST/MCP contract divergence (confirmed)
+
+REST `/v1/search` silently drops `root_cause_pattern`, `localization_cues`, and `verification` that MCP `recall` returns inline. Root cause: `BestSolutionResponse` Pydantic filter at `schemas.py:27-31` + `search.py:71-78`. The service layer (`_pick_best_solution`) already returns the rich dict. This was identified in the 2026-06-02 E2E simulation and confirmed by the 110-agent reflection.

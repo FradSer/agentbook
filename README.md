@@ -63,6 +63,27 @@ Monorepo with three isolated services sharing one domain model:
   - **Retrieval** (solved): dense embeddings surface a same-class sibling **0%** of the time (any two same-library bugs sit at ~0.7 cosine, indistinguishable). A discrete root-cause-class taxonomy lifts sibling retrieval to **~55%** (query-class accuracy 0.589 at n=56, [`eval_pattern_taxonomy.py`](experiments/agentbook-ab/eval_pattern_taxonomy.py), [`eval_sibling_recall.py`](experiments/agentbook-ab/eval_sibling_recall.py)). This shipped as the `pattern:<slug>` problem tag (emitted by synthesis) + the `pattern_class` search/recall param.
   - **Fix-lift** (negative): an LOO run (gpt-oss:20b, 13 tasks × k=3; `control_loop` / `sibling_loop` / `good_loop` sharing one verify loop) shows a class-matched sibling's knowledge yields **+0 fix-lift** (1/13, identical to control) while the task's **own** knowledge yields **+6** (7/13). All sibling cells injected the knowledge; 5 acted on it and still failed. **Transfer fails at *application*, not retrieval**: a sibling's pattern + cues (pointing at the *other* bug's code) don't carry a weak model to fix a different bug. The shipped pattern-tag retrieval is a correct, additive mechanism, but alone it produces no fix-lift; a real unlock would need the injected knowledge to be directly actionable for the new bug, not just retrievable.
 
+### Vision completion assessment (2026-06-04)
+
+A 110-agent multi-perspective reflection scored each pillar of the original vision ([full report](docs/vision-reflection-2026-06-04.md)):
+
+| Pillar | Score | Status |
+|---|---|---|
+| Shared memory layer | 8/10 | Shipped, contract consistency issues |
+| Knowledge extraction from strong models | 7/10 | Validated in harness, production path unproven |
+| Weak model uplift | 8/10 | Strongest pillar, domain-narrow (sympy only) |
+| Agent contribution flow | 5/10 | Architecturally sound, zero real external traffic |
+| Auto-research worker | 6/10 | Code complete, functionally idle in pre-pilot |
+| Cross-task transfer | 2/10 | Retrieval works (55%), fix-lift = 0 |
+
+**Validated (~30%):** Same-task recall lifts weak models (qwen 13/17 → 17/17, gpt-oss 1/17 → 6/17); retrieval reliable (recall@3 = 100%); flywheel confirmed in simulation (confidence 0.3 → 0.96); Bayesian math is genuinely Bayesian (v6 frozen, CI-enforced).
+
+**Not validated (~70%):** Cross-task fix-lift is zero (retrieval works but application fails); no real external traffic; REST/MCP contract divergence (REST drops structured knowledge fields); silent write failures; embedding stored as JSON in production (not pgvector); single-worker architecture cannot scale.
+
+**Top 5 actions for pilot:** (1) Fix REST/MCP contract divergence, (2) Eliminate silent write failures, (3) Fix embedding latency, (4) Add confidence legibility, (5) Start small pilot with 1 early adopter.
+
+**Bottom line:** About 30% of the vision is backed by evidence. The core technical bet — RAG recall of same-task solutions lifts coding-agent performance — is real and well-proven. Everything above that layer (network effects, confidence from real outcomes, cross-task transfer, quality curation) is architecture without evidence. The project is a well-engineered proof of concept for same-task RAG, wrapped in a vision that requires network effects nobody has tested.
+
 Operators looking for a stable, high-traffic memory backend should treat this as alpha. We are seeking pilot users; see [docs/mcp-setup.md](docs/mcp-setup.md) to wire it into your runtime, and [docs/principles.md](docs/principles.md) for how design decisions track the pre-pilot constraints.
 
 ## 1) Setup
