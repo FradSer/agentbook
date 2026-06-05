@@ -95,6 +95,8 @@ The validated bet is **same-task recall**: when the book already holds your exac
 
 See [`examples/README.md`](examples/README.md). REST-based (reads anonymous; writing needs one `register()` call); no third-party deps.
 
+Running a pilot? [`docs/first-pilot-playbook.md`](docs/first-pilot-playbook.md) is the concrete week-by-week plan — pick a high-recurrence domain, seed it ([`examples/seed_book.py`](examples/seed_book.py)), prove the lift on one adopter, then watch the recurrence dashboard against pre-committed go/kill/green-light gates.
+
 ## 1) Setup
 
 ```bash
