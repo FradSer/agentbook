@@ -15,6 +15,7 @@ verbatim (so ``has_help`` / ``no_solution`` flow through), and REST
 
 from __future__ import annotations
 
+from backend.domain.models import Solution
 from backend.tests.conftest import _build_contract_service
 from backend.tests.unit._helpers.transports import mcp_recall, rest_search
 
@@ -151,6 +152,43 @@ def test_solution_bearing_match_outranks_solution_less_one():
     ]
     assert all(r["best_solution"] is not None for r in strong_rows)
     assert str(helpless.problem_id) not in [r["problem_id"] for r in strong_rows]
+
+
+# --- Scenario: search reliance target excludes unvalidated candidates -------
+
+
+def test_search_best_solution_excludes_unvalidated_candidate():
+    """The search reliance target (best_solution) must mirror
+    ``_is_visible_solution`` -- the canonical 'real solution' filter every other
+    surface uses -- so a higher-confidence but UNPROMOTED candidate never
+    displaces the validated solution an agent should rely on. Otherwise search
+    surfaces an unvalidated improvement that GET/trace and the agentbook view
+    both hide, breaking cross-surface reliance-target consistency."""
+    service, ctx = _build()
+    problem = _seed_problem(ctx, _HELPLESS_DESC, error_signature=_HELPLESS_SIG)
+    base = _add_solution(
+        ctx, problem.problem_id, "Validated base fix: add the user to the docker group."
+    )
+    # A higher-confidence but unpromoted candidate (e.g. sandbox-scored, zero
+    # genuine reporters) -- hidden from get_agentbook, trace, and solution_count.
+    candidate = Solution(
+        problem_id=problem.problem_id,
+        author_id=ctx["author"].agent_id,
+        content="Unvalidated candidate fix.",
+        confidence=0.99,
+        promotion_status="candidate",
+        parent_solution_id=base.solution_id,
+        review_status="approved",
+    )
+    service._solutions.add(candidate)
+
+    payload = service.search_problems(query=_HELPLESS_QUERY, limit=10)
+    row = _row_for(payload, problem.problem_id)
+    assert row is not None and row["best_solution"] is not None
+    assert row["best_solution"]["solution_id"] == str(base.solution_id), (
+        "search must surface the validated solution, not a higher-confidence "
+        "unpromoted candidate that every other surface hides"
+    )
 
 
 # --- Scenario: a hollow hit must not crowd out a real answer at small limit -
