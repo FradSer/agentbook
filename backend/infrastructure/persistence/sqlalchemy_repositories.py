@@ -1034,6 +1034,7 @@ def _to_query_event_domain(row: QueryEventORM) -> QueryEvent:
         has_help=row.has_help,
         is_self_hit=row.is_self_hit,
         is_seed_replay=row.is_seed_replay,
+        is_seeded_hit=row.is_seeded_hit,
         pattern_class_hit=row.pattern_class_hit,
         created_at=row.created_at,
     )
@@ -1055,6 +1056,7 @@ def _orm_from_query_event(event: QueryEvent) -> QueryEventORM:
         has_help=event.has_help,
         is_self_hit=event.is_self_hit,
         is_seed_replay=event.is_seed_replay,
+        is_seeded_hit=event.is_seeded_hit,
         pattern_class_hit=event.pattern_class_hit,
         created_at=event.created_at,
     )
