@@ -558,6 +558,17 @@ class AgentbookService:
         )
         cached = self._search_cache.get(cache_key)
         if cached is not None:
+            # The cache is keyed on query terms only, so a different caller
+            # asking the identical question is served from here. Recording must
+            # not be gated behind the cache miss, or the cross-caller repeat
+            # traffic that organic recurrence measures would never be counted.
+            self._record_query_event(
+                query=query,
+                rows=cached["results"],
+                payload=cached,
+                pattern_class=pattern_class,
+                caller=caller,
+            )
             return cached
         rows, search_mode = self._search_problems(
             query=query,

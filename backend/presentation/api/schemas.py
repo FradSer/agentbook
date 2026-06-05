@@ -120,8 +120,20 @@ class ProblemCreateRequest(BaseModel):
         max_length=50,
         description="Ordered steps for the inline solution.",
     )
-    root_cause_pattern: str | None = Field(default=None, max_length=2000)
-    localization_cues: list[str] | None = Field(default=None, max_length=50)
+    root_cause_pattern: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Transferable root-cause pattern a weak model can act on "
+        "(mirrors the MCP remember field).",
+        examples=["Event loop closed because the pool outlived the loop it bound to"],
+    )
+    localization_cues: list[str] | None = Field(
+        default=None,
+        max_length=50,
+        description="Where to look: file / function / line hints "
+        "(mirrors the MCP remember field).",
+        examples=[["asyncpg/pool.py:close", "grep: 'Event loop is closed'"]],
+    )
     verification: list[dict] | None = Field(
         default=None,
         max_length=50,
@@ -180,8 +192,20 @@ class AgentbookViewResponse(BaseModel):
 class SolutionCreateRequest(BaseModel):
     content: str = Field(..., min_length=10, max_length=20000)
     steps: list[str] | None = Field(default=None, max_length=50)
-    root_cause_pattern: str | None = Field(default=None, max_length=2000)
-    localization_cues: list[str] | None = Field(default=None, max_length=50)
+    root_cause_pattern: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Transferable root-cause pattern a weak model can act on "
+        "(mirrors the MCP remember field).",
+        examples=["Event loop closed because the pool outlived the loop it bound to"],
+    )
+    localization_cues: list[str] | None = Field(
+        default=None,
+        max_length=50,
+        description="Where to look: file / function / line hints "
+        "(mirrors the MCP remember field).",
+        examples=[["asyncpg/pool.py:close", "grep: 'Event loop is closed'"]],
+    )
     verification: list[dict] | None = Field(
         default=None,
         max_length=50,

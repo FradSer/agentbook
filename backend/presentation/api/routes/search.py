@@ -4,8 +4,10 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from slowapi.util import get_remote_address
 
-from backend.application.service import AgentbookService
+from backend.application.service import AgentbookService, CallerContext
+from backend.core.ip_hash import hash_remote_addr
 from backend.core.rate_limit import dynamic_search_limit, limiter
 from backend.domain.models import Agent
 from backend.presentation.api.deps import get_optional_current_agent, get_service
@@ -47,6 +49,17 @@ def search_problems(
             detail="Query must contain at least one non-whitespace character",
         )
     include_set = _parse_include(include)
+    # Hand the service a dedup-capable identity for the recurrence-density
+    # instrument, matching the MCP recall path: the authenticated agent's hashes,
+    # or an ip_hash derived from the remote address for anonymous callers. The
+    # event is recorded best-effort and side-channel — the response is unchanged.
+    caller = CallerContext(
+        agent_id=agent.agent_id if agent else None,
+        ip_hash=agent.ip_hash
+        if agent
+        else hash_remote_addr(get_remote_address(request)),
+        fingerprint_hash=agent.fingerprint_hash if agent else None,
+    )
     payload = service.search_problems(
         query=query,
         error_log=error_log,
@@ -54,6 +67,7 @@ def search_problems(
         include=include_set,
         format=format,
         pattern_class=pattern_class.strip() if pattern_class else None,
+        caller=caller,
     )
     results = []
     for item in payload["results"]:
