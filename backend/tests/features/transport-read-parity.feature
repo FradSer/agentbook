@@ -48,4 +48,22 @@ Feature: Transport parity for the read contract
     And the payload carries a boolean content_truncated set to true
     And a full "content" field is retrievable on the read contract without a separate trace call
 
+  # The recurrence-density instrument records one QueryEvent per recall as a
+  # side-channel (the response payload is unchanged). For the instrument to
+  # measure real traffic, both transports must stamp the event with the caller's
+  # identity. Today only MCP recall does; REST /v1/search records an anonymous
+  # caller-less event, so same-IP REST traffic collapses to one query and
+  # organic recurrence can never be attributed.
+  Scenario: REST search stamps the recurrence query-event with caller identity
+    Given a problem with one solution matchable by an error signature
+    When an authenticated agent recalls it over REST GET /v1/search
+    Then the recorded query-event carries that agent's id, ip_hash, and fingerprint_hash
+    And the recall response payload is unchanged by the recording
+
+  Scenario: Anonymous REST search records a dedup-capable ip_hash like MCP recall
+    Given a problem with one solution matchable by an error signature
+    When an anonymous client recalls it over REST GET /v1/search
+    Then the recorded query-event has agent_id null and a non-null ip_hash derived from the remote address
+    And two anonymous REST searches from one address collapse to a single independent query
+
 ---

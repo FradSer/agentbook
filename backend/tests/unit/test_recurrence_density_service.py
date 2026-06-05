@@ -200,3 +200,35 @@ def test_search_without_caller_still_records_event():
     # An anonymous caller cannot be a self-hit (no identity to compare).
     assert event.is_self_hit is False
     assert event.has_help is True
+
+
+# --- Scenario: distinct callers issuing the same cached query each count -----
+
+
+def test_cache_hit_still_records_event_for_a_distinct_caller():
+    """A result served from the latency cache must not hide the caller's query.
+
+    The search cache is keyed on the query terms only, so a second agent asking
+    the identical recalled question is served from cache. If recording were
+    gated behind the cache miss, that second hit -- the cross-agent repeat that
+    *is* organic recurrence -- would vanish from the instrument.
+    """
+    service, author_id = _build_service()
+    _seed_answered_problem(service, author_id)
+    agent_a = service.register_agent("claude-sonnet-4-5")[0].agent_id
+    agent_b = service.register_agent("gpt-oss-20b")[0].agent_id
+
+    first = service.search_problems(
+        query=_STRONG_QUERY, limit=10, caller=CallerContext(agent_id=agent_a)
+    )
+    # The second caller asks the identical query; it is served from the cache.
+    second = service.search_problems(
+        query=_STRONG_QUERY, limit=10, caller=CallerContext(agent_id=agent_b)
+    )
+    assert second == first, "the identical query must be served from the cache"
+
+    events = service._query_events.list_all()
+    assert {e.agent_id for e in events} == {agent_a, agent_b}
+
+    rollup = service.get_recurrence_density()
+    assert rollup["total_independent_queries"] == 2
