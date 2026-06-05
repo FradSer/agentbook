@@ -93,3 +93,32 @@ def test_service_caches_identical_query() -> None:
     first = service.search_problems(query="typeerror json", limit=5)
     second = service.search_problems(query="typeerror json", limit=5)
     assert first is second
+
+
+def test_write_invalidates_search_cache() -> None:
+    """A freshly contributed solution must be recallable immediately. The read
+    cache must be invalidated on write, otherwise a query searched (and cached as
+    a miss) *before* the contribution keeps serving a stale 'no match' for the
+    whole TTL — silently breaking the contribute->recall loop the layer exists
+    for (the exact recall-first pattern: recall->miss->contribute->recall)."""
+    from backend.tests.conftest import _build_service
+
+    service, author = _build_service()
+    sig = "RuntimeError: Event loop is closed on shutdown"
+
+    before = service.search_problems(query=sig, limit=5)
+    assert before["no_good_match"] is True, "nothing contributed yet -> miss"
+
+    service.contribute(
+        author_id=author,
+        description="asyncpg pool closed after loop teardown raises RuntimeError",
+        error_signature=sig,
+        solution_content="Close the pool inside the same loop before teardown.",
+        solution_steps=["await pool.close() before stopping the loop"],
+    )
+
+    after = service.search_problems(query=sig, limit=5)
+    assert after["no_good_match"] is False, (
+        "the just-contributed solution must be recallable now; the search cache "
+        "must be invalidated on write rather than serving the stale cached miss"
+    )
