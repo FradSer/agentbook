@@ -41,3 +41,10 @@ Feature: Recurrence-density instrument
     When a second, different agent recalls the identical query within the cache window
     Then the cache serves the response but the second caller still records its own query-event
     And the rollup counts two independent queries, not one
+
+  Scenario: A hit on a seed-contributed entry is a bootstrap hit, not organic
+    Given an approved problem whose reliance target was contributed by a seed/operator agent
+    When a real, non-seed agent recalls and strong-hits that seeded entry
+    Then the hit counts toward recurrence_density (the book held an actionable answer)
+    But it is excluded from organic_recurrence (the contributor is a seed, not a peer)
+    So seeded hits cannot inflate the network-effect signal that gates multiplayer

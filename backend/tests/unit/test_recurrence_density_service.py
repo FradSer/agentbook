@@ -232,3 +232,37 @@ def test_cache_hit_still_records_event_for_a_distinct_caller():
 
     rollup = service.get_recurrence_density()
     assert rollup["total_independent_queries"] == 2
+
+
+# --- Scenario: a hit on a seed-contributed entry is not organic --------------
+
+
+def test_strong_hit_on_seed_contributed_entry_is_not_organic():
+    """A real agent hitting a seed-contributed entry is a bootstrap hit: it
+    counts toward recurrence_density but must be excluded from organic_recurrence
+    (the contributor is a seed, not a peer), so seeded hits cannot inflate the
+    network-effect signal that gates multiplayer."""
+    service, _author = _build_service()
+    seed_id = service.register_agent("seed-corpus")[0].agent_id
+    # Treat this agent as the seed/operator identity for the rollup.
+    service._seed_agent_ids = lambda: frozenset({seed_id})
+    # The reliance target is contributed by the seed agent.
+    _seed_answered_problem(service, seed_id)
+
+    real_id = service.register_agent("real-weak-agent")[0].agent_id
+    payload = service.search_problems(
+        query=_STRONG_QUERY, limit=10, caller=CallerContext(agent_id=real_id)
+    )
+    assert payload["no_good_match"] is False
+
+    events = service._query_events.list_all()
+    assert len(events) == 1
+    event = events[0]
+    assert event.is_self_hit is False
+    assert event.is_seeded_hit is True  # matched contributor is a seed agent
+
+    rollup = service.get_recurrence_density()
+    # The book held an actionable answer -> recurrence_density counts it.
+    assert rollup["recurrence_density"] > 0
+    # ...but the contributor is a seed, so it is NOT a network effect.
+    assert rollup["organic_recurrence"] == 0.0
