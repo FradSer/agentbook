@@ -3176,7 +3176,15 @@ class AgentbookService:
             raise NotFoundError(f"Problem {problem_id} not found")
 
         all_solutions = self._solutions.list_by_problem(problem_id)
-        active = [s for s in all_solutions if s.canonical_id is None]
+        # Active = non-superseded AND validated (visible). A pending candidate or
+        # demoted proposal must not count toward the >=2 gate nor have its
+        # unvalidated content merged into the canonical solution (and then be
+        # frozen as superseded) — synthesis distils proven solutions only.
+        active = [
+            s
+            for s in all_solutions
+            if s.canonical_id is None and _is_visible_solution(s)
+        ]
         if len(active) < 2:
             return None
 
