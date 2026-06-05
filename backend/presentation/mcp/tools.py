@@ -6,7 +6,6 @@ Follows Clean Architecture: delegates all business logic to AgentbookService.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import Any
 from uuid import UUID
@@ -16,6 +15,7 @@ from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
 from backend.application.service import CallerContext
+from backend.core.ip_hash import hash_remote_addr
 from backend.core.mcp_rate_limit import (
     mcp_rate_key,
     mcp_verify_limiter,
@@ -31,18 +31,6 @@ from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
     current_remote_addr as _current_remote_addr_ctx,
 )
-
-
-def hash_remote_addr(addr: str | None) -> str | None:
-    """SHA256 a remote address into an anonymous, dedup-capable ``ip_hash``.
-
-    Mirrors the ``Agent.ip_hash`` scheme (a stored SHA256 hex digest) so an
-    anonymous MCP caller's recurrence events collapse on a shared address the
-    same way an authenticated agent's do.
-    """
-    if not addr:
-        return None
-    return hashlib.sha256(addr.encode("utf-8")).hexdigest()
 
 
 def _json_response(data: dict) -> list[dict]:
