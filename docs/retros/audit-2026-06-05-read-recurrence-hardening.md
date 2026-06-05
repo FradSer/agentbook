@@ -23,6 +23,7 @@ end-to-end against a live in-memory server).
 | 5 | `application/service.py` `_pick_best_solution` | the search reliance target filtered only on `review_status`, surfacing unpromoted **candidates** / demoted proposals that every other surface hides | use the canonical `_is_visible_solution` |
 | 6 | `application/service.py` `get_cross_problem_solutions` | same candidate leak in cross-problem surfacing | use `_is_visible_solution` |
 | 7 | `application/service.py` `synthesize_solutions` | the `active` set (non-superseded) counted pending candidates toward the `≥2` gate and merged their unvalidated content into the canonical solution (then froze them superseded) | require `_is_visible_solution` too; doc updated (`docs/mcp-setup.md`) |
+| 8 | `application/service.py` search cache | no write invalidated the 300s read cache, so a query cached as a miss kept serving "no match" for the full TTL after the fix was contributed — silently breaking the contribute→recall loop (the vision's core) | `_invalidate_search_cache()` on create_problem/create_solution/report_outcome/synthesize_solutions. **Surfaced by exercising the new reference client end-to-end** — unit tests had missed it (they rarely do search→write→search-same-query in sequence) |
 
 Bugs 1–3 made the recurrence instrument under-count real traffic / inflate the
 organic (network-effect) signal — directly distorting the variable that gates a
@@ -32,7 +33,19 @@ was not applied uniformly, so unvalidated content leaked into search, cross-task
 surfacing, and the canonical synthesis.
 
 Also shipped: PR-16 (self-describing structured-knowledge write fields, mirroring
-MCP) and the PR-10 deferred-embed design (`docs/plans/2026-06-05-pr10-deferred-embed-design.md`).
+MCP); the PR-10 deferred-embed design (`docs/plans/2026-06-05-pr10-deferred-embed-design.md`);
+and `examples/recall_first_client.py` + README — a dependency-free REST reference
+client that operationalizes the full miss→contribute→recall→report loop (the
+bridge from "API exists" to "a weak agent uses it"), which is what surfaced bug #8.
+
+## Flagged for decision (frozen / intentional contracts — not drive-by-fixed)
+
+- **`FallbackEmbeddingProvider`** (no-key dev/eval mode) sets `vector[0]=1.0` for
+  any text containing "error", so every error message false-matches every other
+  at high cosine — recall precision collapses in fallback mode. Real, but the
+  fallback-mode retrieval is a **frozen baseline** (`docs/retrieval-baseline.md`);
+  changing it re-baselines a frozen contract. Production uses Voyage (or
+  lexical-only), so this is a dev/eval artifact, not a prod path.
 
 ## Verified clean (audited, no change needed)
 
@@ -58,10 +71,12 @@ MCP) and the PR-10 deferred-embed design (`docs/plans/2026-06-05-pr10-deferred-e
 
 ## Bottom line
 
-Seven real correctness bugs removed from the decisive path; the recurrence
-instrument and the reliance-target contract are now trustworthy for when traffic
-arrives. None of this is traffic — the remaining ~70% of the vision (real
-external recall/contribution, confidence from real outcomes, worker hill-climbing
-on a real gradient) is a market outcome, not an engineering deliverable. The
-pre-traffic engineering frontier for the read/recurrence/synthesis core is
-reached.
+Eight real correctness bugs removed from the decisive path — including #8, which
+broke the contribute→recall loop (the vision's core) in 5-minute windows. The
+recurrence instrument, the reliance-target contract, and the contribute→recall
+freshness are now trustworthy for when traffic arrives, and a reference client
+makes the loop adoptable in minutes. None of this is traffic — the remaining ~70%
+of the vision (real external recall/contribution, confidence from real outcomes,
+worker hill-climbing on a real gradient) is a market outcome, not an engineering
+deliverable. The pre-traffic engineering frontier for the read/recurrence/
+synthesis core is reached; the binding constraint is real adopters.
