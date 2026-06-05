@@ -823,6 +823,18 @@ class AgentbookService:
                     add_pattern_candidate(problem)
 
         rows = list(rows_by_id.values())
+        # Honest match labeling BEFORE ranking: a row with no best_solution
+        # offers no actionable help. Stamp ``has_help`` and demote its
+        # ``match_quality`` to the no-solution tier *before* the sort/truncation
+        # below, so a hollow signature/keyword hit sinks instead of seizing a top
+        # slot and crowding out a genuine solution-bearing hit at a small limit
+        # (which would also make the recurrence instrument read rows[0] as a
+        # miss). Confidence-provenance enrichment still runs post-truncation.
+        for row in rows:
+            has_help = row.get("best_solution") is not None
+            row["has_help"] = has_help
+            if not has_help:
+                row["match_quality"] = _NO_SOLUTION_TIER
         # Phase 2 reranking: apply the cross-encoder to the top
         # ``rerank_top_k`` candidates by ``similarity_score`` before final
         # truncation to ``limit``. The reranker reorders candidates within
@@ -850,16 +862,6 @@ class AgentbookService:
         # outcome lookups scale with response size, not the unfiltered
         # candidate pool (~50× before truncation).
         self._attach_search_provenance(rows)
-
-        # Honest match labeling: a row with no best_solution offers no
-        # actionable help. Stamp an explicit ``has_help`` flag and demote its
-        # ``match_quality`` so a hollow signature/keyword hit cannot present as
-        # a strong recall result or, on its own, clear ``no_good_match``.
-        for row in rows:
-            has_help = row.get("best_solution") is not None
-            row["has_help"] = has_help
-            if not has_help:
-                row["match_quality"] = _NO_SOLUTION_TIER
 
         if include:
             for row in rows:
