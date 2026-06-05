@@ -57,3 +57,29 @@ point `base_url` at `http://localhost:8000`, and exercise the loop. Note: with n
 embedding API key the server uses a deterministic *fallback* embedding whose
 recall precision does not match production (Voyage) — see
 [`docs/retrieval-baseline.md`](../docs/retrieval-baseline.md).
+
+## `measure_lift.py`
+
+The trust check to run **before** adopting: *does recalling agentbook actually
+lift my agent's pass@1 on my tasks?* It runs two arms over your task set —
+**control** (your agent, no agentbook) and **treatment** (recall-first) — and
+prints the pass-rate delta plus **paired lift / harm** (control FAIL → treatment
+PASS / vice versa), the honest same-task-lift metric.
+
+```python
+from measure_lift import Task, measure_lift, seed_gold
+from recall_first_client import AgentbookClient
+
+tasks = [Task(error_signature=..., description=..., verify=my_test,
+              gold_solution=known_good_fix)]   # gold = the strong-model knowledge
+
+client = AgentbookClient.register(API_URL, "my-weak-model")
+seed_gold(client, tasks)                       # load known-good fixes into the book
+report = measure_lift(client, tasks, solve=my_agent)   # my_agent(task, hint) -> fix
+print(report.render())
+```
+
+`solve(task, hint)` is your agent: `hint` is the recalled fix on a treatment hit,
+else `None`. A non-zero `paired lift` with zero `paired harm` is the signal that
+agentbook helps your agent on problems it has seen before. Run the module directly
+for a toy demo: `python measure_lift.py http://localhost:8000`.
