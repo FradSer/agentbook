@@ -1589,10 +1589,16 @@ class AgentbookService:
         the unfiltered candidate pool.
         """
         solutions = self._solutions.list_by_problem(problem_id)
-        approved = [s for s in solutions if s.review_status == "approved"]
-        if not approved:
+        # Use the canonical visibility filter (approved AND not a pending
+        # candidate / demoted proposal) so the search reliance target matches
+        # get_agentbook(), trace, and solution_count. Filtering only on
+        # review_status would let a higher-confidence but unpromoted candidate
+        # surface here as the relied-upon solution while every other surface
+        # hides it — a cross-surface reliance-target inconsistency.
+        visible = [s for s in solutions if _is_visible_solution(s)]
+        if not visible:
             return None
-        best = max(approved, key=lambda s: s.confidence)
+        best = max(visible, key=lambda s: s.confidence)
         if full:
             content_preview, content_truncated = best.content, False
         else:
