@@ -153,6 +153,37 @@ def test_solution_bearing_match_outranks_solution_less_one():
     assert str(helpless.problem_id) not in [r["problem_id"] for r in strong_rows]
 
 
+# --- Scenario: a hollow hit must not crowd out a real answer at small limit -
+
+
+def test_hollow_hit_does_not_crowd_out_a_real_answer_at_small_limit():
+    """The has_help demotion must happen BEFORE sort/truncation. Otherwise a
+    zero-solution exact-signature hit sorts to the top (tier ``exact``), seizes
+    the only slot at a small limit, is demoted post-truncation, and forces
+    no_good_match -- crowding out a genuine solution-bearing strong hit that
+    existed. This hurts recall AND makes the recurrence instrument under-count
+    a real hit (rows[0] reads as a miss)."""
+    service, ctx = _build()
+    # Hollow A: exact error_signature match for the query, but NO solution.
+    _seed_problem(ctx, "hollow signature match", error_signature=_HELPLESS_QUERY)
+    # Real B: strong keyword match on the same query, WITH a solution.
+    answer = _seed_problem(
+        ctx, f"{_HELPLESS_QUERY} -- resolved by adding the user to the docker group"
+    )
+    _add_solution(ctx, answer.problem_id, "Add the user to the docker group; re-login.")
+
+    payload = service.search_problems(query=_HELPLESS_QUERY, limit=1)
+
+    assert payload["no_good_match"] is False, (
+        "a solution-bearing strong hit existed; the hollow exact hit must be "
+        "demoted before truncation so it cannot seize the only slot"
+    )
+    row = _row_for(payload, answer.problem_id)
+    assert row is not None, "the real answer must occupy the single limited slot"
+    assert row["best_solution"] is not None
+    assert row.get("has_help") is True
+
+
 # --- Scenario: Solution-less problem kept out until it has help ------------
 
 
