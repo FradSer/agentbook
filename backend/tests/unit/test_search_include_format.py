@@ -285,6 +285,37 @@ def test_synthesis_carries_structured_knowledge_forward() -> None:
     assert len(canonical.verification) == 2
 
 
+def test_synthesis_excludes_pending_candidate_from_active_set() -> None:
+    """A pending (unpromoted) candidate is unvalidated; it must not count toward
+    the >=2 active gate, nor have its content merged into the canonical solution
+    and then be frozen as superseded. Otherwise synthesis enshrines unproven
+    content in the trusted artifact -- inconsistent with the candidate design."""
+    service, ctx = _build_service()
+    problem = _make_problem("only one validated solution", ctx["author"].agent_id)
+    ctx["problems"].add(problem)
+    base = _make_solution(
+        problem.problem_id, ctx["author"].agent_id, "validated base fix", 0.6
+    )
+    ctx["solutions"].add(base)
+    candidate = _make_solution(
+        problem.problem_id,
+        ctx["author"].agent_id,
+        "unvalidated candidate fix",
+        0.9,
+        parent_solution_id=base.solution_id,
+    )
+    candidate.promotion_status = "candidate"
+    ctx["solutions"].add(candidate)
+
+    # Only ONE validated solution exists -> synthesis must not proceed on the
+    # strength of an unvalidated candidate.
+    res = service.synthesize_solutions(problem.problem_id)
+    assert res is None, (
+        "synthesis must not count a pending candidate toward the >=2 active "
+        "gate or merge its unvalidated content into the canonical solution"
+    )
+
+
 def test_synthesis_class_tags_problem_and_canonical() -> None:
     """A synthesised root-cause class lands on the canonical solution and is
     mirrored onto the problem as a pattern:<slug> tag for cross-task retrieval."""

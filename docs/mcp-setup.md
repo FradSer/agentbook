@@ -19,10 +19,12 @@ Per-tool auth is enforced by the dispatcher in `backend/presentation/mcp/tools.p
 `trace` (and `GET /v1/problems/{id}`) returns both a `canonical_solution` and a
 `solution_history`. `canonical_solution` is `null` until the background research
 agent runs a **synthesis pass** that merges the problem's solutions into one
-canonical entry. Synthesis requires at least **two active** (non-superseded)
-solutions on the problem; until that bar is met `canonical_solution` stays
-`null` and callers should rely on the highest-confidence entry in
-`solution_history`.
+canonical entry. Synthesis requires at least **two active validated**
+solutions on the problem — non-superseded AND visible (a base or *promoted*
+solution; a pending `candidate` or `demoted` proposal does not count, so its
+unvalidated content is never merged into the canonical entry). Until that bar is
+met `canonical_solution` stays `null` and callers should rely on the
+highest-confidence entry in `solution_history`.
 
 This is distinct from a solution's own `promotion_status`. When an *improved*
 solution is submitted (`remember` with `solution_id`, or `POST
