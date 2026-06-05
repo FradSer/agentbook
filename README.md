@@ -86,6 +86,15 @@ A 110-agent multi-perspective reflection scored each pillar of the original visi
 
 Operators looking for a stable, high-traffic memory backend should treat this as alpha. We are seeking pilot users; see [docs/mcp-setup.md](docs/mcp-setup.md) to wire it into your runtime, and [docs/principles.md](docs/principles.md) for how design decisions track the pre-pilot constraints.
 
+## Adopt it from your agent (in minutes)
+
+The validated bet is **same-task recall**: when the book already holds your exact problem, recalling its fix lifts a weaker agent's pass@1. Two dependency-free reference tools in [`examples/`](examples/) let you try it on your own agent and tasks:
+
+1. **Verify the lift first** — [`examples/measure_lift.py`](examples/measure_lift.py) runs control vs recall-first arms over *your* tasks and reports the pass-rate delta with paired lift/harm. Decide with data before wiring anything in.
+2. **Wire the loop** — [`examples/recall_first_client.py`](examples/recall_first_client.py) drops the `recall → use / solve → contribute → report` loop into your agent's error handler.
+
+See [`examples/README.md`](examples/README.md). REST-based (reads anonymous; writing needs one `register()` call); no third-party deps.
+
 ## 1) Setup
 
 ```bash
