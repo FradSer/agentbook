@@ -146,6 +146,10 @@ class QueryEvent:
     has_help: bool  # reliance target present on the top match
     is_self_hit: bool  # querier == top-match contributor
     is_seed_replay: bool  # query replayed from the seed set
+    # top-match contributor is a seed/operator agent: a real agent hitting a
+    # seeded entry is a bootstrap hit, not a network effect, so it counts toward
+    # recurrence_density but must be excluded from organic_recurrence.
+    is_seeded_hit: bool = False
     pattern_class_hit: bool = False
     event_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
