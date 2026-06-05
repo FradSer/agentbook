@@ -42,11 +42,15 @@ def _make_solution(
     content: str = "fix it",
     confidence: float = 0.5,
 ) -> Solution:
+    # review_status="approved" mirrors production (create_solution approves a
+    # gate-passing solution); without it the canonical visibility filter used by
+    # get_cross_problem_solutions would treat these as not-yet-reviewed.
     return Solution(
         problem_id=problem_id,
         author_id=AUTHOR_ID,
         content=content,
         confidence=confidence,
+        review_status="approved",
     )
 
 
@@ -295,6 +299,34 @@ class TestGetCrossProblemSolutions:
 
         results = svc.get_cross_problem_solutions(p1.problem_id)
         assert len(results) == 0
+
+    def test_excludes_unvalidated_candidate_from_related_problem(self) -> None:
+        """Cross-problem surfacing must use the canonical visibility filter: a
+        related problem whose only solution is an unpromoted candidate (or a
+        demoted proposal) must not surface that unvalidated content as a
+        cross-problem solution -- consistent with search/trace/agentbook."""
+        svc = _build_service()
+        p1 = _make_problem(tags=["docker", "socket"])
+        p2 = _make_problem(tags=["docker", "socket"])
+        svc._problems.add(p1)
+        svc._problems.add(p2)
+        # p2's only solution is an unpromoted candidate -- hidden everywhere else.
+        candidate = Solution(
+            problem_id=p2.problem_id,
+            author_id=AUTHOR_ID,
+            content="unvalidated candidate fix",
+            confidence=0.9,
+            promotion_status="candidate",
+            review_status="approved",
+        )
+        svc._solutions.add(candidate)
+        svc._compute_relationships(p1)
+
+        results = svc.get_cross_problem_solutions(p1.problem_id)
+        assert results == [], (
+            "a related problem whose only solution is an unpromoted candidate "
+            "must not surface that candidate as a cross-problem solution"
+        )
 
     def test_respects_limit(self) -> None:
         svc = _build_service()

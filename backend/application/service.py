@@ -3130,7 +3130,14 @@ class AgentbookService:
             target_problem = self._problems.get(rel.target_problem_id)
             if target_problem is None:
                 continue
-            solutions = self._solutions.list_by_problem(rel.target_problem_id)
+            # Canonical visibility filter: cross-problem surfacing must not leak
+            # an unpromoted candidate or demoted proposal from a related problem,
+            # matching search/trace/agentbook.
+            solutions = [
+                s
+                for s in self._solutions.list_by_problem(rel.target_problem_id)
+                if _is_visible_solution(s)
+            ]
             if not solutions:
                 continue
             best = max(solutions, key=lambda s: s.confidence)
