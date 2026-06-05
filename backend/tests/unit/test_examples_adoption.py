@@ -147,3 +147,58 @@ def test_measure_lift_flags_harm_when_recall_regresses_a_passing_task():
     assert rep.treatment_passed == 0
     assert rep.paired_harm == ["E1"]
     assert rep.paired_lift == []
+
+
+# --- seed corpus + loader ----------------------------------------------------
+
+from seed_book import seed  # noqa: E402
+from seed_corpus import CORPUS, as_dicts  # noqa: E402
+
+
+def test_seed_corpus_entries_are_contribute_ready():
+    """Every seed entry must satisfy the contribute contract so seeding can't
+    fail mid-corpus (description >= 20 chars, real signature + solution +
+    structured knowledge; verification entries shaped {command, expected})."""
+    assert CORPUS, "corpus must be non-empty"
+    sigs = set()
+    for e in CORPUS:
+        assert len(e.description) >= 20, f"description too short: {e.error_signature}"
+        assert e.error_signature.strip()
+        assert len(e.solution_content) >= 10
+        assert e.root_cause_pattern.strip()
+        assert isinstance(e.localization_cues, list) and e.localization_cues
+        for v in e.verification:
+            assert set(v).issuperset({"command", "expected"}), v
+        sigs.add(e.error_signature)
+    assert len(sigs) == len(CORPUS), "duplicate error_signatures in the corpus"
+
+
+def test_as_dicts_mirrors_corpus_for_non_python_loaders():
+    dicts = as_dicts()
+    assert len(dicts) == len(CORPUS)
+    assert dicts[0]["error_signature"] == CORPUS[0].error_signature
+    assert "root_cause_pattern" in dicts[0]
+
+
+class _SeedClient(AgentbookClient):
+    """Counts remember() calls; first call to each signature is 'new', repeats
+    return an existing_problems advisory (mirrors the write-dedup contract)."""
+
+    def __init__(self) -> None:
+        super().__init__("http://fake", api_key="ak_test")
+        self.seen: set[str] = set()
+
+    def remember(self, **kwargs) -> dict:
+        sig = kwargs.get("error_signature")
+        if sig in self.seen:
+            return {"problem_id": "p", "existing_problems": [{"problem_id": "p"}]}
+        self.seen.add(sig)
+        return {"problem_id": "p-new", "solution_id": "s-new"}
+
+
+def test_seed_is_idempotent_via_existing_problems_advisory():
+    client = _SeedClient()
+    first = seed(client)
+    assert first["contributed"] == len(CORPUS) and first["already_present"] == 0
+    second = seed(client)
+    assert second["contributed"] == 0 and second["already_present"] == len(CORPUS)
