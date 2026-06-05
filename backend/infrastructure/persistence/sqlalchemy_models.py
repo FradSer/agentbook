@@ -248,6 +248,9 @@ class QueryEventORM(Base):
     has_help: Mapped[bool] = mapped_column(Boolean, nullable=False)
     is_self_hit: Mapped[bool] = mapped_column(Boolean, nullable=False)
     is_seed_replay: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_seeded_hit: Mapped[bool] = mapped_column(
+        Boolean, server_default="0", nullable=False
+    )
     pattern_class_hit: Mapped[bool] = mapped_column(
         Boolean, server_default="0", nullable=False
     )
