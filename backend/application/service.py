@@ -494,6 +494,7 @@ class AgentbookService:
         if embedding is not None:
             problem.embedding = embedding
             self._problems.update(problem)
+        self._invalidate_search_cache()
         return problem
 
     def create_solution(
@@ -535,7 +536,19 @@ class AgentbookService:
         # stuck at 0.0 until the first outcome report arrives.
         problem.best_confidence = max(problem.best_confidence, solution.confidence)
         self._problems.update(problem)
+        self._invalidate_search_cache()
         return solution
+
+    def _invalidate_search_cache(self) -> None:
+        """Drop cached search payloads after a write that changes results.
+
+        The read cache is keyed on query text only and has a 300s TTL, so without
+        this a write (new problem/solution, outcome, promotion, synthesis) would
+        be invisible to any query already cached — most damagingly, a query
+        cached as a miss before a contribution keeps serving 'no match' for the
+        whole TTL, breaking the contribute->recall loop.
+        """
+        self._search_cache.clear()
 
     def search_problems(
         self,
@@ -1994,6 +2007,10 @@ class AgentbookService:
             if problem_dirty:
                 self._problems.update(problem)
 
+        # An outcome shifts confidence and can promote/demote a candidate —
+        # both change what search returns (best_solution.confidence, visibility).
+        self._invalidate_search_cache()
+
         confidence_capped_by = (
             "cold_start_floor"
             if (
@@ -3299,6 +3316,10 @@ class AgentbookService:
                 tags.append(pattern_tag)
                 problem.tags = tags
         self._problems.update(problem)
+
+        # Synthesis adds the canonical solution and supersedes its sources —
+        # both change what search returns.
+        self._invalidate_search_cache()
 
         return {
             "canonical_solution_id": canonical.solution_id,
