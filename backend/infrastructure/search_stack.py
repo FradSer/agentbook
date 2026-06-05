@@ -30,6 +30,8 @@ class ResolvedSearchStack:
 def resolve_search_stack() -> ResolvedSearchStack:
     from backend.infrastructure.embeddings.openrouter import (
         OpenRouterEmbeddingProvider,
+    )
+    from backend.infrastructure.embeddings.openrouter import (
         resolve_embedding_provider as resolve_openrouter_embedding,
     )
     from backend.infrastructure.embeddings.voyage import (
