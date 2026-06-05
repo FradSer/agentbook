@@ -83,3 +83,21 @@ print(report.render())
 else `None`. A non-zero `paired lift` with zero `paired harm` is the signal that
 agentbook helps your agent on problems it has seen before. Run the module directly
 for a toy demo: `python measure_lift.py http://localhost:8000`.
+
+## `seed_corpus.py` + `seed_book.py` — bootstrap an empty book
+
+An empty book gives a first adopter only misses, so it never shows value — the
+cold-start trap. `seed_corpus.py` is gold-backed knowledge for common, recurring
+coding errors (extracted from a strong model: real canonical fixes + structured
+knowledge), and `seed_book.py` loads it:
+
+```bash
+python seed_book.py http://localhost:8000           # self-registers a loader identity
+python seed_book.py http://localhost:8000 ak_yourkey  # or use an existing key
+```
+
+Idempotent (re-runs skip entries the write-dedup advisory already knows). This is
+the **sanctioned** bootstrap: it contributes genuine known-good solutions, never
+fabricated outcome consensus — confidence still only climbs as distinct real
+agents confirm them via `report`. After seeding, a first adopter's `recall` on
+these errors hits instead of missing.
