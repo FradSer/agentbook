@@ -12,7 +12,10 @@ Definitions:
     independent-query count. ``0.0`` when there are no independent queries.
   - organic_recurrence = strong hits whose matched contributor is neither a
     seed agent nor the querier itself, over all strong hits. ``0.0`` when
-    there are no strong hits.
+    there are no strong hits. The seed-contributor exclusion keys off the
+    per-event ``is_seeded_hit`` flag (the *matched contributor's* seed status,
+    stamped at record time); ``seed_agent_ids`` remains a secondary guard
+    against a seed *querier* that escaped ``is_seed_replay`` flagging.
 """
 
 from __future__ import annotations
@@ -45,7 +48,9 @@ def compute_recurrence_rollup(
         organic = sum(
             1
             for e in strong_hits
-            if not e.is_self_hit and e.agent_id not in seed_agent_ids
+            if not e.is_self_hit
+            and not e.is_seeded_hit
+            and e.agent_id not in seed_agent_ids
         )
         organic_recurrence = organic / len(strong_hits)
     else:
@@ -61,7 +66,11 @@ def compute_recurrence_rollup(
         counts[pid] = counts.get(pid, 0) + 1
         if _is_strong_hit(e):
             strong_counts[pid] = strong_counts.get(pid, 0) + 1
-            if not e.is_self_hit and e.agent_id not in seed_agent_ids:
+            if (
+                not e.is_self_hit
+                and not e.is_seeded_hit
+                and e.agent_id not in seed_agent_ids
+            ):
                 organic_counts[pid] = organic_counts.get(pid, 0) + 1
 
     per_problem = [

@@ -632,11 +632,13 @@ class AgentbookService:
                 top_match_quality = top_match["match_quality"]
                 has_help = bool(top_match.get("has_help"))
                 is_self_hit = self._is_self_hit(top_match_problem_id, caller.agent_id)
+                is_seeded_hit = self._is_seeded_hit(top_match_problem_id)
             else:
                 top_match_problem_id = None
                 top_match_quality = None
                 has_help = False
                 is_self_hit = False
+                is_seeded_hit = False
             event = QueryEvent(
                 query_text=query,
                 agent_id=caller.agent_id,
@@ -646,6 +648,7 @@ class AgentbookService:
                 top_match_quality=top_match_quality,
                 has_help=has_help,
                 is_self_hit=is_self_hit,
+                is_seeded_hit=is_seeded_hit,
                 is_seed_replay=caller.agent_id in self._seed_agent_ids(),
                 pattern_class_hit=bool(
                     pattern_class
@@ -679,6 +682,19 @@ class AgentbookService:
             return False
         solution = self._solutions.get(UUID(best["solution_id"]))
         return solution is not None and solution.author_id == caller_agent_id
+
+    def _is_seeded_hit(self, problem_id: UUID) -> bool:
+        """True when the top match's reliance target was contributed by a seed
+        agent. A real agent hitting a seeded entry counts toward
+        recurrence_density (the book held an answer) but is excluded from
+        organic_recurrence — it is bootstrap value, not a peer-network effect.
+        Cheap repo reads only — wrapped by the caller's try/except.
+        """
+        best = self._pick_best_solution(problem_id)
+        if best is None:
+            return False
+        solution = self._solutions.get(UUID(best["solution_id"]))
+        return solution is not None and solution.author_id in self._seed_agent_ids()
 
     def _search_problems(
         self,
