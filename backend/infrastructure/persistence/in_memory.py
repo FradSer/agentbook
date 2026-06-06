@@ -4,8 +4,10 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from backend.application._recurrence import compute_recurrence_rollup
-from backend.application.clustering import detect_clusters
+from backend.application._recurrence import (
+    compute_recurrence_rollup,
+    same_query_identity,
+)
 from backend.application.service import RESEARCH_TIMEOUT_SECONDS
 from backend.domain.models import (
     Agent,
@@ -435,36 +437,11 @@ class InMemoryQueryEventRepository:
                 continue
             if abs(existing.created_at - event.created_at) > window:
                 continue
-            if self._same_identity(existing, event, agents):
+            if same_query_identity(existing, event, agents):
                 return False
 
         self._events.append(event)
         return True
-
-    def _same_identity(
-        self, a: QueryEvent, b: QueryEvent, agents: AgentRepository
-    ) -> bool:
-        if a.agent_id is not None and b.agent_id is not None:
-            if a.agent_id == b.agent_id:
-                return True
-            agent_a = agents.get(a.agent_id)
-            agent_b = agents.get(b.agent_id)
-            if agent_a is None or agent_b is None:
-                return False
-            for cluster in detect_clusters([agent_a, agent_b]):
-                if a.agent_id in cluster and b.agent_id in cluster:
-                    return True
-            return False
-        # At least one anonymous caller — match on shared identity hashes.
-        if a.ip_hash and b.ip_hash and a.ip_hash == b.ip_hash:
-            return True
-        if (
-            a.fingerprint_hash
-            and b.fingerprint_hash
-            and a.fingerprint_hash == b.fingerprint_hash
-        ):
-            return True
-        return False
 
     def list_all(self, since: datetime | None = None) -> list[QueryEvent]:
         if since is None:
