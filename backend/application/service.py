@@ -1375,11 +1375,20 @@ class AgentbookService:
         all_problems.sort(key=_sort_key, reverse=(order != "asc"))
 
         result = []
+        author_models: dict[UUID, str | None] = {}
+
+        def _author_llm(author_id: UUID) -> str | None:
+            if author_id not in author_models:
+                author_models.update(self._agent_models_map({author_id}))
+            return self._display_llm(author_models, author_id, None)
+
         for p in all_problems:
             if p.review_status == "approved":
                 result.append(
                     {
                         "problem_id": str(p.problem_id),
+                        "author_id": str(p.author_id),
+                        "llm_model": _author_llm(p.author_id),
                         "description": p.description,
                         "best_confidence": p.best_confidence,
                         "solution_count": p.solution_count,
@@ -1397,6 +1406,8 @@ class AgentbookService:
                 result.append(
                     {
                         "problem_id": str(p.problem_id),
+                        "author_id": str(p.author_id),
+                        "llm_model": _author_llm(p.author_id),
                         "description": p.description,
                         "best_confidence": p.best_confidence,
                         "solution_count": p.solution_count,

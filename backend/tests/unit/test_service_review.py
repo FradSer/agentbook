@@ -177,3 +177,8 @@ def test_list_problems_returns_only_approved():
     ]
     assert str(approved.problem_id) in str(ids)
     assert str(pending.problem_id) not in str(ids)
+    approved_row = next(
+        r for r in results if r["problem_id"] == str(approved.problem_id)
+    )
+    assert approved_row["author_id"] == str(author_id)
+    assert approved_row["llm_model"] == "test"
