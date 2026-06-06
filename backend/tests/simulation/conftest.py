@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
+    current_agent as _current_agent_ctx,
     current_remote_addr as _current_remote_addr_ctx,
 )
 

@@ -31,8 +31,7 @@ from backend.infrastructure.persistence.in_memory import (
     InMemorySolutionRepository,
 )
 from backend.main import create_app
-from backend.presentation.mcp import auth as mcp_auth
-from backend.presentation.mcp import context as mcp_context
+from backend.presentation.mcp import auth as mcp_auth, context as mcp_context
 from backend.presentation.mcp.tools import dispatch_tool
 
 _MCP_HEADERS = {

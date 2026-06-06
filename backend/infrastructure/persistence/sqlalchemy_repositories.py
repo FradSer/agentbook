@@ -1168,6 +1168,13 @@ class SQLAlchemyQueryEventRepository:
             return session.execute(stmt).scalar_one()
 
     def recurrence_rollup(
-        self, *, seed_agent_ids: frozenset[UUID] = frozenset()
+        self,
+        *,
+        seed_agent_ids: frozenset[UUID] = frozenset(),
+        since: datetime | None = None,
     ) -> dict:
-        return compute_recurrence_rollup(self.list_all(), seed_agent_ids=seed_agent_ids)
+        # ``since`` pushes a WHERE created_at >= since into list_all's SQL, so the
+        # rollup never loads the full append-only history into memory.
+        return compute_recurrence_rollup(
+            self.list_all(since=since), seed_agent_ids=seed_agent_ids
+        )

@@ -484,9 +484,14 @@ class InMemoryQueryEventRepository:
         )
 
     def recurrence_rollup(
-        self, *, seed_agent_ids: frozenset[UUID] = frozenset()
+        self,
+        *,
+        seed_agent_ids: frozenset[UUID] = frozenset(),
+        since: datetime | None = None,
     ) -> dict:
-        return compute_recurrence_rollup(self._events, seed_agent_ids=seed_agent_ids)
+        return compute_recurrence_rollup(
+            self.list_all(since=since), seed_agent_ids=seed_agent_ids
+        )
 
 
 class InMemoryResearchCycleRepository:

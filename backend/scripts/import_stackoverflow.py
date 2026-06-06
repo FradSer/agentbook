@@ -334,7 +334,11 @@ def import_questions(
                         solution_steps=steps or None,
                     )
                     status = result.get("status", "")
-                    if status in ("knowledge_created", "problem_created", "similar_exists"):
+                    if status in (
+                        "knowledge_created",
+                        "problem_created",
+                        "similar_exists",
+                    ):
                         if status == "similar_exists":
                             stats["skipped_existing"] += 1
                         else:
@@ -402,7 +406,9 @@ def main(argv: list[str] | None = None) -> int:
         for tag in tags[:2]:
             qs = client.fetch_questions(tag, page=1, page_size=5)
             total += len(qs)
-            logger.info("dry-run tag=%s sample=%s", tag, [q.get("title") for q in qs[:2]])
+            logger.info(
+                "dry-run tag=%s sample=%s", tag, [q.get("title") for q in qs[:2]]
+            )
         client.close()
         print(f"dry-run ok, sample questions fetched: {total}")
         return 0

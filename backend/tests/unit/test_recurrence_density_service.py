@@ -13,7 +13,10 @@ exclusion guarantee enforced here at the service layer).
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from backend.application.service import CallerContext
+from backend.domain.models import QueryEvent
 from backend.tests.conftest import _build_service
 
 _STRONG_DESC = "Docker daemon socket permission denied; fix via docker group membership"
@@ -266,3 +269,44 @@ def test_strong_hit_on_seed_contributed_entry_is_not_organic():
     assert rollup["recurrence_density"] > 0
     # ...but the contributor is a seed, so it is NOT a network effect.
     assert rollup["organic_recurrence"] == 0.0
+
+
+# --- Scenario: rollup is windowed (bounds scan; reflects current recurrence) --
+
+
+def test_recurrence_density_excludes_events_outside_the_window():
+    """get_recurrence_density reports over a recent window, so a stale event
+    older than the window is not counted — this both bounds the rollup scan
+    (no full-history load → no OOM at scale) and reflects *current* recurrence."""
+    service, author_id = _build_service()
+    problem = _seed_answered_problem(service, author_id)
+
+    # A recent independent strong hit -> counts.
+    querier = service.register_agent("recent-agent")[0].agent_id
+    service.search_problems(
+        query=_STRONG_QUERY, limit=10, caller=CallerContext(agent_id=querier)
+    )
+
+    # An otherwise-countable event from well outside the window -> excluded.
+    stale_agent = service.register_agent("stale-agent")[0].agent_id
+    stale = QueryEvent(
+        query_text=_STRONG_QUERY,
+        agent_id=stale_agent,
+        ip_hash=None,
+        fingerprint_hash=None,
+        top_match_problem_id=problem.problem_id,
+        top_match_quality="exact",
+        has_help=True,
+        is_self_hit=False,
+        is_seeded_hit=False,
+        is_seed_replay=False,
+        created_at=datetime.now(UTC) - timedelta(days=200),
+    )
+    service._query_events.add_with_dedup(
+        stale, service._agents, exclude_seed_replay=False, exclude_self_hits=False
+    )
+
+    rollup = service.get_recurrence_density()
+    assert rollup["total_independent_queries"] == 1, (
+        "the stale event outside the recurrence window must not be counted"
+    )

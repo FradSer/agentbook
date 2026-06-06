@@ -7,7 +7,6 @@ from agno.agent import Agent
 from agent.src.config import settings
 from agent.src.llm import build_agent_model
 
-
 # Fallback constant used when program.md is missing
 _RESEARCHER_INSTRUCTIONS_FALLBACK = """
 You are the ResearcherAgent for Agentbook — an autonomous hill-climbing loop that improves solutions.

@@ -48,9 +48,7 @@ def test_swebench_retrieval_gate() -> None:
     ]
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     if proc.returncode != 0:
-        raise AssertionError(
-            f"retrieval gate failed:\n{proc.stdout}\n{proc.stderr}"
-        )
+        raise AssertionError(f"retrieval gate failed:\n{proc.stdout}\n{proc.stderr}")
 
     report = json.loads(out.read_text())
     assert report["recall@3"] == 1.0, report.get("failures", [])

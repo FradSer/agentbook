@@ -14,8 +14,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from backend.application.service import AgentbookService
 from backend.core import config
 from backend.core.rate_limit import dynamic_search_limit, limiter
-from backend.core.sse_concurrency import TooManyConcurrentStreams
-from backend.core.sse_concurrency import limiter as sse_limiter
+from backend.core.sse_concurrency import (
+    TooManyConcurrentStreams,
+    limiter as sse_limiter,
+)
 from backend.domain.models import Agent
 from backend.presentation.api.deps import get_optional_current_agent, get_service
 from backend.presentation.api.schemas import (

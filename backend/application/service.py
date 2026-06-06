@@ -77,6 +77,9 @@ logger = logging.getLogger(__name__)
 
 _SEARCH_CACHE_MAXSIZE = 256
 _SEARCH_CACHE_TTL_SECONDS = 300.0
+# Recurrence density is reported over a recent window, not the full append-only
+# history — bounds the rollup scan (memory) and reflects *current* recurrence.
+_RECURRENCE_WINDOW_DAYS = 90
 _MIN_SEARCH_RELEVANCE = 0.25
 # Score floor for a cross-task root-cause-class (``pattern:<slug>``) tag match.
 # Such siblings share an abstract failure mode but little surface text, so dense
@@ -640,18 +643,29 @@ class AgentbookService:
         try:
             caller = caller or CallerContext()
             top_match = None if payload["no_good_match"] else rows[0]
+            is_self_hit = False
+            is_seeded_hit = False
             if top_match is not None:
                 top_match_problem_id = UUID(top_match["problem_id"])
                 top_match_quality = top_match["match_quality"]
                 has_help = bool(top_match.get("has_help"))
-                is_self_hit = self._is_self_hit(top_match_problem_id, caller.agent_id)
-                is_seeded_hit = self._is_seeded_hit(top_match_problem_id)
+                # Resolve the matched contributor ONCE from the row's reliance
+                # target (already computed) instead of re-deriving best_solution
+                # twice — this runs on every recorded search (cache hits too), so
+                # the read path must not pay redundant repo scans.
+                best_sol = top_match.get("best_solution")
+                if best_sol:
+                    solution = self._solutions.get(UUID(best_sol["solution_id"]))
+                    if solution is not None:
+                        author = solution.author_id
+                        is_self_hit = (
+                            caller.agent_id is not None and author == caller.agent_id
+                        )
+                        is_seeded_hit = author in self._seed_agent_ids()
             else:
                 top_match_problem_id = None
                 top_match_quality = None
                 has_help = False
-                is_self_hit = False
-                is_seeded_hit = False
             event = QueryEvent(
                 query_text=query,
                 agent_id=caller.agent_id,
@@ -680,34 +694,6 @@ class AgentbookService:
             )
         except Exception:
             logger.exception("recurrence-density query-event recording failed")
-
-    def _is_self_hit(self, problem_id: UUID, caller_agent_id: UUID | None) -> bool:
-        """True when the caller authored the reliance target of the top match.
-
-        The matched contributor is the author of the problem's best solution
-        (the reliance target a recall surfaces); an anonymous caller can never
-        self-hit. Cheap repo reads only — wrapped by the caller's try/except.
-        """
-        if caller_agent_id is None:
-            return False
-        best = self._pick_best_solution(problem_id)
-        if best is None:
-            return False
-        solution = self._solutions.get(UUID(best["solution_id"]))
-        return solution is not None and solution.author_id == caller_agent_id
-
-    def _is_seeded_hit(self, problem_id: UUID) -> bool:
-        """True when the top match's reliance target was contributed by a seed
-        agent. A real agent hitting a seeded entry counts toward
-        recurrence_density (the book held an answer) but is excluded from
-        organic_recurrence — it is bootstrap value, not a peer-network effect.
-        Cheap repo reads only — wrapped by the caller's try/except.
-        """
-        best = self._pick_best_solution(problem_id)
-        if best is None:
-            return False
-        solution = self._solutions.get(UUID(best["solution_id"]))
-        return solution is not None and solution.author_id in self._seed_agent_ids()
 
     def _search_problems(
         self,
@@ -2437,12 +2423,18 @@ class AgentbookService:
                 "problems": [],
             }
         rollup = self._query_events.recurrence_rollup(
-            seed_agent_ids=self._seed_agent_ids()
+            seed_agent_ids=self._seed_agent_ids(),
+            since=utc_now() - timedelta(days=_RECURRENCE_WINDOW_DAYS),
         )
+        per_problem = rollup.get("per_problem", [])
+        # Filter the (already <=100) per-problem rows to approved problems by
+        # looking up only those ids — not loading the whole problems table.
         approved_ids = {
-            p.problem_id
-            for p in self._problems.list_all()
-            if p.review_status == "approved"
+            pid
+            for row in per_problem
+            if (pid := row["problem_id"]) is not None
+            and (p := self._problems.get(pid)) is not None
+            and p.review_status == "approved"
         }
         problems = [
             {
@@ -2450,7 +2442,7 @@ class AgentbookService:
                 "query_count": row["query_count"],
                 "organic_recurrence": row["organic_recurrence"],
             }
-            for row in rollup.get("per_problem", [])
+            for row in per_problem
             if row["problem_id"] in approved_ids
         ]
         return {

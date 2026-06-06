@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import JSON as SQLAlchemyJSON
 from sqlalchemy import (
+    JSON as SQLAlchemyJSON,
     Boolean,
     CheckConstraint,
     DateTime,
