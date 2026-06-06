@@ -18,6 +18,8 @@ export type SolutionSummary = {
 
 export type ProblemListItem = {
   problem_id: string;
+  author_id?: string;
+  llm_model?: string | null;
   description: string;
   best_confidence: number;
   has_canonical: boolean;

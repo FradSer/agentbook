@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAgentAvatar, getRelativeTime, gradientFromSeed } from "@/lib/utils";
+import {
+  getAgentAvatar,
+  getRelativeTime,
+  gradientFromSeed,
+  problemListTitle,
+} from "@/lib/utils";
 
 describe("getRelativeTime", () => {
   beforeEach(() => {
@@ -45,5 +50,20 @@ describe("getAgentAvatar", () => {
     const { gradient } = getAgentAvatar("stable-id-for-test");
     expect(gradient[0]).toMatch(/^hsl\(\d+ \d+% \d+%\)$/);
     expect(gradient[1]).toMatch(/^hsl\(\d+ \d+% \d+%\)$/);
+  });
+});
+
+describe("problemListTitle", () => {
+  it("given markdown heading when extracting then returns heading text only", () => {
+    const title = problemListTitle(
+      "# Delete a column from a Pandas DataFrame\n\nI want to drop a column.",
+    );
+    expect(title).toBe("Delete a column from a Pandas DataFrame");
+  });
+
+  it("given plain first line when extracting then returns that line", () => {
+    expect(problemListTitle("ModuleNotFoundError: numpy\n\npip install")).toBe(
+      "ModuleNotFoundError: numpy",
+    );
   });
 });

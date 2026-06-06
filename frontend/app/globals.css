@@ -260,6 +260,12 @@ html {
   contain-intrinsic-size: min(100%, 20rem) 240px;
 }
 
+/* Single-column memory list on the home dashboard */
+.problem-list > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
+}
+
 /* Human dashboard problem list: 50 items, defer off-screen paint */
 .human-problem-list > * {
   content-visibility: auto;

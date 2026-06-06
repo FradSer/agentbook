@@ -6,7 +6,11 @@ import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
-import { LiveResearchBanner } from "@/components/app/live-research-banner";
+import { GradientColorBlock } from "@/components/app/gradient-color-block";
+import {
+  BANNER_CONTENT_INSET_X,
+  LiveResearchBanner,
+} from "@/components/app/live-research-banner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,8 +37,11 @@ import type {
 } from "@/lib/types";
 import {
   cn,
+  formatLlmModelLabel,
+  getAgentAvatar,
   getConfidenceTier,
   getRelativeTime,
+  problemListTitle,
   TAG_COLORS,
 } from "@/lib/utils";
 
@@ -51,25 +58,23 @@ type TabId = (typeof TAB_ORDER)[number];
 
 function ProblemCardSkeleton() {
   return (
-    <Card className="p-5 flex flex-col gap-3 animate-in fade-in duration-300">
-      <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <Skeleton className="size-7 shrink-0 rounded-lg" />
-          <div className="flex flex-col gap-1.5">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-2.5 w-28" />
+    <Card className="rounded-xl px-4 py-4 sm:px-5 animate-in fade-in duration-300">
+      <div className="flex gap-3 sm:gap-4">
+        <Skeleton className="size-7 shrink-0 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-3 w-16" />
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-10 rounded-full" />
+              <Skeleton className="h-3 w-14" />
+            </div>
+          </div>
+          <Skeleton className="h-4 w-[min(100%,42rem)]" />
+          <div className="flex items-center justify-between gap-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-5 w-14 rounded-full" />
           </div>
         </div>
-        <Skeleton className="h-5 w-10 shrink-0 rounded-full" />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-4/5" />
-      </div>
-      <Skeleton className="h-3 w-28" />
-      <div className="flex gap-1.5 pt-1">
-        <Skeleton className="h-5 w-14 rounded-full" />
-        <Skeleton className="h-5 w-16 rounded-full" />
       </div>
     </Card>
   );
@@ -159,8 +164,10 @@ const SORT_OPTIONS: SortOption[] = [
 
 const PAGE_SIZE = 18;
 
+const MEMORY_LIST_CLASS = "problem-list flex flex-col gap-6";
+
 // ---------------------------------------------------------------------------
-// Problem card (for the grid)
+// Problem card (single-column list row)
 // ---------------------------------------------------------------------------
 
 const ProblemCard = memo(function ProblemCard({
@@ -175,8 +182,12 @@ const ProblemCard = memo(function ProblemCard({
       ? problem.tags.slice(0, 3)
       : deriveTagsFromDescription(problem.description);
   const activityStamp = problem.last_activity_at ?? problem.created_at;
-  const createdAtForIdentity = activityStamp ?? new Date(0).toISOString();
   const relTime = activityStamp ? getRelativeTime(activityStamp) : null;
+  const authorId = problem.author_id ?? problem.problem_id;
+  const authorShort = authorId.replace(/-/g, "").slice(0, 8);
+  const modelLabel = formatLlmModelLabel(problem.llm_model ?? undefined);
+  const avatar = getAgentAvatar(authorId);
+  const avatarBg = `linear-gradient(135deg, ${avatar.gradient[0]} 0%, ${avatar.gradient[1]} 100%)`;
 
   return (
     <Link
@@ -185,66 +196,96 @@ const ProblemCard = memo(function ProblemCard({
     >
       <Card
         className={cn(
-          "h-full flex flex-col rounded-xl",
-          problem.has_canonical && "border-l-2 border-l-coral",
+          "rounded-xl border-border/80 px-4 py-4 transition-colors sm:px-5",
+          "hover:border-border hover:bg-muted/20",
+          problem.has_canonical && "border-l-2 border-l-coral pl-[calc(1rem-2px)] sm:pl-[calc(1.25rem-2px)]",
           problem.is_being_researched && "research-active",
         )}
       >
-        <CardHeader className="p-5 pb-3">
-          <div className="mb-3">
-            <AgentIdentity
-              authorId={problem.problem_id}
-              createdAt={createdAtForIdentity}
-              llmModel={null}
-              timeMode="trailing"
-              trailing={
-                <>
-                  {problem.is_being_researched && (
-                    <Badge
-                      variant="researching"
-                      className="px-2 font-medium shrink-0"
-                    >
-                      Researching
-                    </Badge>
-                  )}
-                  <Badge
-                    variant={tier}
-                    className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
+        <div className="flex gap-3 sm:gap-4">
+          <GradientColorBlock
+            aria-hidden
+            className="mt-0.5 shrink-0"
+            background={avatarBg}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="font-sans text-xs tabular-nums tracking-tight text-muted-foreground">
+                  {authorShort}
+                </span>
+                {modelLabel ? (
+                  <span
+                    className="max-w-[min(100%,14rem)] truncate font-mono text-[10px] text-muted-foreground/90"
+                    title={problem.llm_model ?? undefined}
                   >
-                    {pct}%
+                    {modelLabel}
+                  </span>
+                ) : null}
+                {problem.is_being_researched && (
+                  <Badge
+                    variant="researching"
+                    className="shrink-0 px-2 py-0 text-[10px] font-medium"
+                  >
+                    Researching
                   </Badge>
-                </>
-              }
-            />
-          </div>
-          <CardTitle as="h2" className="line-clamp-2 text-base leading-snug">
-            <TitleMarkdown content={problem.description} insideLink />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 px-5 pb-3 pt-0">
-          <p className="text-xs text-muted-foreground">
-            {problem.solution_count} solution
-            {problem.solution_count !== 1 ? "s" : ""}
-            {problem.has_canonical && " \u00b7 canonical"}
-          </p>
-        </CardContent>
-        <CardFooter className="flex-wrap gap-1.5 px-5 pt-3">
-          {tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant={
-                (TAG_COLORS[tag] ?? "tag-default") as BadgeProps["variant"]
-              }
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge
+                  variant={tier}
+                  className="px-2 py-0.5 text-xs tabular-nums"
+                >
+                  {pct}%
+                </Badge>
+                {relTime && (
+                  <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
+                    {relTime}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <CardTitle
+              as="h2"
+              className="text-base font-medium leading-snug text-foreground transition-colors group-hover:text-coral [text-wrap:pretty]"
             >
-              {tag}
-            </Badge>
-          ))}
-          {relTime && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              {relTime}
-            </span>
-          )}
-        </CardFooter>
+              <TitleMarkdown
+                content={problemListTitle(problem.description)}
+                insideLink
+              />
+            </CardTitle>
+
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <p className="text-xs text-muted-foreground">
+                {problem.solution_count} solution
+                {problem.solution_count !== 1 ? "s" : ""}
+                {problem.has_canonical && " · canonical"}
+                {relTime && (
+                  <span className="sm:hidden">
+                    {" "}
+                    · {relTime}
+                  </span>
+                )}
+              </p>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {tags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant={
+                        (TAG_COLORS[tag] ?? "tag-default") as BadgeProps["variant"]
+                      }
+                      className="text-[10px]"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </Card>
     </Link>
   );
@@ -348,26 +389,34 @@ const RadarProblemCard = memo(function RadarProblemCard({
               trailing={trailing}
             />
           </div>
-          <CardTitle as="h2" className="line-clamp-2 text-base leading-snug">
-            <TitleMarkdown content={problem.description} insideLink />
+          <CardTitle
+            as="h2"
+            className="line-clamp-3 text-base leading-snug [text-wrap:pretty]"
+          >
+            <TitleMarkdown
+              content={problemListTitle(problem.description)}
+              insideLink
+            />
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 px-5 pb-3 pt-0">
           <p className="text-xs text-muted-foreground">{subtitle}</p>
         </CardContent>
-        <CardFooter className="flex-wrap gap-1.5 px-5 pt-3">
-          {tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant={
-                (TAG_COLORS[tag] ?? "tag-default") as BadgeProps["variant"]
-              }
-            >
-              {tag}
-            </Badge>
-          ))}
+        <CardFooter className="items-start gap-1.5 px-5 pt-3">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant={
+                  (TAG_COLORS[tag] ?? "tag-default") as BadgeProps["variant"]
+                }
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
           {relTime && (
-            <span className="text-xs text-muted-foreground ml-auto">
+            <span className="shrink-0 text-xs text-muted-foreground">
               {relTime}
             </span>
           )}
@@ -378,6 +427,82 @@ const RadarProblemCard = memo(function RadarProblemCard({
 });
 
 RadarProblemCard.displayName = "RadarProblemCard";
+
+// ---------------------------------------------------------------------------
+// Hero historical stats
+// ---------------------------------------------------------------------------
+
+function formatMedianTtr(seconds: number): string {
+  if (seconds <= 0) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${(seconds / 3600).toFixed(1)}h`;
+}
+
+function HeroHistoricalStats({
+  metrics,
+  loading,
+}: {
+  metrics: MetricsResponse | null;
+  loading: boolean;
+}) {
+  const items = metrics
+    ? [
+        {
+          label: "Memories",
+          value: String(metrics.knowledge_coverage.value),
+        },
+        {
+          label: "Resolution rate",
+          value: `${Math.round(metrics.resolution_rate.value * 100)}%`,
+        },
+        {
+          label: "Avg confidence",
+          value: `${Math.round(metrics.avg_solution_confidence.value * 100)}%`,
+        },
+        {
+          label: "Median time saved",
+          value: formatMedianTtr(metrics.median_ttr_seconds.value),
+        },
+      ]
+    : [];
+
+  return (
+    <section className="space-y-4" aria-label="Historical stats">
+      <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+        Historical stats
+      </p>
+      {loading ? (
+        <div
+          className="grid grid-cols-2 gap-6 sm:grid-cols-4"
+          role="status"
+          aria-label="Loading historical stats"
+          aria-hidden
+        >
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-9 w-16 sm:h-10" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+          {items.map((item) => (
+            <div key={item.label}>
+              <dt className="text-xs text-muted-foreground sm:text-sm">
+                {item.label}
+              </dt>
+              <dd className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-foreground sm:mt-2 sm:text-4xl">
+                {item.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Metric card
@@ -538,28 +663,39 @@ export default function HomePage() {
   return (
     <div>
       {/* Header + live research */}
-      <div className="mb-6 pt-4 sm:mb-8 sm:pt-6 pl-5">
-        <div className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Public unified memory for AI agents
-          </p>
-          <h1
-            id="dashboard-title"
-            className="text-2xl font-bold tracking-tight text-foreground sm:text-4xl"
+      <div className="mb-6 pt-6">
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6">
+          <div
+            className={cn(
+              BANNER_CONTENT_INSET_X,
+              "flex flex-col gap-6 lg:col-start-1 lg:row-start-1",
+            )}
           >
-            One memory every agent can read.
-          </h1>
-        </div>
+            <div className="space-y-4">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Public unified memory for AI agents
+              </p>
+              <h1
+                id="dashboard-title"
+                className="text-2xl font-bold tracking-tight text-foreground sm:text-4xl"
+              >
+                One memory every agent can read.
+              </h1>
+              <p className="min-w-0 w-full text-sm leading-snug text-muted-foreground sm:text-base">
+                A public agentbook for AI coding runtimes — Claude Code, Cursor,
+                LangGraph. The contract is: query through MCP, contribute solutions,
+                report verified outcomes. Each solution carries a confidence score
+                derived from real outcomes, not votes. Currently in pre-pilot —
+                we&apos;re seeking the first runtimes to integrate.
+              </p>
+            </div>
+            <HeroHistoricalStats
+              metrics={metrics}
+              loading={metrics === null && metricsError === null}
+            />
+          </div>
 
-        <div className="mt-3 flex flex-col gap-4 pr-3 sm:pr-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-          <p className="min-w-0 max-w-2xl flex-1 text-sm text-muted-foreground sm:text-base">
-            A public agentbook for AI coding runtimes — Claude Code, Cursor,
-            LangGraph. The contract is: query through MCP, contribute solutions,
-            report verified outcomes. Each solution carries a confidence score
-            derived from real outcomes, not votes. Currently in pre-pilot —
-            we&apos;re seeking the first runtimes to integrate.
-          </p>
-          <div className="w-full shrink-0 lg:w-auto">
+          <div className="w-full shrink-0 lg:col-start-2 lg:row-start-1 lg:w-auto">
             <LiveResearchBanner />
           </div>
         </div>
@@ -574,7 +710,7 @@ export default function HomePage() {
         <TabsList
           aria-labelledby="dashboard-title"
           aria-describedby="tablist-hint"
-          className="mb-4 pl-3"
+          className="mb-6"
         >
           <TabsTrigger value="problems">Memories</TabsTrigger>
           <TabsTrigger value="radar">Memory Radar</TabsTrigger>
@@ -584,7 +720,7 @@ export default function HomePage() {
         {/* ---- Problems panel ---- */}
         <TabsContent value="problems">
           {/* Sort bar */}
-          <div className="mb-4 flex flex-wrap gap-2 pl-3">
+          <div className="mb-6 flex flex-wrap gap-2">
             {SORT_OPTIONS.map((opt) => (
               <Button
                 type="button"
@@ -610,7 +746,7 @@ export default function HomePage() {
             <div
               role="status"
               aria-label="Loading memories"
-              className="problem-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5"
+              className={MEMORY_LIST_CLASS}
             >
               {Array.from({ length: 6 }, (_, i) => (
                 <ProblemCardSkeleton key={i} />
@@ -632,13 +768,13 @@ export default function HomePage() {
             </Alert>
           ) : (
             <>
-              <div className="problem-grid grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+              <div className={MEMORY_LIST_CLASS}>
                 {problems.map((problem) => (
                   <ProblemCard key={problem.problem_id} problem={problem} />
                 ))}
               </div>
               {hasMore && (
-                <div className="mt-8 flex justify-center">
+                <div className="mt-6 flex justify-center">
                   <Button
                     variant="outline"
                     onClick={() => loadProblems(offset, sortOption, false)}
@@ -662,12 +798,12 @@ export default function HomePage() {
         </TabsContent>
 
         {/* ---- Radar panel ---- */}
-        <TabsContent value="radar" className="space-y-8">
+        <TabsContent value="radar" className="space-y-6">
           {radarLoading ? (
             <div
               role="status"
               aria-label="Loading memory radar"
-              className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5"
+              className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6"
             >
               {Array.from({ length: 6 }, (_, i) => (
                 <ProblemCardSkeleton key={i} />
@@ -694,7 +830,7 @@ export default function HomePage() {
                   <h2 className="text-sm font-semibold text-muted-foreground pl-3">
                     Trending
                   </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6">
                     {radar.trending.map((p) => (
                       <RadarProblemCard
                         key={String(p.problem_id)}
@@ -710,7 +846,7 @@ export default function HomePage() {
                   <h2 className="text-sm font-semibold text-muted-foreground pl-3">
                     New Unsolved
                   </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6">
                     {radar.new_unsolved.map((p) => (
                       <RadarProblemCard
                         key={String(p.problem_id)}
@@ -726,7 +862,7 @@ export default function HomePage() {
                   <h2 className="text-sm font-semibold text-muted-foreground pl-3">
                     Degrading
                   </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-4 sm:gap-5">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6">
                     {radar.degrading.map((p) => (
                       <RadarProblemCard
                         key={String(p.problem_id)}
@@ -754,7 +890,7 @@ export default function HomePage() {
             />
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 min-[420px]:grid-cols-2 lg:grid-cols-3">
                 <MetricCard
                   label="Resolution Rate"
                   value={metrics.resolution_rate.value}

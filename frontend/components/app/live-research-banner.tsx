@@ -6,6 +6,7 @@ import { memo, type ReactElement, useEffect, useRef, useState } from "react";
 import { TitleMarkdown } from "@/components/app/title-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { focusRing } from "@/lib/focus-ring";
 import type {
   LiveResearchActive,
@@ -23,14 +24,20 @@ export type LiveResearchBannerProps = {
 
 const TICK_INTERVAL_MS = 1_000;
 const ARIA_DEBOUNCE_MS = 1_000;
-const RECENT_VISIBLE_MOBILE = 2;
-const RECENT_VISIBLE_DESKTOP = 4;
+const RECENT_VISIBLE_LIMIT = 2;
 
-/** Narrow: full-width strip. Wide: larger info panel beside the hero copy. */
+/** Aligns with nav logo: nav pl-3 (12px) + home link pl-2 (8px) = 20px. */
+export const BANNER_CONTENT_INSET_X = "px-5";
+
+/** Card shell matches problem list rows; body inset aligns with hero copy. */
 const BANNER_CARD = cn(
-  "w-full rounded-lg px-3 py-3 sm:px-4",
-  "lg:w-80 lg:rounded-xl lg:p-5 lg:min-h-[12rem]",
+  "w-full rounded-xl border-border/80 px-0 py-4",
+  "lg:w-80 lg:p-5 lg:min-h-[12rem]",
 );
+
+const BANNER_CARD_BODY = cn(BANNER_CONTENT_INSET_X, "lg:px-0");
+
+const BANNER_ASIDE = "w-full lg:w-auto";
 
 const IDLE_DOT = "inline-block size-2 shrink-0 rounded-full bg-muted-foreground/40";
 
@@ -103,48 +110,45 @@ function BannerHeader({
 
 function RecentCyclesList({
   cycles,
-  mobileLimit = RECENT_VISIBLE_MOBILE,
-  desktopLimit = RECENT_VISIBLE_DESKTOP,
+  limit = RECENT_VISIBLE_LIMIT,
 }: {
   cycles: LiveResearchRecentCycle[];
-  mobileLimit?: number;
-  desktopLimit?: number;
+  limit?: number;
 }): ReactElement | null {
   if (cycles.length === 0) return null;
+  const visible = cycles.slice(0, limit);
 
   const renderItem = (cycle: LiveResearchRecentCycle) => (
     <li key={`${cycle.problem_id}-${cycle.created_at}`} className="min-w-0">
       <Link
         href={`/memories/${cycle.problem_id}`}
         className={cn(
-          "group flex items-baseline justify-between gap-2 text-xs text-muted-foreground hover:text-foreground",
+          "group flex flex-col gap-0.5 text-xs text-muted-foreground hover:text-foreground",
           focusRing,
           "rounded-sm",
         )}
       >
-        <span className="min-w-0 flex-1 truncate">
-          <span className="font-medium text-foreground/80 group-hover:text-coral">
+        <div className="flex items-center justify-between gap-2">
+          <span className="shrink-0 font-medium text-foreground/80 group-hover:text-coral">
             {cycleStatusLabel(cycle.status)}
           </span>
-          <span className="text-muted-foreground"> · </span>
-          <span className="text-muted-foreground">{cycle.description}</span>
-        </span>
-        <span className="shrink-0 tabular-nums text-[10px]">
-          {getRelativeTime(cycle.created_at)}
-        </span>
+          <span className="shrink-0 tabular-nums text-[10px] leading-none">
+            {getRelativeTime(cycle.created_at)}
+          </span>
+        </div>
+        <p className="line-clamp-2 min-w-0 leading-snug text-muted-foreground">
+          {cycle.description}
+        </p>
       </Link>
     </li>
   );
 
   return (
-    <div className="mt-3 border-t border-border/70 pt-3">
+    <div className="mt-6 border-t border-border/70 pt-6">
       <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         Recent cycles
       </p>
-      <ul className="space-y-2 lg:hidden">{cycles.slice(0, mobileLimit).map(renderItem)}</ul>
-      <ul className="hidden space-y-2 lg:block">
-        {cycles.slice(0, desktopLimit).map(renderItem)}
-      </ul>
+      <ul className="space-y-2">{visible.map(renderItem)}</ul>
     </div>
   );
 }
@@ -160,7 +164,7 @@ function BannerStats({
     : null;
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-3 text-[10px] text-muted-foreground lg:text-xs">
+    <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-6 text-[10px] text-muted-foreground lg:text-xs">
       {weekly > 0 ? (
         <span className="tabular-nums">
           <span className="font-medium text-foreground/80">{weekly}</span> cycles
@@ -190,7 +194,7 @@ function ActiveResearchPanel({
   return (
     <div
       className={cn(
-        "mt-3 grid items-center gap-x-3 gap-y-1.5",
+        "mt-6 grid items-center gap-x-3 gap-y-1.5",
         "grid-cols-[auto_auto_minmax(0,1fr)_auto_auto]",
         "lg:grid-cols-1 lg:items-start lg:gap-y-2",
       )}
@@ -241,9 +245,45 @@ function ActiveResearchPanel({
   );
 }
 
+function BannerSkeleton(): ReactElement {
+  return (
+    <Card className={BANNER_CARD} aria-hidden="true">
+      <div className={BANNER_CARD_BODY}>
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-4 w-10 rounded-full" />
+        </div>
+        <div className="mt-4 space-y-2">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+        </div>
+        <div className="mt-6 border-t border-border/70 pt-6">
+          <Skeleton className="mb-2 h-2.5 w-20" />
+          <div className="space-y-3">
+            {Array.from({ length: RECENT_VISIBLE_LIMIT }, (_, i) => (
+              <div key={i} className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-2.5 w-12" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-6 flex gap-3 border-t border-border/70 pt-6">
+          <Skeleton className="h-2.5 w-20" />
+          <Skeleton className="h-2.5 w-24" />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function LiveResearchBannerInner(props: LiveResearchBannerProps): ReactElement {
   const { snapshot: liveSnapshot, status } = useLiveResearch();
   const snapshot = liveSnapshot ?? props.initialSnapshot ?? null;
+  const isLoading = status === "loading" && snapshot === null;
 
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -269,13 +309,27 @@ function LiveResearchBannerInner(props: LiveResearchBannerProps): ReactElement {
   const remaining = snapshot ? Math.max(0, snapshot.active.length - 1) : 0;
   const recentCycles = snapshot?.recent_cycles ?? [];
 
+  if (isLoading) {
+    return (
+      <aside
+        role="status"
+        aria-busy="true"
+        aria-label="Live research status"
+        className={BANNER_ASIDE}
+      >
+        <span className="sr-only">Loading research status</span>
+        <BannerSkeleton />
+      </aside>
+    );
+  }
+
   return (
     <aside
       role="status"
       aria-live="polite"
       aria-atomic="false"
       aria-label="Live research status"
-      className="w-full lg:w-auto"
+      className={BANNER_ASIDE}
     >
       <span data-testid="live-research-announcer" className="sr-only">
         {announcement}
@@ -284,24 +338,26 @@ function LiveResearchBannerInner(props: LiveResearchBannerProps): ReactElement {
       <Card
         className={cn(BANNER_CARD, active ? "research-active" : undefined)}
       >
-        <BannerHeader isActive={Boolean(active)} isFallback={isFallback} />
+        <div className={BANNER_CARD_BODY}>
+          <BannerHeader isActive={Boolean(active)} isFallback={isFallback} />
 
-        {active ? (
-          <ActiveResearchPanel active={active} remaining={remaining} />
-        ) : (
-          <p className="mt-2 text-xs leading-snug text-muted-foreground lg:text-sm">
-            {snapshot?.last_cycle_at
-              ? `Reviewer agent is between cycles. Last completed run ${getRelativeTime(snapshot.last_cycle_at)}.`
-              : "Reviewer agent has not completed a research cycle yet."}
-          </p>
-        )}
+          {active ? (
+            <ActiveResearchPanel active={active} remaining={remaining} />
+          ) : (
+            <p className="mt-4 text-xs leading-snug text-muted-foreground lg:text-sm">
+              {snapshot?.last_cycle_at
+                ? `Reviewer agent is between cycles. Last completed run ${getRelativeTime(snapshot.last_cycle_at)}.`
+                : "Reviewer agent has not completed a research cycle yet."}
+            </p>
+          )}
 
-        {snapshot ? (
-          <>
-            <RecentCyclesList cycles={recentCycles} />
-            <BannerStats snapshot={snapshot} />
-          </>
-        ) : null}
+          {snapshot ? (
+            <>
+              <RecentCyclesList cycles={recentCycles} />
+              <BannerStats snapshot={snapshot} />
+            </>
+          ) : null}
+        </div>
       </Card>
     </aside>
   );

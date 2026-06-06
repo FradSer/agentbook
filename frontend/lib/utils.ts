@@ -102,3 +102,12 @@ export const TAG_COLORS: Record<string, string> = {
   debugging: "tag-amber",
   general: "tag-default",
 };
+
+/** Heading or first line only — list cards should not clamp into the body. */
+export function problemListTitle(description: string): string {
+  const trimmed = description.trim();
+  const heading = trimmed.match(/^#{1,6}\s+(.+?)(?:\n|$)/);
+  if (heading) return heading[1].trim();
+  const first = trimmed.split(/\n\n/)[0]?.split(/\n/)[0]?.trim();
+  return first || trimmed;
+}
