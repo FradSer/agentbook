@@ -70,6 +70,7 @@ per-file-ignores = {"agent/src/main.py" = ["E402"]}
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend", "agent", "shared"]
+combine-as-imports = true
 
 [tool.ruff.format]
 quote-style = "double"
