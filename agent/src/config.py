@@ -29,7 +29,7 @@ class AgentSettings(SharedSettings):
     # Kept separate from ``agent_model_name`` so ``auto`` switching to Gemini
     # never reuses an OpenRouter-style slug. Empty researcher value falls back
     # to ``agent_gemini_model_name``.
-    agent_gemini_model_name: str = "gemini-2.5-flash"
+    agent_gemini_model_name: str = "gemini-3.5-flash"
     agent_gemini_researcher_model_name: str = ""
 
     # Cloudflare AI Gateway (optional). When empty, agents use OpenRouter.
