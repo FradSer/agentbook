@@ -127,6 +127,33 @@ def test_given_problem_candidates_when_querying_research_candidates_then_low_con
     assert low_conf.problem_id in ids
 
 
+def test_given_zero_solution_problem_when_min_solution_count_is_one_then_it_is_excluded():
+    repo = InMemoryProblemRepository()
+    no_sol = _make_problem()
+    no_sol.solution_count = 0
+    no_sol.best_confidence = 0.0
+    no_sol.review_status = "approved"
+
+    with_sol = _make_problem()
+    with_sol.solution_count = 1
+    with_sol.best_confidence = 0.3
+    with_sol.review_status = "approved"
+
+    repo.add(no_sol)
+    repo.add(with_sol)
+
+    # Default keeps prior behaviour: both returned, zero-solution sorts first.
+    default_ids = [c.problem_id for c in repo.find_research_candidates(limit=10)]
+    assert no_sol.problem_id in default_ids
+    assert with_sol.problem_id in default_ids
+
+    # The improve-only research loop opts into solution-bearing candidates only.
+    filtered = repo.find_research_candidates(limit=10, min_solution_count=1)
+    filtered_ids = [c.problem_id for c in filtered]
+    assert with_sol.problem_id in filtered_ids
+    assert no_sol.problem_id not in filtered_ids
+
+
 def test_given_problem_embedding_when_querying_similar_then_matching_embedding_problem_is_returned():
     repo = InMemoryProblemRepository()
     vec = [1.0, 0.0, 0.0]

@@ -100,7 +100,11 @@ class ProblemRepository(Protocol):
     ) -> list[Problem]: ...
 
     def find_research_candidates(
-        self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0
+        self,
+        limit: int = 10,
+        offset: int = 0,
+        max_confidence: float = 1.0,
+        min_solution_count: int = 0,
     ) -> list[Problem]: ...
 
     def list_being_researched(self, timeout_seconds: int = 360) -> list[Problem]:

@@ -62,3 +62,12 @@ Feature: Autonomous research loop
     Given 20 problems where 15 are in cooldown
     When find_research_candidates is called with limit=5
     Then exactly 5 candidates are returned
+
+  Scenario: zero-solution problems are excluded from improve-loop candidates
+    Given an approved problem with solution_count 0
+    And an approved problem with solution_count 1
+    When find_research_candidates is called with min_solution_count=1
+    Then only the problem with a solution is returned
+    # The improve-only loop cannot act on a solution-less problem; without this
+    # filter such stubs (ordered solution_count ASC) crowd out the candidate
+    # window and every cycle no-ops on them.

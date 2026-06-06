@@ -196,12 +196,18 @@ class InMemoryProblemRepository:
         return rows[: max(limit, 0)]
 
     def find_research_candidates(
-        self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0
+        self,
+        limit: int = 10,
+        offset: int = 0,
+        max_confidence: float = 1.0,
+        min_solution_count: int = 0,
     ) -> list[Problem]:
         approved = [
             p
             for p in self._problems.values()
-            if p.review_status == "approved" and p.best_confidence < max_confidence
+            if p.review_status == "approved"
+            and p.best_confidence < max_confidence
+            and p.solution_count >= min_solution_count
         ]
         approved.sort(key=lambda p: (p.solution_count, p.best_confidence))
         return approved[offset : offset + limit]

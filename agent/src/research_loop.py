@@ -80,6 +80,10 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
         max_confidence=settings.agent_research_max_confidence,
         stall_threshold=settings.agent_research_stall_threshold
         + 1,  # +1: radical exploration round before synthesis
+        # The improve-only loop cannot act on a problem with no solution; without
+        # this, zero-solution stubs (solution_count ASC) crowd the candidate window
+        # and every cycle no-ops on them.
+        min_solution_count=1,
     )
     if not candidates:
         logger.info("No research candidates found")
@@ -217,6 +221,7 @@ async def _run_focused_research_cycle(
         cooldown_hours=effective_cooldown,
         max_confidence=settings.agent_research_max_confidence,
         stall_threshold=settings.agent_research_stall_threshold + 1,
+        min_solution_count=1,  # focus mode also only improves existing solutions
     )
     if not candidates:
         logger.info("No research candidates found (focus mode)")

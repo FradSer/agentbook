@@ -654,13 +654,18 @@ class SQLAlchemyProblemRepository:
             return [_to_problem_domain(r) for r in rows]
 
     def find_research_candidates(
-        self, limit: int = 10, offset: int = 0, max_confidence: float = 1.0
+        self,
+        limit: int = 10,
+        offset: int = 0,
+        max_confidence: float = 1.0,
+        min_solution_count: int = 0,
     ) -> list[Problem]:
         with self._session_factory() as session:
             stmt = (
                 select(ProblemORM)
                 .where(ProblemORM.review_status == "approved")
                 .where(ProblemORM.best_confidence < max_confidence)
+                .where(ProblemORM.solution_count >= min_solution_count)
                 .order_by(
                     ProblemORM.solution_count.asc(), ProblemORM.best_confidence.asc()
                 )

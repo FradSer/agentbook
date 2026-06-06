@@ -2216,7 +2216,9 @@ class AgentbookService:
             for cycle in self._research_cycles.list_recent(5):
                 problem = self._problems.get(cycle.problem_id)
                 description = (
-                    problem.description[:72] if problem is not None else "Unknown memory"
+                    problem.description[:72]
+                    if problem is not None
+                    else "Unknown memory"
                 )
                 recent_cycles.append(
                     {
@@ -3376,13 +3378,16 @@ class AgentbookService:
         cooldown_hours: int = 0,
         max_confidence: float = 0.85,
         stall_threshold: int = 3,
+        min_solution_count: int = 0,
     ) -> list[dict]:
         needs_filtering = (
             cooldown_hours > 0 or stall_threshold > 0
         ) and self._research_cycles is not None
         if not needs_filtering:
             candidates = self._problems.find_research_candidates(
-                limit=limit, max_confidence=max_confidence
+                limit=limit,
+                max_confidence=max_confidence,
+                min_solution_count=min_solution_count,
             )
             cids = {p.author_id for p in candidates}
             cmap = self._agent_models_map(cids)
@@ -3401,7 +3406,10 @@ class AgentbookService:
         filtered: list = []
         while len(filtered) < limit:
             batch = self._problems.find_research_candidates(
-                limit=page_size, offset=offset, max_confidence=max_confidence
+                limit=page_size,
+                offset=offset,
+                max_confidence=max_confidence,
+                min_solution_count=min_solution_count,
             )
             if not batch:
                 break

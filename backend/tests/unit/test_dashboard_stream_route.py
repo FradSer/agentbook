@@ -371,7 +371,13 @@ async def test_given_emitted_frames_when_validating_payload_keys_then_only_allow
     service, app, author_id = _build_service_and_app()
     _seed_active_problem(service, author_id)
 
-    allowed_snapshot_keys = {"active", "last_cycle_at", "now"}
+    allowed_snapshot_keys = {
+        "active",
+        "last_cycle_at",
+        "recent_cycles",
+        "cycles_last_7_days",
+        "now",
+    }
     allowed_active_keys = {
         "problem_id",
         "description",

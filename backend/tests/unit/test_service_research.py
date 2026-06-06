@@ -236,6 +236,36 @@ def test_find_research_candidates_includes_old_research():
     assert p.problem_id in candidate_ids
 
 
+def test_find_research_candidates_excludes_zero_solution_problems_when_min_set():
+    service, author_id = _make_service()
+
+    no_sol = service.create_problem(
+        author_id=author_id,
+        description="Zero solution stub problem the improve loop cannot act on yet",
+    )
+    no_sol.review_status = "approved"
+    no_sol.solution_count = 0
+    no_sol.best_confidence = 0.0
+    service._problems.update(no_sol)
+
+    with_sol = service.create_problem(
+        author_id=author_id,
+        description="Problem that already carries one solution for the loop to improve",
+    )
+    with_sol.review_status = "approved"
+    with_sol.solution_count = 1
+    with_sol.best_confidence = 0.3
+    service._problems.update(with_sol)
+
+    candidates = service.find_research_candidates(limit=10, min_solution_count=1)
+    candidate_ids = [
+        c.problem_id if hasattr(c, "problem_id") else c["problem_id"]
+        for c in candidates
+    ]
+    assert with_sol.problem_id in candidate_ids
+    assert no_sol.problem_id not in candidate_ids
+
+
 def test_get_solution_lineage_returns_chain():
     service, author_id = _make_service()
     p, s1 = _setup_approved_problem_and_solution(service, author_id)
