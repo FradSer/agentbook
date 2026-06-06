@@ -85,7 +85,7 @@ describe("<LiveResearchBanner/>", () => {
     render(<LiveResearchBanner />);
 
     expect(screen.getByText(/started/i)).toBeInTheDocument();
-    expect(screen.getByText(/seconds? ago|now|sec/i)).toBeInTheDocument();
+    expect(screen.getByText(/started .*seconds? ago/i)).toBeInTheDocument();
   });
 
   test("multi-problem state foregrounds the most-recent and shows '+N more in flight'", async () => {
@@ -108,9 +108,9 @@ describe("<LiveResearchBanner/>", () => {
     const { LiveResearchBanner } = await importBanner();
     render(<LiveResearchBanner />);
 
-    expect(screen.getByText(/Idle/)).toBeInTheDocument();
-    expect(screen.getByText(/last cycle/)).toBeInTheDocument();
-    expect(screen.getByText(/3 minutes ago|min/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Idle$/)).toBeInTheDocument();
+    expect(screen.getByText(/Last completed run 3 minutes ago/i)).toBeInTheDocument();
+    expect(screen.getByText(/Last run/i)).toBeInTheDocument();
   });
 
   test("idle state with last_cycle_at=null renders 'Idle - awaiting first cycle'", async () => {
@@ -118,6 +118,9 @@ describe("<LiveResearchBanner/>", () => {
     const { LiveResearchBanner } = await importBanner();
     render(<LiveResearchBanner />);
 
+    expect(
+      screen.getByText(/has not completed a research cycle yet/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/awaiting first cycle/i)).toBeInTheDocument();
   });
 
@@ -143,7 +146,7 @@ describe("<LiveResearchBanner/>", () => {
     render(<LiveResearchBanner initialSnapshot={initial} />);
 
     expect(screen.getByText(/Problem 1/)).toBeInTheDocument();
-    expect(screen.queryByText(/Idle/)).toBeNull();
+    expect(screen.queryByText(/^Idle$/)).toBeNull();
   });
 
   test("applies .research-active class on active container", async () => {

@@ -217,8 +217,23 @@ export type LiveResearchActive = {
   elapsed_seconds: number;
 };
 
+export type LiveResearchRecentCycle = {
+  problem_id: string;
+  description: string;
+  status:
+    | "improved"
+    | "no_improvement"
+    | "no_solution_proposed"
+    | "synthesis_completed"
+    | string;
+  created_at: string; // ISO 8601 UTC
+  new_confidence: number;
+};
+
 export type LiveResearchSnapshot = {
   active: LiveResearchActive[];
   last_cycle_at: string | null; // ISO 8601 UTC or null
+  recent_cycles?: LiveResearchRecentCycle[];
+  cycles_last_7_days?: number;
   now: string; // ISO 8601 UTC
 };
