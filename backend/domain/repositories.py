@@ -251,6 +251,14 @@ class ResearchCycleRepository(Protocol):
         """Return MAX(research_cycles.created_at) or None on empty table."""
         ...
 
+    def list_recent(self, limit: int) -> list[ResearchCycle]:
+        """Return the most recent cycles across all problems."""
+        ...
+
+    def count_since(self, since: datetime) -> int:
+        """Count cycles with created_at >= since."""
+        ...
+
 
 class ProblemRelationshipRepository(Protocol):
     def add(self, rel: ProblemRelationship) -> None: ...
