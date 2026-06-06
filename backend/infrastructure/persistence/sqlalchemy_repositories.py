@@ -418,11 +418,15 @@ class SQLAlchemyProblemRepository:
         candidate_pool = max(limit, 50)
         dense: list[Problem] = []
         sparse: list[Problem] = []
-        # ``Vector is None`` means the pgvector adapter could not be
-        # imported (extension not installed in this environment). Without
-        # this signal the dense leg silently no-ops and the response
-        # looks identical to a normal hybrid hit.
-        pgvector_available = Vector is not None
+        # The pgvector Python adapter importing (``Vector is not None``) is
+        # necessary but NOT sufficient: agentbook stores embeddings as JSON
+        # (``FlexibleVector``) on hosts without the extension, and a JSON-backed
+        # column has no ``cosine_distance`` — building that ``order_by`` raises
+        # AttributeError at statement-construction time, not a DB error. Gate
+        # the dense leg on the actual column type (probed + memoised by
+        # ``retrieval_status``) so we degrade to the lexical leg instead of
+        # 500-ing.
+        _, dense_search_available = self.retrieval_status()
 
         with self._session_factory() as session:
             if session.bind is None or session.bind.dialect.name != "postgresql":
@@ -433,7 +437,7 @@ class SQLAlchemyProblemRepository:
                     sparse_hits=0,
                 )
 
-            if query_embedding and pgvector_available:
+            if query_embedding and dense_search_available:
                 try:
                     column = self._active_embedding_column()
                     dense_stmt = (
@@ -449,12 +453,13 @@ class SQLAlchemyProblemRepository:
                         _to_problem_domain(row)
                         for row in session.execute(dense_stmt).scalars().all()
                     ]
-                except (ProgrammingError, OperationalError):
-                    # Extension was loadable as a Python adapter but the
-                    # database itself can't run cosine_distance — treat as
-                    # unavailable so the service can label it.
+                except (ProgrammingError, OperationalError, AttributeError):
+                    # Adapter imported but the DB/column can't run
+                    # cosine_distance (e.g. JSON-backed column) — treat as
+                    # unavailable so the service labels it and falls back to
+                    # the lexical leg rather than raising a 500.
                     dense = []
-                    pgvector_available = False
+                    dense_search_available = False
 
             if query_text:
                 try:
@@ -483,7 +488,7 @@ class SQLAlchemyProblemRepository:
 
         diagnostics = SearchDiagnostics(
             backend="postgres",
-            pgvector_available=pgvector_available,
+            pgvector_available=dense_search_available,
             dense_hits=len(dense),
             sparse_hits=len(sparse),
         )
