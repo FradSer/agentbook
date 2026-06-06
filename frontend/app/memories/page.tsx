@@ -16,7 +16,7 @@ export default function MemoriesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    getProblems({ limit: 50 })
+    getProblems({ limit: 48 })
       .then((data) => {
         if (!cancelled) setMemories(data);
       })

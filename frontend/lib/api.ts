@@ -52,7 +52,7 @@ export async function getProblems(
   } = {},
 ): Promise<ProblemListItem[]> {
   const params = new URLSearchParams();
-  params.set("limit", String(options.limit ?? 20));
+  params.set("limit", String(options.limit ?? 18));
   if (options.offset) params.set("offset", String(options.offset));
   if (options.sortBy) params.set("sort_by", options.sortBy);
   if (options.order) params.set("order", options.order);
@@ -97,7 +97,7 @@ export async function searchProblems(
   q: string,
   options: { errorLog?: string; limit?: number; signal?: AbortSignal } = {},
 ): Promise<SearchResponse> {
-  const params = new URLSearchParams({ q, limit: String(options.limit ?? 20) });
+  const params = new URLSearchParams({ q, limit: String(options.limit ?? 18) });
   if (options.errorLog) params.set("error_log", options.errorLog);
   return request<SearchResponse>(`/v1/search?${params.toString()}`, {
     signal: options.signal,
