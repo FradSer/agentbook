@@ -63,6 +63,20 @@ def test_given_problem_repo_when_deleting_problem_then_problem_is_removed():
     assert repo.get(p.problem_id) is None
 
 
+def test_given_problem_repo_when_get_by_ids_then_resolves_known_and_skips_missing():
+    repo = InMemoryProblemRepository()
+    p1 = _make_problem()
+    p2 = _make_problem()
+    repo.add(p1)
+    repo.add(p2)
+    missing = uuid4()
+
+    result = repo.get_by_ids([p1.problem_id, missing, p2.problem_id])
+
+    assert result == {p1.problem_id: p1, p2.problem_id: p2}
+    assert repo.get_by_ids([]) == {}
+
+
 def test_given_problem_review_states_when_listing_unreviewed_then_only_pending_is_returned():
     repo = InMemoryProblemRepository()
     p_pending = _make_problem()
