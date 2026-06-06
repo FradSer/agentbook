@@ -72,14 +72,41 @@ class TestEmbeddingDimensionValidation:
         validate_production_settings(settings)
 
     def test_no_voyage_key_passes_either_version(self, monkeypatch):
-        # Without a Voyage key the OpenRouter / Fallback chain runs at
+        # Without a dense key the OpenRouter / Fallback chain runs at
         # whatever dim the active column expects. The startup check
-        # only fires for the specific Voyage+v1 mismatch.
+        # only fires for the specific Voyage+v1 / Gemini-mismatch cases.
         # Keep hermetic: the repo .env (read directly by pydantic-settings) may
-        # carry a real VOYAGE_API_KEY. An empty env var outranks the .env file,
-        # so it cleanly exercises the intended no-key path.
+        # carry a real VOYAGE_API_KEY / GEMINI_API_KEY. An empty env var
+        # outranks the .env file, so it cleanly exercises the no-key path.
         monkeypatch.setenv("VOYAGE_API_KEY", "")
+        monkeypatch.setenv("GEMINI_API_KEY", "")
         monkeypatch.setenv("EMBEDDING_VERSION", "v1")
+        monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
+        monkeypatch.setenv("DEBUG", "false")
+
+        settings = Settings()
+        validate_production_settings(settings)
+
+    def test_gemini_dimension_must_match_active_column(self, monkeypatch):
+        # Gemini emits any output_dimensionality, so the only hard rule is that
+        # it equals the active column width. v1 column is 1536; asking for 1024
+        # would make pgvector reject every commit -> refuse to boot.
+        monkeypatch.setenv("VOYAGE_API_KEY", "")
+        monkeypatch.setenv("GEMINI_API_KEY", "gk-test")
+        monkeypatch.setenv("EMBEDDING_VERSION", "v1")
+        monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
+        monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
+        monkeypatch.setenv("DEBUG", "false")
+
+        settings = Settings()
+        with pytest.raises(ValueError, match="EMBEDDING_DIMENSION"):
+            validate_production_settings(settings)
+
+    def test_gemini_with_v2_column_is_accepted_in_production(self, monkeypatch):
+        monkeypatch.setenv("VOYAGE_API_KEY", "")
+        monkeypatch.setenv("GEMINI_API_KEY", "gk-test")
+        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
+        monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
         monkeypatch.setenv("DEBUG", "false")
 
