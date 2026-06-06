@@ -54,6 +54,11 @@ class InMemoryProblemRepository:
     def get(self, problem_id: UUID) -> Problem | None:
         return self._problems.get(problem_id)
 
+    def get_by_ids(self, problem_ids: list[UUID]) -> dict[UUID, Problem]:
+        return {
+            pid: self._problems[pid] for pid in problem_ids if pid in self._problems
+        }
+
     def delete(self, problem_id: UUID) -> None:
         self._problems.pop(problem_id, None)
 
