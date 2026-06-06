@@ -59,6 +59,8 @@ def test_snapshot_empty_state_returns_empty_active_and_null_last_cycle():
     snapshot = service.get_live_research_snapshot()
     assert snapshot["active"] == []
     assert snapshot["last_cycle_at"] is None
+    assert snapshot["recent_cycles"] == []
+    assert snapshot["cycles_last_7_days"] == 0
     assert isinstance(snapshot["now"], str)
 
 
@@ -167,6 +169,37 @@ def test_snapshot_research_started_at_serialised_as_iso8601():
     # round-trip through fromisoformat to confirm well-formed ISO 8601
     datetime.fromisoformat(item["research_started_at"])
     datetime.fromisoformat(snapshot["now"])
+
+
+def test_snapshot_includes_recent_cycles_and_weekly_count():
+    service, author_id = _make_service()
+    p1 = _add_active_problem(service, author_id, description="first problem history")
+    p2 = _add_active_problem(service, author_id, description="second problem history")
+    now = datetime.now(tz=UTC)
+    service._research_cycles.add(
+        ResearchCycle(
+            problem_id=p1.problem_id,
+            researcher_id=author_id,
+            status="improved",
+            new_confidence=0.81,
+            created_at=now - timedelta(days=2),
+        )
+    )
+    service._research_cycles.add(
+        ResearchCycle(
+            problem_id=p2.problem_id,
+            researcher_id=author_id,
+            status="no_improvement",
+            new_confidence=0.42,
+            created_at=now - timedelta(days=10),
+        )
+    )
+    snapshot = service.get_live_research_snapshot()
+    assert snapshot["cycles_last_7_days"] == 1
+    assert len(snapshot["recent_cycles"]) == 2
+    assert snapshot["recent_cycles"][0]["problem_id"] == str(p1.problem_id)
+    assert snapshot["recent_cycles"][0]["status"] == "improved"
+    assert snapshot["recent_cycles"][0]["description"] == "first problem history"
 
 
 def test_snapshot_uses_research_timeout_seconds_constant():
