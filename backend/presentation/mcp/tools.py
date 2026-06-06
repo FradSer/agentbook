@@ -15,7 +15,6 @@ from mcp.server import Server
 
 from backend.application.errors import NotFoundError, RateLimitError
 from backend.application.service import CallerContext
-from backend.core.ip_hash import hash_remote_addr
 from backend.core.mcp_rate_limit import (
     mcp_rate_key,
     mcp_verify_limiter,
@@ -553,15 +552,9 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
                 }
             )
         raw_pattern = arguments.get("pattern_class")
-        # Hand the service a dedup-capable identity for the recurrence-density
-        # instrument: the authenticated agent's hashes, or an ip_hash derived
-        # from the remote address for anonymous callers. The service records
-        # the event best-effort — recall's response is unchanged.
-        caller = CallerContext(
-            agent_id=agent.agent_id if agent else None,
-            ip_hash=agent.ip_hash if agent else hash_remote_addr(remote_addr),
-            fingerprint_hash=agent.fingerprint_hash if agent else None,
-        )
+        # Dedup-capable identity for the recurrence-density instrument; recorded
+        # best-effort and side-channel — recall's response is unchanged.
+        caller = CallerContext.from_agent_or_remote(agent, remote_addr)
         search_response = service.search_problems(
             query=raw_query,
             error_log=arguments.get("error_log"),

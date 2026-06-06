@@ -22,7 +22,40 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from backend.application.clustering import detect_clusters
 from backend.domain.models import QueryEvent
+from backend.domain.repositories import AgentRepository
+
+
+def same_query_identity(a: QueryEvent, b: QueryEvent, agents: AgentRepository) -> bool:
+    """Whether two query events resolve to the same anti-Sybil identity.
+
+    Shared by both QueryEvent repositories' ``add_with_dedup`` so the dedup rule
+    has one source: authenticated callers collapse by agent id or anti-Sybil
+    cluster; otherwise a shared ``ip_hash`` / ``fingerprint_hash`` matches.
+    """
+    if a.agent_id is not None and b.agent_id is not None:
+        if a.agent_id == b.agent_id:
+            return True
+        agent_a = agents.get(a.agent_id)
+        agent_b = agents.get(b.agent_id)
+        if agent_a is None or agent_b is None:
+            return False
+        for cluster in detect_clusters([agent_a, agent_b]):
+            if a.agent_id in cluster and b.agent_id in cluster:
+                return True
+        return False
+    # At least one anonymous caller — match on shared identity hashes.
+    if a.ip_hash and b.ip_hash and a.ip_hash == b.ip_hash:
+        return True
+    if (
+        a.fingerprint_hash
+        and b.fingerprint_hash
+        and a.fingerprint_hash == b.fingerprint_hash
+    ):
+        return True
+    return False
+
 
 _STRONG_QUALITIES = frozenset({"exact", "strong"})
 

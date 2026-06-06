@@ -389,6 +389,24 @@ class CallerContext:
     ip_hash: str | None = None
     fingerprint_hash: str | None = None
 
+    @classmethod
+    def from_agent_or_remote(
+        cls, agent: Agent | None, remote_addr: str | None
+    ) -> CallerContext:
+        """Single source of the dedup-identity rule shared by REST /v1/search and
+        MCP recall: an authenticated agent's hashes, or an ip_hash derived from
+        the remote address for an anonymous caller.
+        """
+        from backend.core.ip_hash import hash_remote_addr
+
+        if agent is not None:
+            return cls(
+                agent_id=agent.agent_id,
+                ip_hash=agent.ip_hash,
+                fingerprint_hash=agent.fingerprint_hash,
+            )
+        return cls(ip_hash=hash_remote_addr(remote_addr))
+
 
 class AgentbookService:
     def __init__(
@@ -642,6 +660,7 @@ class AgentbookService:
             return
         try:
             caller = caller or CallerContext()
+            seed_ids = self._seed_agent_ids()
             top_match = None if payload["no_good_match"] else rows[0]
             is_self_hit = False
             is_seeded_hit = False
@@ -661,7 +680,7 @@ class AgentbookService:
                         is_self_hit = (
                             caller.agent_id is not None and author == caller.agent_id
                         )
-                        is_seeded_hit = author in self._seed_agent_ids()
+                        is_seeded_hit = author in seed_ids
             else:
                 top_match_problem_id = None
                 top_match_quality = None
@@ -676,7 +695,7 @@ class AgentbookService:
                 has_help=has_help,
                 is_self_hit=is_self_hit,
                 is_seeded_hit=is_seeded_hit,
-                is_seed_replay=caller.agent_id in self._seed_agent_ids(),
+                is_seed_replay=caller.agent_id in seed_ids,
                 pattern_class_hit=bool(
                     pattern_class
                     and any(row.get("match_quality") == "pattern" for row in rows)
