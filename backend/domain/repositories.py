@@ -31,6 +31,12 @@ class ProblemRepository(Protocol):
 
     def get(self, problem_id: UUID) -> Problem | None: ...
 
+    def get_by_ids(self, problem_ids: list[UUID]) -> dict[UUID, Problem]:
+        """Fetch multiple problems by id in one round-trip, keyed by id and
+        skipping ids that do not resolve. Lets a caller holding a bounded id
+        set avoid an N+1 ``get`` loop or a full ``list_all`` scan."""
+        ...
+
     def list_all(self) -> list[Problem]: ...
 
     def find_similar(
