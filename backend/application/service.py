@@ -38,6 +38,7 @@ from backend.application.errors import (
 from backend.application.gate import check_spam
 from backend.application.security import generate_api_key, hash_api_key
 from backend.core.config import settings
+from backend.core.ip_hash import hash_remote_addr
 from backend.core.sandbox_gates import (
     SandboxBudgetLimiter,
     SandboxCircuitBreaker,
@@ -397,8 +398,6 @@ class CallerContext:
         MCP recall: an authenticated agent's hashes, or an ip_hash derived from
         the remote address for an anonymous caller.
         """
-        from backend.core.ip_hash import hash_remote_addr
-
         if agent is not None:
             return cls(
                 agent_id=agent.agent_id,
@@ -2446,14 +2445,16 @@ class AgentbookService:
             since=utc_now() - timedelta(days=_RECURRENCE_WINDOW_DAYS),
         )
         per_problem = rollup.get("per_problem", [])
-        # Filter the (already <=100) per-problem rows to approved problems by
-        # looking up only those ids — not loading the whole problems table.
+        # Bulk-fetch the (already <=100) per-problem ids in one round-trip, then
+        # keep the approved ones — avoids both a full problems-table scan and a
+        # per-row get (an N+1 on the DB path).
+        candidate_ids = [
+            pid for row in per_problem if (pid := row["problem_id"]) is not None
+        ]
         approved_ids = {
             pid
-            for row in per_problem
-            if (pid := row["problem_id"]) is not None
-            and (p := self._problems.get(pid)) is not None
-            and p.review_status == "approved"
+            for pid, problem in self._problems.get_by_ids(candidate_ids).items()
+            if problem.review_status == "approved"
         }
         problems = [
             {
