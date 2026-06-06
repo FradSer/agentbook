@@ -25,11 +25,19 @@ class AgentSettings(SharedSettings):
     # Auto Research / hill-climbing; empty string falls back to agent_model_name
     agent_researcher_model_name: str = "minimax/minimax-m2.5"
 
+    # Gemini model ids (used when the active provider resolves to ``gemini``).
+    # Kept separate from ``agent_model_name`` so ``auto`` switching to Gemini
+    # never reuses an OpenRouter-style slug. Empty researcher value falls back
+    # to ``agent_gemini_model_name``.
+    agent_gemini_model_name: str = "gemini-2.5-flash"
+    agent_gemini_researcher_model_name: str = ""
+
     # Cloudflare AI Gateway (optional). When empty, agents use OpenRouter.
     cf_aig_url: str = ""
     cf_aig_token: str = ""
 
-    # ``openrouter`` | ``cf_aig`` | ``nvidia`` | ``auto`` (NVIDIA > CF > OpenRouter)
+    # ``gemini`` | ``openrouter`` | ``cf_aig`` | ``nvidia`` | ``auto``
+    # (auto: Gemini > NVIDIA > CF > OpenRouter)
     agent_llm_provider: str = "auto"
 
     # NVIDIA Integrate API (OpenAI-compatible), e.g. deepseek-ai/deepseek-v4-pro

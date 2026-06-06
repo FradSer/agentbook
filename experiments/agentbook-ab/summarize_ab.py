@@ -64,6 +64,7 @@ def main() -> None:
     for entry in manifest:
         iid = entry["instance_id"]
         statuses = {a: pass_status(results.get((iid, a))) for a in arms}
+
         def fmt(s: str | None) -> str:
             if s is None:
                 return "   —"
@@ -71,18 +72,28 @@ def main() -> None:
                 return "  SKIP"
             return s.rjust(10)
 
-        print(f"{iid:<36} {fmt(statuses['control'])} {fmt(statuses['good'])} {fmt(statuses['oracle'])}")
+        print(
+            f"{iid:<36} {fmt(statuses['control'])} {fmt(statuses['good'])} {fmt(statuses['oracle'])}"
+        )
 
-        if statuses["control"] in ("PASS", "FAIL") and statuses["good"] in ("PASS", "FAIL"):
+        if statuses["control"] in ("PASS", "FAIL") and statuses["good"] in (
+            "PASS",
+            "FAIL",
+        ):
             paired_cg.append((iid, statuses["control"], statuses["good"]))
-        if statuses["good"] in ("PASS", "FAIL") and statuses["oracle"] in ("PASS", "FAIL"):
+        if statuses["good"] in ("PASS", "FAIL") and statuses["oracle"] in (
+            "PASS",
+            "FAIL",
+        ):
             paired_go.append((iid, statuses["good"], statuses["oracle"]))
 
     paired_cg_eligible = [
         t for t in paired_cg if t[0] in eligible_ids and t[1] == "FAIL"
     ]
 
-    agg: dict[str, dict[str, int]] = defaultdict(lambda: {"pass": 0, "submitted": 0, "skip": 0})
+    agg: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"pass": 0, "submitted": 0, "skip": 0}
+    )
     agg_eligible: dict[str, dict[str, int]] = defaultdict(
         lambda: {"pass": 0, "submitted": 0, "skip": 0}
     )
@@ -146,7 +157,9 @@ def main() -> None:
     good_pass_e = agg_eligible["good"]["pass"]
     oracle_pass_e = agg_eligible["oracle"]["pass"]
 
-    print(f"\nLift-eligible tasks (control != PASS): {len(eligible_ids)}/{len(manifest_ids)}")
+    print(
+        f"\nLift-eligible tasks (control != PASS): {len(eligible_ids)}/{len(manifest_ids)}"
+    )
     for arm in arms:
         a = agg_eligible[arm]
         rate = f"{100 * a['pass'] / a['submitted']:.1f}%" if a["submitted"] else "n/a"
@@ -156,23 +169,22 @@ def main() -> None:
         )
 
     print(f"\nPaired control vs good (n={cg['n']}):")
-    print(f"  lift={cg['lift']} harm={cg['harm']} both_pass={cg['both_pass']} both_fail={cg['both_fail']}")
+    print(
+        f"  lift={cg['lift']} harm={cg['harm']} both_pass={cg['both_pass']} both_fail={cg['both_fail']}"
+    )
     print(f"  rag_gain (good-control pass): {good_pass - ctrl_pass:+d}")
 
-    print(
-        f"\nPaired on lift-eligible where control FAIL (n={cg_eligible['n']}):"
-    )
-    print(
-        f"  lift={cg_eligible['lift']} harm=0 "
-        f"both_fail={cg_eligible['both_fail']}"
-    )
+    print(f"\nPaired on lift-eligible where control FAIL (n={cg_eligible['n']}):")
+    print(f"  lift={cg_eligible['lift']} harm=0 both_fail={cg_eligible['both_fail']}")
     print(
         f"  rag_gain_eligible (good-control pass on eligible): "
         f"{good_pass_e - ctrl_pass_e:+d}"
     )
 
     print(f"\nPaired good vs oracle (n={go['n']}):")
-    print(f"  lift={go['lift']} harm={go['harm']} both_pass={go['both_pass']} both_fail={go['both_fail']}")
+    print(
+        f"  lift={go['lift']} harm={go['harm']} both_pass={go['both_pass']} both_fail={go['both_fail']}"
+    )
     print(f"  retrieval_loss (oracle-good pass): {oracle_pass - good_pass:+d}")
 
     summary = {
@@ -182,7 +194,9 @@ def main() -> None:
         "pass_at_1": {a: agg[a] for a in arms},
         "pass_at_1_eligible": {a: agg_eligible[a] for a in arms},
         "submit_rate": {
-            a: round(agg[a]["submitted"] / len(manifest_ids), 4) if manifest_ids else 0.0
+            a: round(agg[a]["submitted"] / len(manifest_ids), 4)
+            if manifest_ids
+            else 0.0
             for a in arms
         },
         "paired_control_good": cg,

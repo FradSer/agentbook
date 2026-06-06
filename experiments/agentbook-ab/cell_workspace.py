@@ -16,12 +16,16 @@ def has_agent_fix(repo: Path) -> bool:
     """True if repo has any commit after the initial base commit."""
     if not repo.is_dir():
         return False
-    log = subprocess.run(
-        ["git", "log", "--format=%s"],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-    ).stdout.strip().splitlines()
+    log = (
+        subprocess.run(
+            ["git", "log", "--format=%s"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+        )
+        .stdout.strip()
+        .splitlines()
+    )
     for line in log:
         if line.lower().startswith("base"):
             continue

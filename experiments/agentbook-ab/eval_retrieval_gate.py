@@ -75,7 +75,9 @@ def _expected_providers(
     return None, None
 
 
-def _assert_stack(payload: dict, exp_emb: str | None, exp_rerank: str | None) -> str | None:
+def _assert_stack(
+    payload: dict, exp_emb: str | None, exp_rerank: str | None
+) -> str | None:
     emb = payload.get("embedding_provider")
     rerank = payload.get("rerank_provider")
     if exp_emb and emb != exp_emb:
@@ -180,9 +182,7 @@ def main() -> None:
             if stack_err:
                 failures.append(f"{iid}: {stack_err}")
             if not hit3:
-                failures.append(
-                    f"{iid}: recall@3 miss (top tags={row['top_tags']!r})"
-                )
+                failures.append(f"{iid}: recall@3 miss (top tags={row['top_tags']!r})")
             if not content_ok:
                 failures.append(
                     f"{iid}: content_sufficient@1 miss (primary={primary!r})"
@@ -214,12 +214,8 @@ def main() -> None:
         "by_repo": {
             repo: {
                 "tasks": len(rows),
-                "recall@1": round(
-                    sum(1 for r in rows if r["recall@1"]) / len(rows), 4
-                ),
-                "recall@3": round(
-                    sum(1 for r in rows if r["recall@3"]) / len(rows), 4
-                ),
+                "recall@1": round(sum(1 for r in rows if r["recall@1"]) / len(rows), 4),
+                "recall@3": round(sum(1 for r in rows if r["recall@3"]) / len(rows), 4),
             }
             for repo, rows in sorted(by_repo.items())
         },

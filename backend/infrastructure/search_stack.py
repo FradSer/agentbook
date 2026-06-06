@@ -2,8 +2,8 @@
 
 External fix agents (OpenRouter, Cursor, etc.) must not perform retrieval
 embeddings themselves. All indexing and ``GET /v1/search`` queries use this
-stack on the agentbook server: Voyage → OpenRouter → Fallback, with Voyage
-rerank when configured.
+stack on the agentbook server: Gemini → Voyage → OpenRouter → Fallback, with
+Voyage rerank when configured.
 """
 
 from __future__ import annotations
@@ -28,6 +28,9 @@ class ResolvedSearchStack:
 
 
 def resolve_search_stack() -> ResolvedSearchStack:
+    from backend.infrastructure.embeddings.gemini import (
+        resolve_embedding_provider as resolve_gemini_embedding,
+    )
     from backend.infrastructure.embeddings.openrouter import (
         OpenRouterEmbeddingProvider,
         resolve_embedding_provider as resolve_openrouter_embedding,
@@ -37,11 +40,14 @@ def resolve_search_stack() -> ResolvedSearchStack:
     )
     from backend.infrastructure.reranking import resolve_rerank_fn
 
+    gemini = resolve_gemini_embedding()
     voyage = resolve_voyage_embedding()
     openrouter = resolve_openrouter_embedding()
-    embedding = voyage or openrouter or FallbackEmbeddingProvider()
+    embedding = gemini or voyage or openrouter or FallbackEmbeddingProvider()
 
-    if voyage is not None:
+    if gemini is not None:
+        embedding_name = "gemini"
+    elif voyage is not None:
         embedding_name = "voyage"
     elif isinstance(embedding, OpenRouterEmbeddingProvider):
         embedding_name = "openrouter"
@@ -70,9 +76,11 @@ def warn_if_degraded_search_stack(stack: ResolvedSearchStack) -> None:
         logger.warning(
             "VOYAGE_API_KEY set but reranker is NoOp (disabled or SDK missing)"
         )
-    if (settings.voyage_api_key or settings.openrouter_api_key) and (
-        stack.embedding_provider_name == "fallback"
-    ):
+    if (
+        settings.gemini_api_key
+        or settings.voyage_api_key
+        or settings.openrouter_api_key
+    ) and (stack.embedding_provider_name == "fallback"):
         logger.warning(
             "embedding API keys configured but search stack fell back to "
             "deterministic Fallback — good-arm RAG quality will not match production"

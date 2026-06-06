@@ -1,11 +1,11 @@
-"""Backfill ``problems.embedding_v2`` with Voyage v3-large embeddings.
+"""Backfill ``problems.embedding_v2`` with the configured embedding provider.
 
-Phase 3b of the false-positive fix migration. Iterates approved problems in
-batches of 128 (Voyage accepts up to 1000 inputs per call; 128 is the
-conservative pick that keeps memory tame on Railway), embeds them with
-``input_type="document"`` at 1024 dimensions, and writes them to
-``problems.embedding_v2`` via the side-channel
-``update_embedding_v2`` method.
+Iterates approved problems in batches, embeds them with
+``input_type="document"`` at ``EMBEDDING_DIMENSION`` dimensions, and writes
+them to ``problems.embedding_v2`` via the side-channel ``update_embedding_v2``
+method. The provider is whatever ``resolve_search_stack`` selects (Gemini →
+Voyage → OpenRouter → Fallback), so a model/provider change is picked up by
+re-running with ``--force``.
 
 Idempotent + resumable: ``WHERE embedding_v2 IS NULL`` is the natural
 checkpoint — re-running picks up where a crashed run left off. Use
@@ -14,7 +14,7 @@ checkpoint — re-running picks up where a crashed run left off. Use
 Usage::
 
     DATABASE_URL=postgresql://... \\
-    VOYAGE_API_KEY=ak_voyage_... \\
+    GEMINI_API_KEY=... EMBEDDING_VERSION=v2 \\
     uv run python -m backend.scripts.reembed_corpus [--dry-run] [--batch 128] [--force]
 """
 
@@ -29,20 +29,34 @@ import time
 logger = logging.getLogger("agentbook.reembed")
 
 
-def _build_voyage_provider():
-    """Construct a Voyage embedder from settings, exiting fast on misconfiguration."""
-    from backend.core.config import settings
-    from backend.infrastructure.embeddings.voyage import VoyageEmbeddingProvider
+def _build_provider():
+    """Resolve the configured embedding provider, exiting fast if none is real.
 
-    if not settings.voyage_api_key:
-        print("error: VOYAGE_API_KEY must be set", file=sys.stderr)
+    Uses the same resolver as the live API (``resolve_search_stack``) so the
+    backfill embeds with whatever provider production runs. Refuses the
+    deterministic Fallback — backfilling with it would poison ``embedding_v2``
+    with non-semantic vectors.
+    """
+    from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
+    from backend.infrastructure.search_stack import resolve_search_stack
+
+    stack = resolve_search_stack()
+    if isinstance(stack.embedding_provider, FallbackEmbeddingProvider):
+        print(
+            "error: no real embedding provider configured "
+            "(set GEMINI_API_KEY / VOYAGE_API_KEY / OPENROUTER_API_KEY)",
+            file=sys.stderr,
+        )
         sys.exit(2)
+    return stack.embedding_provider
 
-    return VoyageEmbeddingProvider(
-        api_key=settings.voyage_api_key,
-        model=settings.voyage_embedding_model,
-        output_dimension=settings.embedding_dimension,
-    )
+
+def _embed_documents(provider, texts: list[str]) -> list[list[float]]:
+    """Use the provider's native batch path when present, else embed one by one."""
+    batch = getattr(provider, "embed_documents", None)
+    if callable(batch):
+        return batch(texts)
+    return [provider.embed(text, input_type="document") for text in texts]
 
 
 def _candidates_query(force: bool):
@@ -66,7 +80,7 @@ def reembed(batch_size: int, dry_run: bool, force: bool) -> int:
     )
 
     repo = SQLAlchemyProblemRepository(SessionLocal)
-    provider = _build_voyage_provider() if not dry_run else None
+    provider = _build_provider() if not dry_run else None
 
     with SessionLocal() as session:
         rows = session.execute(_candidates_query(force)).all()
@@ -91,7 +105,7 @@ def reembed(batch_size: int, dry_run: bool, force: bool) -> int:
             continue
 
         start = time.monotonic()
-        vectors = provider.embed_documents(texts)  # type: ignore[union-attr]
+        vectors = _embed_documents(provider, texts)
         embed_dt_ms = int((time.monotonic() - start) * 1000)
 
         for problem_id, vector in zip(ids, vectors, strict=True):
@@ -115,7 +129,7 @@ def reembed(batch_size: int, dry_run: bool, force: bool) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--batch", type=int, default=128, help="batch size for Voyage embed calls"
+        "--batch", type=int, default=128, help="rows fetched/written per loop iteration"
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="enumerate without embedding"

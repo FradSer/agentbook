@@ -46,6 +46,8 @@ def normalize_openrouter_models(models: tuple[str, ...] | list[str]) -> tuple[st
             f"Only this model may be used: {allowed}"
         )
     return chosen
+
+
 MAX_TOKENS = 16384
 TIMEOUT_SECONDS = 600
 DELAY_SECONDS = 20
@@ -123,9 +125,7 @@ def load_api_key() -> str:
                 key = line.split("=", 1)[1].strip().strip('"').strip("'")
                 if key:
                     return key
-    raise RuntimeError(
-        "OPENROUTER_API_KEY not set. Export it or add to repo root .env"
-    )
+    raise RuntimeError("OPENROUTER_API_KEY not set. Export it or add to repo root .env")
 
 
 def load_source_context(iid: str, repo: Path, max_chars: int = 18000) -> str:
@@ -281,9 +281,14 @@ async def call_openrouter_messages_async(
                 return str(content), model
             except httpx.HTTPStatusError as exc:
                 last_err = exc
-                if exc.response.status_code in (429, 502, 503) and attempt < MAX_RETRIES - 1:
+                if (
+                    exc.response.status_code in (429, 502, 503)
+                    and attempt < MAX_RETRIES - 1
+                ):
                     wait = RETRY_BACKOFF_SECONDS * (attempt + 1)
-                    log_cell(tag, f"{model}: HTTP {exc.response.status_code}, wait {wait}s")
+                    log_cell(
+                        tag, f"{model}: HTTP {exc.response.status_code}, wait {wait}s"
+                    )
                     await _sleep_backoff(wait)
                     continue
                 log_cell(tag, f"model {model} failed: {exc}")
@@ -637,11 +642,15 @@ def main() -> None:
         help="Concurrent cells (async parallel OpenRouter requests)",
     )
     ap.add_argument("--delay", type=float, default=DELAY_SECONDS)
-    ap.add_argument("-o", "--results", type=Path, default=ROOT / "openrouter_run_results.json")
+    ap.add_argument(
+        "-o", "--results", type=Path, default=ROOT / "openrouter_run_results.json"
+    )
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    models = normalize_openrouter_models(tuple(args.model) if args.model else DEFAULT_MODELS)
+    models = normalize_openrouter_models(
+        tuple(args.model) if args.model else DEFAULT_MODELS
+    )
     api_key = load_api_key()
     cells = iter_cells(args.cells, args.manifest, args.instance, args.arm)
     active = cells_pending(cells, skip_done=args.skip_done)

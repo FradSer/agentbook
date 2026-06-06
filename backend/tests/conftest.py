@@ -33,7 +33,7 @@ def isolate_runtime_settings_for_tests() -> None:
     """Run tests against in-memory repositories unless a test overrides settings.
 
     ``database_url`` / ``debug`` are clobbered unconditionally so every test
-    still uses the in-memory repos. The Voyage and OpenRouter keys are
+    still uses the in-memory repos. The Gemini, Voyage and OpenRouter keys are
     clobbered only when ``RUN_REAL_EVAL`` is unset — the real-mode
     retrieval-quality eval (``backend/tests/eval/test_retrieval_quality.py``)
     opts in by exporting ``RUN_REAL_EVAL=1``, at which point we let whatever
@@ -41,12 +41,14 @@ def isolate_runtime_settings_for_tests() -> None:
     service.
     """
     original_database_url = app_settings.database_url
+    original_gemini_api_key = app_settings.gemini_api_key
     original_openrouter_api_key = app_settings.openrouter_api_key
     original_voyage_api_key = app_settings.voyage_api_key
     original_debug = app_settings.debug
 
     app_settings.database_url = None
     if not os.environ.get("RUN_REAL_EVAL"):
+        app_settings.gemini_api_key = None
         app_settings.openrouter_api_key = None
         app_settings.voyage_api_key = None
     app_settings.debug = True
@@ -55,6 +57,7 @@ def isolate_runtime_settings_for_tests() -> None:
         yield
     finally:
         app_settings.database_url = original_database_url
+        app_settings.gemini_api_key = original_gemini_api_key
         app_settings.openrouter_api_key = original_openrouter_api_key
         app_settings.voyage_api_key = original_voyage_api_key
         app_settings.debug = original_debug

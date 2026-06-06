@@ -57,10 +57,18 @@ class Verifier:
 
     def check(self, perspective: str, name: str, ok: bool, detail: str = "") -> None:
         self.results.append(
-            {"perspective": perspective, "check": name, "ok": ok, "detail": detail[:800]}
+            {
+                "perspective": perspective,
+                "check": name,
+                "ok": ok,
+                "detail": detail[:800],
+            }
         )
         mark = "PASS" if ok else "FAIL"
-        print(f"[{mark}] [{perspective}] {name}" + (f" — {detail[:160]}" if detail else ""))
+        print(
+            f"[{mark}] [{perspective}] {name}"
+            + (f" — {detail[:160]}" if detail else "")
+        )
 
     def run(self) -> int:
         # Perspective A — Platform liveness
@@ -84,7 +92,8 @@ class Verifier:
         st, search = req(
             self.base,
             "GET",
-            "/v1/search?" + urllib.parse.urlencode({"q": "import error module", "limit": 5}),
+            "/v1/search?"
+            + urllib.parse.urlencode({"q": "import error module", "limit": 5}),
         )
         seeded = len(search.get("results", [])) if isinstance(search, dict) else 0
         self.check(
@@ -198,10 +207,16 @@ class Verifier:
             },
             token=strong_key,
         )
-        conf_after = float(report.get("solution_confidence_updated", 0)) if isinstance(
-            report, dict
-        ) else 0.0
-        delta = float(report.get("confidence_delta", 0)) if isinstance(report, dict) else 0.0
+        conf_after = (
+            float(report.get("solution_confidence_updated", 0))
+            if isinstance(report, dict)
+            else 0.0
+        )
+        delta = (
+            float(report.get("confidence_delta", 0))
+            if isinstance(report, dict)
+            else 0.0
+        )
         lifted = conf_after > conf_before or delta > 0
         self.check(
             "E-flywheel",
@@ -219,12 +234,8 @@ class Verifier:
         )
 
         # Perspective F — Autoresearch fuel
-        st, rc = req(
-            self.base, "GET", "/v1/dashboard/research/candidates?limit=5"
-        )
-        candidates = (
-            rc.get("candidates", []) if isinstance(rc, dict) else []
-        )
+        st, rc = req(self.base, "GET", "/v1/dashboard/research/candidates?limit=5")
+        candidates = rc.get("candidates", []) if isinstance(rc, dict) else []
         self.check(
             "F-autoresearch",
             "research_candidates",

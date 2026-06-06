@@ -78,7 +78,7 @@ A new public-facing capability typically touches all four layers. Order: BDD `.f
 
 Root `.env` is single source of truth. Frontend needs `frontend/.env.local` synced via `bash scripts/sync-env.sh`.
 
-**Key behavior:** `database_url=None` -> in-memory repos. `openrouter_api_key=None` -> keyword search fallback. `DEMO_MODE=1` -> bypass DB entirely and load preseeded demo repos from `backend/demo.py`.
+**Key behavior:** `database_url=None` -> in-memory repos. No embedding key configured (`gemini_api_key`/`voyage_api_key`/`openrouter_api_key` all unset) -> deterministic Fallback embedder, recall degrades to keyword search. `DEMO_MODE=1` -> bypass DB entirely and load preseeded demo repos from `backend/demo.py`.
 
 ## API
 
@@ -86,7 +86,7 @@ All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/p
 
 ## ReviewerAgent
 
-Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`); the LLM is routed by `agent/src/llm.py` across NVIDIA Integrate, Cloudflare AI Gateway, or OpenRouter (`AGENT_LLM_PROVIDER`, default `auto`). Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
+Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`); the LLM is routed by `agent/src/llm.py` across Google Gemini, NVIDIA Integrate, Cloudflare AI Gateway, or OpenRouter (`AGENT_LLM_PROVIDER`, default `auto`, which prefers Gemini > NVIDIA > CF > OpenRouter). A provider credential may hold a comma-separated key list, rotated round-robin via `shared/provider_keys.py` so one throttled key does not sink every request. Gemini uses `AGENT_GEMINI_MODEL_NAME` (default `gemini-2.5-flash`) so `auto` switching never reuses an OpenRouter-style slug. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
 
 Synthesis (`agent/src/synthesis.py:synthesize_structured_knowledge` via `build_synthesis_llm_fn`) distils the active solutions into canonical content **plus** transferable structured knowledge — `root_cause_pattern`, `localization_cues`, `verification`, and a discrete `root_cause_class` slug. `service.synthesize_solutions` stamps these on the canonical `Solution` and mirrors the class onto the problem as a `pattern:<slug>` tag, which `search_problems(pattern_class=...)` matches as an additive cross-task retrieval leg. Note: cross-task transfer is retrieval-validated (0→55%) but **fix-lift is 0** on a weak model — agentbook's validated value is same-task recall. See `experiments/agentbook-ab/_report/04_cross_task_retrieval.md` (gitignored; mirrored in the eval `_oracle/*.json`).
 
@@ -102,13 +102,13 @@ Data layer: `frontend/lib/api.ts` reads `NEXT_PUBLIC_API_URL`. Server components
 
 ## Database
 
-PostgreSQL with pgvector. Embeddings default to 1024-dim (Voyage v3-large, `EMBEDDING_VERSION=v2`); the legacy `vector(1536)` column predates the v2 switch. Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
+PostgreSQL with pgvector. Embeddings default to 1024-dim Gemini (`gemini-embedding-001` at `output_dimensionality=1024`, `EMBEDDING_VERSION=v2`); the search stack resolves **Gemini -> Voyage -> OpenRouter -> Fallback** (`backend/infrastructure/search_stack.py`), reranking stays Voyage-only. Gemini only L2-normalizes its native 3072-dim output, so the provider normalizes reduced dims client-side. The legacy `vector(1536)` column predates the v2 switch. Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
 
 **FlexibleVector gotcha:** Railway PostgreSQL lacks `vector` extension. Use `FlexibleVector` TypeDecorator with `impl = SQLAlchemyJSON` -- NOT `Vector` -- because `TypeDecorator.process_result_value` runs after impl's `result_processor`, so `Vector` impl crashes reading lists from JSON columns.
 
 ## Testing Conventions
 
-- **Unit** (`backend/tests/unit/`): in-memory repos, no Docker. `backend/tests/conftest.py` autouse fixtures force `database_url=None` / `openrouter_api_key=None` and disable the slowapi limiter -- rate-limit tests opt back in via the `enable_limiter` fixture.
+- **Unit** (`backend/tests/unit/`): in-memory repos, no Docker. `backend/tests/conftest.py` autouse fixtures force `database_url=None` and clear the dense-provider keys (`gemini_api_key`/`voyage_api_key`/`openrouter_api_key`, unless `RUN_REAL_EVAL=1`) and disable the slowapi limiter -- rate-limit tests opt back in via the `enable_limiter` fixture.
 - **Integration** (`backend/tests/integration/`): `RUN_DOCKER_TESTS=1`, `@pytest.mark.smoke`.
 - **Performance** (`backend/tests/performance/`): `RUN_PERF_TESTS=1`, `@pytest.mark.perf`. Real-embedding latency check: `make perf-real` (requires `OPENROUTER_API_KEY`).
 - **Simulation** (`backend/tests/simulation/`): stress / edge-case scenarios (`stress_agents.py`, `edge_cases.py`) for the reviewer/research loop.

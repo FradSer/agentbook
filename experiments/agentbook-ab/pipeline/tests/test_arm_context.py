@@ -30,8 +30,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from pipeline import arm_context as arm_ctx  # noqa: E402
-from pipeline import router as router_mod  # noqa: E402
+from pipeline import (
+    arm_context as arm_ctx,  # noqa: E402
+    router as router_mod,  # noqa: E402
+)
 from pipeline.router import RUNTIME_ARMS  # noqa: E402
 
 _IID = "sympy__sympy-15017"

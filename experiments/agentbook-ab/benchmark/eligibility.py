@@ -41,9 +41,7 @@ def control_unpassed_ids(
         if row is None:
             eligible.add(iid)
             continue
-        if not row.get("submitted"):
-            eligible.add(iid)
-        elif not row.get("tests_pass"):
+        if not row.get("submitted") or not row.get("tests_pass"):
             eligible.add(iid)
     return eligible
 

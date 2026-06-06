@@ -6,13 +6,29 @@ import logging
 from collections.abc import Sequence
 
 import httpx
+from agno.models.base import Model
 from agno.models.openai.like import OpenAILike
 
 from agent.src.config import settings
+from shared.provider_keys import RoundRobin, parse_keys
 
 logger = logging.getLogger(__name__)
 
 NVIDIA_DEFAULT_BASE_URL = "https://integrate.api.nvidia.com/v1"
+
+# Round-robin rotators cached per key-set so repeated builds keep advancing
+# across the configured Gemini keys instead of resetting to the first each call.
+_ROTATORS: dict[tuple[str, ...], RoundRobin] = {}
+
+
+def _rotator_for(keys: list[str]) -> RoundRobin:
+    cache_key = tuple(keys)
+    rotator = _ROTATORS.get(cache_key)
+    if rotator is None:
+        rotator = RoundRobin(keys)
+        _ROTATORS[cache_key] = rotator
+    return rotator
+
 
 # Cloudflare AI Gateway compat rejects some OpenRouter-style provider slugs.
 _CF_BLOCKED_PREFIXES: Sequence[str] = ("minimax/",)
@@ -34,6 +50,10 @@ def _normalized_provider() -> str:
     return (settings.agent_llm_provider or "auto").strip().lower()
 
 
+def gemini_configured() -> bool:
+    return bool(parse_keys(settings.gemini_api_key))
+
+
 def nvidia_configured() -> bool:
     return bool(settings.nvidia_api_key)
 
@@ -47,6 +67,8 @@ def active_llm_provider() -> str:
     provider = _normalized_provider()
     if provider != "auto":
         return provider
+    if gemini_configured():
+        return "gemini"
     if nvidia_configured():
         return "nvidia"
     if cf_gateway_configured():
@@ -57,6 +79,8 @@ def active_llm_provider() -> str:
 def llm_api_key_configured() -> bool:
     """Whether credentials exist for the active provider."""
     provider = active_llm_provider()
+    if provider == "gemini":
+        return gemini_configured()
     if provider == "nvidia":
         return nvidia_configured()
     if provider == "cf_aig":
@@ -66,6 +90,14 @@ def llm_api_key_configured() -> bool:
 
 def resolve_model_id(*, researcher: bool = False) -> str:
     """Pick a model id, falling back when CF Gateway cannot route the researcher model."""
+    if active_llm_provider() == "gemini":
+        if researcher:
+            return (
+                settings.agent_gemini_researcher_model_name
+                or settings.agent_gemini_model_name
+            )
+        return settings.agent_gemini_model_name
+
     if researcher:
         preferred = settings.agent_researcher_model_name or settings.agent_model_name
     else:
@@ -85,9 +117,17 @@ def resolve_model_id(*, researcher: bool = False) -> str:
     return preferred
 
 
-def build_agent_model(*, researcher: bool = False) -> OpenAILike:
+def build_agent_model(*, researcher: bool = False) -> Model:
     model_id = resolve_model_id(researcher=researcher)
     provider = active_llm_provider()
+
+    if provider == "gemini":
+        keys = parse_keys(settings.gemini_api_key)
+        if not keys:
+            raise ValueError("AGENT_LLM_PROVIDER=gemini but GEMINI_API_KEY is not set")
+        from agno.models.google import Gemini
+
+        return Gemini(id=model_id, api_key=_rotator_for(keys).next())
 
     if provider == "nvidia":
         if not nvidia_configured():

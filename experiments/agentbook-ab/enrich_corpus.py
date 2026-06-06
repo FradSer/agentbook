@@ -45,9 +45,13 @@ def _steps_from_patch(gold: str, primary: str, func: str) -> list[str]:
     if "try:" in gold and "except" in gold:
         exc = re.search(r"except (\w+)", gold)
         name = exc.group(1) if exc else "the expected exception"
-        steps.append(f"Wrap the failing block in try/except {name} with a safe fallback")
+        steps.append(
+            f"Wrap the failing block in try/except {name} with a safe fallback"
+        )
     elif re.search(r"^[-+].*if ", gold, re.M):
-        steps.append("Adjust the conditional branch so the correct code path runs for this input")
+        steps.append(
+            "Adjust the conditional branch so the correct code path runs for this input"
+        )
     else:
         steps.append("Apply the minimal source change described in the fix narrative")
     steps.append("Run the module's existing tests (do not edit test files)")

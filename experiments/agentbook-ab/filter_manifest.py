@@ -207,7 +207,9 @@ def main() -> None:
     print(f"preset={args.preset}  source={len(entries)}  output={len(filtered)}")
     if args.preset in ("lift", "lift-multirepo"):
         eligible = lift_eligible_ids({e["instance_id"] for e in entries})
-        print(f"  lift-eligible pool: {len(eligible)} (from strong/weak control scores)")
+        print(
+            f"  lift-eligible pool: {len(eligible)} (from strong/weak control scores)"
+        )
     by_repo: dict[str, int] = {}
     for e in filtered:
         by_repo[e.get("repo", "?")] = by_repo.get(e.get("repo", "?"), 0) + 1

@@ -109,7 +109,9 @@ def workspace_env(repo: str, workspace: Path) -> dict[str, str]:
     if repo_cfg(repo).get("pythonpath"):
         prefix = str(workspace.resolve())
         existing = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = prefix if not existing else f"{prefix}{os.pathsep}{existing}"
+        env["PYTHONPATH"] = (
+            prefix if not existing else f"{prefix}{os.pathsep}{existing}"
+        )
     return env
 
 

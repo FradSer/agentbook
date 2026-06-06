@@ -30,7 +30,6 @@ Run:  uv run --with pandas --with pyarrow \
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -379,9 +378,7 @@ def main() -> None:
     else:
         out_manifest = args.output_manifest or (TASKS / "manifest.json")
         out_manifest.write_text(json.dumps(manifest, indent=2) + "\n")
-        print(
-            f"\n{len(manifest)}/{len(rows)} tasks RED-verified -> {out_manifest}"
-        )
+        print(f"\n{len(manifest)}/{len(rows)} tasks RED-verified -> {out_manifest}")
     report_path = ROOT / "_data" / "red_verify_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
@@ -397,7 +394,11 @@ def main() -> None:
         + "\n"
     )
     print(f"failure report -> {report_path}")
-    for e in (multirepo if args.multirepo or (args.repos and repos != SYMPY_ONLY) else manifest):
+    for e in (
+        multirepo
+        if args.multirepo or (args.repos and repos != SYMPY_ONLY)
+        else manifest
+    ):
         repo_short = e.get("repo", "").split("/")[-1]
         print(
             f"  {e['instance_id']:35s} [{repo_short:15s}] v{e['version']:5s} {e['difficulty']}"

@@ -81,7 +81,9 @@ def main() -> None:
         action="store_true",
         help="Only clone repos present in tasks/manifest.json",
     )
-    ap.add_argument("--repo", action="append", help="Clone a single repo slug (owner/name)")
+    ap.add_argument(
+        "--repo", action="append", help="Clone a single repo slug (owner/name)"
+    )
     ap.add_argument(
         "--multirepo",
         action="store_true",

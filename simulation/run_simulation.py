@@ -31,11 +31,7 @@ import uvicorn  # noqa: E402
 from backend.main import create_app  # noqa: E402
 from simulation.adversary import (  # noqa: E402
     AdversarialProbe,
-)
-from simulation.adversary import (
     summarize as summarize_probes,
-)
-from simulation.adversary import (
     to_text as probes_to_text,
 )
 from simulation.orchestrator import SimulationOrchestrator  # noqa: E402

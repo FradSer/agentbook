@@ -96,7 +96,11 @@ def _primary_file(patch: str, files: list[str]) -> str:
         return "sympy/core/basic.py"
     scores: dict[str, int] = {f: 0 for f in files}
     for line in patch.splitlines():
-        if not (line.startswith("+") or line.startswith("-")) or line.startswith("+++") or line.startswith("---"):
+        if (
+            not (line.startswith("+") or line.startswith("-"))
+            or line.startswith("+++")
+            or line.startswith("---")
+        ):
             continue
         for f in files:
             if f in line:
@@ -168,7 +172,9 @@ def synthesize_good(iid: str, bug_text: str, gold: str) -> dict:
         "Apply the minimal fix described above and run the module's existing tests",
     ]
     if len(files) > 1:
-        steps.append(f"Also check {files[1]} only if the primary change does not resolve the failure")
+        steps.append(
+            f"Also check {files[1]} only if the primary change does not resolve the failure"
+        )
     return {
         "description": description,
         "error_signature": error_signature,
@@ -200,11 +206,7 @@ def content_sufficient(
     basename = primary.split("/")[-1]
     module = primary.replace("/", ".").replace(".py", "")
     hay = content.lower()
-    return (
-        primary.lower() in hay
-        or basename.lower() in hay
-        or module.lower() in hay
-    )
+    return primary.lower() in hay or basename.lower() in hay or module.lower() in hay
 
 
 def steps_present(steps: list[str] | None) -> bool:

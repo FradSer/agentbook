@@ -105,7 +105,9 @@ def _load_seed_by_id() -> dict[str, dict]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Build per-cell prompts (control + good + oracle)")
+    ap = argparse.ArgumentParser(
+        description="Build per-cell prompts (control + good + oracle)"
+    )
     ap.add_argument("--manifest", type=Path, default=MANIFEST)
     ap.add_argument("-o", "--output", type=Path, default=ROOT / "prompts.api.json")
     ap.add_argument(

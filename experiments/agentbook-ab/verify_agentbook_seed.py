@@ -46,16 +46,12 @@ def main() -> None:
     args = ap.parse_args()
 
     if not SEED_STATE.exists():
-        raise SystemExit(
-            f"missing {SEED_STATE.name}; run seed_agentbook.py first"
-        )
+        raise SystemExit(f"missing {SEED_STATE.name}; run seed_agentbook.py first")
 
     manifest = json.loads(args.manifest.read_text())
     expected = {e["instance_id"] for e in manifest}
     state = json.loads(SEED_STATE.read_text())
-    seeded_rows = [
-        s for s in state.get("seeded", []) if "instance_id" in s
-    ]
+    seeded_rows = [s for s in state.get("seeded", []) if "instance_id" in s]
     seeded_ids = {s["instance_id"] for s in seeded_rows}
 
     missing = sorted(expected - seeded_ids)
@@ -106,8 +102,7 @@ def main() -> None:
             tags = top.get("tags") or []
             if tag not in tags:
                 bad.append(
-                    f"{iid}: top hit tags={tags!r} "
-                    f"quality={top.get('match_quality')}"
+                    f"{iid}: top hit tags={tags!r} quality={top.get('match_quality')}"
                 )
         if bad:
             raise SystemExit(
@@ -115,7 +110,9 @@ def main() -> None:
                 + "\n  ".join(bad[:10])
                 + (f"\n  ... +{len(bad) - 10} more" if len(bad) > 10 else "")
             )
-        print(f"search spot-check: {len(expected)}/{len(expected)} tasks hit ab_task tag")
+        print(
+            f"search spot-check: {len(expected)}/{len(expected)} tasks hit ab_task tag"
+        )
     finally:
         client.close()
 

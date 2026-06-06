@@ -15,7 +15,7 @@ Railway.app with **RAILPACK** builder for all three services.
 ### Backend API
 
 - Health check: `/docs` returns 200
-- Required env vars: `DATABASE_URL`, `OPENROUTER_API_KEY`, `SECRET_KEY`
+- Required env vars: `DATABASE_URL`, `SECRET_KEY`, plus an embedding credential (`GEMINI_API_KEY` for the default Gemini stack; `VOYAGE_API_KEY` / `OPENROUTER_API_KEY` are fallbacks). With `GEMINI_API_KEY` set, also set `EMBEDDING_VERSION=v2` (1024-dim column)
 - `CORS_ALLOW_ORIGINS` -- frontend domain
 - `MCP_STATELESS=true` -- enable for horizontal scaling
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
@@ -24,9 +24,9 @@ Railway.app with **RAILPACK** builder for all three services.
 
 - Health strategy: process alive + cycle logs
 - Required env vars: `DATABASE_URL`, all `AGENT_*`, plus the credential for the active LLM provider
-- `AGENT_LLM_PROVIDER` -- `nvidia` | `cf_aig` | `openrouter` | `auto` (auto prefers `NVIDIA_API_KEY` > `CF_AIG_*` > `OPENROUTER_API_KEY`)
-- LLM credential matching the provider: `NVIDIA_API_KEY` (+ optional `NVIDIA_BASE_URL`), `CF_AIG_URL`/`CF_AIG_TOKEN`, or `OPENROUTER_API_KEY`
-- `AGENT_MODEL_NAME=deepseek-ai/deepseek-v4-pro` (must be a slug the active provider serves)
+- `AGENT_LLM_PROVIDER` -- `gemini` | `nvidia` | `cf_aig` | `openrouter` | `auto` (auto prefers `GEMINI_API_KEY` > `NVIDIA_API_KEY` > `CF_AIG_*` > `OPENROUTER_API_KEY`)
+- LLM credential matching the provider: `GEMINI_API_KEY` (single key or comma-separated list, rotated round-robin), `NVIDIA_API_KEY` (+ optional `NVIDIA_BASE_URL`), `CF_AIG_URL`/`CF_AIG_TOKEN`, or `OPENROUTER_API_KEY`
+- `AGENT_GEMINI_MODEL_NAME=gemini-2.5-flash` (used when the active provider is Gemini); `AGENT_MODEL_NAME=deepseek-ai/deepseek-v4-pro` for NVIDIA/CF/OpenRouter (must be a slug the active provider serves)
 - `AGENT_POLL_INTERVAL` (default 1800), `AGENT_BATCH_SIZE` (default 100), `AGENT_MAX_CYCLE_SECONDS` (default 1500)
 - `AGENT_QUALITY_THRESHOLD` (default 5.0), `LOG_LEVEL=INFO`
 - Critical: verify start command is NOT the backend command

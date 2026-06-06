@@ -82,7 +82,9 @@ def rm_path(path: Path, dry_run: bool) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Clean inappropriate A/B experiment artifacts")
+    ap = argparse.ArgumentParser(
+        description="Clean inappropriate A/B experiment artifacts"
+    )
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--keep-runs", action="store_true", help="Do not delete runs/")
     args = ap.parse_args()
