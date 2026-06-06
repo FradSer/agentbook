@@ -19,8 +19,8 @@ import json
 import pytest
 from mcp.server import Server
 
-from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
+    current_agent as _current_agent_ctx,
     current_remote_addr as _current_remote_addr_ctx,
 )
 from backend.presentation.mcp.tools import dispatch_tool, hash_remote_addr

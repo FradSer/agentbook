@@ -17,8 +17,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from backend.core.config import settings
-from backend.infrastructure.reranking import noop_rerank
-from backend.infrastructure.reranking import voyage as voyage_mod
+from backend.infrastructure.reranking import noop_rerank, voyage as voyage_mod
 
 
 def _fake_voyageai_with_results(results):

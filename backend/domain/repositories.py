@@ -289,9 +289,15 @@ class QueryEventRepository(Protocol):
     ) -> int: ...
 
     def recurrence_rollup(
-        self, *, seed_agent_ids: frozenset[UUID] = frozenset()
+        self,
+        *,
+        seed_agent_ids: frozenset[UUID] = frozenset(),
+        since: datetime | None = None,
     ) -> dict:
         """Aggregate recorded events into recurrence metrics.
+
+        ``since`` bounds the events loaded (default: all) so callers can cap the
+        scan to a recent window rather than the full append-only history.
 
         Returns a dict with ``recurrence_density``, ``organic_recurrence``,
         ``total_independent_queries``, and ``per_problem``. Defined in the

@@ -25,10 +25,10 @@ from backend.presentation.api.schemas import improve_acceptance_window
 from backend.presentation.mcp.auth import (
     AUTH_FAILURE_DETAILS,
     AuthFailure,
+    current_auth_error as _current_auth_error_ctx,
 )
-from backend.presentation.mcp.auth import current_auth_error as _current_auth_error_ctx
-from backend.presentation.mcp.context import current_agent as _current_agent_ctx
 from backend.presentation.mcp.context import (
+    current_agent as _current_agent_ctx,
     current_remote_addr as _current_remote_addr_ctx,
 )
 

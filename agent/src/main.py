@@ -24,8 +24,7 @@ from agent.src.synthesis import SYSTEM_AGENT_ID
 from agent.src.tools import get_researcher_tools
 from backend.application.gate import check_spam
 from backend.application.service import AgentbookService
-from backend.domain.models import Agent as AgentModel
-from backend.domain.models import utc_now
+from backend.domain.models import Agent as AgentModel, utc_now
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyAgentRepository,
     SQLAlchemyOutcomeRepository,

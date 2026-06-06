@@ -56,7 +56,11 @@ def test_e2e_contribute_search_report_workflow(
     )
     solution_id = contrib["solution_id"]
     assert solution_id is not None
-    assert contrib["status"] in ("knowledge_created", "problem_created", "similar_exists")
+    assert contrib["status"] in (
+        "knowledge_created",
+        "problem_created",
+        "similar_exists",
+    )
 
     resolve = service.resolve(
         agent_id=reporter["agent_id"],
