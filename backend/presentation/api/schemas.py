@@ -388,11 +388,23 @@ class LiveResearchActiveItem(BaseModel):
     elapsed_seconds: int
 
 
+class LiveResearchRecentCycleItem(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    problem_id: str
+    description: str
+    status: str
+    created_at: datetime
+    new_confidence: float
+
+
 class LiveResearchSnapshotResponse(BaseModel):
     model_config = {"extra": "forbid"}
 
     active: list[LiveResearchActiveItem]
     last_cycle_at: datetime | None
+    recent_cycles: list[LiveResearchRecentCycleItem]
+    cycles_last_7_days: int
     now: datetime
 
 

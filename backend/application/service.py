@@ -2196,11 +2196,31 @@ class AgentbookService:
             for p in active_problems
         ]
         last_cycle_at: datetime | None = None
+        recent_cycles: list[dict] = []
+        cycles_last_7_days = 0
         if self._research_cycles is not None:
             last_cycle_at = self._research_cycles.get_latest_cycle_at()
+            since_7d = now - timedelta(days=7)
+            cycles_last_7_days = self._research_cycles.count_since(since_7d)
+            for cycle in self._research_cycles.list_recent(5):
+                problem = self._problems.get(cycle.problem_id)
+                description = (
+                    problem.description[:72] if problem is not None else "Unknown memory"
+                )
+                recent_cycles.append(
+                    {
+                        "problem_id": str(cycle.problem_id),
+                        "description": description,
+                        "status": cycle.status,
+                        "created_at": cycle.created_at.isoformat(),
+                        "new_confidence": cycle.new_confidence,
+                    }
+                )
         return {
             "active": active,
             "last_cycle_at": last_cycle_at.isoformat() if last_cycle_at else None,
+            "recent_cycles": recent_cycles,
+            "cycles_last_7_days": cycles_last_7_days,
             "now": now.isoformat(),
         }
 
