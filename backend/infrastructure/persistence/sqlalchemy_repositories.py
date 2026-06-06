@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import math
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -39,6 +41,25 @@ except Exception:  # pragma: no cover
     Vector = None
 
 SessionFactory = Callable[[], Session]
+
+logger = logging.getLogger(__name__)
+
+# Bound on the in-memory cosine fallback (used when pgvector is unavailable and
+# the embedding column is JSON-backed). The pre-pilot corpus is far below this;
+# a breach is logged rather than silently dropping coverage.
+_IN_MEMORY_DENSE_CAP = 2000
+
+
+def _cosine(a: list[float] | None, b: list[float] | None) -> float:
+    """Cosine similarity; returns -1.0 for empty/mismatched/zero vectors."""
+    if not a or not b or len(a) != len(b):
+        return -1.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0.0 or nb == 0.0:
+        return -1.0
+    return dot / (na * nb)
 
 
 def _to_agent_domain(row: AgentORM) -> Agent:
@@ -456,10 +477,20 @@ class SQLAlchemyProblemRepository:
                 except (ProgrammingError, OperationalError, AttributeError):
                     # Adapter imported but the DB/column can't run
                     # cosine_distance (e.g. JSON-backed column) — treat as
-                    # unavailable so the service labels it and falls back to
-                    # the lexical leg rather than raising a 500.
+                    # unavailable and fall through to the in-memory dense leg.
                     dense = []
                     dense_search_available = False
+
+            if query_embedding and not dense_search_available:
+                # No pgvector (JSON-backed column): rank the stored embeddings
+                # in Python so semantic recall still works on Railway instead
+                # of degrading to keyword-only.
+                try:
+                    dense = self._in_memory_dense(
+                        session, query_embedding, candidate_pool
+                    )
+                except (ProgrammingError, OperationalError):
+                    dense = []
 
             if query_text:
                 try:
@@ -495,6 +526,46 @@ class SQLAlchemyProblemRepository:
         if not dense and not sparse:
             return [], diagnostics
         return rrf_fuse([dense, sparse], k=60, limit=limit), diagnostics
+
+    def _in_memory_dense(
+        self,
+        session: Session,
+        query_embedding: list[float],
+        candidate_pool: int,
+    ) -> list[Problem]:
+        """Rank approved problems by cosine similarity in Python.
+
+        Used when the host has no pgvector (embedding columns are JSON-backed,
+        e.g. Railway), so DB-side ``cosine_distance`` cannot run. Loads the
+        stored embeddings for approved problems and ranks them against the
+        query vector. Bounded by ``_IN_MEMORY_DENSE_CAP`` to keep per-query
+        cost sane; a cap breach is logged rather than silently truncating
+        coverage. ``is_not(None)`` is plain SQL (unlike ``cosine_distance``),
+        so it runs fine against a JSON column.
+        """
+        column = self._active_embedding_column()
+        stmt = (
+            select(ProblemORM)
+            .where(
+                ProblemORM.review_status == "approved",
+                column.is_not(None),
+            )
+            .limit(_IN_MEMORY_DENSE_CAP)
+        )
+        rows = session.execute(stmt).scalars().all()
+        if len(rows) >= _IN_MEMORY_DENSE_CAP:
+            logger.warning(
+                "in-memory dense search hit the %d-row cap; some approved "
+                "problems were not ranked. Enable pgvector for full coverage.",
+                _IN_MEMORY_DENSE_CAP,
+            )
+        scored: list[tuple[float, ProblemORM]] = []
+        for row in rows:
+            score = _cosine(query_embedding, _read_active_embedding(row))
+            if score > 0.0:
+                scored.append((score, row))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [_to_problem_domain(row) for _, row in scored[:candidate_pool]]
 
     def update(self, problem: Problem) -> None:
         """Update problem with optimistic locking."""
@@ -1019,6 +1090,25 @@ class SQLAlchemyResearchCycleRepository:
         with self._session_factory() as session:
             stmt = select(func.max(ResearchCycleORM.created_at))
             return session.execute(stmt).scalar_one_or_none()
+
+    def list_recent(self, limit: int) -> list[ResearchCycle]:
+        with self._session_factory() as session:
+            stmt = (
+                select(ResearchCycleORM)
+                .order_by(ResearchCycleORM.created_at.desc())
+                .limit(limit)
+            )
+            rows = session.execute(stmt).scalars().all()
+            return [_to_research_cycle_domain(r) for r in rows]
+
+    def count_since(self, since: datetime) -> int:
+        with self._session_factory() as session:
+            stmt = (
+                select(func.count())
+                .select_from(ResearchCycleORM)
+                .where(ResearchCycleORM.created_at >= since)
+            )
+            return session.execute(stmt).scalar_one()
 
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
         with self._session_factory() as session:

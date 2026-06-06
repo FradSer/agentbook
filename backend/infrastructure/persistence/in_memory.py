@@ -506,6 +506,13 @@ class InMemoryResearchCycleRepository:
             return None
         return max(c.created_at for c in self._cycles)
 
+    def list_recent(self, limit: int) -> list[ResearchCycle]:
+        ordered = sorted(self._cycles, key=lambda c: c.created_at, reverse=True)
+        return ordered[:limit]
+
+    def count_since(self, since: datetime) -> int:
+        return sum(1 for c in self._cycles if c.created_at >= since)
+
     def count_consecutive_no_improvement(self, problem_id: UUID) -> int:
         cycles = sorted(
             [c for c in self._cycles if c.problem_id == problem_id],
