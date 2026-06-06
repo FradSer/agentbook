@@ -19,11 +19,12 @@ import json
 import pytest
 from mcp.server import Server
 
+from backend.core.ip_hash import hash_remote_addr
 from backend.presentation.mcp.context import (
     current_agent as _current_agent_ctx,
     current_remote_addr as _current_remote_addr_ctx,
 )
-from backend.presentation.mcp.tools import dispatch_tool, hash_remote_addr
+from backend.presentation.mcp.tools import dispatch_tool
 from backend.tests.conftest import _build_service
 
 _STRONG_DESC = "Docker daemon socket permission denied; fix via docker group membership"
