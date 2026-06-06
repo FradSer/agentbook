@@ -34,8 +34,14 @@ class Settings(SharedSettings):
     # validation has bite. ``conftest.py``'s historical save/restore was
     # removed in the same change.
 
+    # Gemini embeddings (api_key inherited from SharedSettings as
+    # ``gemini_api_key``). Default embedder, ahead of Voyage / OpenRouter in
+    # the resolver chain. ``gemini-embedding-001`` emits ``embedding_dimension``
+    # via Matryoshka truncation (normalized client-side for non-3072 sizes).
+    gemini_embedding_model: str = "gemini-embedding-001"
+
     # OpenRouter embeddings (api_key inherited from SharedSettings).
-    # Kept as a fallback after Voyage in the resolver chain.
+    # Kept as a fallback after Gemini / Voyage in the resolver chain.
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
     # Vector dimension shared by both embedding providers (Voyage v3-large at
     # output_dimension=1024 and the Fallback / OpenRouter paths). Lowered from
@@ -183,6 +189,21 @@ def validate_production_settings(settings: Settings) -> None:
                 "for Voyage v3-large (accepted: 256, 512, 1024, 2048). Set "
                 "EMBEDDING_DIMENSION=1024 to match embedding_v2."
             )
+        # Gemini emits ``output_dimensionality`` to whatever value we ask, so
+        # the only hard constraint is that it equals the active column width
+        # (v1=1536, v2=1024). A mismatch makes pgvector reject every commit;
+        # refuse to boot rather than fail on the first write.
+        if settings.gemini_api_key:
+            expected_dim = 1024 if settings.embedding_version == "v2" else 1536
+            if settings.embedding_dimension != expected_dim:
+                raise ValueError(
+                    "GEMINI_API_KEY is set but EMBEDDING_DIMENSION="
+                    f"{settings.embedding_dimension} does not match the active "
+                    f"EMBEDDING_VERSION={settings.embedding_version!r} column "
+                    f"({expected_dim}-dim). Set EMBEDDING_DIMENSION={expected_dim} "
+                    "(or flip EMBEDDING_VERSION) so Gemini output lines up with "
+                    "the pgvector column."
+                )
 
 
 settings = Settings()

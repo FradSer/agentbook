@@ -33,10 +33,15 @@ class SharedSettings(BaseSettings):
     # OpenRouter API configuration
     openrouter_api_key: str | None = None
 
-    # Voyage AI (commercial embedding + reranking). When set, Voyage takes
-    # precedence over OpenRouter in the resolver chain. Used by both the
-    # backend API search path and the Reviewer agent so the two pipelines
-    # stay symmetric.
+    # Google Gemini (default provider for both the agent LLM and API
+    # embeddings). Accepts a single key or a comma-separated list — the list
+    # is rotated round-robin via ``shared.provider_keys`` so one throttled key
+    # does not sink every request. Used by both Python services.
+    gemini_api_key: str | None = None
+
+    # Voyage AI (commercial embedding + reranking). Falls after Gemini in the
+    # resolver chain. Used by both the backend API search path and the Reviewer
+    # agent so the two pipelines stay symmetric.
     voyage_api_key: str | None = None
 
     model_config = SettingsConfigDict(
