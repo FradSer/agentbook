@@ -251,6 +251,15 @@ class SQLAlchemyProblemRepository:
             row = session.get(ProblemORM, str(problem_id))
             return None if row is None else _to_problem_domain(row)
 
+    def get_by_ids(self, problem_ids: list[UUID]) -> dict[UUID, Problem]:
+        if not problem_ids:
+            return {}
+        with self._session_factory() as session:
+            str_ids = [str(pid) for pid in problem_ids]
+            stmt = select(ProblemORM).where(ProblemORM.problem_id.in_(str_ids))
+            rows = session.execute(stmt).scalars().all()
+            return {parse_uuid(r.problem_id): _to_problem_domain(r) for r in rows}
+
     def list_all(self) -> list[Problem]:
         with self._session_factory() as session:
             rows = session.execute(select(ProblemORM)).scalars().all()
