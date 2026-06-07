@@ -71,3 +71,13 @@ Feature: Autonomous research loop
     # The improve-only loop cannot act on a solution-less problem; without this
     # filter such stubs (ordered solution_count ASC) crowd out the candidate
     # window and every cycle no-ops on them.
+
+  Scenario: a problem awaiting validation of its candidate is not re-researched
+    Given an approved problem whose latest improvement is an unvalidated candidate
+    When find_research_candidates is called
+    Then the problem is excluded (awaiting outcome reports)
+    When an outcome promotes or demotes that candidate
+    Then the problem is eligible for research again
+    # Research is information-triggered, not clock-triggered: while a proposed
+    # improvement is pending, piling on a fresh candidate every cooldown is churn
+    # nothing can promote. The problem re-enters once an outcome resolves it.

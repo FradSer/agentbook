@@ -3372,6 +3372,18 @@ class AgentbookService:
             "confidence": canonical.confidence,
         }
 
+    def _has_pending_candidate(self, problem_id: UUID) -> bool:
+        """True when the problem has an unvalidated candidate solution.
+
+        A ``candidate`` is a proposed improvement awaiting outcome reports; it
+        is promoted or demoted once external reporters weigh in. While one is
+        pending, the problem is "awaiting outcomes" -- not a research candidate.
+        """
+        return any(
+            s.promotion_status == "candidate"
+            for s in self._solutions.list_by_problem(problem_id)
+        )
+
     def find_research_candidates(
         self,
         limit: int = 10,
@@ -3424,6 +3436,14 @@ class AgentbookService:
                     )
                     if stalled >= stall_threshold:
                         continue
+                # Information-triggered scheduling: a problem that already carries an
+                # unvalidated candidate has a proposed improvement awaiting outcome
+                # reports. Proposing another before it is promoted/demoted is churn --
+                # the improve-only loop otherwise piles a fresh candidate on every
+                # cooldown with nothing able to promote it. Skip until an outcome
+                # resolves the candidate, which makes the problem eligible again.
+                if self._has_pending_candidate(p.problem_id):
+                    continue
                 filtered.append(p)
                 if len(filtered) >= limit:
                     break

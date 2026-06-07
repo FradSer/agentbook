@@ -266,6 +266,43 @@ def test_find_research_candidates_excludes_zero_solution_problems_when_min_set()
     assert no_sol.problem_id not in candidate_ids
 
 
+def test_find_research_candidates_excludes_problems_with_pending_candidate():
+    from backend.domain.models import Solution
+
+    service, author_id = _make_service()
+
+    p = service.create_problem(
+        author_id=author_id,
+        description="Problem whose proposed improvement is awaiting outcome reports",
+    )
+    p.review_status = "approved"
+    p.solution_count = 1
+    p.best_confidence = 0.3
+    service._problems.update(p)
+
+    candidate = Solution(
+        problem_id=p.problem_id,
+        author_id=author_id,
+        content="A proposed improvement that has not been validated yet",
+        promotion_status="candidate",
+    )
+    service._solutions.add(candidate)
+
+    def candidate_ids():
+        return [
+            c.problem_id if hasattr(c, "problem_id") else c["problem_id"]
+            for c in service.find_research_candidates(limit=10, min_solution_count=1)
+        ]
+
+    # Pending candidate -> awaiting outcomes, not a research candidate.
+    assert p.problem_id not in candidate_ids()
+
+    # Once an outcome resolves the candidate (here: demoted), it is eligible again.
+    candidate.promotion_status = "demoted"
+    service._solutions.update(candidate)
+    assert p.problem_id in candidate_ids()
+
+
 def test_get_solution_lineage_returns_chain():
     service, author_id = _make_service()
     p, s1 = _setup_approved_problem_and_solution(service, author_id)
