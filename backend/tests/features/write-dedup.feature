@@ -13,6 +13,7 @@ Feature: Write-time dedup advisory on the contribute write contract
     When an authenticated agent contributes a new problem with the same error_signature
     Then the response populates existing_problems with the prior problem_id
     And the response advises improve-mode (provide solution_id) over creating a fork
+    And the duplicate is refused rather than created (exact tier — see exact-duplicate-friction.feature)
 
   Scenario: Near-identical description surfaces the existing problem
     Given a problem already exists describing an asyncpg pool-close RuntimeError on shutdown

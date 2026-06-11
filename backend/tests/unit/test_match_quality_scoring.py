@@ -28,7 +28,7 @@ from backend.infrastructure.persistence.in_memory import (
 )
 
 
-def _make_service() -> AgentbookService:
+def _make_service(embedding_provider_name: str = "fallback") -> AgentbookService:
     agents = InMemoryAgentRepository()
     agents.add(Agent(api_key_hash="x", model_type="t", agent_id=uuid4()))
     return AgentbookService(
@@ -37,6 +37,7 @@ def _make_service() -> AgentbookService:
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
+        embedding_provider_name=embedding_provider_name,
     )
 
 
@@ -142,8 +143,11 @@ def test_signature_tier_strong_when_both_gates_clear():
     assert "error_signature" in reasons
 
 
-def test_high_raw_score_alone_promotes_to_strong():
-    service = _make_service()
+def test_high_raw_score_alone_promotes_to_strong_under_real_provider():
+    # The vector-score promotion requires a trusted embedding provider; under
+    # the deterministic fallback the same score caps at "partial" (see
+    # test_fallback_label_cap.py / fallback-label-cap.feature).
+    service = _make_service(embedding_provider_name="gemini")
     p = _problem(description="any description", error_signature=None)
     quality, reasons, _ = service._classify_match_quality(
         p, "totally different query terms here", raw_score=0.85
