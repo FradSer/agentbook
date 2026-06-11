@@ -54,7 +54,7 @@ def _cosine(a: list[float] | None, b: list[float] | None) -> float:
     """Cosine similarity; returns -1.0 for empty/mismatched/zero vectors."""
     if not a or not b or len(a) != len(b):
         return -1.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     if na == 0.0 or nb == 0.0:
@@ -998,6 +998,54 @@ class SQLAlchemyOutcomeRepository:
             "unique_reporters_7d": int(row.unique_7d or 0),
             "unique_reporters_30d": int(row.unique_30d or 0),
         }
+
+    def aggregate_outcome_sources(
+        self,
+        now: datetime,
+        seed_reporter_ids: frozenset[UUID],
+        synthetic_reporter_ids: frozenset[UUID],
+    ) -> dict:
+        thirty_ago = now - timedelta(days=30)
+        synthetic_ids = [str(aid) for aid in synthetic_reporter_ids]
+        seed_ids = [str(aid) for aid in seed_reporter_ids]
+        # Outer join: an outcome whose solution row is missing still gets
+        # classified (author comparison is NULL -> organic_external).
+        bucket = case(
+            (OutcomeORM.reporter_id.in_(synthetic_ids), "synthetic"),
+            (OutcomeORM.reporter_id.in_(seed_ids), "seeded"),
+            (OutcomeORM.reporter_id == SolutionORM.author_id, "author_self"),
+            else_="organic_external",
+        )
+        with self._session_factory() as session:
+            rows = session.execute(
+                select(
+                    bucket.label("bucket"),
+                    func.count().label("total"),
+                    func.coalesce(
+                        func.sum(
+                            case((OutcomeORM.created_at >= thirty_ago, 1), else_=0)
+                        ),
+                        0,
+                    ).label("last_30d"),
+                )
+                .select_from(OutcomeORM)
+                .join(
+                    SolutionORM,
+                    SolutionORM.solution_id == OutcomeORM.solution_id,
+                    isouter=True,
+                )
+                .group_by(bucket)
+            ).all()
+        buckets: dict[str, dict[str, int]] = {
+            key: {"total": 0, "last_30d": 0}
+            for key in ("synthetic", "seeded", "author_self", "organic_external")
+        }
+        for row in rows:
+            buckets[row.bucket] = {
+                "total": int(row.total or 0),
+                "last_30d": int(row.last_30d or 0),
+            }
+        return buckets
 
     def outcome_counts_by_solution_ids(
         self, solution_ids: list[UUID]

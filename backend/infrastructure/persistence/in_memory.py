@@ -304,8 +304,12 @@ class InMemorySolutionRepository:
 
 
 class InMemoryOutcomeRepository:
-    def __init__(self) -> None:
+    def __init__(self, solutions: InMemorySolutionRepository | None = None) -> None:
         self._outcomes: list[Outcome] = []
+        # Optional link used by aggregate_outcome_sources() to resolve a
+        # solution's author (mirrors the SQL implementation's join). Wirings
+        # without the link lose author_self detection only.
+        self._solutions = solutions
 
     def add(self, outcome: Outcome) -> None:
         self._outcomes.append(outcome)
@@ -401,6 +405,33 @@ class InMemoryOutcomeRepository:
             "unique_reporters_7d": len(reporters_7d),
             "unique_reporters_30d": len(reporters_30d),
         }
+
+    def aggregate_outcome_sources(
+        self,
+        now: datetime,
+        seed_reporter_ids: frozenset[UUID],
+        synthetic_reporter_ids: frozenset[UUID],
+    ) -> dict:
+        thirty_ago = now - timedelta(days=30)
+        buckets: dict[str, dict[str, int]] = {
+            key: {"total": 0, "last_30d": 0}
+            for key in ("synthetic", "seeded", "author_self", "organic_external")
+        }
+        for o in self._outcomes:
+            if o.reporter_id in synthetic_reporter_ids:
+                key = "synthetic"
+            elif o.reporter_id in seed_reporter_ids:
+                key = "seeded"
+            else:
+                author = None
+                if self._solutions is not None:
+                    solution = self._solutions.get(o.solution_id)
+                    author = solution.author_id if solution is not None else None
+                key = "author_self" if author == o.reporter_id else "organic_external"
+            buckets[key]["total"] += 1
+            if o.created_at >= thirty_ago:
+                buckets[key]["last_30d"] += 1
+        return buckets
 
     def outcome_counts_by_solution_ids(
         self, solution_ids: list[UUID]

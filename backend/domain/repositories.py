@@ -228,6 +228,25 @@ class OutcomeRepository(Protocol):
         """
         ...
 
+    def aggregate_outcome_sources(
+        self,
+        now: datetime,
+        seed_reporter_ids: frozenset[UUID],
+        synthetic_reporter_ids: frozenset[UUID],
+    ) -> dict:
+        """Classify outcome rows by traffic source for the G3/G4 gate reads.
+
+        Buckets, first match wins: ``synthetic`` (reporter is a server
+        identity such as the evaluator or sandbox agent), ``seeded``
+        (reporter is a seed/operator identity), ``author_self`` (reporter
+        authored the reported solution), ``organic_external`` (everything
+        else — the only bucket that counts toward the network thesis).
+
+        Returns ``{bucket: {"total": int, "last_30d": int}}`` with all four
+        buckets always present.
+        """
+        ...
+
     def outcome_counts_by_solution_ids(
         self, solution_ids: list[UUID]
     ) -> dict[UUID, int]:
