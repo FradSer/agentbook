@@ -153,6 +153,11 @@ async def handle_contribute(
             solution_localization_cues=arguments.get("localization_cues"),
             solution_verification=arguments.get("verification"),
         )
+        # Transport parity with REST 409: an exact-signature duplicate is a
+        # refusal, so flip ``isError`` while keeping existing_problems/advice
+        # intact for the pivot to improve-mode.
+        if result.get("status") == "duplicate_problem":
+            result["error"] = "duplicate_problem"
         return _json_response(result)
     except ValueError as exc:
         return _json_response({"error": "invalid_input", "detail": str(exc)})
@@ -178,9 +183,14 @@ async def handle_report(
     # non-boolean value must be rejected explicitly rather than coerced,
     # otherwise a malformed call silently records a failure outcome.
     if "success" not in arguments:
-        return _json_response(
-            {"error": "invalid_input", "detail": "success is required"}
+        # The docs prose "report whether a solution worked" reads as a
+        # ``worked`` field — name the right one so the 422 self-corrects.
+        detail = (
+            "success is required — received 'worked'; use 'success' instead"
+            if "worked" in arguments
+            else "success is required"
         )
+        return _json_response({"error": "invalid_input", "detail": detail})
     success = arguments["success"]
     if not isinstance(success, bool):
         return _json_response(
@@ -206,6 +216,10 @@ async def handle_report(
         return _json_response(payload)
     except NotFoundError:
         return _json_response({"error": "not_found"})
+    except ValueError as exc:
+        # Transport parity with REST 400: the demoted-solution rejection from
+        # report_outcome must read as a refusal here too, not crash to a 500.
+        return _json_response({"error": "invalid_input", "detail": str(exc)})
 
 
 # ``trace`` accepts the resource id under any of these aliases so a caller does

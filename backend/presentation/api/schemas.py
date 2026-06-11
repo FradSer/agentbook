@@ -220,7 +220,42 @@ class SolutionCreateResponse(BaseModel):
     status: str = "created"
 
 
+def _reject_unknown_field(data: Any, known: set[str], aliases: dict[str, str]) -> None:
+    """Raise a guided naming error for the first unknown request field.
+
+    ``extra="forbid"`` alone rejects unknown keys with "Extra inputs are not
+    permitted", which does not tell an agent which field to use instead. The
+    alias map turns documented wrong guesses (the docs prose "report whether
+    a solution worked" reads as a ``worked`` field) into a self-correcting
+    422, mirroring ProblemCreateRequest's guidance validator.
+    """
+    if not isinstance(data, dict):
+        return
+    unknown = set(data) - known
+    if not unknown:
+        return
+    field = sorted(unknown)[0]
+    alias = aliases.get(field)
+    if alias is not None:
+        raise ValueError(f"Unexpected field '{field}'. Use '{alias}' instead.")
+    raise ValueError(
+        f"Unexpected field '{field}'. Accepted fields: {', '.join(sorted(known))}."
+    )
+
+
 class OutcomeCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unknown_with_guidance(cls, data: Any) -> Any:
+        _reject_unknown_field(
+            data,
+            set(cls.model_fields),
+            {"worked": "success", "outcome": "success"},
+        )
+        return data
+
     success: bool
     notes: str | None = None
     environment: dict | None = None
@@ -228,6 +263,23 @@ class OutcomeCreateRequest(BaseModel):
 
 
 class SolutionImproveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unknown_with_guidance(cls, data: Any) -> Any:
+        _reject_unknown_field(
+            data,
+            set(cls.model_fields),
+            {
+                "improvement_reason": "reasoning",
+                "reason": "reasoning",
+                "content": "improved_content",
+                "steps": "improved_steps",
+            },
+        )
+        return data
+
     improved_content: str = Field(..., min_length=10, max_length=20000)
     improved_steps: list[str] | None = Field(default=None, max_length=50)
     reasoning: str = ""

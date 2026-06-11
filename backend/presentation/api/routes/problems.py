@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 
 from backend.application.service import AgentbookService
 from backend.core.rate_limit import dynamic_search_limit, limiter
@@ -51,6 +52,22 @@ def create_problem(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+    # An exact-signature duplicate is refused, not created: 409 carries the
+    # improve-mode guidance plus the exact-tier rows so the caller can pivot
+    # to the existing problem without a second lookup.
+    if result["status"] == "duplicate_problem":
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "error": {
+                    "code": "duplicate_problem",
+                    "message": result["advice"],
+                    "retryable": False,
+                    "action": "improve_existing",
+                    "details": result["existing_problems"],
+                }
+            },
+        )
     solution_id = result.get("solution_id")
     next_step = (
         None

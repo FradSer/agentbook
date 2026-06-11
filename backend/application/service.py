@@ -1005,7 +1005,9 @@ class AgentbookService:
           ``similarity_score == 1.0``.
         * ``"strong"`` — distinctive overlap with ``error_signature`` clears
           both gates (>= 3 distinct tokens AND Jaccard >= 0.35), OR the raw
-          vector score >= 0.6, OR lexical overlap_ratio >= 0.5.
+          vector score >= 0.6 (real embedding providers only — under the
+          ``fallback`` provider the vector score caps out at ``"partial"``),
+          OR lexical overlap_ratio >= 0.5.
         * ``"partial"`` — overlap_ratio or raw_score in [0.25, threshold).
         * ``"poor"`` — fallback, kept only when no better candidate exists.
         """
@@ -1034,6 +1036,12 @@ class AgentbookService:
             "signature_jaccard": signature_jaccard,
         }
         reasons: list[str] = []
+        # The deterministic fallback embedder false-matches unrelated
+        # error-ish texts (any two sit at ~0.6+ cosine), so when it is the
+        # active provider the raw vector score may not mint a tier above
+        # "partial". Lexical signals keep full authority — they never depend
+        # on embedding quality.
+        semantic_trusted = self._embedding_provider_name != "fallback"
 
         if problem.error_signature:
             signature = _normalize_search_text(problem.error_signature)
@@ -1049,14 +1057,14 @@ class AgentbookService:
                 and signature_jaccard >= _SIGNATURE_JACCARD_MIN
             ):
                 reasons.append("error_signature")
-                if raw_score >= 0.6:
+                if semantic_trusted and raw_score >= 0.6:
                     reasons.append("semantic")
                 return "strong", reasons, signals
 
         if query_tokens & candidate_tokens:
             reasons.append("lexical_overlap")
 
-        if raw_score >= 0.6:
+        if semantic_trusted and raw_score >= 0.6:
             reasons.append("semantic")
             return "strong", reasons, signals
 
@@ -1779,6 +1787,30 @@ class AgentbookService:
                 "solution_id": str(solution_id) if solution_id is not None else None,
             }
 
+        # Exact duplicates — the only tier that earns similarity 1.0, a
+        # confirmed error_signature substring match — are refused instead of
+        # advised: a fork of a byte-identical signature can never be the
+        # better agentbook, and synthesis needs the outcome flow on ONE
+        # problem. Every lower tier keeps the admit-and-advise contract
+        # (pre-pilot bias: admit rather than wrongly block). Keyword-only
+        # legs, so the refusal works without any embedding key.
+        exact_duplicates = self._exact_duplicate_rows(description, error_signature)
+        if exact_duplicates:
+            return {
+                "status": "duplicate_problem",
+                "problem_id": None,
+                "solution_id": None,
+                "existing_problems": exact_duplicates,
+                "advice": (
+                    "An identical problem already exists (exact "
+                    "error_signature match: problem "
+                    f"{exact_duplicates[0]['problem_id']}). Nothing was "
+                    "stored. Improve its solution (provide solution_id) or "
+                    "attach your solution to it (provide problem_id) instead "
+                    "of creating a duplicate."
+                ),
+            }
+
         # Create new problem via create_problem (runs gate check internally
         # and attaches the description embedding).
         new_problem = self.create_problem(
@@ -1825,6 +1857,45 @@ class AgentbookService:
                 "improve its solution instead of creating a duplicate."
             )
         return result
+
+    def _exact_duplicate_rows(
+        self, description: str, error_signature: str | None
+    ) -> list[dict]:
+        """Pre-create exact-duplicate rows for the contribute refusal gate.
+
+        Classifies prior problems found via the keyword signature legs with
+        the same read-path tiering and keeps only the ``"exact"`` tier (a
+        confirmed ``error_signature`` substring match). Runs before the new
+        problem exists, so only embedding-independent legs apply — the
+        semantic ``find_similar`` leg stays advisory-only in
+        ``_dedup_advisory``.
+        """
+        if not error_signature:
+            return []
+        search_text = f"{description} {error_signature}"
+        candidates: dict[UUID, Problem] = {}
+        prior = self._problems.find_by_error_signature(error_signature)
+        if prior is not None:
+            candidates[prior.problem_id] = prior
+        for p in self._exact_error_signature_candidates(search_text):
+            candidates[p.problem_id] = p
+
+        rows: list[dict] = []
+        for problem in candidates.values():
+            score, quality, _reasons = self._score_problem_relevance(
+                problem, search_text, 0.0
+            )
+            if quality != "exact":
+                continue
+            rows.append(
+                {
+                    "problem_id": str(problem.problem_id),
+                    "match_quality": quality,
+                    "similarity_score": score,
+                    "description_preview": problem.description[:200],
+                }
+            )
+        return rows
 
     def _dedup_advisory(self, new_problem: Problem, description: str) -> list[dict]:
         """Write-time dedup advisory, independent of embedding availability.
@@ -1893,6 +1964,25 @@ class AgentbookService:
         solution = self._solutions.get(solution_id)
         if solution is None:
             raise NotFoundError(f"Solution {solution_id} not found")
+
+        # A demoted solution is a rejected dead end: it never appears in
+        # solution_history, its confidence is never shown, and it cannot be
+        # re-promoted. Accepting a report here burns one unit of the
+        # reporter's 10/hour budget on a score nobody will ever see — fail
+        # loud before the rate-limit accounting, mirroring the
+        # improve-on-demoted rejection above.
+        if solution.promotion_status == "demoted":
+            parent_ref = (
+                f"its parent solution {solution.parent_solution_id}"
+                if solution.parent_solution_id is not None
+                else "one of the problem's visible solutions"
+            )
+            raise ValueError(
+                "cannot report an outcome on a demoted solution: the "
+                "promotion gate rejected it, its confidence is never shown, "
+                f"and it cannot be re-promoted — report on {parent_ref} "
+                "instead"
+            )
 
         now = datetime.now(tz=UTC)
         since = now - timedelta(hours=_RATE_WINDOW_HOURS)
@@ -2602,6 +2692,17 @@ class AgentbookService:
         solution = self._solutions.get(solution_id)
         if solution is None:
             raise NotFoundError(f"Solution {solution_id} not found")
+        # Refuse before any sandbox-budget accounting: a verified outcome on
+        # a demoted solution is as invisible as an observed one (see the
+        # demoted guard in report_outcome).
+        if solution.promotion_status == "demoted":
+            return {
+                "status": "not_verifiable",
+                "reason": (
+                    "solution is demoted and cannot be re-promoted; "
+                    "verify its parent instead"
+                ),
+            }
         problem = self._problems.get(solution.problem_id)
         if problem is None or not problem.error_signature:
             return {
