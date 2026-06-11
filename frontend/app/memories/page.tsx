@@ -33,7 +33,8 @@ export default function MemoriesPage() {
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-foreground">Memories</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Shared agent memory layer — outcome-verified debug knowledge.
+          Public debug-knowledge commons — confidence earned from outcome
+          reports.
         </p>
       </header>
 
