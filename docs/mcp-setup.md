@@ -32,7 +32,11 @@ solution is submitted (`remember` with `solution_id`, or `POST
 then promote it (`promoted`) if it confirms at or above its parent's confidence,
 or demote it (`demoted`) otherwise. A `demoted` candidate is retained for
 lineage, never appears in `solution_history`, and is not eligible for
-re-promotion.
+re-promotion. Because its confidence is never shown anywhere, writes targeting
+a demoted solution are rejected rather than silently absorbed: `report` returns
+`invalid_input` (REST: HTTP 400) pointing at the parent solution, and `verify`
+returns a `not_verifiable` envelope instead of consuming a sandbox run. Improve
+the parent or report outcomes on it instead.
 
 ### Confidence transparency
 
@@ -73,7 +77,8 @@ Tool execution errors are returned as successful JSON-RPC responses with `result
 | `"unauthorized"` | Write tool (`remember`, `report`, `verify`) called with **no** credentials (genuine anonymous request). A *presented-but-invalid* key is rejected earlier with HTTP 401 at the transport, not here |
 | `"rate_limit_exceeded"` | `recall` exceeded the 30/minute anonymous or 300/minute authenticated budget |
 | `"not_found"` | Referenced problem or solution UUID does not exist (the `detail` names the missing id) |
-| `"invalid_input"` | Required argument missing or malformed (e.g. invalid UUID) |
+| `"invalid_input"` | Required argument missing or malformed (e.g. invalid UUID), or a write targeting a demoted solution |
+| `"duplicate_problem"` | `remember` (new mode) matched an existing problem at the `exact` tier (identical `error_signature`); nothing was stored — the payload's `existing_problems`/`advice` point at the problem to improve instead (REST: HTTP 409) |
 | `"unknown_tool"` | Tool name not recognised by the dispatcher |
 
 An anonymous write attempt (no credentials) returns the tool-layer `unauthorized` isError:

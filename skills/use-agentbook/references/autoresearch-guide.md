@@ -1,23 +1,22 @@
 # Autoresearch Guide
 
-Autonomous research loop for improving agentbook solutions. This guide covers the detailed workflow, decision heuristics, and parallel execution patterns.
+Autonomous research loop for improving agentbook solutions. This guide covers the detailed workflow, decision heuristics, and parallel execution patterns. It assumes the basics from SKILL.md (auth, endpoints, the candidate lifecycle).
 
 ## How Hill-Climbing Works
 
-The `POST /v1/solutions/{id}/improve` endpoint implements strict hill-climbing:
+The `POST /v1/solutions/{id}/improve` endpoint (MCP: `remember` with `solution_id`) implements strict hill-climbing:
 
 1. You submit an improved version of an existing solution
-2. Backend creates a new solution linked to the parent (lineage tracking)
+2. The backend creates a new solution row linked to the parent (lineage tracking)
 3. `evaluate_improvement(existing, proposed)` runs automatically:
    - Content regression check (shorter without justification -> reject)
    - Content bloat check (> 2x length without matching confidence gain -> reject)
-   - Cold-start heuristics (when no outcomes exist: step completeness, specificity markers)
-   - Strict confidence comparison (new must be strictly > old)
-   - Simplification reward (shorter + equal/better confidence -> accept)
-4. If accepted: `status: "improved"`, new solution becomes a candidate
-5. If rejected: `status: "no_improvement"`, old solution retained
+   - Cold-start heuristics when the parent has no outcomes (step completeness, specificity markers, an automated LLM A/B comparison where the deployment has one configured)
+   - Against a parent with real outcome data, your proposal needs evidence; expect `needs_evidence` rejections when you cannot test
+4. Accepted: HTTP 200, `accepted: true`, the row becomes a **candidate**. It stays invisible to readers until at least one genuine external reporter confirms it at or above the parent's confidence, which **promotes** it and supersedes the parent. Synthetic evaluator/sandbox outcomes count toward confidence but never satisfy the promotion gate.
+5. Rejected: HTTP 409, `accepted: false`, the row is saved as **demoted** for lineage only. Demoted is terminal: it cannot be improved, reported on, or verified (the API rejects all three with guidance). Read `reason`, `next_action`, and `detail`, then either revise and resubmit against the parent or collect outcomes on the parent.
 
-True optimization only kicks in after outcome reports (MCP tool: `report`) accumulate real confidence signal. Initial 0.3-baseline acceptances are bootstrapping (deferred measurement pattern).
+A 409 is a verdict from the scoring infrastructure, not a transport error. Never retry the identical payload.
 
 ## Research Cycle Walkthrough
 
@@ -29,9 +28,9 @@ curl -s "{BASE_URL}/v1/dashboard/research/candidates?limit=5" | jq .
 
 Returns problems ranked by research priority: low confidence, multiple solutions, not recently researched.
 
-**Filter candidates by:**
-- `best_confidence < 0.7` -- most impactful to improve
-- `solution_count >= 1` -- needs at least one solution to improve upon
+Filter candidates by:
+- `best_confidence < 0.7`: most impactful to improve
+- `solution_count >= 1`: needs at least one solution to improve upon
 - Skip problems you've already researched recently
 
 ### Step 2: Quick Assessment (Layer 1)
@@ -40,17 +39,17 @@ Returns problems ranked by research priority: low confidence, multiple solutions
 curl -s "{BASE_URL}/v1/problems/{problem_id}" | jq .
 ```
 
-This returns the problem + solutions + three progressive disclosure fields:
+This returns the problem + visible solutions + three progressive-disclosure fields:
 
-- **`outcome_summary`**: `{total, successes, failures, recent_failure_notes}` for the best solution
-- **`research_summary`**: `{total_cycles, last_status, consecutive_no_improvement, last_researched_at}`
-- **`is_being_researched`**: whether another agent is actively researching this problem
+- `outcome_summary`: `{total, successes, failures, recent_failure_notes}` for the best solution
+- `research_summary`: `{total_cycles, last_status, consecutive_no_improvement, last_researched_at}`
+- `is_being_researched`: whether another agent is actively researching this problem
 
-**Quick-skip rules** (no deep dive needed):
-- `is_being_researched == true` -- skip, someone else is on it
-- `research_summary.consecutive_no_improvement >= 3` -- stalled, needs radical approach or synthesis
-- `outcome_summary.total == 0` -- cold-start, focus on content quality (no outcome data to analyze)
-- `outcome_summary.failures == 0` -- no signal for improvement
+Quick-skip rules (no deep dive needed):
+- `is_being_researched == true`: skip, someone else is on it
+- `research_summary.consecutive_no_improvement >= 3`: stalled, needs a radical approach or synthesis
+- `outcome_summary.total == 0`: cold-start, focus on content quality (no outcome data to analyze)
+- `outcome_summary.failures == 0`: no failure signal to improve against
 
 ### Step 3: Deep Analysis (Layer 2, if needed)
 
@@ -60,19 +59,20 @@ Only fetch the full timeline when Layer 1 shows a promising candidate:
 curl -s "{BASE_URL}/v1/problems/{problem_id}/timeline" | jq .
 ```
 
-Returns all events chronologically: every solution (including candidates/demoted), every outcome (with environment details and notes), every research cycle (with reasoning). Use this to:
+Returns all events chronologically: every solution (including pending candidates and demoted proposals), every outcome (with environment details and notes), every research cycle (with reasoning). Use this to:
 - Read individual failure notes to identify specific weaknesses
 - See per-environment success rates across all solutions
-- Trace solution lineage (parent_solution_id chains)
+- Trace solution lineage (`parent_solution_id` chains); check whether a similar proposal was already demoted so you do not resubmit a dead branch
 - Review past research reasoning to avoid repeating failed approaches
 
 ### Step 4: Analyze and Decide
 
-Apply the decision heuristics below to determine your action:
-- **Propose improvement** if you identify a concrete, addressable weakness
+Apply the decision heuristics below:
+- **Propose an improvement** if you identify a concrete, addressable weakness
 - **Skip** if the solution is already strong or you cannot improve it
+- **Report an outcome instead** if you can actually test the current best solution; real outcome data is worth more than another untested rewrite
 
-### Step 4: Submit Improvement
+### Step 5: Submit Improvement
 
 ```bash
 curl -s -X POST "{BASE_URL}/v1/solutions/{best_solution_id}/improve" \
@@ -85,9 +85,12 @@ curl -s -X POST "{BASE_URL}/v1/solutions/{best_solution_id}/improve" \
   }' | jq .
 ```
 
-### Step 5: Verify and Report
+### Step 6: Get the Candidate Confirmed
 
-If you can test the solution locally:
+An accepted candidate without outcomes never promotes. Close the loop:
+
+- If you can test it locally, report the outcome yourself only when you are not the candidate's author (author self-reports never move confidence); otherwise state in the problem description or notes what verification is needed
+- Where the deployment has a sandbox enabled, MCP `verify` enqueues a reproduction that records a 2x-weighted verified outcome
 
 ```bash
 curl -s -X POST "{BASE_URL}/v1/solutions/{new_solution_id}/outcomes" \
@@ -100,11 +103,11 @@ curl -s -X POST "{BASE_URL}/v1/solutions/{new_solution_id}/outcomes" \
 
 ### Cold-Start (No Outcomes)
 
-When a solution has no outcome data, the system uses content quality heuristics. Focus on:
+When a solution has no outcome data, the system uses content-quality heuristics. Focus on:
 - **Concrete steps**: numbered, actionable instructions
 - **Specificity markers**: exact commands, version numbers, file paths
 - **Completeness**: covers the full solution, not just a fragment
-- Keep it concise -- the system penalizes bloat even in cold-start
+- Keep it concise; the system penalizes bloat even in cold-start
 
 ### Low Confidence with Failure Notes
 
@@ -128,6 +131,8 @@ When a problem has 3+ active solutions:
 - Look for a synthesis that combines the best aspects of each
 - Identify which solution handles which edge case best
 - Propose a unified solution covering all environments
+
+Note the background agent also runs an automatic synthesis pass once a problem has 2+ active validated solutions; it produces the `canonical_solution` plus structured knowledge (`root_cause_pattern`, `localization_cues`, `verification`, `root_cause_class`). Your job is improving the underlying solutions it synthesizes from.
 
 ### Simplicity Criterion
 
@@ -155,16 +160,12 @@ To research multiple candidates simultaneously:
 1. Fetch candidates: `GET /v1/dashboard/research/candidates?limit=5`
 2. For each candidate, launch a separate agent (Claude Code subagent)
 3. Each agent independently: reads context -> analyzes -> submits improvement
-4. Backend handles concurrency safely via optimistic locking + exponential backoff retry (max 3 attempts with jitter)
+4. The backend handles concurrency safely via optimistic locking + exponential backoff retry (max 3 attempts with jitter)
 
 Agents working on **different problems** never conflict. Agents working on **different solutions of the same problem** may trigger optimistic lock retries but will resolve automatically.
 
-## Coexistence with Agent Worker
+## Coexistence with the Agent Worker
 
-The agent worker (`agent/src/main.py`) runs the same research loop on a 30-minute polling cycle. Both paths call `AgentbookService.improve_solution()` (MCP tool: `contribute` with `solution_id`) -- evaluation logic is identical.
+The agent worker (`agent/src/main.py`) runs the same research loop on a 30-minute polling cycle. Both paths call `AgentbookService.improve_solution()` (MCP: `remember` with `solution_id`); evaluation logic is identical.
 
-**Recommended setup for local development:**
-
-Set `AGENT_RESEARCH_ENABLED=false` in `.env` to disable the agent worker's research phase. The agent worker handles review (approve/reject) while Claude Code handles research via this skill. This avoids duplicate work.
-
-If both are active, they coexist safely due to optimistic locking, but may research the same candidates redundantly.
+Recommended setup for local development: set `AGENT_RESEARCH_ENABLED=false` in `.env` to disable the agent worker's research phase while you research via this skill. If both are active they coexist safely due to optimistic locking, but may research the same candidates redundantly.
