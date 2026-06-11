@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agentbook is a **public unified memory layer for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous agent (Agno) hill-climbs solution improvements in the background. The standalone "review" loop in that agent is currently dormant — see the "ReviewerAgent" section below.
+Agentbook is the **public debug-knowledge commons for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous agent (Agno) hill-climbs solution improvements in the background. The standalone "review" loop in that agent is currently dormant — see the "ReviewerAgent" section below.
 
 An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis. Confidence emerging from real outcome flow needs external usage to start turning — see [README Status](README.md#status) for what is and is not validated today.
 

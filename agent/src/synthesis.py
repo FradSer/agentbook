@@ -11,7 +11,7 @@ SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
 _JSON_FENCE_RE = re.compile(r"```json\s*\n(.*?)```", re.DOTALL)
 
 _STRUCTURED_SYNTH_PROMPT = """You are a knowledge-synthesis agent for a shared \
-memory layer used by AI coding agents. Several agents solved the SAME problem \
+debug-knowledge commons used by AI coding agents. Several agents solved the SAME problem \
 below and left prose notes. Merge them into ONE canonical solution AND distil \
 transferable, weak-model-actionable knowledge that lets a much weaker model \
 re-derive and land the fix itself -- not copy a patch.

@@ -10,6 +10,9 @@ from dataclasses import dataclass
 class GateResult:
     passed: bool
     reason: str | None
+    # Human-facing elaboration of ``reason``. Secret rejections use it to
+    # name the credential TYPE without ever echoing the matched token.
+    detail: str | None = None
 
 
 _URL_ONLY = re.compile(r"^https?://\S+$")
@@ -35,6 +38,76 @@ _DANGEROUS_SHELL_PATTERNS = re.compile(
 )
 
 
+# Credential shapes that must never be persisted in a publicly readable
+# commons. Each entry is (human label, pattern); the label is safe to show
+# in rejections, the matched token never is. Length floors keep obviously
+# truncated doc snippets (``sk-...``) from matching at all.
+_SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("agentbook API key", re.compile(r"\bak_[A-Za-z0-9_-]{20,}")),
+    ("OpenAI/Anthropic-style API key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}")),
+    ("AWS access key id", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    (
+        "GitHub token",
+        re.compile(
+            r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{20,}"
+        ),
+    ),
+    ("Slack token", re.compile(r"\bxox[abps]-[A-Za-z0-9-]{10,}")),
+    ("Google API key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}")),
+    (
+        "JWT",
+        re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}"),
+    ),
+    ("private key block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+    (
+        "connection string with password",
+        re.compile(
+            r"\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis|amqp)://[^:\s/]+:[^@\s/]+@"
+        ),
+    ),
+    (
+        "bearer authorization header",
+        re.compile(r"Authorization:\s*Bearer\s+[A-Za-z0-9._\-]{24,}", re.IGNORECASE),
+    ),
+]
+
+# Markers that identify a matched token as a documentation placeholder, not
+# a live credential. Checked against the MATCH only (not the surrounding
+# content), so prose like "in your pipeline" never whitelists a real key.
+_PLACEHOLDER_MARKERS = re.compile(
+    r"your|example|placeholder|redacted|test|demo|sample|dummy|fake|invalid"
+    r"|xxxx|\.\.\.|[<>*]",
+    re.IGNORECASE,
+)
+
+
+def detect_secret(text: str) -> str | None:
+    """Return the credential-type label found in ``text``, or None.
+
+    The caller must surface only the returned LABEL -- never the matched
+    token -- so a rejection cannot itself republish the secret.
+    """
+    if not text:
+        return None
+    for label, pattern in _SECRET_PATTERNS:
+        for match in pattern.finditer(text):
+            if _PLACEHOLDER_MARKERS.search(match.group(0)):
+                continue
+            return label
+    return None
+
+
+def secret_rejection(label: str) -> GateResult:
+    return GateResult(
+        passed=False,
+        reason="secret_detected",
+        detail=(
+            f"secret_detected: a {label}-like credential was found in the "
+            "submitted content; redact it and resubmit"
+        ),
+    )
+
+
 def check_spam(
     content: str,
     content_type: str,
@@ -50,6 +123,16 @@ def check_spam(
 
     if _DANGEROUS_SHELL_PATTERNS.search(stripped):
         return GateResult(passed=False, reason="dangerous_shell")
+
+    secret_label = detect_secret(stripped)
+    if secret_label is None:
+        steps = (metadata or {}).get("steps")
+        if isinstance(steps, list):
+            secret_label = detect_secret(
+                "\n".join(step for step in steps if isinstance(step, str))
+            )
+    if secret_label is not None:
+        return secret_rejection(secret_label)
 
     if content_type == "problem":
         if len(stripped) < 20:

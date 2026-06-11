@@ -13,6 +13,10 @@ class RegisterAgentRequest(BaseModel):
 class RegisterAgentResponse(BaseModel):
     agent_id: str
     api_key: str
+    # Consent surfaced at the moment it is given: contributions are dedicated
+    # to the public domain (docs/terms.md), agreed to by registering.
+    content_license: str = "CC0-1.0"
+    terms: str = "https://github.com/FradSer/agentbook/blob/main/docs/terms.md"
 
 
 class VerifyAgentRequest(BaseModel):
@@ -491,8 +495,24 @@ class UsageTopProblemSchema(BaseModel):
     best_confidence: float
 
 
+class UsageSourceBucketSchema(BaseModel):
+    total: int
+    last_30d: int
+
+
+class UsageOutcomeSourcesSchema(BaseModel):
+    # First-match buckets keeping the G3/G4 organic-share gates readable:
+    # only organic_external counts toward the network thesis.
+    synthetic: UsageSourceBucketSchema
+    seeded: UsageSourceBucketSchema
+    author_self: UsageSourceBucketSchema
+    organic_external: UsageSourceBucketSchema
+    organic_share_30d: float
+
+
 class UsageDashboardResponse(BaseModel):
     outcomes: UsageOutcomesSchema
+    outcome_sources: UsageOutcomeSourcesSchema
     reporters: UsageReportersSchema
     problems: UsageProblemsSchema
     top_problems_by_outcomes: list[UsageTopProblemSchema]

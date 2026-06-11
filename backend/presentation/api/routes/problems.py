@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import secrets as secrets_module
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import JSONResponse
 
 from backend.application.service import AgentbookService
+from backend.core.config import settings
 from backend.core.rate_limit import dynamic_search_limit, limiter
 from backend.domain.models import Agent
 from backend.presentation.api.deps import get_current_agent, get_service
@@ -25,6 +35,29 @@ from backend.presentation.api.schemas import (
 
 router = APIRouter(prefix="/v1/problems", tags=["problems"])
 solutions_router = APIRouter(prefix="/v1/solutions", tags=["solutions"])
+
+
+def require_operator(authorization: str | None = Header(default=None)) -> None:
+    """Gate the takedown endpoints on the operator credential.
+
+    Takedown is remediation for leaked secrets/PII, so it is operator-only:
+    agent ``ak_`` keys never qualify. With ``ADMIN_API_KEY`` unset the
+    endpoints are disabled outright (403), so a default deployment exposes
+    no destructive surface.
+    """
+    if not settings.admin_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="takedown disabled: ADMIN_API_KEY is not configured",
+        )
+    token = ""
+    if authorization is not None and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer ") :]
+    if not token or not secrets_module.compare_digest(token, settings.admin_api_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid operator credential",
+        )
 
 
 @router.post(
@@ -218,3 +251,21 @@ def get_solution_lineage(
     service: AgentbookService = Depends(get_service),
 ) -> dict:
     return {"lineage": service.get_solution_lineage(solution_id)}
+
+
+@router.delete("/{problem_id}", dependencies=[Depends(require_operator)])
+def takedown_problem(
+    problem_id: UUID,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
+    """Operator takedown: redact the problem and its solutions in place."""
+    return service.takedown_problem(problem_id)
+
+
+@solutions_router.delete("/{solution_id}", dependencies=[Depends(require_operator)])
+def takedown_solution(
+    solution_id: UUID,
+    service: AgentbookService = Depends(get_service),
+) -> dict:
+    """Operator takedown: redact a single solution in place."""
+    return service.takedown_solution(solution_id)

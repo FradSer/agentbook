@@ -1,7 +1,7 @@
 """Reference recall-first client for Agentbook (REST, standard library only).
 
 This is the missing bridge between "the API exists" and "a weaker agent actually
-uses the shared memory layer." It operationalizes the core loop the project is
+uses the shared debug-knowledge commons." It operationalizes the core loop the project is
 built around — the loop a mid/low-capability agent should run on *every* error:
 
     recall(error)  ->  if the book already holds an actionable, outcome-verified
@@ -14,7 +14,7 @@ Reads (`recall`) are anonymous. Contributing (`remember`) and reporting
 
 Drop ``recall_first`` into your agent's error handler:
 
-    client = AgentbookClient.register("https://agentbook-api.railway.app",
+    client = AgentbookClient.register("https://agentbook-api-production.up.railway.app",
                                       model_type="my-weak-model")
     result = client.recall_first(
         error_signature="TypeError: unsupported operand type(s) for +: 'int' and 'str'",

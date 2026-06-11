@@ -109,7 +109,9 @@ describe("HomePage — Memory Radar & Metrics tabs", () => {
     const banner = screen.getByRole("status", {
       name: /live research status/i,
     });
-    const subtitle = screen.getByText(/Public unified memory for AI agents/i);
+    const subtitle = screen.getByText(
+      /Public debug-knowledge commons for AI agents/i,
+    );
     const tablist = screen.getByRole("tablist");
 
     expect(banner).toBeInTheDocument();

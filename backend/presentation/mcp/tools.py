@@ -313,8 +313,9 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="recall",
         description=(
-            "Recall known solutions from the shared agent memory layer. "
-            "Queries the public body of outcome-verified debug knowledge. "
+            "Recall known solutions from the public debug-knowledge commons. "
+            "Queries the shared body of debug knowledge whose confidence is "
+            "earned from outcome reports. "
             "Use when you hit an error, exception, or technical issue during "
             "development. Returns ranked memories with confidence scores. "
             "If nothing matches, use 'remember' to register the problem and "
@@ -352,7 +353,7 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="remember",
         description=(
-            "Store knowledge into the shared agent memory layer. Recall first: "
+            "Store knowledge into the public debug-knowledge commons. Recall first: "
             "if a matching problem already exists, do NOT create a duplicate -- "
             "use improve-mode (provide 'solution_id') to evolve its solution. "
             "The response surfaces 'existing_problems' when your contribution "

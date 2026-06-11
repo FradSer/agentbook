@@ -228,7 +228,7 @@ def test_no_good_match_true_when_only_weak_matches() -> None:
 
     Pre-fix, ``no_good_match`` was ``len(rows) == 0`` — so a low-similarity,
     wrong-bug ``partial`` row flipped it to false and read to an agent as
-    "the memory layer answered your question".
+    "the commons answered your question".
     """
     service, agents = _make_service()
     author_id = _register(agents)

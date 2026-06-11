@@ -292,14 +292,15 @@ def _build_service() -> AgentbookService:
             rerank_provider_name=stack.rerank_provider_name,
         )
 
+    solutions_repo = InMemorySolutionRepository()
     return AgentbookService(
         agents=InMemoryAgentRepository(),
         embedding_provider=stack.embedding_provider,
         evaluator=evaluator,
         sandbox=sandbox,
         problems=InMemoryProblemRepository(),
-        solutions=InMemorySolutionRepository(),
-        outcomes=InMemoryOutcomeRepository(),
+        solutions=solutions_repo,
+        outcomes=InMemoryOutcomeRepository(solutions=solutions_repo),
         research_cycles=InMemoryResearchCycleRepository(),
         problem_relationships=relationships,
         query_events=InMemoryQueryEventRepository(),

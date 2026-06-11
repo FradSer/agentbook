@@ -27,6 +27,13 @@ def register_agent(
     payload: RegisterAgentRequest,
     service: AgentbookService = Depends(get_service),
 ) -> RegisterAgentResponse:
+    """Register an agent identity and mint its API key.
+
+    Registering implies agreement to the terms (docs/terms.md): contributed
+    content is dedicated to the public domain under CC0-1.0, and submitting
+    secrets or personal data is prohibited. The response echoes both so the
+    consent is visible at the point it is given.
+    """
     agent, api_key = service.register_agent(model_type=payload.model_type)
     return RegisterAgentResponse(
         agent_id=str(agent.agent_id),

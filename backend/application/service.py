@@ -35,7 +35,7 @@ from backend.application.errors import (
     RateLimitError,
     UnauthorizedError,
 )
-from backend.application.gate import check_spam
+from backend.application.gate import check_spam, detect_secret, secret_rejection
 from backend.application.security import generate_api_key, hash_api_key
 from backend.core.config import settings
 from backend.core.ip_hash import hash_remote_addr
@@ -92,14 +92,19 @@ _PATTERN_TAG_PREFIX = "pattern:"
 # Match-quality tiers a caller should treat as a real hit. ``partial`` /
 # ``poor`` rows are still returned (the caller may want to skim them) but
 # they do not clear ``no_good_match`` — a low-similarity, wrong-bug result
-# must not read to an agent as "the memory layer answered your question".
+# must not read to an agent as "the commons answered your question".
 _GOOD_MATCH_TIERS = frozenset({"exact", "strong"})
 # A row whose ``best_solution`` is None offers no actionable help. Its quality
 # tier is capped to ``_NO_SOLUTION_TIER`` (deliberately outside
 # ``_GOOD_MATCH_TIERS``) so a hollow signature match cannot read to an agent as
-# "the memory layer answered your question" or, on its own, clear
+# "the commons answered your question" or, on its own, clear
 # ``no_good_match``.
 _NO_SOLUTION_TIER = "no_solution"
+
+# Operator takedown overwrites leaked text with this marker. Redaction is
+# in-place (not soft-hide) because the point is removing leaked secrets/PII
+# from the store itself.
+_REDACTED_PLACEHOLDER = "[removed by operator]"
 
 # Search modes where no dense vector actually ranked the result, so the
 # boot-configured embedding/rerank provider names must not be reported as the
@@ -497,7 +502,13 @@ class AgentbookService:
         self._ensure_agent_exists(author_id)
         gate = check_spam(description, "problem")
         if not gate.passed:
-            raise ValueError(gate.reason)
+            raise ValueError(gate.detail or gate.reason)
+        # The error signature is publicly readable too and is exactly where a
+        # pasted log line carries a live token — gate it like the description.
+        if error_signature is not None:
+            secret_label = detect_secret(error_signature)
+            if secret_label is not None:
+                raise ValueError(secret_rejection(secret_label).detail)
         problem = Problem(
             author_id=author_id,
             description=description,
@@ -535,7 +546,7 @@ class AgentbookService:
             raise NotFoundError("Problem not found")
         gate = check_spam(content, "solution", {"steps": steps} if steps else None)
         if not gate.passed:
-            raise ValueError(gate.reason)
+            raise ValueError(gate.detail or gate.reason)
         solution = Solution(
             problem_id=problem_id,
             author_id=author_id,
@@ -1432,7 +1443,7 @@ class AgentbookService:
 
     def get_agentbook(self, problem_id: UUID) -> dict:
         problem = self._problems.get(problem_id)
-        if problem is None:
+        if problem is None or problem.review_status == "removed":
             raise NotFoundError(f"Problem {problem_id} not found")
 
         all_solutions = self._solutions.list_by_problem(problem_id)
@@ -2154,6 +2165,8 @@ class AgentbookService:
         include: list[str] | None = None,
     ) -> dict:
         problem = self._problems.get(resource_id)
+        if problem is not None and problem.review_status == "removed":
+            raise NotFoundError(f"No problem or solution found with id {resource_id}")
         if problem is not None:
             effective = include if include is not None else ["solutions", "similar"]
             # Mirror the public visibility filter used by get_agentbook():
@@ -2510,6 +2523,16 @@ class AgentbookService:
             ),
         )
 
+        # Source classification keeps G3/G4 readable: without it, seeded
+        # corpus activity and author self-reports read as demand.
+        sources = self._outcomes.aggregate_outcome_sources(
+            now,
+            seed_reporter_ids=self._seed_agent_ids(),
+            synthetic_reporter_ids=frozenset(_SYNTHETIC_AGENT_IDS),
+        )
+        organic_30d = sources["organic_external"]["last_30d"]
+        total_30d = o["outcomes_last_30d"]
+
         return {
             "outcomes": {
                 "total": o["outcomes_total"],
@@ -2517,6 +2540,10 @@ class AgentbookService:
                 "last_30_days": o["outcomes_last_30d"],
                 "verified_total": o["verified_total"],
                 "observed_total": o["observed_total"],
+            },
+            "outcome_sources": {
+                **sources,
+                "organic_share_30d": (organic_30d / total_30d) if total_30d else 0.0,
             },
             "reporters": {
                 "unique_total": o["unique_reporters_total"],
@@ -2544,8 +2571,16 @@ class AgentbookService:
 
         Single source for the seed set; starts with the reserved sandbox agent
         so a seed-set replay can never inflate the organic-recurrence metric.
+        Extended by the SEED_AGENT_IDS env (comma-separated UUIDs) so the
+        operator can tag historical seed-corpus identities. A malformed token
+        raises (fail loud) instead of silently classifying traffic as organic.
         """
-        return frozenset({SANDBOX_AGENT_ID})
+        configured = frozenset(
+            UUID(token.strip())
+            for token in (settings.seed_agent_ids or "").split(",")
+            if token.strip()
+        )
+        return frozenset({SANDBOX_AGENT_ID}) | configured
 
     def get_recurrence_density(self) -> dict:
         """Recurrence-density rollup over recorded real-traffic query events.
@@ -2754,6 +2789,11 @@ class AgentbookService:
             {"steps": improved_steps} if improved_steps else None,
         )
         if not gate_result.passed:
+            # A secret must never be persisted — not even as the demoted
+            # lineage row created further down (lineage rows stay publicly
+            # reachable via the timeline).
+            if gate_result.reason == "secret_detected":
+                raise ValueError(gate_result.detail or gate_result.reason)
             tmp = Solution(
                 problem_id=existing.problem_id,
                 author_id=author_id,
@@ -3600,7 +3640,7 @@ class AgentbookService:
 
     def get_solution_lineage(self, solution_id: UUID) -> list[dict]:
         solution = self._solutions.get(solution_id)
-        if solution is None:
+        if solution is None or solution.review_status == "removed":
             raise NotFoundError(f"Solution {solution_id} not found")
 
         chain: list[Solution] = [solution]
@@ -3621,6 +3661,52 @@ class AgentbookService:
         ids = {s.author_id for s in chain}
         models = self._agent_models_map(ids)
         return [_solution_to_dict(s, models.get(s.author_id)) for s in chain]
+
+    def takedown_problem(self, problem_id: UUID) -> dict:
+        """Operator-only remediation: redact a problem and all its solutions.
+
+        Clears every contributor-supplied field that could carry a leaked
+        credential (description, error_signature, environment, tags) and the
+        embedding derived from them; ``review_status='removed'`` drops the
+        problem out of every public read path.
+        """
+        problem = self._problems.get(problem_id)
+        if problem is None:
+            raise NotFoundError(f"Problem {problem_id} not found")
+        problem.description = _REDACTED_PLACEHOLDER
+        problem.error_signature = None
+        problem.environment = None
+        problem.tags = []
+        problem.embedding = None
+        problem.review_status = "removed"
+        self._problems.update(problem)
+        solutions = self._solutions.list_by_problem(problem_id)
+        for solution in solutions:
+            self._redact_solution(solution)
+        self._invalidate_search_cache()
+        return {
+            "status": "removed",
+            "problem_id": str(problem_id),
+            "solutions_redacted": len(solutions),
+        }
+
+    def takedown_solution(self, solution_id: UUID) -> dict:
+        """Operator-only remediation: redact a single solution in place."""
+        solution = self._solutions.get(solution_id)
+        if solution is None:
+            raise NotFoundError(f"Solution {solution_id} not found")
+        self._redact_solution(solution)
+        self._invalidate_search_cache()
+        return {"status": "removed", "solution_id": str(solution_id)}
+
+    def _redact_solution(self, solution: Solution) -> None:
+        solution.content = _REDACTED_PLACEHOLDER
+        solution.steps = []
+        solution.root_cause_pattern = None
+        solution.localization_cues = []
+        solution.verification = []
+        solution.review_status = "removed"
+        self._solutions.update(solution)
 
     def get_research_history(self, problem_id: UUID) -> list[dict]:
         if self._research_cycles is None:
@@ -3823,7 +3909,7 @@ class AgentbookService:
         SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
 
         problem = self._problems.get(problem_id)
-        if problem is None:
+        if problem is None or problem.review_status == "removed":
             raise NotFoundError(f"Problem {problem_id} not found")
 
         all_solutions = self._solutions.list_by_problem(problem_id)

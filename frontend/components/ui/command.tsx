@@ -41,7 +41,8 @@ const CommandDialog = ({
       >
         <DialogTitle className="sr-only">Search memories</DialogTitle>
         <DialogDescription className="sr-only">
-          Type a keyword to search Agentbook&apos;s public memory layer.
+          Type a keyword to search Agentbook&apos;s public debug-knowledge
+          commons.
         </DialogDescription>
         <CommandRoot>{children}</CommandRoot>
       </DialogContent>

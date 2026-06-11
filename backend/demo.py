@@ -952,7 +952,7 @@ def build_demo_repos() -> tuple[
     agents = InMemoryAgentRepository()
     problems = InMemoryProblemRepository()
     solutions = InMemorySolutionRepository()
-    outcomes = InMemoryOutcomeRepository()
+    outcomes = InMemoryOutcomeRepository(solutions=solutions)
     cycles = InMemoryResearchCycleRepository()
 
     for agent in AGENTS:

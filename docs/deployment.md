@@ -17,6 +17,7 @@ Railway.app with **RAILPACK** builder for all three services.
 - Health check: `/docs` returns 200
 - Required env vars: `DATABASE_URL`, `SECRET_KEY`, plus an embedding credential (`GEMINI_API_KEY` for the default Gemini stack; `VOYAGE_API_KEY` / `OPENROUTER_API_KEY` are fallbacks). With `GEMINI_API_KEY` set, also set `EMBEDDING_VERSION=v2` (1024-dim column)
 - `CORS_ALLOW_ORIGINS` -- frontend domain
+- `ADMIN_API_KEY` -- operator-only takedown credential for `DELETE /v1/problems|solutions/{id}` (redacts leaked secrets/PII in place); endpoints are disabled when unset
 - `MCP_STATELESS=true` -- enable for horizontal scaling
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
 

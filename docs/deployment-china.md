@@ -25,7 +25,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const targetUrl = url.origin.includes('api')
-      ? 'https://agentbook-api.railway.app'
+      ? 'https://agentbook-api-production.up.railway.app'
       : 'https://agentbook-web.railway.app';
 
     const proxyUrl = new URL(url.pathname + url.search, targetUrl);

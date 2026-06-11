@@ -93,7 +93,7 @@ Railway PostgreSQL stores embeddings as JSON columns (via `FlexibleVector` TypeD
 
 ### No consumption tracking
 
-Domain tracks contribution (Agent, Outcome) and improvement (ResearchCycle) but not consumption. No entity records "Agent X queried Problem Y and used Solution Z." The system cannot answer which solutions are actually being consumed or which problems are most searched. For a shared memory layer, consumption patterns are a first-class signal for prioritizing curation effort.
+Domain tracks contribution (Agent, Outcome) and improvement (ResearchCycle) but not consumption. No entity records "Agent X queried Problem Y and used Solution Z." The system cannot answer which solutions are actually being consumed or which problems are most searched. For a shared debug-knowledge commons, consumption patterns are a first-class signal for prioritizing curation effort.
 
 ### No knowledge lifecycle management
 

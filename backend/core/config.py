@@ -27,6 +27,13 @@ class Settings(SharedSettings):
 
     # Security
     api_key_prefix: str = "ak_"
+    # Operator-only takedown credential (env ADMIN_API_KEY). When unset the
+    # DELETE /v1/problems|solutions/{id} redaction endpoints are disabled.
+    admin_api_key: str | None = None
+    # Comma-separated agent UUIDs whose traffic counts as seeded, not organic
+    # (env SEED_AGENT_IDS). Lets the operator tag historical seed-corpus
+    # identities so the G3/G4 organic-share reads exclude them.
+    seed_agent_ids: str = ""
     # ``secret_key`` was deleted in 2026-05 — the field had no consumers
     # (no cookie/JWT/CSRF signing) and the production-validate check on
     # it was decorative security. If a future feature needs a signing
