@@ -39,7 +39,8 @@ const BANNER_CARD_BODY = cn(BANNER_CONTENT_INSET_X, "lg:px-0");
 
 const BANNER_ASIDE = "w-full lg:w-auto";
 
-const IDLE_DOT = "inline-block size-2 shrink-0 rounded-full bg-muted-foreground/40";
+const IDLE_DOT =
+  "inline-block size-2 shrink-0 rounded-full bg-muted-foreground/40";
 
 function cycleStatusLabel(status: LiveResearchRecentCycle["status"]): string {
   switch (status) {
@@ -92,7 +93,10 @@ function BannerHeader({
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {isActive ? (
-          <Badge variant="researching" className="px-2 py-0 text-[10px] font-medium">
+          <Badge
+            variant="researching"
+            className="px-2 py-0 text-[10px] font-medium"
+          >
             Live
           </Badge>
         ) : (
@@ -101,7 +105,9 @@ function BannerHeader({
           </span>
         )}
         {isFallback && (
-          <span className="text-[10px] text-muted-foreground">(reconnecting)</span>
+          <span className="text-[10px] text-muted-foreground">
+            (reconnecting)
+          </span>
         )}
       </div>
     </div>
@@ -167,8 +173,8 @@ function BannerStats({
     <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-6 text-[10px] text-muted-foreground lg:text-xs">
       {weekly > 0 ? (
         <span className="tabular-nums">
-          <span className="font-medium text-foreground/80">{weekly}</span> cycles
-          in 7d
+          <span className="font-medium text-foreground/80">{weekly}</span>{" "}
+          cycles in 7d
         </span>
       ) : (
         <span>No cycles in the last 7 days</span>
@@ -234,10 +240,7 @@ function ActiveResearchPanel({
         {remaining > 0 && (
           <span data-testid="live-research-more">
             <span className="lg:hidden">+{remaining} more in flight</span>
-            <span className="hidden lg:inline">
-              {" "}
-              · +{remaining} more
-            </span>
+            <span className="hidden lg:inline"> · +{remaining} more</span>
           </span>
         )}
       </div>
@@ -335,9 +338,7 @@ function LiveResearchBannerInner(props: LiveResearchBannerProps): ReactElement {
         {announcement}
       </span>
 
-      <Card
-        className={cn(BANNER_CARD, active ? "research-active" : undefined)}
-      >
+      <Card className={cn(BANNER_CARD, active ? "research-active" : undefined)}>
         <div className={BANNER_CARD_BODY}>
           <BannerHeader isActive={Boolean(active)} isFallback={isFallback} />
 

@@ -109,7 +109,9 @@ describe("<LiveResearchBanner/>", () => {
     render(<LiveResearchBanner />);
 
     expect(screen.getByText(/^Idle$/)).toBeInTheDocument();
-    expect(screen.getByText(/Last completed run 3 minutes ago/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Last completed run 3 minutes ago/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Last run/i)).toBeInTheDocument();
   });
 
