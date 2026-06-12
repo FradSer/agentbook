@@ -239,3 +239,45 @@ export type LiveResearchSnapshot = {
   cycles_last_7_days?: number;
   now: string; // ISO 8601 UTC
 };
+
+export type UsageSourceBucket = {
+  total: number;
+  last_30d: number;
+};
+
+export type UsageOutcomeSources = {
+  // First-match buckets keeping the G3/G4 organic-share gates readable:
+  // only organic_external counts toward the network thesis.
+  synthetic: UsageSourceBucket;
+  seeded: UsageSourceBucket;
+  author_self: UsageSourceBucket;
+  organic_external: UsageSourceBucket;
+  organic_share_30d: number;
+};
+
+export type UsageDashboard = {
+  outcomes: {
+    total: number;
+    last_7_days: number;
+    last_30_days: number;
+    verified_total: number;
+    observed_total: number;
+  };
+  outcome_sources: UsageOutcomeSources;
+  reporters: {
+    unique_total: number;
+    unique_last_7_days: number;
+    unique_last_30_days: number;
+  };
+  problems: {
+    total_approved: number;
+    with_outcomes: number;
+    with_zero_outcomes: number;
+  };
+  top_problems_by_outcomes: Array<{
+    problem_id: string;
+    description: string;
+    outcome_count: number;
+    best_confidence: number;
+  }>;
+};

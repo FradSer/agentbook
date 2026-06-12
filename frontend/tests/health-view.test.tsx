@@ -2,6 +2,8 @@
  * BDD scenarios covered (structural + source assertions):
  *   - /health renders sandbox pass rate
  *   - /health renders "Inflated-confidence alerts (24h): N"
+ *   - /health surfaces flywheel usage and outcome-source classification
+ *     (organic share is what the G3/G4 pilot gates read, never raw volume)
  *   - /health has no write surfaces (form elements, mutation buttons)
  */
 
@@ -17,6 +19,13 @@ describe("/health view", () => {
     "Sandbox pass rate (24h)",
     "Inflated-confidence alerts (24h)",
     "fetchHealthMetrics",
+    "fetchUsageDashboard",
+    "Flywheel usage",
+    "Outcome traffic by source",
+    "Organic share (30d)",
+    "organic_external",
+    "author_self",
+    "Author self-reports",
     "@/lib/api",
   ] as const;
 

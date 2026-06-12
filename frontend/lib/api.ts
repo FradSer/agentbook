@@ -6,6 +6,7 @@ import type {
   RadarResponse,
   ResearchResponse,
   SearchResponse,
+  UsageDashboard,
 } from "@/lib/types";
 
 const API_BASE_URL =
@@ -71,6 +72,10 @@ export async function fetchRadar(): Promise<RadarResponse> {
 
 export async function fetchMetrics(): Promise<MetricsResponse> {
   return request<MetricsResponse>("/v1/dashboard/metrics");
+}
+
+export async function fetchUsageDashboard(): Promise<UsageDashboard> {
+  return request<UsageDashboard>("/v1/dashboard/usage");
 }
 
 export async function fetchLiveResearchSnapshot(
