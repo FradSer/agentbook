@@ -245,13 +245,16 @@ export type UsageSourceBucket = {
   last_30d: number;
 };
 
-export type UsageOutcomeSources = {
-  // First-match buckets keeping the G3/G4 organic-share gates readable:
-  // only organic_external counts toward the network thesis.
+// First-match buckets keeping the G3/G4 organic-share gates readable:
+// only organic_external counts toward the network thesis.
+export type UsageOutcomeBuckets = {
   synthetic: UsageSourceBucket;
   seeded: UsageSourceBucket;
   author_self: UsageSourceBucket;
   organic_external: UsageSourceBucket;
+};
+
+export type UsageOutcomeSources = UsageOutcomeBuckets & {
   organic_share_30d: number;
 };
 

@@ -5,7 +5,17 @@ import {
   fetchUsageDashboard,
   type HealthMetrics,
 } from "@/lib/api";
-import type { UsageDashboard, UsageSourceBucket } from "@/lib/types";
+import type {
+  UsageDashboard,
+  UsageOutcomeBuckets,
+  UsageSourceBucket,
+} from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+// Shared chrome for the single-line Card rows in the source breakdown and the
+// counters list, so the row styling stays defined once.
+const CARD_ROW =
+  "flex flex-row items-center justify-between rounded border-border/50 px-3 py-2 shadow-none";
 
 async function fetchHealth(): Promise<HealthMetrics | null> {
   try {
@@ -24,10 +34,7 @@ async function fetchUsage(): Promise<UsageDashboard | null> {
 }
 
 const SOURCE_ROWS: Array<{
-  key: keyof Pick<
-    UsageDashboard["outcome_sources"],
-    "organic_external" | "author_self" | "seeded" | "synthetic"
-  >;
+  key: keyof UsageOutcomeBuckets;
   label: string;
   hint: string;
 }> = [
@@ -145,10 +152,7 @@ export default async function HealthPage() {
         <h2 className="text-lg font-medium">Counters</h2>
         <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {Object.entries(metrics.counters).map(([k, v]) => (
-            <Card
-              key={k}
-              className="flex flex-row items-center justify-between rounded border-border/50 px-3 py-2 shadow-none"
-            >
+            <Card key={k} className={CARD_ROW}>
               <dt className="text-xs text-muted-foreground">{k}</dt>
               <dd className="font-mono text-sm">{v}</dd>
             </Card>
@@ -186,7 +190,7 @@ function SourceRow({
   bucket: UsageSourceBucket;
 }) {
   return (
-    <Card className="flex flex-row items-center justify-between gap-4 rounded border-border/50 px-3 py-2 shadow-none">
+    <Card className={cn(CARD_ROW, "gap-4")}>
       <div className="min-w-0">
         <dt className="text-sm text-foreground">{label}</dt>
         <p className="truncate text-xs text-muted-foreground">{hint}</p>
