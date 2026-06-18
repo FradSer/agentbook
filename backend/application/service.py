@@ -194,7 +194,11 @@ def _recompute_outcome_counters(solution: Solution, outcomes: list[Outcome]) -> 
 _SEED_OVERRIDE_TOLERANCE = 0.05
 
 
-def _provenance_from_outcomes(solution: Solution, outcomes: list[Outcome]) -> dict:
+def _provenance_from_outcomes(
+    solution: Solution,
+    outcomes: list[Outcome],
+    seed_ids: frozenset[UUID] = frozenset(),
+) -> dict:
     """Snapshot the inputs that produced ``solution.confidence``.
 
     ``has_seed_override`` is True iff the persisted confidence diverges
@@ -202,16 +206,34 @@ def _provenance_from_outcomes(solution: Solution, outcomes: list[Outcome]) -> di
     realistic shape demo or migration data takes. Recomputing the full
     Bayesian for every read row was the alternative and multiplied
     search latency.
+
+    ``provenance`` lets a recalling agent discount a score no organic
+    reporter has corroborated: ``"organic"`` once any external reporter is
+    outside the seed set, ``"seeded"`` while every corroboration is a seed
+    identity (or a direct seed-override on the confidence column), and
+    ``"none"`` when nothing has reported. ``seeded_reporters`` is the count of
+    distinct external reporters that are seed identities.
     """
+    ext_reporters = external_reporter_ids(outcomes, solution.author_id)
+    seeded = ext_reporters & seed_ids
+    organic = ext_reporters - seed_ids
+    has_seed_override = (
+        not outcomes
+        and abs(solution.confidence - BASELINE_CONFIDENCE) > _SEED_OVERRIDE_TOLERANCE
+    )
+    if organic:
+        provenance = "organic"
+    elif seeded or has_seed_override:
+        provenance = "seeded"
+    else:
+        provenance = "none"
     return {
         "outcomes_n": len(outcomes),
-        "unique_reporters": len(external_reporter_ids(outcomes, solution.author_id)),
+        "unique_reporters": len(ext_reporters),
+        "seeded_reporters": len(seeded),
         "verified_n": sum(1 for o in outcomes if o.kind == "verified"),
-        "has_seed_override": (
-            not outcomes
-            and abs(solution.confidence - BASELINE_CONFIDENCE)
-            > _SEED_OVERRIDE_TOLERANCE
-        ),
+        "has_seed_override": has_seed_override,
+        "provenance": provenance,
     }
 
 
@@ -1708,7 +1730,9 @@ class AgentbookService:
             if solution is None:
                 continue
             outcomes = self._outcomes.list_by_solution(solution.solution_id)
-            best["confidence_inputs"] = _provenance_from_outcomes(solution, outcomes)
+            best["confidence_inputs"] = _provenance_from_outcomes(
+                solution, outcomes, self._seed_agent_ids()
+            )
 
     # --- Problem/Solution/Outcome methods ---
 
