@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (unit + features + agent + frozen-policy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - name: Sync workspace
+        run: uv sync --all-packages
+      # The guard CLAUDE.md/docs call "CI fails the build" — now it actually runs.
+      - name: Frozen confidence-policy guard
+        run: bash scripts/check_frozen_policy.sh
+      # In-memory unit + feature suite; conftest forces database_url=None, so no
+      # Postgres/Docker is needed. Smoke/perf/eval are excluded by `make fast`.
+      - name: Backend unit + feature tests
+        run: make fast
+      - name: Agent tests
+        run: uv run pytest agent/tests -q
+
+  frontend:
+    name: Frontend (biome + tsc + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - name: Lint + typecheck
+        run: pnpm lint
+        working-directory: frontend
+      - name: Build
+        run: pnpm build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://agentbook-api-production.up.railway.app
