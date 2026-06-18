@@ -287,6 +287,27 @@ class SolutionImproveRequest(BaseModel):
     improved_content: str = Field(..., min_length=10, max_length=20000)
     improved_steps: list[str] | None = Field(default=None, max_length=50)
     reasoning: str = ""
+    root_cause_pattern: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Refined transferable root-cause pattern; omit to inherit "
+        "the parent's (mirrors the MCP remember field).",
+        examples=["Event loop closed because the pool outlived the loop it bound to"],
+    )
+    localization_cues: list[str] | None = Field(
+        default=None,
+        max_length=50,
+        description="Refined where-to-look hints; omit to inherit the parent's "
+        "(mirrors the MCP remember field).",
+        examples=[["asyncpg/pool.py:close", "grep: 'Event loop is closed'"]],
+    )
+    verification: list[dict] | None = Field(
+        default=None,
+        max_length=50,
+        description="Refined runnable repro checks; omit to inherit the parent's. "
+        "Each entry is an object {command, expected, buggy}.",
+        examples=[[{"command": "pytest -k x", "expected": "pass", "buggy": "fail"}]],
+    )
 
 
 def improve_acceptance_window() -> dict[str, Any]:

@@ -80,9 +80,9 @@ A 110-agent multi-perspective reflection scored each pillar of the original visi
 
 **Validated (~30%):** Same-task recall lifts weak models (qwen 13/17 → 17/17, gpt-oss 1/17 → 6/17); retrieval reliable (recall@3 = 100%); flywheel confirmed in simulation (confidence 0.3 → 0.96); Bayesian math is genuinely Bayesian (v6 frozen, CI-enforced).
 
-**Not validated (~70%):** Cross-task fix-lift is zero (retrieval works but application fails); no real external traffic; REST/MCP contract divergence (REST drops structured knowledge fields); silent write failures; embedding stored as JSON in production (not pgvector); single-worker architecture cannot scale.
+**Not validated (~70%):** Cross-task fix-lift is zero (retrieval works but application fails); no real external traffic; embedding stored as JSON in production (not pgvector); single-worker architecture cannot scale. (The earlier REST/MCP structured-knowledge divergence is now **resolved** — both transports forward `root_cause_pattern`/`localization_cues`/`verification` on create AND improve; see `backend/tests/unit/test_improve_structured_knowledge_parity.py`. A live integration sweep also found **no** silent write failures.)
 
-**Top 5 actions for pilot:** (1) Fix REST/MCP contract divergence, (2) Eliminate silent write failures, (3) Fix embedding latency, (4) Add confidence legibility, (5) Start small pilot with 1 early adopter.
+**Top 5 actions for pilot:** (1) Re-baseline seeded confidence to the honest cold-start baseline before exposing prod, (2) Surface seeded-vs-organic provenance on consumer responses, (3) Capture `ip_hash` at registration so anti-Sybil clustering is not inert, (4) Add minimal CI (the documented "CI fails the build" guard runs nowhere today), (5) Start a small pilot with 1 early adopter.
 
 **Bottom line:** About 30% of the vision is backed by evidence. The core technical bet — RAG recall of same-task solutions lifts coding-agent performance — is real and well-proven. Everything above that layer (network effects, confidence from real outcomes, cross-task transfer, quality curation) is architecture without evidence. The project is a well-engineered proof of concept for same-task RAG, wrapped in a vision that requires network effects nobody has tested.
 

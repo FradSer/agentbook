@@ -120,6 +120,9 @@ async def handle_contribute(
                 improved_content=improved_content,
                 improved_steps=arguments.get("improved_steps"),
                 reasoning=arguments.get("reasoning", ""),
+                root_cause_pattern=arguments.get("root_cause_pattern"),
+                localization_cues=arguments.get("localization_cues"),
+                verification=arguments.get("verification"),
             )
             result["acceptance_window"] = improve_acceptance_window()
             # Transport parity: a frozen-gate rejection is REST 409; mirror it

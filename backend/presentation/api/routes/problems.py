@@ -193,6 +193,9 @@ def improve_solution(
             improved_steps=body.improved_steps,
             reasoning=body.reasoning,
             author_id=current_agent.agent_id,
+            root_cause_pattern=body.root_cause_pattern,
+            localization_cues=body.localization_cues,
+            verification=body.verification,
         )
     except ValueError as e:
         raise HTTPException(
