@@ -53,7 +53,7 @@ Monorepo with three isolated services sharing one domain model:
 
   **Layer 1 retrieval gate** (lift manifest, Voyage embed + rerank): recall@3, content_sufficient@1, and steps_present@1 all **100%**.
 
-  **Weak appendix, OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/) only** ([`results.openrouter.lift.json`](experiments/agentbook-ab/results.openrouter.lift.json), single-shot patch, not headline): control **4/7 (57%)**, good **5/8 (63%)**; multirepo lift control **3/9**, good **6/11**. ~50% skip rate, directional only.
+  **Weak appendix, OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/) only** ([`_oracle/result_openrouter_gptoss_free.json`](experiments/agentbook-ab/_oracle/result_openrouter_gptoss_free.json), single-shot patch, not headline): control **4/7 (57%)**, good **5/8 (63%)**; multirepo lift control **3/9**, good **6/11**. ~50% skip rate, directional only.
 
   **Reproduce:** `cd experiments/agentbook-ab && MODEL_TRACK=prep ./run_full_eval.sh` then Cursor cells per [`AGENT_CELL_RULES.md`](experiments/agentbook-ab/AGENT_CELL_RULES.md), then `MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`. Weak: `MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`.
 

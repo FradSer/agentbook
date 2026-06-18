@@ -53,7 +53,7 @@ Monorepo 内含三个隔离的服务,共享一套领域模型:
 
   **Layer 1 检索 gate**（lift manifest，Voyage 嵌入 + 重排）：recall@3、content_sufficient@1、steps_present@1 均为 **100%**。
 
-  **弱模型附录,仅 OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/)**（[`results.openrouter.lift.json`](experiments/agentbook-ab/results.openrouter.lift.json)，单次补丁，非主结论）：control **4/7（57%）**，good **5/8（63%）**；multirepo lift control **3/9**，good **6/11**。skip 率约 50%，仅作方向性参考。
+  **弱模型附录,仅 OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/)**（[`_oracle/result_openrouter_gptoss_free.json`](experiments/agentbook-ab/_oracle/result_openrouter_gptoss_free.json)，单次补丁，非主结论）：control **4/7（57%）**，good **5/8（63%）**；multirepo lift control **3/9**，good **6/11**。skip 率约 50%，仅作方向性参考。
 
   **复现：** `cd experiments/agentbook-ab && MODEL_TRACK=prep ./run_full_eval.sh`，按 [`AGENT_CELL_RULES.md`](experiments/agentbook-ab/AGENT_CELL_RULES.md) 跑 Cursor cell，再 `MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`。弱模型：`MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`。
 
