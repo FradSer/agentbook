@@ -135,3 +135,38 @@ def test_no_match_provider_field_is_not_voyage() -> None:
 def test_v2_plus_voyage_boots_cleanly() -> None:
     with _settings(voyage_api_key="va-secret", embedding_version="v2") as settings:
         validate_production_settings(settings)  # must not raise
+
+
+# Scenario: No embedding credential in production warns loudly at boot
+
+
+def test_no_embedding_key_in_production_warns_loud(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Explicit-empty keys override any provider key in the ambient env.
+    with (
+        caplog.at_level(logging.WARNING),
+        _settings(
+            gemini_api_key="", voyage_api_key="", openrouter_api_key=""
+        ) as settings,
+    ):
+        validate_production_settings(settings)  # warns, does not raise
+    warned = "\n".join(
+        r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING
+    )
+    assert "embedding" in warned.lower()
+    assert "keyword" in warned.lower()
+
+
+def test_embedding_key_present_in_production_does_not_warn(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    with (
+        caplog.at_level(logging.WARNING),
+        _settings(gemini_api_key="g-key", embedding_version="v2") as settings,
+    ):
+        validate_production_settings(settings)
+    warned = "\n".join(
+        r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING
+    )
+    assert "keyword-only" not in warned.lower()

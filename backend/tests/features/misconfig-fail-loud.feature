@@ -24,4 +24,13 @@ Feature: Misconfiguration fails loud at boot
     When create_app() runs
     Then boot succeeds
 
+  Scenario: No embedding credential in production warns loudly at boot
+    Given GEMINI_API_KEY, VOYAGE_API_KEY and OPENROUTER_API_KEY are all unset
+    And DEBUG is false
+    When create_app() runs validate_production_settings()
+    Then a loud boot WARN names the keyword-only degradation
+    # The existing warn-on-degraded-stack path only fires for a set-but-rejected
+    # key; this closes the all-keys-absent gap. Recall still functions (keyword),
+    # so it warns rather than refusing boot.
+
 ---
