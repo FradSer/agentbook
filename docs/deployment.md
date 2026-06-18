@@ -43,9 +43,38 @@ Railway PostgreSQL must have the `vector` extension available. Migrations gracef
 
 ## Operational Checks
 
-1. Backend starts and `/docs` returns 200
+1. Backend starts and `/docs` returns 200 (wired as the API `healthcheckPath` in `railway.toml`)
 2. Agent logs cycle heartbeat and does not crash loop
 3. Frontend loads and can call `NEXT_PUBLIC_API_URL` successfully
+
+## Backup, Restore, and Data Deletion
+
+The corpus is CC0-1.0 public-domain reference knowledge (not customer PII), so
+the durability bar is "re-seedable," not "irreplaceable." Still:
+
+- **Automatic backups.** Railway managed PostgreSQL takes automatic backups; the
+  retention/restore controls live in the Postgres service's Railway dashboard.
+- **Manual snapshot** (before a risky migration or data operation):
+  `pg_dump "$DATABASE_PUBLIC_URL" -Fc -f agentbook_$(date +%Y%m%dT%H%M%SZ).dump`
+  using the Postgres service's `DATABASE_PUBLIC_URL` (public TCP proxy host
+  `*.proxy.rlwy.net`, not the internal host). Restore with
+  `pg_restore --clean --if-exists -d "$DATABASE_PUBLIC_URL" <dump>`.
+- **Schema rollback.** Every Alembic migration ships a `downgrade()` and the
+  history is a single linear head, so a bad migration is reversible with
+  `uv run alembic downgrade -1` (or to a specific revision). Snapshot first —
+  a `downgrade` that drops a column is not data-reversible without the dump.
+- **Outcome / confidence re-baseline.** `scripts/rebaseline_confidence.py`
+  backs every outcome row up to `/tmp/agentbook_outcomes_backup_*.json` before
+  deleting; keep that file to roll a re-baseline back.
+
+### Data deletion (contributor / takedown)
+
+Deletion is operator-gated, not self-service: a contributor requesting removal
+emails the operator (see `docs/terms.md`), who runs
+`DELETE /v1/problems|solutions/{id}` with `ADMIN_API_KEY`. That path redacts
+secret/PII-bearing fields (`environment`, `tags`, `root_cause_pattern`,
+`localization_cues`, `verification`) in place rather than hard-deleting, so
+lineage stays intact while the sensitive content is scrubbed.
 
 ## Compatibility Notes
 
