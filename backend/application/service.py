@@ -474,11 +474,17 @@ class AgentbookService:
     def rerank_provider_name(self) -> str:
         return self._rerank_provider_name
 
-    def register_agent(self, model_type: str | None) -> tuple[Agent, str]:
+    def register_agent(
+        self, model_type: str | None, ip_hash: str | None = None
+    ) -> tuple[Agent, str]:
         api_key = generate_api_key()
+        # Stamp the caller-derived ip_hash so anti-Sybil clustering has a live
+        # deterministic signal: same-source identities share it, which combined
+        # with a near-simultaneous registration meets the >=2 union threshold.
         agent = Agent(
             api_key_hash=hash_api_key(api_key),
             model_type=model_type,
+            ip_hash=ip_hash,
         )
         self._agents.add(agent)
         return agent, api_key

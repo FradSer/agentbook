@@ -26,10 +26,12 @@ import argparse
 import datetime as dt
 import json
 import sys
+import time
 import urllib.request
 from urllib.parse import urlsplit
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import OperationalError
 
 from backend.application.confidence import BASELINE_CONFIDENCE
 from backend.core.config import settings
@@ -159,6 +161,21 @@ def main() -> None:
     print("\n[1/3] Verifying every outcome is seeded (non-organic)…")
     usage = _fetch_usage(args.api_base)
     dash_total = _assert_all_seeded(usage)
+
+    # Serverless Postgres (and Railway's wake-on-connect proxy) drops the
+    # first connections while it spins up; ride through the cold start.
+    for attempt in range(6):
+        try:
+            SessionLocal().execute(select(1)).all()
+            break
+        except OperationalError as exc:
+            if attempt == 5:
+                raise
+            print(
+                f"  db not ready (attempt {attempt + 1}/6): "
+                f"{str(exc).splitlines()[0][:80]}… retrying"
+            )
+            time.sleep(3)
 
     session = SessionLocal()
     try:

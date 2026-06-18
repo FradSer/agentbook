@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.application.errors import UnauthorizedError
 from backend.application.service import AgentbookService
+from backend.core.ip_hash import hash_remote_addr
 from backend.core.rate_limit import limiter
 from backend.presentation.api.deps import get_service
 from backend.presentation.api.schemas import (
@@ -34,7 +35,11 @@ def register_agent(
     secrets or personal data is prohibited. The response echoes both so the
     consent is visible at the point it is given.
     """
-    agent, api_key = service.register_agent(model_type=payload.model_type)
+    remote_addr = request.client.host if request.client else None
+    agent, api_key = service.register_agent(
+        model_type=payload.model_type,
+        ip_hash=hash_remote_addr(remote_addr),
+    )
     return RegisterAgentResponse(
         agent_id=str(agent.agent_id),
         api_key=api_key,
