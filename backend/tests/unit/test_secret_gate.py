@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 
-from backend.application.gate import check_spam, detect_secret
+from backend.application.gate import check_spam, detect_secret, detect_secret_in
 
 # Pattern-valid, obviously fake credentials with no placeholder markers.
 LIVE_SECRETS = {
@@ -190,3 +190,121 @@ def test_improvement_with_secret_is_rejected_with_no_candidate_row() -> None:
             reasoning="skips rotation",
         )
     assert len(service._solutions.list_by_problem(problem.problem_id)) == before
+
+
+# Structured-knowledge / environment / tags surfaces -- publicly readable
+# fields a credential can ride in on, scrubbed by the takedown path and so
+# gated here too.
+
+CONN = LIVE_SECRETS["connection string with password"]
+
+
+def test_detect_secret_in_scans_nested_structures() -> None:
+    assert detect_secret_in({"DATABASE_URL": CONN}) == "connection string with password"
+    assert detect_secret_in([{"command": f"echo {SECRET}"}]) == "GitHub token"
+    assert detect_secret_in(["deploy", "ci"], None, "clean prose") is None
+
+
+def _problem(service, author_id):
+    return service.create_problem(
+        author_id=author_id,
+        description="CI deploy fails with an authorization error on push",
+    )
+
+
+def test_problem_environment_with_secret_is_rejected_and_not_persisted() -> None:
+    service, author_id = _service()
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.create_problem(
+            author_id=author_id,
+            description="Service crashes reading its database config on boot",
+            environment={"DATABASE_URL": CONN},
+        )
+    assert service._problems.list_all() == []
+
+
+def test_problem_tags_with_secret_are_rejected_and_not_persisted() -> None:
+    service, author_id = _service()
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.create_problem(
+            author_id=author_id,
+            description="Service crashes reading its database config on boot",
+            tags=["deploy", SECRET],
+        )
+    assert service._problems.list_all() == []
+
+
+def test_solution_root_cause_pattern_with_secret_is_rejected() -> None:
+    service, author_id = _service()
+    problem = _problem(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.create_solution(
+            problem_id=problem.problem_id,
+            author_id=author_id,
+            content="Rotate the leaked token and redeploy the service",
+            root_cause_pattern=f"the pipeline hardcodes {SECRET} in its env",
+        )
+    assert service._solutions.list_by_problem(problem.problem_id) == []
+
+
+def test_solution_localization_cues_with_secret_are_rejected() -> None:
+    service, author_id = _service()
+    problem = _problem(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.create_solution(
+            problem_id=problem.problem_id,
+            author_id=author_id,
+            content="Rotate the leaked token and redeploy the service",
+            localization_cues=["deploy.yml line 12", f"the env block sets {SECRET}"],
+        )
+    assert service._solutions.list_by_problem(problem.problem_id) == []
+
+
+def test_solution_verification_with_secret_is_rejected() -> None:
+    service, author_id = _service()
+    problem = _problem(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.create_solution(
+            problem_id=problem.problem_id,
+            author_id=author_id,
+            content="Rotate the leaked token and redeploy the service",
+            verification=[
+                {
+                    "command": f"curl -H 'Authorization: Bearer {SECRET}' /health",
+                    "expected": "200",
+                }
+            ],
+        )
+    assert service._solutions.list_by_problem(problem.problem_id) == []
+
+
+def test_improvement_with_secret_in_structured_knowledge_is_rejected() -> None:
+    service, author_id = _service()
+    problem = _problem(service, author_id)
+    base = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Rotate the deploy token and rerun the pipeline",
+    )
+    before = len(service._solutions.list_by_problem(problem.problem_id))
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.improve_solution(
+            solution_id=base.solution_id,
+            author_id=author_id,
+            improved_content="Rotate the token via the secrets manager and rerun",
+            root_cause_pattern=f"the previous fix pasted {SECRET} into the env",
+            reasoning="adds root cause",
+        )
+    assert len(service._solutions.list_by_problem(problem.problem_id)) == before
+
+
+def test_resolve_auto_post_with_secret_in_environment_is_rejected() -> None:
+    service, author_id = _service()
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.resolve(
+            agent_id=author_id,
+            description="New deploy fails to connect to the managed database",
+            environment={"DATABASE_URL": CONN},
+            auto_post=True,
+        )
+    assert service._problems.list_all() == []

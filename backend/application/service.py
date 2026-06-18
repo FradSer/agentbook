@@ -35,7 +35,12 @@ from backend.application.errors import (
     RateLimitError,
     UnauthorizedError,
 )
-from backend.application.gate import check_spam, detect_secret, secret_rejection
+from backend.application.gate import (
+    check_spam,
+    detect_secret,
+    detect_secret_in,
+    secret_rejection,
+)
 from backend.application.security import generate_api_key, hash_api_key
 from backend.core.config import settings
 from backend.core.ip_hash import hash_remote_addr
@@ -509,6 +514,12 @@ class AgentbookService:
             secret_label = detect_secret(error_signature)
             if secret_label is not None:
                 raise ValueError(secret_rejection(secret_label).detail)
+        # environment and tags are published verbatim on public reads and are
+        # documented carriers of env vars / connection strings — the same
+        # fields takedown_problem() scrubs, so gate them on the way in too.
+        struct_label = detect_secret_in(environment, tags)
+        if struct_label is not None:
+            raise ValueError(secret_rejection(struct_label).detail)
         problem = Problem(
             author_id=author_id,
             description=description,
@@ -547,6 +558,14 @@ class AgentbookService:
         gate = check_spam(content, "solution", {"steps": steps} if steps else None)
         if not gate.passed:
             raise ValueError(gate.detail or gate.reason)
+        # The structured-knowledge fields are emitted on every public read but
+        # bypass the content gate; scan them so a credential cannot ride in via
+        # root_cause_pattern / localization_cues / verification.
+        struct_label = detect_secret_in(
+            root_cause_pattern, localization_cues, verification
+        )
+        if struct_label is not None:
+            raise ValueError(secret_rejection(struct_label).detail)
         solution = Solution(
             problem_id=problem_id,
             author_id=author_id,
@@ -1742,6 +1761,12 @@ class AgentbookService:
             }
 
         if auto_post:
+            # auto_post is resolve()'s only persistence path; error_signature
+            # and environment ride straight onto the public Problem, so gate
+            # them like create_problem() does (description is gated above).
+            struct_label = detect_secret_in(error_signature, environment)
+            if struct_label is not None:
+                raise ValueError(secret_rejection(struct_label).detail)
             embedding = self._safe_embed(description, input_type="document")
             new_problem = Problem(
                 author_id=agent_id,
@@ -2802,6 +2827,16 @@ class AgentbookService:
             )
             if not is_content_regression(existing, tmp):
                 raise ValueError("solution_quality_check_failed")
+
+        # Caller-supplied structured knowledge bypasses the content gate above.
+        # Scan it so an improvement cannot smuggle a credential into a publicly
+        # readable field; inherited values (caller passed None) were already
+        # gated when the parent was created.
+        struct_label = detect_secret_in(
+            root_cause_pattern, localization_cues, verification
+        )
+        if struct_label is not None:
+            raise ValueError(secret_rejection(struct_label).detail)
 
         problem = self._problems.get(existing.problem_id)
         if problem is None:

@@ -97,6 +97,39 @@ def detect_secret(text: str) -> str | None:
     return None
 
 
+def _flatten_to_text(value: object) -> str:
+    """Flatten an arbitrary structured value into one scannable string.
+
+    environment dicts, tag lists, and the structured-knowledge fields
+    (localization_cues, verification step dicts) are all published verbatim
+    on public reads, so every leaf string they carry must reach detect_secret.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return "\n".join(_flatten_to_text(v) for v in (*value.keys(), *value.values()))
+    if isinstance(value, (list, tuple, set)):
+        return "\n".join(_flatten_to_text(v) for v in value)
+    return str(value)
+
+
+def detect_secret_in(*values: object) -> str | None:
+    """detect_secret() over structured values (dicts/lists), scanning leaves.
+
+    The publicly-readable fields the free-text gate never sees -- a problem's
+    environment and tags, a solution's root_cause_pattern / localization_cues /
+    verification -- pass through here so a credential cannot ride in on them.
+    Returns the credential-type LABEL (never the token), or None.
+    """
+    for value in values:
+        label = detect_secret(_flatten_to_text(value))
+        if label is not None:
+            return label
+    return None
+
+
 def secret_rejection(label: str) -> GateResult:
     return GateResult(
         passed=False,
