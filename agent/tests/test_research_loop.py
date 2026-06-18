@@ -51,6 +51,27 @@ def _setup_problem_with_solution(service, author_id, confidence: float = 0.25):
     return p, s
 
 
+def _resolve_pending_candidates(service, problem_id) -> None:
+    """Demote each pending candidate via real external failure reports.
+
+    The research loop intentionally skips a problem while it carries an
+    unresolved candidate (the service blocks re-research on pending
+    candidates), so a multi-cycle test must let outcome flow resolve the
+    candidate a cycle produced before the next cycle can propose again.
+    Five DISTINCT external failure reports (the demotion threshold) settle it
+    without superseding the parent, so the parent stays the active best — the
+    same incumbent the cycle then degrades and re-improves.
+    """
+    for sol in list(service._solutions.list_by_problem(problem_id)):
+        if sol.promotion_status == "candidate":
+            for _ in range(5):
+                service.report_outcome(
+                    reporter_id=_add_external_reporter(service),
+                    solution_id=sol.solution_id,
+                    success=False,
+                )
+
+
 # Service-level: 2 direct iterations
 
 
@@ -270,6 +291,9 @@ def test_given_degradation_between_cycles_when_running_two_research_cycles_then_
     metrics1 = asyncio.run(run_research_cycle(agent, service, cooldown_hours=0))
     assert metrics1["improved"] >= 1, f"Iteration 1 should improve: {metrics1}"
 
+    # Resolve iteration 1's candidate so the problem is eligible again.
+    _resolve_pending_candidates(service, p.problem_id)
+
     # Find the new best solution and degrade it via bad outcomes
     context = service.inspect_resource(resource_id=p.problem_id, include=["solutions"])
     active = [s for s in context["solutions"] if s.get("canonical_id") is None]
@@ -404,6 +428,7 @@ def test_given_external_feedback_between_three_cycle_runs_when_running_research_
     assert m1["improved"] >= 1, (
         f"Iteration 1 should produce at least one improvement: {m1}"
     )
+    _resolve_pending_candidates(service, p.problem_id)
 
     # Find new best active solution and degrade it with external failures
     ctx1 = service.inspect_resource(resource_id=p.problem_id, include=["solutions"])
@@ -429,6 +454,7 @@ def test_given_external_feedback_between_three_cycle_runs_when_running_research_
     assert m2["improved"] >= 1, (
         f"Iteration 2 should improve after confidence degradation (was {degraded1.confidence:.3f}): {m2}"
     )
+    _resolve_pending_candidates(service, p.problem_id)
 
     # Find second-generation best active solution and degrade it
     ctx2 = service.inspect_resource(resource_id=p.problem_id, include=["solutions"])
