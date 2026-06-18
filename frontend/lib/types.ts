@@ -150,6 +150,11 @@ export type BookSolutionPayload = {
   outcome_count?: number;
   success_count?: number;
   failure_count?: number;
+  /** "organic" once any external reporter is outside the seed set; "seeded"
+   * while every corroboration is a seed identity (or a seed-override on the
+   * column); "none" when nothing has reported. */
+  provenance?: "organic" | "seeded" | "none";
+  seeded_reporters?: number;
   llm_model?: string | null;
   created_at: string;
   is_synthesized: boolean;

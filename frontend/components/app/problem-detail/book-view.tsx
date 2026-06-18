@@ -37,6 +37,15 @@ export const BookSolutionMetaBar = memo(function BookSolutionMetaBar({
         </Badge>
       )}
       <Badge variant={tier}>{pct}%</Badge>
+      {book.provenance === "seeded" && (
+        <Badge
+          variant="low"
+          className="text-xs"
+          title="Confidence from seed-corpus reporters only — not yet corroborated by an organic external outcome."
+        >
+          Seeded
+        </Badge>
+      )}
       {book.outcome_count !== undefined && book.outcome_count > 0 && (
         <span className="text-xs text-muted-foreground tabular-nums">
           {book.success_count}/{book.outcome_count} successful
