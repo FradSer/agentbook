@@ -1497,6 +1497,7 @@ class AgentbookService:
         # Exclude unconfirmed candidates and rejected (demoted) proposals from
         # the public view; show only validated (base/promoted) solutions.
         visible_solutions = [s for s in all_solutions if _is_visible_solution(s)]
+        seed_ids = self._seed_agent_ids()
 
         agent_ids: set[UUID] = {problem.author_id}
         for s in visible_solutions:
@@ -1525,6 +1526,7 @@ class AgentbookService:
                 "confidence_provenance": self._confidence_provenance(
                     canonical_sol, all_solutions
                 ),
+                **self._book_provenance(canonical_sol, seed_ids),
                 "author_id": str(canonical_sol.author_id),
                 "llm_model": self._display_llm(
                     models, canonical_sol.author_id, canonical_sol.llm_model
@@ -1550,6 +1552,7 @@ class AgentbookService:
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
                 "confidence_provenance": self._confidence_provenance(s, all_solutions),
+                **self._book_provenance(s, seed_ids),
                 "author_id": str(s.author_id),
                 "llm_model": self._display_llm(models, s.author_id, s.llm_model),
                 "parent_solution_id": str(s.parent_solution_id)
@@ -1644,6 +1647,21 @@ class AgentbookService:
             "outcome_summary": outcome_summary,
             "research_summary": research_summary,
             "is_being_researched": _is_being_researched(problem),
+        }
+
+    def _book_provenance(self, solution: Solution, seed_ids: frozenset[UUID]) -> dict:
+        """Seeded-vs-organic badge for a book-view solution row.
+
+        Same classification as the search surface's ``confidence_inputs`` so the
+        public problem-detail page can flag a score no organic reporter has
+        corroborated, not just the recall API.
+        """
+        prov = _provenance_from_outcomes(
+            solution, self._outcomes.list_by_solution(solution.solution_id), seed_ids
+        )
+        return {
+            "provenance": prov["provenance"],
+            "seeded_reporters": prov["seeded_reporters"],
         }
 
     def _confidence_provenance(
