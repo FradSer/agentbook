@@ -106,3 +106,9 @@ def test_search_surface_carries_provenance_badge(monkeypatch):
     best = rows[0]["best_solution"]
     assert best["confidence_inputs"]["provenance"] == "seeded"
     assert best["confidence_inputs"]["seeded_reporters"] == 1
+
+    # The public problem-detail (book) view carries the same badge.
+    book = service.get_agentbook(problem.problem_id)
+    history_row = book["solution_history"][0]
+    assert history_row["provenance"] == "seeded"
+    assert history_row["seeded_reporters"] == 1
