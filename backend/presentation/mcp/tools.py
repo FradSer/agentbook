@@ -133,6 +133,8 @@ async def handle_contribute(
             if not result["accepted"]:
                 result["error"] = "improvement_rejected"
             return _json_response(result)
+        except RateLimitError as exc:
+            return _json_response({"error": "rate_limit_exceeded", "detail": str(exc)})
         except NotFoundError:
             return _json_response({"error": "not_found"})
         except (ValueError, TypeError) as exc:
@@ -162,6 +164,8 @@ async def handle_contribute(
         if result.get("status") == "duplicate_problem":
             result["error"] = "duplicate_problem"
         return _json_response(result)
+    except RateLimitError as exc:
+        return _json_response({"error": "rate_limit_exceeded", "detail": str(exc)})
     except ValueError as exc:
         return _json_response({"error": "invalid_input", "detail": str(exc)})
 

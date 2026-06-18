@@ -14,6 +14,7 @@ from backend.core.mcp_rate_limit import (
     mcp_verify_limiter,
 )
 from backend.core.rate_limit import limiter
+from backend.core.write_rate_limit import write_limiter
 
 
 @contextmanager
@@ -71,6 +72,7 @@ def disable_rate_limiter_by_default():
         _disabled(mcp_search_limiter),
         _disabled(mcp_search_limiter_auth),
         _disabled(mcp_verify_limiter),
+        _disabled(write_limiter),
     ):
         yield
 

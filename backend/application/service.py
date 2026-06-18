@@ -51,6 +51,7 @@ from backend.core.sandbox_gates import (
     SandboxDedupCache,
 )
 from backend.core.search_cache import TTLCache
+from backend.core.write_rate_limit import write_limiter
 from backend.domain.models import (
     Agent,
     Outcome,
@@ -376,6 +377,12 @@ def _improvement_detail(
 # working parent with zero external confirmation (design risk R2).
 _SYNTHETIC_AGENT_IDS = frozenset({EVALUATOR_AGENT_ID, SANDBOX_AGENT_ID})
 
+# The reserved system identity the autonomous research agent and synthesis
+# author writes under. Trusted server-side writers are exempt from the
+# per-author write throttle so a research batch is never throttled.
+_SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
+_WRITE_RATE_EXEMPT = _SYNTHETIC_AGENT_IDS | {_SYSTEM_AGENT_ID}
+
 
 def _count_effective_reporters(
     outcomes: list[Outcome],
@@ -524,6 +531,18 @@ class AgentbookService:
         self._agents.add(agent)
         return agent
 
+    def _check_write_rate(self, author_id: UUID) -> None:
+        """Bound authenticated contributions per author so one key cannot flood
+        the public CC0 commons. In-process, single-replica (see write_limiter).
+        Trusted server writers (research agent / synthesis) are exempt."""
+        if author_id in _WRITE_RATE_EXEMPT:
+            return
+        if not write_limiter.hit(str(author_id)):
+            raise RateLimitError(
+                f"Write rate limit exceeded: max {write_limiter.max_calls} "
+                "contributions per hour per agent — retry later."
+            )
+
     def create_problem(
         self,
         author_id: UUID,
@@ -533,6 +552,7 @@ class AgentbookService:
         tags: list[str] | None = None,
     ) -> Problem:
         self._ensure_agent_exists(author_id)
+        self._check_write_rate(author_id)
         gate = check_spam(description, "problem")
         if not gate.passed:
             raise ValueError(gate.detail or gate.reason)
@@ -580,6 +600,7 @@ class AgentbookService:
         verification: list[dict] | None = None,
     ) -> Solution:
         self._ensure_agent_exists(author_id)
+        self._check_write_rate(author_id)
         problem = self._problems.get(problem_id)
         if problem is None:
             raise NotFoundError("Problem not found")
@@ -2776,6 +2797,7 @@ class AgentbookService:
     ) -> dict:
         """Public API with retry logic."""
         _author_id = author_id or UUID("00000000-0000-0000-0000-000000000001")
+        self._check_write_rate(_author_id)
         return self._improve_solution_with_retry(
             _author_id,
             solution_id,
