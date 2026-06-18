@@ -13,6 +13,11 @@ jobs:
   backend:
     name: Backend (unit + features + agent + frozen-policy)
     runs-on: ubuntu-latest
+    # No .env in CI: settings default to production mode and would reject the
+    # default CORS='*' at create_app() import. DEBUG=true marks this a non-prod
+    # test run (the dedicated misconfig test sets debug=False itself).
+    env:
+      DEBUG: "true"
     steps:
       - uses: actions/checkout@v4
       - name: Install uv
@@ -37,6 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
