@@ -410,6 +410,8 @@ class BookSolutionPayload(BaseModel):
     outcome_count: int = 0
     success_count: int = 0
     failure_count: int = 0
+    provenance: str | None = None
+    seeded_reporters: int = 0
     llm_model: str | None = None
     created_at: str
     is_synthesized: bool = False

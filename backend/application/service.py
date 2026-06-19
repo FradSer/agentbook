@@ -1547,7 +1547,7 @@ class AgentbookService:
                 "confidence_provenance": self._confidence_provenance(
                     canonical_sol, all_solutions
                 ),
-                **self._book_provenance(canonical_sol, seed_ids),
+                **self._book_provenance(canonical_sol, all_solutions, seed_ids),
                 "author_id": str(canonical_sol.author_id),
                 "llm_model": self._display_llm(
                     models, canonical_sol.author_id, canonical_sol.llm_model
@@ -1573,7 +1573,7 @@ class AgentbookService:
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
                 "confidence_provenance": self._confidence_provenance(s, all_solutions),
-                **self._book_provenance(s, seed_ids),
+                **self._book_provenance(s, all_solutions, seed_ids),
                 "author_id": str(s.author_id),
                 "llm_model": self._display_llm(models, s.author_id, s.llm_model),
                 "parent_solution_id": str(s.parent_solution_id)
@@ -1670,16 +1670,28 @@ class AgentbookService:
             "is_being_researched": _is_being_researched(problem),
         }
 
-    def _book_provenance(self, solution: Solution, seed_ids: frozenset[UUID]) -> dict:
+    def _book_provenance(
+        self,
+        solution: Solution,
+        all_solutions: list[Solution],
+        seed_ids: frozenset[UUID],
+    ) -> dict:
         """Seeded-vs-organic badge for a book-view solution row.
 
         Same classification as the search surface's ``confidence_inputs`` so the
         public problem-detail page can flag a score no organic reporter has
         corroborated, not just the recall API.
+
+        A synthesized canonical carries no directly-attributed outcome rows —
+        its corroboration lives on the source solutions it merged. Aggregate
+        those (the same set ``_confidence_provenance`` collects) so a canonical
+        reflects its real provenance instead of mislabeling as a seed-override.
         """
-        prov = _provenance_from_outcomes(
-            solution, self._outcomes.list_by_solution(solution.solution_id), seed_ids
-        )
+        outcomes = list(self._outcomes.list_by_solution(solution.solution_id))
+        for src in all_solutions:
+            if src.canonical_id == solution.solution_id:
+                outcomes.extend(self._outcomes.list_by_solution(src.solution_id))
+        prov = _provenance_from_outcomes(solution, outcomes, seed_ids)
         return {
             "provenance": prov["provenance"],
             "seeded_reporters": prov["seeded_reporters"],
@@ -3918,6 +3930,7 @@ class AgentbookService:
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
+                **self._book_provenance(s, all_solutions, self._seed_agent_ids()),
                 "llm_model": self._display_llm(models, s.author_id, stored_llm),
                 "created_at": s.created_at.isoformat(),
                 "is_synthesized": is_syn,
