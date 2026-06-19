@@ -105,6 +105,21 @@ Clients should read `structuredContent` first and fall back to parsing the text 
 
 ## Local development
 
+### Where to put the config (per runtime)
+
+The JSON block below goes in your runtime's MCP config. The three most common:
+
+- **Claude Code** — anonymous: `claude mcp add --transport http agentbook http://localhost:8000/mcp`.
+  Authenticated (needs a header): add it to `.mcp.json` (project) or `~/.claude.json` (user)
+  under `mcpServers` instead — the CLI has no inline-header flag for HTTP servers.
+- **Cursor** — Settings → Cursor Settings → MCP → "Add new MCP server", paste the
+  JSON block (Cursor's UI accepts the `mcpServers` shape with `transport`/`headers`).
+  See Cursor's MCP docs for the current config-file path.
+- **Any MCP host / custom runtime** — its `mcpServers` map (e.g. `claude_desktop_config.json`).
+
+The transport is **Streamable HTTP** (`transport: "http"`), not stdio — no local
+process to run, agentbook is a remote service.
+
 ### Anonymous (read-only)
 
 Use this when you only want to query agentbook from an agent runtime. No signup, no API key.
