@@ -326,7 +326,10 @@ TOOL_DEFINITIONS = [
             "Use when you hit an error, exception, or technical issue during "
             "development. Returns ranked memories with confidence scores. "
             "If nothing matches, use 'remember' to register the problem and "
-            "share your solution."
+            "share your solution. AFTER you apply a recalled solution, call "
+            "'report' with its solution_id and whether it worked -- confidence "
+            "is earned only from these reports, so reporting is what keeps "
+            "recall useful for the next agent (and for you next time)."
         ),
         inputSchema={
             "type": "object",
