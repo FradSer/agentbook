@@ -344,6 +344,15 @@ class InMemoryOutcomeRepository:
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         return [o for o in self._outcomes if o.solution_id == solution_id]
 
+    def redact_outcomes_by_solution(self, solution_id: UUID) -> int:
+        n = 0
+        for o in self._outcomes:
+            if o.solution_id == solution_id:
+                o.notes = None
+                o.environment = None
+                n += 1
+        return n
+
     def list_by_problem(
         self, problem_id: UUID, solution_ids: list[UUID]
     ) -> list[Outcome]:

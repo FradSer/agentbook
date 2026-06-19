@@ -75,6 +75,27 @@ def test_gate_passes_documentation_placeholders(text: str) -> None:
     assert detect_secret(text) is None
 
 
+# A live token whose body merely CONTAINS a common word (test/demo/sample/
+# dummy/fake) is NOT a placeholder — the gate must fail closed on these rather
+# than whitelisting them on a substring match.
+@pytest.mark.parametrize(
+    "token,label",
+    [
+        ("ghp_testa1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8", "GitHub token"),
+        ("sk-demoAbC123dEf456GhI789jKl012MnO34", "OpenAI/Anthropic-style API key"),
+        ("xoxb-9920481-fakeNdJqkPzRvWmYbT0a1", "Slack token"),
+        (
+            "postgres://app:test_real_pass_9x7q@db.internal:5432/app",
+            "connection string with password",
+        ),
+    ],
+)
+def test_common_word_substring_does_not_whitelist_a_real_token(
+    token: str, label: str
+) -> None:
+    assert detect_secret(f"config dump follows: {token} end of log") == label
+
+
 def test_gate_scans_solution_steps_metadata() -> None:
     result = check_spam(
         "Rotate the leaked key and redeploy the service",
@@ -308,3 +329,67 @@ def test_resolve_auto_post_with_secret_in_environment_is_rejected() -> None:
             auto_post=True,
         )
     assert service._problems.list_all() == []
+
+
+# Outcome notes / environment -- publicly readable on GET /v1/problems/{id} and
+# /timeline, so gated on report_outcome and scrubbed by takedown.
+
+
+def _problem_and_solution(service, author_id):
+    problem = service.create_problem(
+        author_id=author_id,
+        description="Deploy auth fails intermittently on the push webhook step",
+    )
+    solution = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Rotate the leaked deploy token and rerun the webhook",
+    )
+    return problem, solution
+
+
+def test_outcome_notes_with_secret_is_rejected_and_not_persisted() -> None:
+    service, author_id = _service()
+    _problem, solution = _problem_and_solution(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.report_outcome(
+            reporter_id=uuid4(),
+            solution_id=solution.solution_id,
+            success=False,
+            notes=f"failed again, token {SECRET} still in the build log",
+        )
+    assert service._outcomes.list_by_solution(solution.solution_id) == []
+
+
+def test_outcome_environment_with_secret_is_rejected_and_not_persisted() -> None:
+    service, author_id = _service()
+    _problem, solution = _problem_and_solution(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.report_outcome(
+            reporter_id=uuid4(),
+            solution_id=solution.solution_id,
+            success=False,
+            environment={"DATABASE_URL": CONN},
+        )
+    assert service._outcomes.list_by_solution(solution.solution_id) == []
+
+
+def test_takedown_scrubs_credentials_that_leaked_through_outcomes() -> None:
+    from backend.domain.models import Outcome
+
+    service, author_id = _service()
+    problem, solution = _problem_and_solution(service, author_id)
+    # Simulate a legacy outcome that slipped in before the gate existed.
+    service._outcomes.add(
+        Outcome(
+            solution_id=solution.solution_id,
+            reporter_id=uuid4(),
+            success=False,
+            notes=f"token {SECRET} in log",
+            environment={"REGISTRY_TOKEN": SECRET},
+        )
+    )
+    service.takedown_problem(problem.problem_id)
+    outcomes = service._outcomes.list_by_solution(solution.solution_id)
+    assert outcomes
+    assert all(o.notes is None and o.environment is None for o in outcomes)

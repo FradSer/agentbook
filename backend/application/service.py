@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import UUID
 
 if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
@@ -51,6 +51,7 @@ from backend.core.sandbox_gates import (
     SandboxDedupCache,
 )
 from backend.core.search_cache import TTLCache
+from backend.core.write_rate_limit import write_limiter
 from backend.domain.models import (
     Agent,
     Outcome,
@@ -60,6 +61,7 @@ from backend.domain.models import (
     QueryEvent,
     ResearchCycle,
     ResearchStatus,
+    SandboxResult,
     Solution,
     utc_now,
 )
@@ -376,6 +378,12 @@ def _improvement_detail(
 # working parent with zero external confirmation (design risk R2).
 _SYNTHETIC_AGENT_IDS = frozenset({EVALUATOR_AGENT_ID, SANDBOX_AGENT_ID})
 
+# The reserved system identity the autonomous research agent and synthesis
+# author writes under. Trusted server-side writers are exempt from the
+# per-author write throttle so a research batch is never throttled.
+_SYSTEM_AGENT_ID = UUID("00000000-0000-0000-0000-000000000001")
+_WRITE_RATE_EXEMPT = _SYNTHETIC_AGENT_IDS | {_SYSTEM_AGENT_ID}
+
 
 def _count_effective_reporters(
     outcomes: list[Outcome],
@@ -524,6 +532,18 @@ class AgentbookService:
         self._agents.add(agent)
         return agent
 
+    def _check_write_rate(self, author_id: UUID) -> None:
+        """Bound authenticated contributions per author so one key cannot flood
+        the public CC0 commons. In-process, single-replica (see write_limiter).
+        Trusted server writers (research agent / synthesis) are exempt."""
+        if author_id in _WRITE_RATE_EXEMPT:
+            return
+        if not write_limiter.hit(str(author_id)):
+            raise RateLimitError(
+                f"Write rate limit exceeded: max {write_limiter.max_calls} "
+                "contributions per hour per agent — retry later."
+            )
+
     def create_problem(
         self,
         author_id: UUID,
@@ -531,8 +551,11 @@ class AgentbookService:
         error_signature: str | None = None,
         environment: dict | None = None,
         tags: list[str] | None = None,
+        count_toward_write_rate: bool = True,
     ) -> Problem:
         self._ensure_agent_exists(author_id)
+        if count_toward_write_rate:
+            self._check_write_rate(author_id)
         gate = check_spam(description, "problem")
         if not gate.passed:
             raise ValueError(gate.detail or gate.reason)
@@ -578,8 +601,11 @@ class AgentbookService:
         root_cause_pattern: str | None = None,
         localization_cues: list[str] | None = None,
         verification: list[dict] | None = None,
+        count_toward_write_rate: bool = True,
     ) -> Solution:
         self._ensure_agent_exists(author_id)
+        if count_toward_write_rate:
+            self._check_write_rate(author_id)
         problem = self._problems.get(problem_id)
         if problem is None:
             raise NotFoundError("Problem not found")
@@ -1526,7 +1552,7 @@ class AgentbookService:
                 "confidence_provenance": self._confidence_provenance(
                     canonical_sol, all_solutions
                 ),
-                **self._book_provenance(canonical_sol, seed_ids),
+                **self._book_provenance(canonical_sol, all_solutions, seed_ids),
                 "author_id": str(canonical_sol.author_id),
                 "llm_model": self._display_llm(
                     models, canonical_sol.author_id, canonical_sol.llm_model
@@ -1552,7 +1578,7 @@ class AgentbookService:
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
                 "confidence_provenance": self._confidence_provenance(s, all_solutions),
-                **self._book_provenance(s, seed_ids),
+                **self._book_provenance(s, all_solutions, seed_ids),
                 "author_id": str(s.author_id),
                 "llm_model": self._display_llm(models, s.author_id, s.llm_model),
                 "parent_solution_id": str(s.parent_solution_id)
@@ -1649,16 +1675,28 @@ class AgentbookService:
             "is_being_researched": _is_being_researched(problem),
         }
 
-    def _book_provenance(self, solution: Solution, seed_ids: frozenset[UUID]) -> dict:
+    def _book_provenance(
+        self,
+        solution: Solution,
+        all_solutions: list[Solution],
+        seed_ids: frozenset[UUID],
+    ) -> dict:
         """Seeded-vs-organic badge for a book-view solution row.
 
         Same classification as the search surface's ``confidence_inputs`` so the
         public problem-detail page can flag a score no organic reporter has
         corroborated, not just the recall API.
+
+        A synthesized canonical carries no directly-attributed outcome rows —
+        its corroboration lives on the source solutions it merged. Aggregate
+        those (the same set ``_confidence_provenance`` collects) so a canonical
+        reflects its real provenance instead of mislabeling as a seed-override.
         """
-        prov = _provenance_from_outcomes(
-            solution, self._outcomes.list_by_solution(solution.solution_id), seed_ids
-        )
+        outcomes = list(self._outcomes.list_by_solution(solution.solution_id))
+        for src in all_solutions:
+            if src.canonical_id == solution.solution_id:
+                outcomes.extend(self._outcomes.list_by_solution(src.solution_id))
+        prov = _provenance_from_outcomes(solution, outcomes, seed_ids)
         return {
             "provenance": prov["provenance"],
             "seeded_reporters": prov["seeded_reporters"],
@@ -1710,7 +1748,14 @@ class AgentbookService:
         visible = [s for s in solutions if _is_visible_solution(s)]
         if not visible:
             return None
-        best = max(visible, key=lambda s: s.confidence)
+        # Confidence is the primary key, so once real outcomes exist a validated
+        # solution wins. But at cold-start EVERY solution sits at the 0.3
+        # baseline, so confidence ties and an arbitrary row would surface; break
+        # the tie toward the most ACTIONABLE solution (more transferable
+        # structured knowledge a weak agent can act on, then richer content),
+        # so a recalling agent gets the usable answer, not whichever was added
+        # first.
+        best = max(visible, key=_best_solution_sort_key)
         if full:
             content_preview, content_truncated = best.content, False
         else:
@@ -1853,6 +1898,9 @@ class AgentbookService:
                 raise NotFoundError("Problem not found")
             solution_id: UUID | None = None
             if solution_content is not None:
+                # One logical contribute is one write-budget unit, checked here
+                # so the inner create_* call does not double-count it.
+                self._check_write_rate(author_id)
                 new_solution = self.create_solution(
                     problem_id=problem_id,
                     author_id=author_id,
@@ -1861,6 +1909,7 @@ class AgentbookService:
                     root_cause_pattern=solution_root_cause_pattern,
                     localization_cues=solution_localization_cues,
                     verification=solution_verification,
+                    count_toward_write_rate=False,
                 )
                 solution_id = new_solution.solution_id
             return {
@@ -1895,6 +1944,12 @@ class AgentbookService:
                 ),
             }
 
+        # One logical contribute (problem + optional inline solution) is a
+        # single write-budget unit, checked once here — after the duplicate
+        # refusal so a dup does not burn budget — so the inner create_* calls do
+        # not double-count it (and a tripped budget never orphans a problem).
+        self._check_write_rate(author_id)
+
         # Create new problem via create_problem (runs gate check internally
         # and attaches the description embedding).
         new_problem = self.create_problem(
@@ -1903,6 +1958,7 @@ class AgentbookService:
             error_signature=error_signature,
             environment=environment,
             tags=tags,
+            count_toward_write_rate=False,
         )
 
         existing_similar = self._dedup_advisory(new_problem, description)
@@ -1917,6 +1973,7 @@ class AgentbookService:
                 root_cause_pattern=solution_root_cause_pattern,
                 localization_cues=solution_localization_cues,
                 verification=solution_verification,
+                count_toward_write_rate=False,
             )
             solution_id = new_solution.solution_id
 
@@ -2067,6 +2124,15 @@ class AgentbookService:
                 f"and it cannot be re-promoted — report on {parent_ref} "
                 "instead"
             )
+
+        # An outcome's notes and environment are published verbatim on the
+        # public, unauthenticated read paths (outcome_summary.recent_failure_notes
+        # and the timeline 'outcome_reported' events), and the takedown path now
+        # scrubs them too — so gate them on the way in like every other
+        # publicly-readable field. Reject before consuming the rate budget.
+        struct_label = detect_secret_in(notes, environment)
+        if struct_label is not None:
+            raise ValueError(secret_rejection(struct_label).detail)
 
         now = datetime.now(tz=UTC)
         since = now - timedelta(hours=_RATE_WINDOW_HOURS)
@@ -2776,6 +2842,7 @@ class AgentbookService:
     ) -> dict:
         """Public API with retry logic."""
         _author_id = author_id or UUID("00000000-0000-0000-0000-000000000001")
+        self._check_write_rate(_author_id)
         return self._improve_solution_with_retry(
             _author_id,
             solution_id,
@@ -2789,13 +2856,15 @@ class AgentbookService:
         )
 
     def verify_solution(self, solution_id: UUID, agent_id: UUID) -> dict:
-        """Enqueue a sandbox-backed verification for a solution.
+        """Run a sandbox-backed verification of a solution and return the verdict.
 
-        Returns an envelope immediately. When a real SandboxProvider is
-        configured the sandbox run is triggered inline (the provider is
-        expected to be fast enough; task 013 does not add async queueing
-        beyond what the underlying provider already supports). On success
-        a verified Outcome is persisted via ``_run_sandbox_evaluation``.
+        Synchronous: when a real SandboxProvider is configured the run happens
+        inline, records a verified Outcome, and returns a ``status='verified'``
+        envelope with ``passed`` (the confidence-independent trust signal an
+        agent needs before relying on a cold-start solution), plus exit code and
+        duration. Returns ``not_verifiable`` when the solution has no runnable
+        single-file Python, ``unavailable`` when no sandbox is configured, and
+        ``skipped`` when a DoS gate momentarily blocks the run.
         """
         solution = self._solutions.get(solution_id)
         if solution is None:
@@ -2825,9 +2894,41 @@ class AgentbookService:
                 "status": "unavailable",
                 "reason": "no sandbox provider configured",
             }
-        run_id = uuid4()
-        self._run_sandbox_evaluation(problem, solution, agent_id=agent_id)
-        return {"status": "queued", "run_id": str(run_id)}
+        # Only Python single-file solutions are evaluable today; say so plainly
+        # rather than pretending a run happened.
+        if self._extract_executable_code(solution) is None:
+            return {
+                "status": "not_verifiable",
+                "reason": (
+                    "no runnable single-file Python found in the solution; "
+                    "only Python single-file solutions are evaluable today"
+                ),
+            }
+        # Synchronous: the run already happened (and recorded a verified
+        # outcome). Surface the pass/fail verdict so the caller gets a
+        # confidence-independent trust signal, not an opaque 'queued'.
+        result = self._run_sandbox_evaluation(problem, solution, agent_id=agent_id)
+        if result is None:
+            return {
+                "status": "skipped",
+                "reason": (
+                    "the sandbox is momentarily gated (concurrency / budget / "
+                    "circuit-breaker); retry shortly"
+                ),
+            }
+        return {
+            "status": "verified",
+            "passed": result.success,
+            "exit_code": result.exit_code,
+            "duration_seconds": result.duration_seconds,
+            "detail": (
+                "the sandbox reproduced the solution and it PASSED -- a "
+                "verified, confidence-independent signal you can rely on"
+                if result.success
+                else "the sandbox reproduced the solution and it FAILED -- "
+                "do not rely on this fix as-is"
+            ),
+        }
 
     def _improve_solution_impl(
         self,
@@ -3277,15 +3378,17 @@ class AgentbookService:
         solution: Solution,
         *,
         agent_id: UUID,
-    ) -> None:
-        """Run a solution in the sandbox and record the outcome.
+    ) -> SandboxResult | None:
+        """Run a solution in the sandbox, record the outcome, and return the
+        result so callers (e.g. ``verify_solution``) can surface the verdict.
 
-        Skips outcome recording when a DoS gate blocks the call -- the
-        gate already incremented its observability counter.
+        Returns ``None`` when there is no executable Python to run or a DoS
+        gate blocks the call (the gate already incremented its observability
+        counter).
         """
         code = self._extract_executable_code(solution)
         if code is None:
-            return
+            return None
 
         result = self._sandbox_run_guarded(
             code,
@@ -3294,7 +3397,7 @@ class AgentbookService:
             environment=problem.environment,
         )
         if result is None:
-            return
+            return None
         self._record_synthetic_outcome(
             solution,
             SANDBOX_AGENT_ID,
@@ -3304,6 +3407,7 @@ class AgentbookService:
             notes=f"sandbox: exit={result.exit_code} dur={result.duration_seconds}s",
             environment=result.environment or None,
         )
+        return result
 
     # ------------------------------------------------------------------
     # Cross-problem knowledge graph helpers
@@ -3790,6 +3894,9 @@ class AgentbookService:
         solution.verification = []
         solution.review_status = "removed"
         self._solutions.update(solution)
+        # Outcomes carry publicly-readable notes/environment too — scrub them so
+        # the takedown path matches the (now complete) write gate.
+        self._outcomes.redact_outcomes_by_solution(solution.solution_id)
 
     def get_research_history(self, problem_id: UUID) -> list[dict]:
         if self._research_cycles is None:
@@ -3884,6 +3991,7 @@ class AgentbookService:
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
+                **self._book_provenance(s, all_solutions, self._seed_agent_ids()),
                 "llm_model": self._display_llm(models, s.author_id, stored_llm),
                 "created_at": s.created_at.isoformat(),
                 "is_synthesized": is_syn,
@@ -3902,7 +4010,7 @@ class AgentbookService:
             for s in all_solutions
             if s.parent_solution_id is not None and s.promotion_status == "promoted"
         ]
-        promoted.sort(key=lambda x: x.confidence, reverse=True)
+        promoted.sort(key=_best_solution_sort_key, reverse=True)
         if promoted:
             return serialize(promoted[0])
 
@@ -3913,16 +4021,16 @@ class AgentbookService:
             if s.promotion_status == "demoted":
                 continue
             roots.append(s)
-        roots.sort(key=lambda x: x.confidence, reverse=True)
+        roots.sort(key=_best_solution_sort_key, reverse=True)
         if roots:
             return serialize(roots[0])
 
         improved = [s for s in all_solutions if s.parent_solution_id is not None]
-        improved.sort(key=lambda x: x.confidence, reverse=True)
+        improved.sort(key=_best_solution_sort_key, reverse=True)
         if improved:
             return serialize(improved[0])
 
-        fallback = sorted(all_solutions, key=lambda x: x.confidence, reverse=True)
+        fallback = sorted(all_solutions, key=_best_solution_sort_key, reverse=True)
         if fallback:
             return serialize(fallback[0])
         return None
@@ -4174,6 +4282,25 @@ def _is_visible_solution(s: Solution) -> bool:
         "candidate",
         "demoted",
     )
+
+
+def _best_solution_sort_key(s: Solution) -> tuple:
+    """Rank a solution for ``best_solution`` selection.
+
+    Confidence is primary, so a validated solution wins once outcomes exist. The
+    secondary keys break the cold-start tie (all solutions at the 0.3 baseline)
+    toward the most actionable answer: how much transferable structured
+    knowledge it carries (steps / root cause / verification / cues a weak agent
+    can act on), then content length. So a recalling agent gets the usable
+    solution, not whichever happened to be contributed first.
+    """
+    structured = (
+        bool(s.steps)
+        + bool(s.root_cause_pattern)
+        + bool(s.verification)
+        + bool(s.localization_cues)
+    )
+    return (s.confidence, structured, len(s.content or ""))
 
 
 def _problem_to_dict(p: Problem) -> dict:

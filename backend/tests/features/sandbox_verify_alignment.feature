@@ -63,3 +63,9 @@ Feature: Sandbox/verify pipeline tells the truth
     Then the verify tool description mentions "synchronous"
     And mentions "Python"
     And mentions "sandbox-budget"
+
+  Scenario: verify returns the pass/fail verdict, not an opaque queued status
+    Given an authenticated agent and a solution carrying a runnable Python block
+    When the agent calls verify on it
+    Then the response status is "verified" and carries a boolean "passed" plus exit_code
+    But a solution with no runnable Python returns status "not_verifiable"

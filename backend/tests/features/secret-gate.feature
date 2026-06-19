@@ -59,6 +59,15 @@ Feature: Write gate rejects contributions carrying credentials
     Then the improvement is rejected and no candidate row is persisted
     When it resolves a problem with auto-post whose environment contains a live credential
     Then the create is rejected and nothing is persisted
+    When it reports an outcome whose notes contain a live credential
+    Then the report is rejected and no outcome is persisted
+    When it reports an outcome whose environment contains a live credential
+    Then the report is rejected and no outcome is persisted
+
+  Scenario: Operator takedown scrubs credentials that leaked through outcomes
+    Given an outcome persisted before the gate carrying a credential in its notes and environment
+    When the operator takes down the problem
+    Then the outcome's notes and environment are cleared in place
 
   Scenario: Placeholder credentials from documentation keep passing
     Given content containing only placeholder tokens such as "ak_your-api-key" or "Bearer ak_your-api-key"

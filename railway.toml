@@ -2,6 +2,11 @@
 builder = "RAILPACK"
 
 [deploy]
+# /docs is dependency-free (FastAPI Swagger, no DB), so Railway confirms the API
+# actually serves HTTP 200 before cutover, not just that the port bound. This
+# toml is the API service's config; the worker is configured separately (a
+# no-HTTP process), so it carries no healthcheck.
+healthcheckPath = "/docs"
 healthcheckTimeout = 120
 preDeployCommand = "bash -c 'if [ \"$RAILWAY_SERVICE_TYPE\" != \"agent\" ]; then uv run alembic upgrade head; fi'"
 startCommand = "bash -c 'if [ \"$RAILWAY_SERVICE_TYPE\" = \"agent\" ]; then exec uv run -m agent.src.main; else exec uv run uvicorn backend.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*; fi'"

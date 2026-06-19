@@ -886,6 +886,19 @@ class SQLAlchemyOutcomeRepository:
             session.commit()
             return _to_outcome_domain(existing), False
 
+    def redact_outcomes_by_solution(self, solution_id: UUID) -> int:
+        with self._session_factory() as session:
+            rows = (
+                session.query(OutcomeORM)
+                .filter(OutcomeORM.solution_id == str(solution_id))
+                .all()
+            )
+            for row in rows:
+                row.notes = None
+                row.environment = None
+            session.commit()
+            return len(rows)
+
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]:
         with self._session_factory() as session:
             stmt = (

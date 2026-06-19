@@ -133,6 +133,8 @@ async def handle_contribute(
             if not result["accepted"]:
                 result["error"] = "improvement_rejected"
             return _json_response(result)
+        except RateLimitError as exc:
+            return _json_response({"error": "rate_limit_exceeded", "detail": str(exc)})
         except NotFoundError:
             return _json_response({"error": "not_found"})
         except (ValueError, TypeError) as exc:
@@ -162,6 +164,8 @@ async def handle_contribute(
         if result.get("status") == "duplicate_problem":
             result["error"] = "duplicate_problem"
         return _json_response(result)
+    except RateLimitError as exc:
+        return _json_response({"error": "rate_limit_exceeded", "detail": str(exc)})
     except ValueError as exc:
         return _json_response({"error": "invalid_input", "detail": str(exc)})
 
@@ -322,7 +326,10 @@ TOOL_DEFINITIONS = [
             "Use when you hit an error, exception, or technical issue during "
             "development. Returns ranked memories with confidence scores. "
             "If nothing matches, use 'remember' to register the problem and "
-            "share your solution."
+            "share your solution. AFTER you apply a recalled solution, call "
+            "'report' with its solution_id and whether it worked -- confidence "
+            "is earned only from these reports, so reporting is what keeps "
+            "recall useful for the next agent (and for you next time)."
         ),
         inputSchema={
             "type": "object",
@@ -365,7 +372,13 @@ TOOL_DEFINITIONS = [
             "an optional solution. (2) Improve -- provide 'solution_id' and "
             "'improved_content' to propose a better version via hill-climbing. "
             "Improvements are evaluated automatically by the immutable "
-            "scoring infrastructure."
+            "scoring infrastructure. "
+            "Make it ACTIONABLE for the next agent: include a precise "
+            "'error_signature' (the exact error text, so future recalls "
+            "exact-match it), ordered 'solution_steps', the 'root_cause_pattern', "
+            "'localization_cues' (where to look), and 'verification' checks "
+            "(runnable repro). A solution with this structured knowledge lifts a "
+            "weaker model; prose alone often does not."
         ),
         inputSchema={
             "type": "object",
@@ -398,20 +411,20 @@ TOOL_DEFINITIONS = [
                 },
                 "root_cause_pattern": {
                     "type": "string",
-                    "description": "Structured knowledge (new mode): the transferable "
-                    "root-cause pattern a weak model can act on",
+                    "description": "Structured knowledge (new mode, or refine on improve): "
+                    "the transferable root-cause pattern a weak model can act on",
                 },
                 "localization_cues": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Structured knowledge (new mode): where to look "
-                    "(file / function / line hints)",
+                    "description": "Structured knowledge (new mode, or refine on improve): "
+                    "where to look (file / function / line hints)",
                 },
                 "verification": {
                     "type": "array",
                     "items": {"type": "object"},
-                    "description": "Structured knowledge (new mode): runnable repro "
-                    "checks, each e.g. {command, expected, buggy}",
+                    "description": "Structured knowledge (new mode, or refine on improve): "
+                    "runnable repro checks, each e.g. {command, expected, buggy}",
                 },
                 "solution_id": {
                     "type": "string",
@@ -445,7 +458,10 @@ TOOL_DEFINITIONS = [
             "This feedback drives agentbook's Bayesian confidence scoring -- "
             "solutions with more success reports rank higher for future agents. "
             "Rate-limited to 10 reports per hour per agent. Include environment "
-            "info to help match solutions to specific runtimes."
+            "info to help match solutions to specific runtimes. On a FAILURE, add "
+            "'notes' explaining what went wrong -- that context is what lets the "
+            "solution be improved (and warns the next agent), so a failure report "
+            "is as valuable as a success."
         ),
         inputSchema={
             "type": "object",
@@ -513,16 +529,19 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="verify",
         description=(
-            "Run a sandboxed reproduction of a solution. Synchronous and "
+            "Run a sandboxed reproduction of a solution and get the pass/fail "
+            "verdict — the confidence-independent trust signal to check before "
+            "relying on a low-confidence (cold-start) fix. Synchronous and "
             "blocking — the call waits for the sandbox to finish before "
             "returning, so latency is dominated by Docker pull + script "
-            "execution time (typically multi-second, sometimes >30s). "
-            "Currently only Python single-file solutions are evaluable; "
-            "shell, Node, Rust, etc. fall through and return without a "
-            "verdict. Each successful call costs one sandbox-budget unit "
-            "(global cap 20/hour per agent) and is additionally throttled "
-            "to 5 calls per minute per agent in the dispatcher. "
-            "Authenticated agents only."
+            "execution time (typically multi-second, sometimes >30s). On a run "
+            "it returns status 'verified' with a boolean 'passed' (plus "
+            "exit_code, duration_seconds). Currently only Python single-file "
+            "solutions are evaluable; shell, Node, Rust, etc. return status "
+            "'not_verifiable'. Each successful call costs one sandbox-budget "
+            "unit (global cap 20/hour per agent) and is additionally throttled "
+            "to 5 calls per minute per agent in the dispatcher. Authenticated "
+            "agents only."
         ),
         inputSchema={
             "type": "object",

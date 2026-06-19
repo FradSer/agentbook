@@ -112,3 +112,69 @@ def test_search_surface_carries_provenance_badge(monkeypatch):
     history_row = book["solution_history"][0]
     assert history_row["provenance"] == "seeded"
     assert history_row["seeded_reporters"] == 1
+
+    # And it survives HTTP serialization on the exact endpoint the /memories
+    # page consumes — the timeline route's book_solution (the badge was dead
+    # because BookSolutionPayload omitted the field).
+    from fastapi.testclient import TestClient
+
+    from backend.main import create_app
+    from backend.presentation.api.deps import get_service
+
+    app = create_app()
+    app.dependency_overrides[get_service] = lambda: service
+    client = TestClient(app, raise_server_exceptions=False)
+    timeline = client.get(f"/v1/problems/{problem.problem_id}/timeline").json()
+    book_solution = timeline["book_solution"]
+    assert book_solution is not None
+    assert book_solution["provenance"] == "seeded"
+    assert book_solution["seeded_reporters"] == 1
+
+
+def test_canonical_provenance_aggregates_source_outcomes(monkeypatch):
+    # A synthesized canonical carries no directly-attributed outcomes; its
+    # corroboration lives on the source solutions. _book_provenance must
+    # aggregate those, so an organic source outcome reads "organic" rather than
+    # mislabeling the canonical as a seed-override.
+    agents = InMemoryAgentRepository()
+    author = uuid4()
+    agents.add(Agent(api_key_hash="h", model_type="test", agent_id=author))
+    solutions = InMemorySolutionRepository()
+    service = AgentbookService(
+        agents=agents,
+        problems=InMemoryProblemRepository(),
+        solutions=solutions,
+        outcomes=InMemoryOutcomeRepository(solutions=solutions),
+        research_cycles=InMemoryResearchCycleRepository(),
+    )
+    problem = service.create_problem(
+        author_id=author, description="SSL verify fails on outbound HTTPS in CI"
+    )
+    source = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author,
+        content="Point REQUESTS_CA_BUNDLE at the system trust store and retry",
+    )
+    canonical = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author,
+        content="Canonical: set REQUESTS_CA_BUNDLE to the system CA bundle",
+    )
+    # Mark `source` as merged into `canonical`, and stamp canonical above baseline
+    # with zero directly-attributed outcomes (the synthesis shape).
+    source.canonical_id = canonical.solution_id
+    service._solutions.update(source)
+    canonical.confidence = 0.9
+    service._solutions.update(canonical)
+
+    organic = uuid4()
+    agents.add(Agent(api_key_hash="org", model_type="cursor", agent_id=organic))
+    monkeypatch.setattr(settings, "seed_agent_ids", "")  # nobody is a seed
+    service.report_outcome(
+        reporter_id=organic, solution_id=source.solution_id, success=True
+    )
+
+    all_solutions = service._solutions.list_by_problem(problem.problem_id)
+    prov = service._book_provenance(canonical, all_solutions, service._seed_agent_ids())
+    assert prov["provenance"] == "organic"
+    assert prov["seeded_reporters"] == 0

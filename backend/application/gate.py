@@ -74,9 +74,16 @@ _SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # Markers that identify a matched token as a documentation placeholder, not
 # a live credential. Checked against the MATCH only (not the surrounding
 # content), so prose like "in your pipeline" never whitelists a real key.
+# Deliberately excludes common English words that frequently appear INSIDE
+# real secrets (test, demo, sample, dummy, fake) -- whitelisting on those
+# substrings let a live token like ``ghp_test<realchars>`` or a connection
+# string whose password contains "test" slip the gate. A secret gate on a
+# public, anonymously-readable commons must fail closed: rejecting a
+# doc example that merely looks like a key is cheaper than republishing a
+# real one. Kept markers are reliable placeholder shapes/words rare in real
+# credentials.
 _PLACEHOLDER_MARKERS = re.compile(
-    r"your|example|placeholder|redacted|test|demo|sample|dummy|fake|invalid"
-    r"|xxxx|\.\.\.|[<>*]",
+    r"your|example|placeholder|redacted|invalid|xxxx|\.\.\.|[<>*]",
     re.IGNORECASE,
 )
 

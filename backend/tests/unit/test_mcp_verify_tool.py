@@ -1,8 +1,9 @@
 """MCP verify tool contract.
 
-Authenticated callers enqueue a sandbox-backed verification of a solution
-and receive a queued-status envelope. Anonymous callers receive the
-standard auth error; no sandbox run is triggered.
+Authenticated callers run a synchronous sandbox-backed verification of a
+solution and receive the pass/fail verdict (the confidence-independent trust
+signal). A solution with no runnable Python is reported not_verifiable.
+Anonymous callers receive the standard auth error; no sandbox run is triggered.
 """
 
 from __future__ import annotations
@@ -45,8 +46,11 @@ def _make_service_with_solution():
     solution = Solution(
         problem_id=problem.problem_id,
         author_id=author_id,
-        content="# fix\nhandle the key error " * 5,
-        steps=["check", "fix"],
+        content=(
+            "Guard the lookup with a default.\n\n"
+            "```python\nd = {}\nprint(d.get('x', 'fallback'))\n```\n"
+        ),
+        steps=["use dict.get with a default"],
     )
     service._solutions.add(solution)
     return service, author_id, solution
@@ -75,7 +79,7 @@ def test_verify_anonymous_is_forbidden() -> None:
     assert "Authentication required" in body.get("detail", "")
 
 
-def test_verify_authenticated_returns_queued() -> None:
+def test_verify_authenticated_returns_pass_fail_verdict() -> None:
     service, _, solution = _make_service_with_solution()
     agent = SimpleNamespace(agent_id=uuid4())
     server = SimpleNamespace(_service=service, _agent=agent)
@@ -89,5 +93,37 @@ def test_verify_authenticated_returns_queued() -> None:
         current_agent.reset(token)
 
     body = _body(result)
-    assert body.get("status") == "queued"
-    assert "run_id" in body
+    # The agent gets the actual sandbox verdict, not an opaque 'queued'.
+    assert body.get("status") == "verified"
+    assert body.get("passed") is True
+    assert body.get("exit_code") == 0
+    assert "duration_seconds" in body
+
+
+def test_verify_prose_solution_is_not_verifiable() -> None:
+    service, author_id = _build_service(with_sandbox=_FakeSandbox())
+    problem = Problem(
+        author_id=author_id, description="x", error_signature="KeyError: 'x'"
+    )
+    service._problems.add(problem)
+    solution = Solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Just handle the key error carefully in your code path.",
+        steps=["check the key first"],
+    )
+    service._solutions.add(solution)
+    agent = SimpleNamespace(agent_id=uuid4())
+    server = SimpleNamespace(_service=service, _agent=agent)
+
+    token = current_agent.set(agent)
+    try:
+        result = asyncio.run(
+            dispatch_tool(server, "verify", {"solution_id": str(solution.solution_id)})
+        )
+    finally:
+        current_agent.reset(token)
+
+    body = _body(result)
+    assert body.get("status") == "not_verifiable"
+    assert "Python" in body.get("reason", "")

@@ -91,6 +91,16 @@ def _snapshot(session) -> dict:
         .select_from(ProblemORM)
         .where(ProblemORM.best_confidence > BASELINE_CONFIDENCE)
     )
+    n_promoted = session.scalar(
+        select(func.count())
+        .select_from(SolutionORM)
+        .where(SolutionORM.promotion_status == "promoted")
+    )
+    n_canonical = session.scalar(
+        select(func.count())
+        .select_from(ProblemORM)
+        .where(ProblemORM.canonical_solution_id.isnot(None))
+    )
     top = session.execute(
         select(
             SolutionORM.solution_id,
@@ -105,6 +115,8 @@ def _snapshot(session) -> dict:
         "outcomes": n_out,
         "solutions_above_baseline": n_sol_above,
         "problems_above_baseline": n_prob_above,
+        "promoted_solutions": n_promoted,
+        "canonical_pointers": n_canonical,
         "top": top,
     }
 
@@ -120,21 +132,51 @@ def _print_snapshot(label: str, snap: dict) -> None:
         f"  problems best_confidence > {BASELINE_CONFIDENCE}: "
         f"{snap['problems_above_baseline']}"
     )
+    print(f"  'promoted' solutions:         {snap['promoted_solutions']}")
+    print(f"  canonical pointers set:       {snap['canonical_pointers']}")
     print("  highest-confidence solutions:")
     for sid, conf, n, status in snap["top"]:
         print(f"    {conf:.3f}  outcomes={n:<3} {status or '-':<10} {sid}")
 
 
-def _backup_outcomes(session) -> str:
-    rows = session.execute(select(OutcomeORM)).scalars().all()
-    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
-    path = f"/tmp/agentbook_outcomes_backup_{stamp}.json"
-    dump = [
-        {c.name: getattr(r, c.name) for c in OutcomeORM.__table__.columns} for r in rows
+def _backup_state(session) -> str:
+    """Dump everything the re-baseline mutates so it is reversible: the deleted
+    outcome rows, plus the solution promotion_status and problem canonical
+    pointers that get reset (the numbers alone are not enough to roll back)."""
+    outcomes = [
+        {c.name: getattr(r, c.name) for c in OutcomeORM.__table__.columns}
+        for r in session.execute(select(OutcomeORM)).scalars().all()
     ]
+    promotions = [
+        {"solution_id": sid, "promotion_status": status}
+        for sid, status in session.execute(
+            select(SolutionORM.solution_id, SolutionORM.promotion_status)
+        ).all()
+    ]
+    canonicals = [
+        {"problem_id": pid, "canonical_solution_id": cid}
+        for pid, cid in session.execute(
+            select(ProblemORM.problem_id, ProblemORM.canonical_solution_id)
+        ).all()
+    ]
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    path = f"/tmp/agentbook_rebaseline_backup_{stamp}.json"
     with open(path, "w") as fh:
-        json.dump(dump, fh, default=str, indent=1)
-    print(f"  backed up {len(dump)} outcome rows -> {path}")
+        json.dump(
+            {
+                "outcomes": outcomes,
+                "solution_promotions": promotions,
+                "problem_canonicals": canonicals,
+            },
+            fh,
+            default=str,
+            indent=1,
+        )
+    print(
+        f"  backed up {len(outcomes)} outcomes + {len(promotions)} promotions "
+        f"+ {len(canonicals)} canonical pointers -> {path}"
+    )
+    return path
     return path
 
 
@@ -190,8 +232,9 @@ def main() -> None:
         if not args.apply:
             print(
                 "\n[3/3] DRY RUN — no changes written. Re-run with "
-                "--apply --yes-i-am-sure to delete the seeded outcomes and "
-                f"reset all confidence to {BASELINE_CONFIDENCE}."
+                "--apply --yes-i-am-sure to delete the seeded outcomes, reset "
+                f"all confidence to {BASELINE_CONFIDENCE}, clear 'promoted' "
+                "statuses and stale canonical pointers."
             )
             return
 
@@ -199,7 +242,7 @@ def main() -> None:
             sys.exit("ABORT: --apply requires --yes-i-am-sure.")
 
         print("\n[3/3] APPLYING re-baseline…")
-        backup = _backup_outcomes(session)
+        backup = _backup_state(session)
         deleted = session.query(OutcomeORM).delete(synchronize_session=False)
         reset_sol = session.query(SolutionORM).update(
             {
@@ -209,6 +252,23 @@ def main() -> None:
                 SolutionORM.failure_count: 0,
             },
             synchronize_session=False,
+        )
+        # Reset the STATE the wiped outcomes justified, not just the numbers.
+        # A 'promoted' status with zero outcomes paints a public "Confirmed"
+        # badge that contradicts the honest-baseline contract — clear it.
+        # 'demoted' is left as-is so rejected proposals stay hidden rather than
+        # resurfacing as visible 0.3 solutions.
+        cleared_promoted = (
+            session.query(SolutionORM)
+            .filter(SolutionORM.promotion_status == "promoted")
+            .update({SolutionORM.promotion_status: None}, synchronize_session=False)
+        )
+        # A synthesized canonical built on now-erased outcomes is stale; null the
+        # pointer so the book falls back to the highest-confidence history entry.
+        cleared_canonical = (
+            session.query(ProblemORM)
+            .filter(ProblemORM.canonical_solution_id.isnot(None))
+            .update({ProblemORM.canonical_solution_id: None}, synchronize_session=False)
         )
         # Only problems that actually have a solution carry a confidence.
         problems_with_solutions = select(SolutionORM.problem_id).distinct()
@@ -222,8 +282,9 @@ def main() -> None:
         )
         session.commit()
         print(
-            f"  deleted {deleted} outcomes; reset {reset_sol} solutions, "
-            f"{reset_prob} problems. Backup: {backup}"
+            f"  deleted {deleted} outcomes; reset {reset_sol} solutions "
+            f"({cleared_promoted} promoted->base), cleared {cleared_canonical} "
+            f"canonical pointers, reset {reset_prob} problems. Backup: {backup}"
         )
         _print_snapshot("AFTER state:", _snapshot(session))
     finally:

@@ -169,6 +169,23 @@ def validate_production_settings(settings: Settings) -> None:
                 "because the app sends credentialed responses. Set "
                 "CORS_ALLOW_ORIGINS to an explicit comma-separated origin list."
             )
+        # No embedding credential resolves to the deterministic Fallback
+        # embedder, so production silently serves keyword-only recall — the
+        # opposite of the semantic-recall contract. This is a degradation, not
+        # a data-corruption misconfig (recall still functions), so warn loudly
+        # rather than refuse boot: the existing warn-on-degraded-stack path only
+        # fires for a set-but-rejected key, never for all-keys-absent.
+        if not (
+            settings.gemini_api_key
+            or settings.voyage_api_key
+            or settings.openrouter_api_key
+        ):
+            logger.warning(
+                "No embedding credential is configured in production "
+                "(GEMINI_API_KEY / VOYAGE_API_KEY / OPENROUTER_API_KEY all "
+                "unset): recall is degraded to keyword-only search. Set an "
+                "embedding key to restore semantic recall."
+            )
         # Embedding dimension must match the active column. The legacy
         # ``problems.embedding`` column is vector(1536) (per the init
         # migration) while ``problems.embedding_v2`` is vector(1024). When
