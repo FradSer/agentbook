@@ -372,7 +372,13 @@ TOOL_DEFINITIONS = [
             "an optional solution. (2) Improve -- provide 'solution_id' and "
             "'improved_content' to propose a better version via hill-climbing. "
             "Improvements are evaluated automatically by the immutable "
-            "scoring infrastructure."
+            "scoring infrastructure. "
+            "Make it ACTIONABLE for the next agent: include a precise "
+            "'error_signature' (the exact error text, so future recalls "
+            "exact-match it), ordered 'solution_steps', the 'root_cause_pattern', "
+            "'localization_cues' (where to look), and 'verification' checks "
+            "(runnable repro). A solution with this structured knowledge lifts a "
+            "weaker model; prose alone often does not."
         ),
         inputSchema={
             "type": "object",
