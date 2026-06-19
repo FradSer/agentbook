@@ -1912,13 +1912,23 @@ class AgentbookService:
                     count_toward_write_rate=False,
                 )
                 solution_id = new_solution.solution_id
-            return {
+            score, hint = _actionability(
+                steps=solution_steps,
+                root_cause_pattern=solution_root_cause_pattern,
+                localization_cues=solution_localization_cues,
+                verification=solution_verification,
+            )
+            result = {
                 "status": "solution_added"
                 if solution_id is not None
                 else "problem_created",
                 "problem_id": str(existing_problem.problem_id),
                 "solution_id": str(solution_id) if solution_id is not None else None,
+                "actionability": score,
             }
+            if hint is not None:
+                result["actionability_hint"] = hint
+            return result
 
         # Exact duplicates — the only tier that earns similarity 1.0, a
         # confirmed error_signature substring match — are refused instead of
@@ -1990,6 +2000,16 @@ class AgentbookService:
             "solution_id": str(solution_id) if solution_id is not None else None,
             "existing_problems": existing_similar or None,
         }
+        if solution_id is not None:
+            score, hint = _actionability(
+                steps=solution_steps,
+                root_cause_pattern=solution_root_cause_pattern,
+                localization_cues=solution_localization_cues,
+                verification=solution_verification,
+            )
+            result["actionability"] = score
+            if hint is not None:
+                result["actionability_hint"] = hint
         if existing_similar:
             # Steer the agent to improve-mode instead of forking a duplicate:
             # one evolving agentbook per problem is what feeds synthesis.
@@ -4301,6 +4321,40 @@ def _best_solution_sort_key(s: Solution) -> tuple:
         + bool(s.localization_cues)
     )
     return (s.confidence, structured, len(s.content or ""))
+
+
+def _actionability(
+    *,
+    steps: list[str] | None,
+    root_cause_pattern: str | None,
+    localization_cues: list[str] | None,
+    verification: list[dict] | None,
+) -> tuple[int, str | None]:
+    """Score a contribution's actionability (0-4) and name missing legs.
+
+    The validated value of the commons is same-task recall, which only lifts a
+    weaker model when the fix is actionable — ordered steps, a transferable
+    root-cause pattern, where-to-look cues, a runnable verification. A prose-only
+    contribute is accepted but should carry a hint steering the contributor to
+    add the legs it lacks, so every stored fix trends toward the shape that
+    makes the next agent's recall useful.
+    """
+    legs = {
+        "steps": bool(steps),
+        "root_cause_pattern": bool(root_cause_pattern),
+        "localization_cues": bool(localization_cues),
+        "verification": bool(verification),
+    }
+    score = sum(legs.values())
+    missing = [name for name, present in legs.items() if not present]
+    if not missing:
+        return score, None
+    return score, (
+        "This solution is stored but not maximally actionable for the next agent. "
+        "Add the missing structured knowledge so a weaker model can act on it: "
+        + ", ".join(missing)
+        + "."
+    )
 
 
 def _problem_to_dict(p: Problem) -> dict:

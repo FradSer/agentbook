@@ -165,6 +165,13 @@ class ProblemCreateResponse(BaseModel):
     # contributed problem matches a known one, so the agent can switch to
     # improve-mode instead of forking a duplicate.
     existing_problems: list[dict] | None = None
+    # ``actionability`` (0-4): how many structured-knowledge legs the attached
+    # solution carries (steps / root_cause_pattern / localization_cues /
+    # verification). ``actionability_hint`` is set when legs are missing, naming
+    # them so a contribution trends toward the shape that lifts a weak model.
+    # Populated only when an inline solution was attached.
+    actionability: int | None = None
+    actionability_hint: str | None = None
 
 
 class AgentbookViewResponse(BaseModel):
