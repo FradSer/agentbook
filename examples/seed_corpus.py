@@ -473,6 +473,224 @@ CORPUS: list[SeedEntry] = [
         ],
         tags=["typescript", "types", "tsconfig", "module-resolution"],
     ),
+    SeedEntry(
+        description=(
+            "An API request fails authentication with a JWT error — Node "
+            "jsonwebtoken throws 'TokenExpiredError: jwt expired', PyJWT raises "
+            "'ExpiredSignatureError', or the server returns 401 with 'token "
+            "expired'. The token was valid earlier."
+        ),
+        error_signature="jwt expired",
+        solution_content=(
+            "The access token's `exp` claim is in the past — by design, JWTs are "
+            "short-lived. Do NOT just lengthen `exp`; implement refresh. On 401 "
+            "due to expiry, use the refresh token to mint a new access token and "
+            "retry the request once (refresh tokens live in an httpOnly cookie / "
+            "secure store, not localStorage). If you control both ends and the "
+            "clocks differ, add small `clockTolerance` (a few seconds) when "
+            "verifying — but real expiry needs a refresh flow, not a wider window. "
+            "If 'expired' fires immediately, the signing and verifying clocks are "
+            "skewed or `exp` is set in the wrong unit (seconds, not ms)."
+        ),
+        solution_steps=[
+            "decode the token (jwt.io) and check the exp claim vs now",
+            "on 401-expired, exchange the refresh token for a new access token and retry once",
+            "set exp in SECONDS since epoch (not milliseconds)",
+            "if clocks skew, add a few seconds clockTolerance on verify",
+        ],
+        root_cause_pattern=(
+            "the JWT exp claim is in the past (normal short-lived-token expiry, or "
+            "clock skew / wrong exp unit); verification rejects it"
+        ),
+        localization_cues=[
+            "jwt.verify / jwt.decode call",
+            "the token exp claim and the signing/verifying server clocks",
+            "missing refresh-token flow on 401",
+        ],
+        verification=[
+            {
+                "command": "node -e \"const jwt=require('jsonwebtoken');try{jwt.verify(tok,secret)}catch(e){console.log(e.name)}\"",
+                "expected": "verifies, or you refresh+retry on TokenExpiredError",
+                "buggy": "TokenExpiredError: jwt expired",
+            }
+        ],
+        tags=["jwt", "auth", "tokens", "401"],
+    ),
+    SeedEntry(
+        description=(
+            "A FastAPI/pydantic request or model construction fails with "
+            "'pydantic.ValidationError: N validation error(s) for <Model>' (HTTP "
+            "422 Unprocessable Entity from FastAPI) — the input does not match the "
+            "model's types/constraints."
+        ),
+        error_signature="validation error for",
+        solution_content=(
+            "Pydantic rejected the input against the schema. The error body lists "
+            "each failing field with `loc` (where), `type` (which rule), and `msg` "
+            "— read it: it names the exact field and why. Common causes: a missing "
+            "required field, a wrong type (string where int expected), or an alias "
+            "mismatch (the JSON key differs from the field name — set "
+            "`populate_by_name=True` or `Field(alias=...)`). For FastAPI 422s, the "
+            "client is sending the wrong shape — fix the request, or relax the "
+            "model (Optional / default) only if the field is genuinely optional. "
+            "Pydantic v2: `model_validate` / `model_config`; do not catch and "
+            "ignore ValidationError — surface the `.errors()` so callers can fix "
+            "the payload."
+        ),
+        solution_steps=[
+            "read the error's loc/type/msg to find the exact failing field",
+            "fix the input shape (missing field, wrong type) or the alias mapping",
+            "for genuine optionals, make the field Optional with a default — not a blanket relax",
+            "log exc.errors() rather than swallowing the ValidationError",
+        ],
+        root_cause_pattern=(
+            "input data violates the pydantic model schema (missing/extra field, "
+            "type mismatch, or field-name vs JSON-alias mismatch)"
+        ),
+        localization_cues=[
+            "the Model the error names and its field types",
+            "the request payload keys vs model field names/aliases",
+            "FastAPI route response 422 with a detail array",
+        ],
+        verification=[
+            {
+                "command": 'python -c "from app import Model; Model.model_validate(payload)"',
+                "expected": "constructs without error",
+                "buggy": "pydantic.ValidationError: N validation errors for Model",
+            }
+        ],
+        tags=["python", "pydantic", "fastapi", "validation"],
+    ),
+    SeedEntry(
+        description=(
+            "git push is rejected: '! [rejected] ... (non-fast-forward)' / "
+            "'Updates were rejected because the remote contains work that you do "
+            "not have locally' — the remote branch advanced since you last pulled."
+        ),
+        error_signature="Updates were rejected because the remote contains work",
+        solution_content=(
+            "Someone pushed commits you do not have; git refuses to overwrite them. "
+            "Integrate first: `git pull --rebase origin <branch>` (replays your "
+            "commits on top of theirs — cleanest, linear history), resolve any "
+            "conflicts, then `git push`. Prefer `--rebase` over a merge pull to "
+            "avoid a noisy merge commit. NEVER `git push --force` to a shared "
+            "branch — it deletes their work; if you must rewrite your OWN feature "
+            "branch, use `--force-with-lease`, which refuses if the remote moved "
+            "unexpectedly. If this is a brand-new branch and the remote was created "
+            "separately, see the unrelated-histories case instead."
+        ),
+        solution_steps=[
+            "git pull --rebase origin <branch>",
+            "resolve conflicts, then git rebase --continue",
+            "git push",
+            "to rewrite your OWN branch only: git push --force-with-lease (never plain --force on shared)",
+        ],
+        root_cause_pattern=(
+            "the local branch tip is behind the remote tip; a non-fast-forward push "
+            "would discard remote commits, so git rejects it"
+        ),
+        localization_cues=[
+            "the rejected ref and 'non-fast-forward' in the push output",
+            "git status / git log origin/<branch>..HEAD",
+            "a teammate or CI having pushed to the same branch",
+        ],
+        verification=[
+            {
+                "command": "git pull --rebase && git push",
+                "expected": "push succeeds after integrating remote work",
+                "buggy": "! [rejected] ... (non-fast-forward)",
+            }
+        ],
+        tags=["git", "push", "rebase"],
+    ),
+    SeedEntry(
+        description=(
+            "A Kubernetes pod is stuck in CrashLoopBackOff — the container starts, "
+            "exits non-zero, and kubelet restarts it with growing backoff."
+        ),
+        error_signature="CrashLoopBackOff",
+        solution_content=(
+            "The container's main process keeps exiting. Diagnose, do not guess: "
+            "`kubectl logs <pod> --previous` shows the crashed instance's output "
+            "(the real error), and `kubectl describe pod <pod>` shows the last "
+            "state / exit code and events (OOMKilled, liveness-probe failures, "
+            "mount errors). Common causes + fixes: app throws on startup (bad "
+            "config/env/missing secret — fix the config); the command exits "
+            "immediately (wrong entrypoint/args, or a one-shot process where a "
+            "long-running one is expected); OOMKilled (exit 137 — raise memory "
+            "limits or fix the leak); a liveness probe failing during a slow start "
+            "(raise initialDelaySeconds/failureThreshold); or a missing "
+            "ConfigMap/Secret/volume. Fix the root cause; restarting alone will not "
+            "help."
+        ),
+        solution_steps=[
+            "kubectl logs <pod> --previous  (the crashed instance's real error)",
+            "kubectl describe pod <pod>  (exit code, OOMKilled, probe failures, events)",
+            "fix the root cause: config/env/secret, entrypoint, memory limit, or probe timing",
+            "redeploy and watch kubectl get pod -w",
+        ],
+        root_cause_pattern=(
+            "the container's main process exits non-zero repeatedly — startup "
+            "exception, wrong command, OOMKilled, failing liveness probe, or a "
+            "missing config/secret/volume"
+        ),
+        localization_cues=[
+            "kubectl logs --previous output",
+            "kubectl describe pod: Last State, exit code 137 (OOM) / 1, Events",
+            "the Deployment command/args, resources.limits, livenessProbe, env/volumes",
+        ],
+        verification=[
+            {
+                "command": "kubectl get pod <pod> -o jsonpath='{.status.containerStatuses[0].state}'",
+                "expected": "running (not waiting: CrashLoopBackOff)",
+                "buggy": "waiting CrashLoopBackOff; logs --previous shows the startup error",
+            }
+        ],
+        tags=["kubernetes", "k8s", "crashloopbackoff", "deployment"],
+    ),
+    SeedEntry(
+        description=(
+            "A React app throws 'Maximum update depth exceeded' (or hangs / "
+            "re-renders forever) — a component updates state in a way that "
+            "re-triggers itself every render."
+        ),
+        error_signature="Maximum update depth exceeded",
+        solution_content=(
+            "State is being set during render or in an effect that runs every "
+            "render, causing an infinite render loop. Find the setState that runs "
+            "unconditionally: (1) `onClick={handler()}` instead of "
+            "`onClick={handler}` calls it during render — pass the reference. (2) "
+            "`useEffect(() => setX(...))` with NO dependency array, or a dep that "
+            "changes every render (a new object/array/function literal) — add a "
+            "correct deps array and memoize unstable deps with useMemo/useCallback. "
+            "(3) setting state derived from props directly in the body — compute it "
+            "during render instead of storing it. Rule: never call setState "
+            "unconditionally during render or in an every-render effect."
+        ),
+        solution_steps=[
+            "pass event handlers by reference: onClick={handler}, not onClick={handler()}",
+            "add a correct dependency array to the offending useEffect",
+            "memoize object/array/function deps with useMemo/useCallback",
+            "derive values during render instead of setState-ing from props",
+        ],
+        root_cause_pattern=(
+            "setState runs on every render (during render, or in a no-deps/unstable-"
+            "deps effect), so each update schedules another render — an infinite loop"
+        ),
+        localization_cues=[
+            "a useEffect with no deps array or an object/array/function literal dep",
+            "onClick/onChange that invokes the handler instead of passing it",
+            "setState called in the component body",
+        ],
+        verification=[
+            {
+                "command": "# load the component; React DevTools Profiler should show it settle, not loop",
+                "expected": "renders settle after the interaction",
+                "buggy": "Warning: Maximum update depth exceeded (infinite re-render)",
+            }
+        ],
+        tags=["react", "hooks", "useeffect", "re-render"],
+    ),
 ]
 
 
