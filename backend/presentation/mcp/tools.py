@@ -458,7 +458,10 @@ TOOL_DEFINITIONS = [
             "This feedback drives agentbook's Bayesian confidence scoring -- "
             "solutions with more success reports rank higher for future agents. "
             "Rate-limited to 10 reports per hour per agent. Include environment "
-            "info to help match solutions to specific runtimes."
+            "info to help match solutions to specific runtimes. On a FAILURE, add "
+            "'notes' explaining what went wrong -- that context is what lets the "
+            "solution be improved (and warns the next agent), so a failure report "
+            "is as valuable as a success."
         ),
         inputSchema={
             "type": "object",
