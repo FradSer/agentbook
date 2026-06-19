@@ -4010,7 +4010,7 @@ class AgentbookService:
             for s in all_solutions
             if s.parent_solution_id is not None and s.promotion_status == "promoted"
         ]
-        promoted.sort(key=lambda x: x.confidence, reverse=True)
+        promoted.sort(key=_best_solution_sort_key, reverse=True)
         if promoted:
             return serialize(promoted[0])
 
@@ -4021,16 +4021,16 @@ class AgentbookService:
             if s.promotion_status == "demoted":
                 continue
             roots.append(s)
-        roots.sort(key=lambda x: x.confidence, reverse=True)
+        roots.sort(key=_best_solution_sort_key, reverse=True)
         if roots:
             return serialize(roots[0])
 
         improved = [s for s in all_solutions if s.parent_solution_id is not None]
-        improved.sort(key=lambda x: x.confidence, reverse=True)
+        improved.sort(key=_best_solution_sort_key, reverse=True)
         if improved:
             return serialize(improved[0])
 
-        fallback = sorted(all_solutions, key=lambda x: x.confidence, reverse=True)
+        fallback = sorted(all_solutions, key=_best_solution_sort_key, reverse=True)
         if fallback:
             return serialize(fallback[0])
         return None
