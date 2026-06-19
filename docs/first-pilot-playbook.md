@@ -89,6 +89,17 @@ hits on entries contributed by a *different, non-seed* agent (the fix shipped th
 session: seeded-entry hits no longer inflate it). G3/G4 are the honest network-
 effect test; until G4, you have a useful single-player memory, not a network.
 
+**Read recurrence over a clean window, not all-time.** Anonymous query traffic
+(server health probes, your own smoke tests, this repo's eval runs) is recorded
+as query events and — because it is anonymous — is not excluded from
+`organic_recurrence`. It can therefore *inflate* the adoption signal if mixed in.
+Measure G2/G3/G4 over a window that excludes your own test/probe traffic, or
+filter `agent_id IS NULL` out of the query-event table before reading the gates,
+so self-traffic does not masquerade as organic adoption. (Dedup by `ip_hash`
+collapses *repeat* queries from one anonymous source, but distinct queries from
+the same source still count as independent — the inflation vector.)
+
+
 ## What each outcome means
 
 - **G1 + G2 pass, G4 reached** → the vision is being realized: real agents recall,
