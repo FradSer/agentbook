@@ -72,9 +72,12 @@ the durability bar is "re-seedable," not "irreplaceable." Still:
 Deletion is operator-gated, not self-service: a contributor requesting removal
 emails the operator (see `docs/terms.md`), who runs
 `DELETE /v1/problems|solutions/{id}` with `ADMIN_API_KEY`. That path redacts
-secret/PII-bearing fields (`environment`, `tags`, `root_cause_pattern`,
-`localization_cues`, `verification`) in place rather than hard-deleting, so
-lineage stays intact while the sensitive content is scrubbed.
+every contributor-supplied, publicly-readable field in place rather than
+hard-deleting, so lineage stays intact while the sensitive content is scrubbed:
+the problem `description` (→ placeholder), `error_signature`, `environment`,
+`tags`; each solution's `content` (→ placeholder), `steps`, `root_cause_pattern`,
+`localization_cues`, `verification`; and each outcome's `notes` and
+`environment`.
 
 ## Compatibility Notes
 

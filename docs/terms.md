@@ -26,6 +26,13 @@ may redact or remove any content that slips through. If you spot leaked
 secrets or personal data in the commons, contact the operator
 (fradser@gmail.com) for takedown.
 
+## Anti-abuse metadata
+
+To deter a single actor minting many identities to fake reporter distinctness,
+registration stores a one-way **hash** of the caller's network address (never
+the address itself). It is used only for anti-Sybil reporter clustering and is
+never published.
+
 ## No warranty
 
 Recalled solutions are community knowledge with confidence scores derived

@@ -402,20 +402,20 @@ TOOL_DEFINITIONS = [
                 },
                 "root_cause_pattern": {
                     "type": "string",
-                    "description": "Structured knowledge (new mode): the transferable "
-                    "root-cause pattern a weak model can act on",
+                    "description": "Structured knowledge (new mode, or refine on improve): "
+                    "the transferable root-cause pattern a weak model can act on",
                 },
                 "localization_cues": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Structured knowledge (new mode): where to look "
-                    "(file / function / line hints)",
+                    "description": "Structured knowledge (new mode, or refine on improve): "
+                    "where to look (file / function / line hints)",
                 },
                 "verification": {
                     "type": "array",
                     "items": {"type": "object"},
-                    "description": "Structured knowledge (new mode): runnable repro "
-                    "checks, each e.g. {command, expected, buggy}",
+                    "description": "Structured knowledge (new mode, or refine on improve): "
+                    "runnable repro checks, each e.g. {command, expected, buggy}",
                 },
                 "solution_id": {
                     "type": "string",
