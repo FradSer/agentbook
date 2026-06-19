@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
+from uuid import UUID
 
 if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
@@ -61,6 +61,7 @@ from backend.domain.models import (
     QueryEvent,
     ResearchCycle,
     ResearchStatus,
+    SandboxResult,
     Solution,
     utc_now,
 )
@@ -2848,13 +2849,15 @@ class AgentbookService:
         )
 
     def verify_solution(self, solution_id: UUID, agent_id: UUID) -> dict:
-        """Enqueue a sandbox-backed verification for a solution.
+        """Run a sandbox-backed verification of a solution and return the verdict.
 
-        Returns an envelope immediately. When a real SandboxProvider is
-        configured the sandbox run is triggered inline (the provider is
-        expected to be fast enough; task 013 does not add async queueing
-        beyond what the underlying provider already supports). On success
-        a verified Outcome is persisted via ``_run_sandbox_evaluation``.
+        Synchronous: when a real SandboxProvider is configured the run happens
+        inline, records a verified Outcome, and returns a ``status='verified'``
+        envelope with ``passed`` (the confidence-independent trust signal an
+        agent needs before relying on a cold-start solution), plus exit code and
+        duration. Returns ``not_verifiable`` when the solution has no runnable
+        single-file Python, ``unavailable`` when no sandbox is configured, and
+        ``skipped`` when a DoS gate momentarily blocks the run.
         """
         solution = self._solutions.get(solution_id)
         if solution is None:
@@ -2884,9 +2887,41 @@ class AgentbookService:
                 "status": "unavailable",
                 "reason": "no sandbox provider configured",
             }
-        run_id = uuid4()
-        self._run_sandbox_evaluation(problem, solution, agent_id=agent_id)
-        return {"status": "queued", "run_id": str(run_id)}
+        # Only Python single-file solutions are evaluable today; say so plainly
+        # rather than pretending a run happened.
+        if self._extract_executable_code(solution) is None:
+            return {
+                "status": "not_verifiable",
+                "reason": (
+                    "no runnable single-file Python found in the solution; "
+                    "only Python single-file solutions are evaluable today"
+                ),
+            }
+        # Synchronous: the run already happened (and recorded a verified
+        # outcome). Surface the pass/fail verdict so the caller gets a
+        # confidence-independent trust signal, not an opaque 'queued'.
+        result = self._run_sandbox_evaluation(problem, solution, agent_id=agent_id)
+        if result is None:
+            return {
+                "status": "skipped",
+                "reason": (
+                    "the sandbox is momentarily gated (concurrency / budget / "
+                    "circuit-breaker); retry shortly"
+                ),
+            }
+        return {
+            "status": "verified",
+            "passed": result.success,
+            "exit_code": result.exit_code,
+            "duration_seconds": result.duration_seconds,
+            "detail": (
+                "the sandbox reproduced the solution and it PASSED -- a "
+                "verified, confidence-independent signal you can rely on"
+                if result.success
+                else "the sandbox reproduced the solution and it FAILED -- "
+                "do not rely on this fix as-is"
+            ),
+        }
 
     def _improve_solution_impl(
         self,
@@ -3336,15 +3371,17 @@ class AgentbookService:
         solution: Solution,
         *,
         agent_id: UUID,
-    ) -> None:
-        """Run a solution in the sandbox and record the outcome.
+    ) -> SandboxResult | None:
+        """Run a solution in the sandbox, record the outcome, and return the
+        result so callers (e.g. ``verify_solution``) can surface the verdict.
 
-        Skips outcome recording when a DoS gate blocks the call -- the
-        gate already incremented its observability counter.
+        Returns ``None`` when there is no executable Python to run or a DoS
+        gate blocks the call (the gate already incremented its observability
+        counter).
         """
         code = self._extract_executable_code(solution)
         if code is None:
-            return
+            return None
 
         result = self._sandbox_run_guarded(
             code,
@@ -3353,7 +3390,7 @@ class AgentbookService:
             environment=problem.environment,
         )
         if result is None:
-            return
+            return None
         self._record_synthetic_outcome(
             solution,
             SANDBOX_AGENT_ID,
@@ -3363,6 +3400,7 @@ class AgentbookService:
             notes=f"sandbox: exit={result.exit_code} dur={result.duration_seconds}s",
             environment=result.environment or None,
         )
+        return result
 
     # ------------------------------------------------------------------
     # Cross-problem knowledge graph helpers
