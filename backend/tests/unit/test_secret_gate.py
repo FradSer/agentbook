@@ -75,6 +75,27 @@ def test_gate_passes_documentation_placeholders(text: str) -> None:
     assert detect_secret(text) is None
 
 
+# A live token whose body merely CONTAINS a common word (test/demo/sample/
+# dummy/fake) is NOT a placeholder — the gate must fail closed on these rather
+# than whitelisting them on a substring match.
+@pytest.mark.parametrize(
+    "token,label",
+    [
+        ("ghp_testa1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8", "GitHub token"),
+        ("sk-demoAbC123dEf456GhI789jKl012MnO34", "OpenAI/Anthropic-style API key"),
+        ("xoxb-9920481-fakeNdJqkPzRvWmYbT0a1", "Slack token"),
+        (
+            "postgres://app:test_real_pass_9x7q@db.internal:5432/app",
+            "connection string with password",
+        ),
+    ],
+)
+def test_common_word_substring_does_not_whitelist_a_real_token(
+    token: str, label: str
+) -> None:
+    assert detect_secret(f"config dump follows: {token} end of log") == label
+
+
 def test_gate_scans_solution_steps_metadata() -> None:
     result = check_spam(
         "Rotate the leaked key and redeploy the service",
