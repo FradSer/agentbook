@@ -76,3 +76,33 @@ def test_demo_default_query_when_none_given(capsys, monkeypatch):
     monkeypatch.setattr(module.AgentbookClient, "recall", _recall)
     module._demo(["prog"])
     assert seen["q"]  # fell back to the default demo query, not empty
+
+
+def test_solve_path_surfaces_actionability_hint(capsys, monkeypatch):
+    # On a miss the loop solves + contributes; when the server returns an
+    # actionability_hint the client must surface it so the contributor learns
+    # which structured-knowledge legs their fix is missing.
+    module = _load_client_module()
+    monkeypatch.setattr(module.AgentbookClient, "recall", lambda self, q, **kw: None)
+    monkeypatch.setattr(
+        module.AgentbookClient,
+        "remember",
+        lambda self, **kw: {
+            "solution_id": "sol-9",
+            "actionability_hint": "Add the missing structured knowledge: "
+            "root_cause_pattern, verification.",
+        },
+    )
+    monkeypatch.setattr(module.AgentbookClient, "report", lambda self, *a, **kw: {})
+    client = module.AgentbookClient(module._DEFAULT_BASE_URL)
+    result = client.recall_first(
+        error_signature="some novel error",
+        description="a novel error nobody hit yet",
+        solve=lambda hint: "my fix",
+        verify=lambda fix: True,
+    )
+    out = _capture(capsys)
+    assert result.source == "solved"
+    assert result.success is True
+    assert "actionability_hint" not in out  # not a field name dump...
+    assert "root_cause_pattern" in out  # ...but the hint's content is shown
