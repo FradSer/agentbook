@@ -868,6 +868,135 @@ CORPUS: list[SeedEntry] = [
         ],
         tags=["git", "ssh", "auth", "ci"],
     ),
+    SeedEntry(
+        description=(
+            "A build or container run fails with 'no space left on device' "
+            "(ENOSPC) — Docker/CI disk filled with images, build cache, volumes, "
+            "or logs."
+        ),
+        error_signature="no space left on device",
+        solution_content=(
+            "The disk (or the Docker data root) is full. Reclaim space, do not "
+            "just grow the disk blindly. Check usage: `df -h` and `docker system "
+            "df`. Prune safely: `docker system prune -af` (dangling + unused "
+            "images, networks, build cache) and `docker builder prune -af`; add "
+            "`--volumes` ONLY if you are sure no named volume holds data you need. "
+            "Other culprits: a runaway log file (`journalctl --vacuum-size=500M`, "
+            "or set Docker `log-opts max-size`), and inode exhaustion (`df -i` — a "
+            "full inode table reports ENOSPC even with bytes free; delete many "
+            "tiny files). In CI, the runner disk is small — prune between steps or "
+            "use a larger runner."
+        ),
+        solution_steps=[
+            "df -h and docker system df to see what is full",
+            "docker system prune -af && docker builder prune -af",
+            "check df -i for inode exhaustion (many tiny files)",
+            "cap container logs (log-opts max-size) / vacuum journald",
+        ],
+        root_cause_pattern=(
+            "the filesystem or Docker data root is out of space (or inodes) — "
+            "accumulated images/build cache/volumes/logs"
+        ),
+        localization_cues=[
+            "docker system df output (Images / Build Cache / Volumes)",
+            "df -h and df -i on the Docker data root",
+            "a CI runner with a small disk, or unrotated container logs",
+        ],
+        verification=[
+            {
+                "command": "df -h && docker system df",
+                "expected": "free space available after pruning",
+                "buggy": "100% used -> write fails with ENOSPC no space left on device",
+            }
+        ],
+        tags=["docker", "disk", "enospc", "ci"],
+    ),
+    SeedEntry(
+        description=(
+            "json.dumps raises 'TypeError: Object of type datetime is not JSON "
+            "serializable' (or Decimal / UUID / set / numpy types) — a value has "
+            "no built-in JSON representation."
+        ),
+        error_signature="is not JSON serializable",
+        solution_content=(
+            "The default JSON encoder only handles str/int/float/bool/None/list/"
+            "dict. Convert the value or teach the encoder. Quick: pass "
+            "`json.dumps(obj, default=str)` (good for datetime/Decimal/UUID). "
+            "Better: a custom `default` that maps each type precisely — datetime "
+            "-> .isoformat(), Decimal -> float or str (str preserves precision), "
+            "UUID -> str, set -> list. In FastAPI/pydantic use the model layer "
+            "(pydantic v2 serializes these natively via model_dump(mode='json')). "
+            "For numpy, call `.item()`/`.tolist()`. Decide datetime tz/format and "
+            "Decimal precision deliberately — `default=str` is a stopgap, not a "
+            "contract."
+        ),
+        solution_steps=[
+            "find the offending value's type in the traceback",
+            "quick fix: json.dumps(obj, default=str)",
+            "robust: a custom default mapping datetime->isoformat, Decimal->str, UUID->str, set->list",
+            "in FastAPI/pydantic, serialize via model_dump(mode='json')",
+        ],
+        root_cause_pattern=(
+            "a value of a type the stdlib JSON encoder does not support (datetime/"
+            "Decimal/UUID/set/numpy) is passed to json.dumps without a converter"
+        ),
+        localization_cues=[
+            "the json.dumps / jsonify call and the object it serializes",
+            "the type named in 'Object of type X is not JSON serializable'",
+            "datetime/Decimal/UUID fields from a DB row or model",
+        ],
+        verification=[
+            {
+                "command": "python -c \"import json,datetime;json.dumps({'t':datetime.datetime.now()},default=str)\"",
+                "expected": "serializes without error",
+                "buggy": "TypeError: Object of type datetime is not JSON serializable",
+            }
+        ],
+        tags=["python", "json", "serialization", "datetime"],
+    ),
+    SeedEntry(
+        description=(
+            "Running a module raises 'ImportError: attempted relative import with "
+            "no known parent package' — a file using relative imports "
+            "(from .x import y) was run as a top-level script."
+        ),
+        error_signature="attempted relative import with no known parent package",
+        solution_content=(
+            "Relative imports only work when the file is imported as part of a "
+            "PACKAGE, not run directly as `python path/to/file.py` (then its "
+            "__package__ is None). Run it as a module from the project root with "
+            "`-m`: `python -m package.module` (note: dots, no .py, and the package "
+            "needs to be importable — have an __init__.py or be on sys.path). "
+            "Alternatively switch to absolute imports (`from package.x import y`) "
+            "and run from the root. For a CLI entry point, define it under the "
+            "package and invoke via -m or a console_scripts entry point, not by "
+            "path."
+        ),
+        solution_steps=[
+            "run as a module from the project root: python -m package.module (dots, no .py)",
+            "ensure the package is importable (__init__.py / on sys.path)",
+            "or convert to absolute imports and run from the root",
+            "for CLIs, use a console_scripts entry point, not python file.py",
+        ],
+        root_cause_pattern=(
+            "a file using relative imports is executed as a top-level script, so "
+            "__package__ is None and Python has no parent package to resolve "
+            "the relative import against"
+        ),
+        localization_cues=[
+            "from .x import / from ..x import in the file being run directly",
+            "how the program is launched (python file.py vs python -m pkg.mod)",
+            "missing __init__.py or the project root not on sys.path",
+        ],
+        verification=[
+            {
+                "command": "python -m package.module",
+                "expected": "runs without the relative-import ImportError",
+                "buggy": "ImportError: attempted relative import with no known parent package",
+            }
+        ],
+        tags=["python", "imports", "packaging", "modules"],
+    ),
 ]
 
 
