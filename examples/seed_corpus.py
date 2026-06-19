@@ -691,6 +691,183 @@ CORPUS: list[SeedEntry] = [
         ],
         tags=["react", "hooks", "useeffect", "re-render"],
     ),
+    SeedEntry(
+        description=(
+            "Reading a file raises 'UnicodeDecodeError: \"utf-8\" codec can't "
+            "decode byte 0x.. in position N' — the file is not UTF-8 (latin-1, "
+            "UTF-16, a BOM, or actually binary)."
+        ),
+        error_signature="UnicodeDecodeError",
+        solution_content=(
+            "Python defaulted to UTF-8 but the bytes are not UTF-8. Do not "
+            "blindly `errors='ignore'` (it silently corrupts data). First "
+            "identify the real encoding (`chardet`/`charset-normalizer`, or you "
+            "know the source: Windows exports are often cp1252/latin-1; some "
+            "tools emit UTF-16). Then open with it: "
+            "`open(path, encoding='cp1252')`. For a UTF-8 BOM use "
+            "`encoding='utf-8-sig'`. If the file is genuinely binary, open in "
+            "binary mode (`'rb'`) and stop decoding it as text. Set the encoding "
+            "explicitly everywhere rather than relying on the platform default "
+            "(which differs on Windows)."
+        ),
+        solution_steps=[
+            "detect the real encoding (charset-normalizer, or known source)",
+            "open with it: open(path, encoding='cp1252' / 'utf-16' / 'utf-8-sig')",
+            "for binary data, open 'rb' and do not decode as text",
+            "never errors='ignore' on data you need intact",
+        ],
+        root_cause_pattern=(
+            "bytes are decoded with the wrong codec — the file is not UTF-8 "
+            "(latin-1/cp1252, UTF-16, BOM, or binary) but was opened as UTF-8"
+        ),
+        localization_cues=[
+            "the open()/read() call with no explicit encoding",
+            "the byte value and position in the error (0x.. hints the encoding)",
+            "files from Windows/Excel exports or non-UTF-8 tooling",
+        ],
+        verification=[
+            {
+                "command": "python -c \"open(path, encoding='utf-8').read()\"",
+                "expected": "reads without UnicodeDecodeError once the right encoding is set",
+                "buggy": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0x..",
+            }
+        ],
+        tags=["python", "encoding", "unicode", "files"],
+    ),
+    SeedEntry(
+        description=(
+            "Parsing a response as JSON throws 'json.decoder.JSONDecodeError: "
+            "Expecting value: line 1 column 1 (char 0)' (or 'Unexpected token < "
+            "in JSON' in JS) — the body is not JSON (empty, HTML error page, or "
+            "plain text)."
+        ),
+        error_signature="Expecting value: line 1 column 1",
+        solution_content=(
+            "You called .json() on a non-JSON body — most often an empty 200/204, "
+            "or an HTML error page (a 4xx/5xx, a login redirect, or a proxy/CDN "
+            "page) that you parsed without checking. The 'Unexpected token <' "
+            "variant is the '<' of '<!DOCTYPE html>'. Fix: check the status code "
+            "and Content-Type BEFORE decoding. Log `response.text[:200]` to see "
+            "what actually came back — it usually reveals the real error (auth "
+            "redirect, rate limit, wrong URL). Then handle non-2xx explicitly and "
+            "only `.json()` when Content-Type is application/json and the body is "
+            "non-empty."
+        ),
+        solution_steps=[
+            "log response.status_code and response.text[:200] to see the real body",
+            "check the status code and Content-Type before calling .json()",
+            "handle non-2xx / HTML responses explicitly (it is often an auth/redirect/rate-limit page)",
+            "only parse JSON when the body is non-empty application/json",
+        ],
+        root_cause_pattern=(
+            "a non-JSON body (empty, HTML error/redirect page, or plain text) is "
+            "parsed as JSON; the first char is not a valid JSON token"
+        ),
+        localization_cues=[
+            "the .json() / json.loads() call",
+            "the response status code and Content-Type (HTML vs JSON)",
+            "an auth redirect, rate-limit, or proxy/CDN error page",
+        ],
+        verification=[
+            {
+                "command": "python -c \"import requests;r=requests.get(url);print(r.status_code, r.headers.get('content-type'), r.text[:80])\"",
+                "expected": "200 + application/json + a JSON body",
+                "buggy": "a non-200 / text/html body -> JSONDecodeError Expecting value",
+            }
+        ],
+        tags=["json", "http", "requests", "parsing"],
+    ),
+    SeedEntry(
+        description=(
+            "A client cannot reach a service: 'ConnectionRefusedError: [Errno 111] "
+            "Connection refused' (Python) / 'ECONNREFUSED' (Node) / 'connection "
+            "refused' — nothing is listening on that host:port from the client's "
+            "vantage point."
+        ),
+        error_signature="Connection refused",
+        solution_content=(
+            "The target accepted no connection: the service is not running, is "
+            "bound to the wrong interface, or is unreachable across a container/"
+            "network boundary. Check, in order: (1) is the service actually up and "
+            "LISTENing? (`lsof -i :PORT` / `ss -ltnp` / `docker ps`). (2) Is it "
+            "bound to 127.0.0.1 but you connect from another container/host? Bind "
+            "to 0.0.0.0 so it accepts external connections. (3) In Docker Compose, "
+            "use the SERVICE NAME as host (`db:5432`), not localhost — each "
+            "container has its own localhost. (4) On Kubernetes, use the Service "
+            "DNS name and confirm the Service/Endpoints exist. (5) Firewall / "
+            "security group blocking the port. Connection refused means the host "
+            "was reached but the port was closed — distinct from a timeout "
+            "(wrong host / firewall drop)."
+        ),
+        solution_steps=[
+            "confirm the service is up and LISTENing: lsof -i :PORT / docker ps",
+            "bind the server to 0.0.0.0, not 127.0.0.1, for cross-host/container access",
+            "in Docker Compose use the service name as host (db:5432), not localhost",
+            "check firewall / security-group rules for the port",
+        ],
+        root_cause_pattern=(
+            "no process is listening on the target host:port from the client's "
+            "network vantage point (service down, bound to the wrong interface, or "
+            "wrong host across a container/network boundary)"
+        ),
+        localization_cues=[
+            "the host:port the client dials vs where the server actually binds",
+            "127.0.0.1 vs 0.0.0.0 in the server bind",
+            "localhost vs the compose service name / k8s Service DNS",
+        ],
+        verification=[
+            {
+                "command": "nc -vz HOST PORT  # or curl -v HOST:PORT",
+                "expected": "connection succeeds (port open)",
+                "buggy": "Connection refused (nothing listening at that host:port)",
+            }
+        ],
+        tags=["networking", "docker", "connection-refused", "ports"],
+    ),
+    SeedEntry(
+        description=(
+            "git over SSH fails with 'git@github.com: Permission denied "
+            "(publickey). fatal: Could not read from remote repository.' — the "
+            "SSH key is not recognized by the host."
+        ),
+        error_signature="Permission denied (publickey)",
+        solution_content=(
+            "The SSH server rejected your key. Diagnose: `ssh -T git@github.com` "
+            "(or your host) shows whether auth succeeds. Common fixes: (1) no key "
+            "loaded — `ssh-add -l`; if empty, `ssh-add ~/.ssh/id_ed25519` (start "
+            "the agent first: `eval $(ssh-agent)`). (2) the PUBLIC key is not "
+            "added to your account/host (add `~/.ssh/id_ed25519.pub` in the git "
+            "host's SSH-keys settings). (3) wrong key offered — set it per-host in "
+            "`~/.ssh/config` (`Host github.com` / `IdentityFile ...`). (4) key "
+            "perms too open — `chmod 600 ~/.ssh/id_ed25519`. (5) using an HTTPS "
+            "remote with SSH expectations (or vice versa) — check `git remote -v`. "
+            "On CI, the deploy key / SSH secret is missing or not loaded into the "
+            "agent."
+        ),
+        solution_steps=[
+            "ssh -T git@<host> to see if auth works",
+            "ssh-add -l; if empty, eval $(ssh-agent) && ssh-add ~/.ssh/id_ed25519",
+            "add the matching PUBLIC key to the git host's account settings",
+            "fix key perms (chmod 600) and pin the key in ~/.ssh/config per host",
+        ],
+        root_cause_pattern=(
+            "the SSH key offered is not loaded, not registered with the host, or "
+            "has wrong permissions — so public-key auth fails"
+        ),
+        localization_cues=[
+            "ssh-add -l output and ~/.ssh/config",
+            "the public key registered (or not) in the git host settings",
+            "git remote -v (SSH vs HTTPS), CI deploy-key/secret wiring",
+        ],
+        verification=[
+            {
+                "command": "ssh -T git@github.com",
+                "expected": "authenticated greeting (e.g. 'Hi <user>! ...')",
+                "buggy": "git@github.com: Permission denied (publickey)",
+            }
+        ],
+        tags=["git", "ssh", "auth", "ci"],
+    ),
 ]
 
 
