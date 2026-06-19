@@ -308,3 +308,67 @@ def test_resolve_auto_post_with_secret_in_environment_is_rejected() -> None:
             auto_post=True,
         )
     assert service._problems.list_all() == []
+
+
+# Outcome notes / environment -- publicly readable on GET /v1/problems/{id} and
+# /timeline, so gated on report_outcome and scrubbed by takedown.
+
+
+def _problem_and_solution(service, author_id):
+    problem = service.create_problem(
+        author_id=author_id,
+        description="Deploy auth fails intermittently on the push webhook step",
+    )
+    solution = service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Rotate the leaked deploy token and rerun the webhook",
+    )
+    return problem, solution
+
+
+def test_outcome_notes_with_secret_is_rejected_and_not_persisted() -> None:
+    service, author_id = _service()
+    _problem, solution = _problem_and_solution(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.report_outcome(
+            reporter_id=uuid4(),
+            solution_id=solution.solution_id,
+            success=False,
+            notes=f"failed again, token {SECRET} still in the build log",
+        )
+    assert service._outcomes.list_by_solution(solution.solution_id) == []
+
+
+def test_outcome_environment_with_secret_is_rejected_and_not_persisted() -> None:
+    service, author_id = _service()
+    _problem, solution = _problem_and_solution(service, author_id)
+    with pytest.raises(ValueError, match="secret_detected"):
+        service.report_outcome(
+            reporter_id=uuid4(),
+            solution_id=solution.solution_id,
+            success=False,
+            environment={"DATABASE_URL": CONN},
+        )
+    assert service._outcomes.list_by_solution(solution.solution_id) == []
+
+
+def test_takedown_scrubs_credentials_that_leaked_through_outcomes() -> None:
+    from backend.domain.models import Outcome
+
+    service, author_id = _service()
+    problem, solution = _problem_and_solution(service, author_id)
+    # Simulate a legacy outcome that slipped in before the gate existed.
+    service._outcomes.add(
+        Outcome(
+            solution_id=solution.solution_id,
+            reporter_id=uuid4(),
+            success=False,
+            notes=f"token {SECRET} in log",
+            environment={"REGISTRY_TOKEN": SECRET},
+        )
+    )
+    service.takedown_problem(problem.problem_id)
+    outcomes = service._outcomes.list_by_solution(solution.solution_id)
+    assert outcomes
+    assert all(o.notes is None and o.environment is None for o in outcomes)

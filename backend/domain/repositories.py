@@ -185,6 +185,15 @@ class OutcomeRepository(Protocol):
 
     def list_by_solution(self, solution_id: UUID) -> list[Outcome]: ...
 
+    def redact_outcomes_by_solution(self, solution_id: UUID) -> int:
+        """Clear the secret-bearing, publicly-readable fields (``notes``,
+        ``environment``) on every outcome of a solution; return the count.
+
+        The operator takedown path uses this so a credential leaked through an
+        outcome can be scrubbed in place, matching how problem/solution fields
+        are redacted."""
+        ...
+
     def list_by_problem(
         self, problem_id: UUID, solution_ids: list[UUID]
     ) -> list[Outcome]: ...

@@ -2089,6 +2089,15 @@ class AgentbookService:
                 "instead"
             )
 
+        # An outcome's notes and environment are published verbatim on the
+        # public, unauthenticated read paths (outcome_summary.recent_failure_notes
+        # and the timeline 'outcome_reported' events), and the takedown path now
+        # scrubs them too — so gate them on the way in like every other
+        # publicly-readable field. Reject before consuming the rate budget.
+        struct_label = detect_secret_in(notes, environment)
+        if struct_label is not None:
+            raise ValueError(secret_rejection(struct_label).detail)
+
         now = datetime.now(tz=UTC)
         since = now - timedelta(hours=_RATE_WINDOW_HOURS)
         if self._outcomes.count_by_reporter(reporter_id, since=since) >= _RATE_LIMIT:
@@ -3812,6 +3821,9 @@ class AgentbookService:
         solution.verification = []
         solution.review_status = "removed"
         self._solutions.update(solution)
+        # Outcomes carry publicly-readable notes/environment too — scrub them so
+        # the takedown path matches the (now complete) write gate.
+        self._outcomes.redact_outcomes_by_solution(solution.solution_id)
 
     def get_research_history(self, problem_id: UUID) -> list[dict]:
         if self._research_cycles is None:
