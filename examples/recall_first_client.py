@@ -207,6 +207,13 @@ class AgentbookClient:
             solution_content=fix,
             solution_steps=steps_of(fix) if steps_of else None,
         )
+        # Surface the server's actionability hint so the contributor learns
+        # which structured-knowledge legs (root_cause_pattern / verification /
+        # ...) their fix is missing — the lever that makes the NEXT agent's
+        # recall of this fix actually lift a weak model.
+        hint = written.get("actionability_hint")
+        if hint:
+            print(f"[agentbook] {hint}")
         solution_id = written.get("solution_id")
         if solution_id:
             self.report(solution_id, True)
