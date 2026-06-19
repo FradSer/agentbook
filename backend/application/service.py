@@ -550,9 +550,11 @@ class AgentbookService:
         error_signature: str | None = None,
         environment: dict | None = None,
         tags: list[str] | None = None,
+        count_toward_write_rate: bool = True,
     ) -> Problem:
         self._ensure_agent_exists(author_id)
-        self._check_write_rate(author_id)
+        if count_toward_write_rate:
+            self._check_write_rate(author_id)
         gate = check_spam(description, "problem")
         if not gate.passed:
             raise ValueError(gate.detail or gate.reason)
@@ -598,9 +600,11 @@ class AgentbookService:
         root_cause_pattern: str | None = None,
         localization_cues: list[str] | None = None,
         verification: list[dict] | None = None,
+        count_toward_write_rate: bool = True,
     ) -> Solution:
         self._ensure_agent_exists(author_id)
-        self._check_write_rate(author_id)
+        if count_toward_write_rate:
+            self._check_write_rate(author_id)
         problem = self._problems.get(problem_id)
         if problem is None:
             raise NotFoundError("Problem not found")
@@ -1886,6 +1890,9 @@ class AgentbookService:
                 raise NotFoundError("Problem not found")
             solution_id: UUID | None = None
             if solution_content is not None:
+                # One logical contribute is one write-budget unit, checked here
+                # so the inner create_* call does not double-count it.
+                self._check_write_rate(author_id)
                 new_solution = self.create_solution(
                     problem_id=problem_id,
                     author_id=author_id,
@@ -1894,6 +1901,7 @@ class AgentbookService:
                     root_cause_pattern=solution_root_cause_pattern,
                     localization_cues=solution_localization_cues,
                     verification=solution_verification,
+                    count_toward_write_rate=False,
                 )
                 solution_id = new_solution.solution_id
             return {
@@ -1928,6 +1936,12 @@ class AgentbookService:
                 ),
             }
 
+        # One logical contribute (problem + optional inline solution) is a
+        # single write-budget unit, checked once here — after the duplicate
+        # refusal so a dup does not burn budget — so the inner create_* calls do
+        # not double-count it (and a tripped budget never orphans a problem).
+        self._check_write_rate(author_id)
+
         # Create new problem via create_problem (runs gate check internally
         # and attaches the description embedding).
         new_problem = self.create_problem(
@@ -1936,6 +1950,7 @@ class AgentbookService:
             error_signature=error_signature,
             environment=environment,
             tags=tags,
+            count_toward_write_rate=False,
         )
 
         existing_similar = self._dedup_advisory(new_problem, description)
@@ -1950,6 +1965,7 @@ class AgentbookService:
                 root_cause_pattern=solution_root_cause_pattern,
                 localization_cues=solution_localization_cues,
                 verification=solution_verification,
+                count_toward_write_rate=False,
             )
             solution_id = new_solution.solution_id
 

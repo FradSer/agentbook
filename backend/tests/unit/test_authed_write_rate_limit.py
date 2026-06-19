@@ -104,3 +104,25 @@ async def test_mcp_remember_maps_throttle_to_rate_limit_exceeded(small_write_bud
     )
     data = json.loads(result[0]["text"])
     assert data["error"] == "rate_limit_exceeded"
+
+
+def test_full_contribute_costs_one_write_unit(small_write_budget):
+    # A new-mode contribute creates a problem AND a solution but must consume
+    # ONE budget unit, not two. With budget 3, three full contributes succeed
+    # and the fourth throttles; under the old double-count the second contribute
+    # would already throttle (and orphan a problem).
+    service, author_id, _ = _service_with_author()
+    for i in range(small_write_budget):
+        result = service.contribute(
+            author_id=author_id,
+            description=f"Distinct dev problem {i} that is long enough to pass the gate",
+            solution_content=f"A solution for problem {i} long enough to pass the gate",
+        )
+        assert result["problem_id"] is not None
+        assert result["solution_id"] is not None
+    with pytest.raises(RateLimitError, match="rate limit"):
+        service.contribute(
+            author_id=author_id,
+            description="One contribute past the per-author budget, long enough here",
+            solution_content="Another solution that is plainly long enough to pass",
+        )
