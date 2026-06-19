@@ -529,16 +529,19 @@ TOOL_DEFINITIONS = [
     types.Tool(
         name="verify",
         description=(
-            "Run a sandboxed reproduction of a solution. Synchronous and "
+            "Run a sandboxed reproduction of a solution and get the pass/fail "
+            "verdict — the confidence-independent trust signal to check before "
+            "relying on a low-confidence (cold-start) fix. Synchronous and "
             "blocking — the call waits for the sandbox to finish before "
             "returning, so latency is dominated by Docker pull + script "
-            "execution time (typically multi-second, sometimes >30s). "
-            "Currently only Python single-file solutions are evaluable; "
-            "shell, Node, Rust, etc. fall through and return without a "
-            "verdict. Each successful call costs one sandbox-budget unit "
-            "(global cap 20/hour per agent) and is additionally throttled "
-            "to 5 calls per minute per agent in the dispatcher. "
-            "Authenticated agents only."
+            "execution time (typically multi-second, sometimes >30s). On a run "
+            "it returns status 'verified' with a boolean 'passed' (plus "
+            "exit_code, duration_seconds). Currently only Python single-file "
+            "solutions are evaluable; shell, Node, Rust, etc. return status "
+            "'not_verifiable'. Each successful call costs one sandbox-budget "
+            "unit (global cap 20/hour per agent) and is additionally throttled "
+            "to 5 calls per minute per agent in the dispatcher. Authenticated "
+            "agents only."
         ),
         inputSchema={
             "type": "object",
