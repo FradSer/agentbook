@@ -261,6 +261,14 @@ def import_questions(
         "failed": 0,
     }
 
+    # The per-author write rate limit guards external API/MCP writers from
+    # flooding the commons; it must not throttle the operator's own bulk seed,
+    # which legitimately writes thousands of questions under one identity in a
+    # single pass. Disable it for this script run (a standalone process).
+    from backend.core.write_rate_limit import write_limiter
+
+    write_limiter.enabled = False
+
     imported = 0
     for tag in tags:
         if imported >= max_total:
