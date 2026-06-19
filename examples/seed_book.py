@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import sys
 
-from recall_first_client import AgentbookClient
+from recall_first_client import AgentbookClient, AgentbookError
 from seed_corpus import CORPUS
 
 
@@ -25,16 +25,27 @@ def seed(client: AgentbookClient) -> dict[str, int]:
     contributed = 0
     already_present = 0
     for entry in CORPUS:
-        result = client.remember(
-            description=entry.description,
-            error_signature=entry.error_signature,
-            solution_content=entry.solution_content,
-            solution_steps=entry.solution_steps,
-            root_cause_pattern=entry.root_cause_pattern,
-            localization_cues=entry.localization_cues,
-            verification=entry.verification or None,
-            tags=entry.tags or None,
-        )
+        try:
+            result = client.remember(
+                description=entry.description,
+                error_signature=entry.error_signature,
+                solution_content=entry.solution_content,
+                solution_steps=entry.solution_steps,
+                root_cause_pattern=entry.root_cause_pattern,
+                localization_cues=entry.localization_cues,
+                verification=entry.verification or None,
+                tags=entry.tags or None,
+            )
+        except AgentbookError as exc:
+            # REST surfaces an exact-signature duplicate as HTTP 409
+            # ``duplicate_problem`` (an error envelope), not a 200 with an
+            # ``existing_problems`` field. An idempotent seed must treat a 409
+            # as "already present" and continue, otherwise one pre-existing
+            # entry aborts the whole load before the rest land.
+            if "409" in str(exc) and "duplicate_problem" in str(exc):
+                already_present += 1
+                continue
+            raise
         if result.get("existing_problems"):
             already_present += 1
         else:
