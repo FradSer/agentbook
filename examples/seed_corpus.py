@@ -337,6 +337,142 @@ CORPUS: list[SeedEntry] = [
         ],
         tags=["networking", "ports", "sockets", "docker"],
     ),
+    SeedEntry(
+        description=(
+            "A Next.js / React app throws 'Hydration failed because the initial "
+            "UI does not match what was rendered on the server' (or 'Text content "
+            "does not match server-rendered HTML') — the client render diverges "
+            "from the server-rendered HTML."
+        ),
+        error_signature="Hydration failed because the initial UI does not match",
+        solution_content=(
+            "The server and client produced different markup for the same node. "
+            "Usual causes: rendering non-deterministic values during render "
+            "(Date.now(), Math.random(), new Date().toLocaleString(), "
+            "window/localStorage reads) so SSR and CSR differ; or invalid HTML "
+            "nesting (e.g. a <div> inside a <p>, a block inside an inline element) "
+            "that the browser auto-corrects. Fix: move client-only / time-dependent "
+            "values out of render — read them in useEffect and set state after "
+            "mount, or gate the subtree behind a mounted flag (`const [m,setM]="
+            "useState(false); useEffect(()=>setM(true),[])`). For deliberate "
+            "mismatches use `suppressHydrationWarning`. Fix invalid nesting so the "
+            "browser does not rewrite the DOM."
+        ),
+        solution_steps=[
+            "find render code using Date/Math.random/window/localStorage during render",
+            "move it into useEffect + state so it runs only on the client after mount",
+            "or gate the subtree behind a mounted flag",
+            "check for invalid HTML nesting the browser would auto-correct",
+        ],
+        root_cause_pattern=(
+            "server-rendered HTML differs from the first client render — "
+            "non-deterministic/client-only values used during render, or invalid "
+            "HTML nesting the browser rewrites"
+        ),
+        localization_cues=[
+            "components reading Date.now()/Math.random()/window/localStorage in render",
+            "<p>/<div> nesting that violates HTML content rules",
+            "the component named in the hydration warning stack",
+        ],
+        verification=[
+            {
+                "command": "next build && next start  # then load the page",
+                "expected": "no hydration warning in the browser console",
+                "buggy": "Hydration failed / Text content does not match",
+            }
+        ],
+        tags=["nextjs", "react", "ssr", "hydration"],
+    ),
+    SeedEntry(
+        description=(
+            "A long-running app intermittently fails DB queries with "
+            "'psycopg2.OperationalError: SSL connection has been closed "
+            "unexpectedly' / 'server closed the connection unexpectedly' — a "
+            "pooled connection went stale (idle timeout, DB restart, or a "
+            "load-balancer/proxy dropping idle TCP)."
+        ),
+        error_signature="SSL connection has been closed unexpectedly",
+        solution_content=(
+            "A connection in the pool was severed server-side (idle timeout, DB "
+            "failover, or a proxy like PgBouncer/Railway dropping idle TCP) but the "
+            "client still held it. Enable liveness checks so dead connections are "
+            "recycled before use. SQLAlchemy: `create_engine(url, pool_pre_ping="
+            "True, pool_recycle=300)` — pre_ping validates each checkout, "
+            "pool_recycle caps connection age below the server/proxy idle timeout. "
+            "Raw psycopg2: set `keepalives=1` and reconnect on OperationalError. "
+            "Behind PgBouncer in transaction mode, also disable server-side "
+            "prepared statements. Add a bounded retry around transient "
+            "OperationalError so one stale connection does not surface as a 500."
+        ),
+        solution_steps=[
+            "set pool_pre_ping=True so each checkout validates the connection",
+            "set pool_recycle below the DB/proxy idle timeout (e.g. 300s)",
+            "wrap queries in a small retry on transient OperationalError",
+            "behind PgBouncer transaction mode, disable prepared statements",
+        ],
+        root_cause_pattern=(
+            "a pooled DB connection was closed server-side (idle timeout / failover "
+            "/ proxy) while the client cached it as live; the next use hits a dead "
+            "socket"
+        ),
+        localization_cues=[
+            "SQLAlchemy create_engine without pool_pre_ping/pool_recycle",
+            "a managed Postgres / PgBouncer / load balancer with an idle timeout",
+            "errors appearing only after the app has been idle",
+        ],
+        verification=[
+            {
+                "command": "python -c \"from sqlalchemy import create_engine,text; e=create_engine(url,pool_pre_ping=True,pool_recycle=300); e.connect().execute(text('select 1'))\"",
+                "expected": "select 1 succeeds even after an idle period",
+                "buggy": "OperationalError: SSL connection has been closed unexpectedly",
+            }
+        ],
+        tags=["postgres", "sqlalchemy", "psycopg2", "connection-pool"],
+    ),
+    SeedEntry(
+        description=(
+            "TypeScript fails with \"Cannot find module 'X' or its corresponding "
+            'type declarations" (ts2307) for a package that is installed and runs '
+            "fine at runtime."
+        ),
+        error_signature="Cannot find module or its corresponding type declarations",
+        solution_content=(
+            "TypeScript cannot resolve the module's TYPES (runtime resolution is "
+            "separate). Common fixes: (1) the package ships no types — install them: "
+            "`npm i -D @types/<pkg>`; if none exist, add a declaration "
+            "`declare module 'X';` in a *.d.ts. (2) Path-alias imports (`@/...`) "
+            "not mirrored in tsconfig — add matching `compilerOptions.paths` (and "
+            "`baseUrl`). (3) `moduleResolution` mismatch — for modern ESM/bundlers "
+            'set `"moduleResolution": "bundler"` (or "node16"/"nodenext"), and '
+            "ensure the package's `exports`/`types` are reachable. (4) A subpath "
+            "import needs the `types`-condition in the package exports. Restart the "
+            "TS server after editing tsconfig so it reloads."
+        ),
+        solution_steps=[
+            "if the package has no bundled types: npm i -D @types/<pkg> (or add a *.d.ts declare module)",
+            "for path aliases: add compilerOptions.paths + baseUrl in tsconfig",
+            "set moduleResolution to bundler/node16/nodenext to match your toolchain",
+            "restart the TS server so it reloads tsconfig",
+        ],
+        root_cause_pattern=(
+            "TypeScript's type resolution (separate from runtime resolution) cannot "
+            "find a declaration: missing @types, an unmapped path alias, or a "
+            "moduleResolution mismatch with the package's exports/types"
+        ),
+        localization_cues=[
+            "the import line flagged ts2307",
+            "tsconfig.json compilerOptions paths/baseUrl/moduleResolution",
+            "the package's package.json exports/types fields",
+        ],
+        verification=[
+            {
+                "command": "npx tsc --noEmit",
+                "expected": "no ts2307 for the import",
+                "buggy": "error TS2307: Cannot find module 'X' or its corresponding type declarations",
+            }
+        ],
+        tags=["typescript", "types", "tsconfig", "module-resolution"],
+    ),
 ]
 
 
