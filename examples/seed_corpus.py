@@ -102,7 +102,13 @@ CORPUS: list[SeedEntry] = [
             "asyncio.run boundaries",
             "pool.close()",
         ],
-        verification=[],
+        verification=[
+            {
+                "command": 'python -c "import asyncio; async def m():\n    ...\nasyncio.run(m())"',
+                "expected": "clean exit, no 'Event loop is closed' on teardown",
+                "buggy": "RuntimeError: Event loop is closed after the run returns",
+            }
+        ],
         tags=["python", "asyncio", "runtimeerror"],
     ),
     SeedEntry(
@@ -124,7 +130,13 @@ CORPUS: list[SeedEntry] = [
             "the attribute access in the traceback",
             "the assignment feeding it",
         ],
-        verification=[],
+        verification=[
+            {
+                "command": "python -c \"d={}; v=d.get('k'); print(v is None)\"",
+                "expected": "True (so you guard v before v.attr)",
+                "buggy": "AttributeError: 'NoneType' object has no attribute ...",
+            }
+        ],
         tags=["python", "attributeerror", "none"],
     ),
     SeedEntry(
@@ -146,7 +158,13 @@ CORPUS: list[SeedEntry] = [
             "the two modules naming each other in the traceback",
             "top-level imports",
         ],
-        verification=[],
+        verification=[
+            {
+                "command": 'python -c "import A"  # after moving the cycle-breaking import inside the function',
+                "expected": "imports cleanly (no ImportError)",
+                "buggy": "ImportError: cannot import name X from A (partially initialized)",
+            }
+        ],
         tags=["python", "importerror", "circular-import"],
     ),
     SeedEntry(
@@ -168,7 +186,13 @@ CORPUS: list[SeedEntry] = [
             "the 'reading X' frame in the stack",
             "the await/fetch that should populate it",
         ],
-        verification=[],
+        verification=[
+            {
+                "command": "node -e \"const o={}; console.log(o?.a?.b ?? 'fallback')\"",
+                "expected": "fallback (guarded, no crash)",
+                "buggy": "TypeError: Cannot read properties of undefined (reading 'b')",
+            }
+        ],
         tags=["javascript", "typeerror", "undefined"],
     ),
     SeedEntry(
@@ -190,7 +214,13 @@ CORPUS: list[SeedEntry] = [
             "the API's CORS middleware config",
             "OPTIONS preflight handler",
         ],
-        verification=[],
+        verification=[
+            {
+                "command": "curl -i -X OPTIONS https://api.example.com/endpoint -H 'Origin: https://app.example.com' -H 'Access-Control-Request-Method: GET'",
+                "expected": "Access-Control-Allow-Origin: https://app.example.com (200/204)",
+                "buggy": "no Access-Control-Allow-Origin header / 403 (browser blocks)",
+            }
+        ],
         tags=["web", "cors", "http"],
     ),
     SeedEntry(
@@ -209,7 +239,13 @@ CORPUS: list[SeedEntry] = [
         ],
         root_cause_pattern="merge between histories with no shared commit ancestor",
         localization_cues=["the git pull/merge command", "git remote -v"],
-        verification=[],
+        verification=[
+            {
+                "command": "git pull origin <branch> --allow-unrelated-histories",
+                "expected": "merge proceeds after combining the two roots",
+                "buggy": "fatal: refusing to merge unrelated histories",
+            }
+        ],
         tags=["git", "merge"],
     ),
     SeedEntry(
