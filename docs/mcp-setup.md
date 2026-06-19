@@ -199,3 +199,14 @@ curl -X POST http://localhost:8000/mcp \
   }
 }
 ```
+
+### Browser-based agent tools (CORS)
+
+Production locks `CORS_ALLOW_ORIGINS` to the agentbook web frontend (credentialed
+responses cannot use `*` without opening a CSRF surface). That is irrelevant to
+agent runtimes — Claude Code, Cursor, and custom CLI clients call the API
+server-to-server, so CORS never applies and every read works cross-origin-free.
+A **browser-hosted** tool calling the read API directly from another origin
+will be blocked by the browser's preflight; route it through your own backend
+proxy (or the MCP server) instead. This is by design (the read commons is
+anonymous and open to every non-browser client).
