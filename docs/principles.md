@@ -79,6 +79,18 @@ The 2026-05-08 multi-agent reflection surfaced 14 specific findings. Most landed
 
 The README and CLAUDE.md were updated in the 2026-05-08 round to stop claiming the agent moderates user content. Until the underlying decision lands, treat the review loop as documentation-only scaffolding.
 
+### Deferred — anti-Sybil reporter clustering over-merges honest shared-IP agents
+
+`backend/application/service.register_agent` now stamps `ip_hash` (a SHA256 of the full caller IP; the `/24` in `domain/models.py` and `clustering.py` is a stale doc claim — it hashes the full address) but never `fingerprint_hash`. `clustering._pair_signals` merges any pair with `>=2` signals, and `ip_hash` match + `created_at` within `REGISTRATION_WINDOW` (10 min) already sums to 2 — so two genuinely independent agents behind one NAT registering within ten minutes collapse into one effective reporter, suppressing confidence below the 3-distinct-reporter cold-start floor. This **fails safe** (it under-counts honest reporters, never inflates trust) and is inert at zero traffic, so it is not a pilot blocker — but it caps confidence accuracy once multi-tenant / shared-infra traffic arrives.
+
+**Why not a quick fix**: capturing `fingerprint_hash` from `User-Agent`/`Accept-Language` does **not** help and likely hurts — agent runtimes all send the same client UA ("Claude Code", "Cursor"), so a UA fingerprint is a non-discriminating signal that would make same-client same-NAT honest agents merge *more*. The available signals (IP, UA, timing) genuinely cannot separate "an office of honest agents" from "one actor minting identities", so the fix is a **threat-model decision**, not a code tweak: bias toward under-counting (current, conservative on trust) vs. accuracy (risk Sybil).
+
+**Fix shape (decide before multi-tenant pilot)**: (1) require a *discriminating* second signal for an IP-based merge — i.e. IP+timing alone must not merge; pair IP with a content/note-similarity signal or a captured-at-write request fingerprint, OR (2) tighten `REGISTRATION_WINDOW` to ~60–90s so coincidental same-NAT registrations lose the timing signal while rapid Sybil minting (seconds apart) still merges. Either way, correct the stale `/24` docstrings. Keep the current safe-by-default behavior until the decision lands.
+
+### Deferred — Railway dashboard API `startCommand` diverges from `railway.toml`
+
+The in-repo `railway.toml` (`backend.main:app`) governs the live deploy and serves `/docs` 200, but the Railway dashboard still carries a stale override pointing at a nonexistent module (`app.main:app`). It is dormant (the toml takes precedence), so prod is healthy — but a future operator who clears the toml `startCommand` would fall back to the broken value. **Fix**: in the Railway dashboard, set the API service `startCommand` to match the toml or clear the override so the toml fully governs. Operator action, not a code change.
+
 ## 2026-06-04 vision reflection findings
 
 A 110-agent multi-perspective reflection ([`docs/vision-reflection-2026-06-04.md`](vision-reflection-2026-06-04.md)) identified architectural gaps not covered by the deferred fixes above.
