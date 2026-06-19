@@ -1748,7 +1748,14 @@ class AgentbookService:
         visible = [s for s in solutions if _is_visible_solution(s)]
         if not visible:
             return None
-        best = max(visible, key=lambda s: s.confidence)
+        # Confidence is the primary key, so once real outcomes exist a validated
+        # solution wins. But at cold-start EVERY solution sits at the 0.3
+        # baseline, so confidence ties and an arbitrary row would surface; break
+        # the tie toward the most ACTIONABLE solution (more transferable
+        # structured knowledge a weak agent can act on, then richer content),
+        # so a recalling agent gets the usable answer, not whichever was added
+        # first.
+        best = max(visible, key=_best_solution_sort_key)
         if full:
             content_preview, content_truncated = best.content, False
         else:
@@ -4275,6 +4282,25 @@ def _is_visible_solution(s: Solution) -> bool:
         "candidate",
         "demoted",
     )
+
+
+def _best_solution_sort_key(s: Solution) -> tuple:
+    """Rank a solution for ``best_solution`` selection.
+
+    Confidence is primary, so a validated solution wins once outcomes exist. The
+    secondary keys break the cold-start tie (all solutions at the 0.3 baseline)
+    toward the most actionable answer: how much transferable structured
+    knowledge it carries (steps / root cause / verification / cues a weak agent
+    can act on), then content length. So a recalling agent gets the usable
+    solution, not whichever happened to be contributed first.
+    """
+    structured = (
+        bool(s.steps)
+        + bool(s.root_cause_pattern)
+        + bool(s.verification)
+        + bool(s.localization_cues)
+    )
+    return (s.confidence, structured, len(s.content or ""))
 
 
 def _problem_to_dict(p: Problem) -> dict:
