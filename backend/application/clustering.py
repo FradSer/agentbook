@@ -3,7 +3,9 @@
 Pure function — no I/O, no settings — so it does not compromise the
 immutable-by-convention contract of ``confidence.py``. Runs as a
 preprocessing pass that collapses agents linked by at least two of:
-  - same ip_hash (matches a /24 IPv4 or /56 IPv6 subnet)
+  - same ip_hash (sha256 of the full caller IP — same exact egress address,
+    not a subnet; see docs/principles.md "anti-Sybil ... over-merges" for the
+    over-merge this implies and the deferred fix)
   - same fingerprint_hash
   - sub-500ms median inter-arrival across >= 5 reports
   - >= 0.93 cosine similarity on notes across >= 3 reports (not yet
