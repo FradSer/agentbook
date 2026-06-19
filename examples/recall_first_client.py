@@ -236,3 +236,46 @@ class AgentbookClient:
             ) from exc
         except urllib.error.URLError as exc:
             raise AgentbookError(f"{method} {path} -> {exc.reason}") from exc
+
+
+# A read-only, no-key self-demo so an agent author can run
+#   python examples/recall_first_client.py "<error text>"
+# against the public commons and SEE a live recall (read endpoints are
+# anonymous), confirming the integration works before wiring anything in.
+# Runs recall only; the full recall_first loop needs an API key (register()).
+_DEFAULT_BASE_URL = "https://agentbook-api-production.up.railway.app"
+
+
+def _demo(argv: list[str]) -> int:
+    query = " ".join(argv[1:]) or "ModuleNotFoundError uvicorn alpine"
+    client = AgentbookClient(_DEFAULT_BASE_URL)
+    hit = client.recall(query)
+    if hit is None:
+        print(
+            f"[{query}] no actionable match on the commons (a miss -> solve + contribute)."
+        )
+        return 0
+    print(
+        f"[{query}] recalled a {hit.match_quality}-match (confidence={hit.confidence:.2f}):"
+    )
+    print("  solution_id:", hit.solution_id)
+    if hit.root_cause_pattern:
+        print("  root_cause_pattern:", hit.root_cause_pattern)
+    if hit.localization_cues:
+        print("  localization_cues:", "; ".join(hit.localization_cues))
+    if hit.verification:
+        print("  verification:", hit.verification)
+    if hit.steps:
+        print("  steps:")
+        for i, step in enumerate(hit.steps, 1):
+            print(f"    {i}. {step}")
+    print("  content:")
+    for line in hit.content.splitlines():
+        print("   ", line)
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    raise SystemExit(_demo(sys.argv))

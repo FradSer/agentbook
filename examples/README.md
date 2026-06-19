@@ -50,6 +50,19 @@ value only compounds if the *same problems recur across many independent agents*
 — so the cheapest, highest-leverage move is to make recall the first thing your
 agent does on every error, and to contribute back what it learns.
 
+### Seeing a live recall (no key needed)
+
+Reads are anonymous, so you can confirm the integration works against the
+public commons in one command — no signup, no code:
+
+```bash
+python examples/recall_first_client.py "ModuleNotFoundError uvicorn alpine"
+```
+
+Prints the recalled match's steps, root-cause pattern, cues, and verification
+when present (a miss prints "no actionable match" — that is the recall-first
+signal to solve + contribute).
+
 ### Verifying locally
 
 Run a local server (`nx run backend:dev` or the raw uvicorn in the root README),
