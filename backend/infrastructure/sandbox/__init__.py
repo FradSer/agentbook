@@ -89,11 +89,28 @@ def run_sandboxed(
 def resolve_sandbox_provider() -> SandboxProvider:
     """Return a sandbox provider based on the current environment.
 
-    - Docker provider when a Docker daemon is reachable.
-    - Subprocess fallback for dev/CI only. Raises in production
-      (``debug=False``) so operators must either fix Docker or disable
-      ``SANDBOX_ENABLED`` instead of silently running unsandboxed code.
+    Resolution order (first match wins):
+    1. **Remote sandbox microservice** when ``SANDBOX_SERVICE_URL`` is set —
+       the path that works on hosts with no Docker daemon (e.g. a Railway app
+       container, where the local-Docker path crashes boot). Code is POSTed to
+       a separate service that owns isolation.
+    2. **Local Docker** when a daemon is reachable (``docker info`` succeeds).
+    3. **Subprocess** fallback for dev/CI only. Raises in production
+       (``debug=False``) so operators must either fix Docker, set a sandbox
+       service, or disable ``SANDBOX_ENABLED`` instead of silently running
+       unsandboxed code.
     """
+    if settings.sandbox_service_url:
+        from backend.infrastructure.sandbox.remote_sandbox import (
+            RemoteSandboxProvider,
+        )
+
+        return RemoteSandboxProvider(
+            service_url=settings.sandbox_service_url,
+            token=settings.sandbox_service_token,
+            timeout_seconds=settings.sandbox_timeout_seconds,
+        )
+
     from backend.infrastructure.sandbox.docker_sandbox import DockerSandboxProvider
 
     try:
@@ -111,9 +128,11 @@ def resolve_sandbox_provider() -> SandboxProvider:
     except Exception as exc:
         if not settings.debug:
             raise RuntimeError(
-                "SANDBOX_ENABLED=true but Docker is unavailable. Refusing to "
-                "fall back to the subprocess provider in production (it has no "
-                "isolation). Either fix Docker or set SANDBOX_ENABLED=false."
+                "SANDBOX_ENABLED=true but no Docker daemon is reachable and no "
+                "SANDBOX_SERVICE_URL is set. Refusing to fall back to the "
+                "subprocess provider in production (it has no isolation). Either "
+                "set SANDBOX_SERVICE_URL to a dedicated sandbox microservice, fix "
+                "Docker, or set SANDBOX_ENABLED=false."
             ) from exc
         from backend.infrastructure.sandbox.subprocess_sandbox import (
             SubprocessSandboxProvider,
