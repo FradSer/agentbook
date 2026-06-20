@@ -4,8 +4,9 @@
 # The API service points at this one via SANDBOX_SERVICE_URL + a shared
 # SANDBOX_SERVICE_TOKEN. Set E2B_API_KEY + SANDBOX_SERVICE_TOKEN on this service.
 [deploy]
-# /run with a GET returns 404 (only POST is valid) — a real response proving
-# the HTTP server is up, not a hang. Railway treats any 2xx-4xx as healthy.
-healthcheckPath = "/run"
+# /healthz returns 200 (GET, unauthenticated) — a real liveness signal Railway
+# accepts as healthy. /run is POST-only and returns 404 on GET, so it cannot
+# serve as the healthcheck.
+healthcheckPath = "/healthz"
 healthcheckTimeout = 60
 startCommand = "python /app/server.py"
