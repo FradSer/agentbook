@@ -113,6 +113,21 @@ def _run_dind(code: str, error_signature, timeout: int) -> dict:
                 "stderr": f"Timeout after {timeout}s",
                 "duration_seconds": round(time.monotonic() - start, 3),
             }
+        except FileNotFoundError:
+            # No docker binary on this host (the non-privileged Railway case
+            # without an E2B_API_KEY). Return a clear failure instead of a 500
+            # so the API surfaces a usable verdict rather than a server crash.
+            return {
+                "success": False,
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": (
+                    "no execution backend available: set E2B_API_KEY for the "
+                    "e2b cloud backend (the DinD fallback needs a Docker daemon "
+                    "not present on this host)"
+                ),
+                "duration_seconds": round(time.monotonic() - start, 3),
+            }
 
 
 def _run(code: str, error_signature, timeout: int) -> dict:
