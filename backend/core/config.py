@@ -88,6 +88,13 @@ class Settings(SharedSettings):
     sandbox_timeout_seconds: int = 30
     sandbox_image: str = "python:3.11-slim"
     sandbox_memory_mb: int = 128
+    # Remote sandbox microservice: when set, code is POSTed to this URL
+    # (a separate service that is itself a Docker host) instead of shelling
+    # out to a local ``docker`` daemon. This is the path that works on hosts
+    # with no Docker daemon (e.g. a Railway app container) — the API never
+    # runs untrusted code in-process, the sandbox service owns isolation.
+    sandbox_service_url: str | None = None
+    sandbox_service_token: str | None = None
 
     # Cross-problem knowledge graph
     knowledge_graph_enabled: bool = False
