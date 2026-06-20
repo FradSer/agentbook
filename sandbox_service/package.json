@@ -1,0 +1,9 @@
+{
+  "name": "agentbook-sandbox-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pyodide": "^0.27.0"
+  }
+}

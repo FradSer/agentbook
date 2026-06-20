@@ -130,9 +130,71 @@ def _run_dind(code: str, error_signature, timeout: int) -> dict:
             }
 
 
+def _run_pyodide(code: str, timeout: int) -> dict:
+    """Run code in Pyodide (WASM Python) via a Node subprocess.
+
+    The self-hosted, KEY-FREE sandbox backend: the WASM linear-memory boundary
+    is the isolation — no host filesystem, no raw sockets, no privileged
+    container, no Docker daemon, no third-party API key. Needs only Node +
+    the pyodide npm package (cold-start downloads the WASM runtime once).
+    """
+    import json as _json
+    import subprocess
+    from pathlib import Path
+
+    runner = Path(__file__).parent / "pyodide_runner.mjs"
+    start = time.monotonic()
+    try:
+        proc = subprocess.Popen(
+            ["node", str(runner)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        out, err = proc.communicate(
+            input=_json.dumps({"code": code, "timeout": timeout}),
+            timeout=timeout + 15,  # WASM cold start can take time
+        )
+        duration = time.monotonic() - start
+        if out.strip():
+            result = _json.loads(out.strip().splitlines()[-1])
+            result["duration_seconds"] = round(duration, 3)
+            return result
+        return {
+            "success": False,
+            "exit_code": proc.returncode,
+            "stdout": "",
+            "stderr": (err or "pyodide runner produced no output")[:4096],
+            "duration_seconds": round(duration, 3),
+        }
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return {
+            "success": False,
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": f"pyodide runner timeout after {timeout}s",
+            "duration_seconds": round(time.monotonic() - start, 3),
+        }
+    except FileNotFoundError:
+        return {
+            "success": False,
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": "node not found; install node to use the pyodide backend",
+            "duration_seconds": round(time.monotonic() - start, 3),
+        }
+
+
 def _run(code: str, error_signature, timeout: int) -> dict:
+    # Resolution order: e2b (cloud, best) -> pyodide (self-hosted, key-free,
+    # WASM isolation) -> DinD (dev only). Pyodide makes the sandbox work with
+    # zero operator setup, removing the last external-key dependency.
     if _E2B_KEY:
         return _run_e2b(code, timeout)
+    if os.environ.get("SANDBOX_DISABLE_PYODIDE") != "1":
+        return _run_pyodide(code, timeout)
     return _run_dind(code, error_signature, timeout)
 
 
