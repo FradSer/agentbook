@@ -94,3 +94,15 @@ def test_missing_code_returns_400():
     )
     assert status.startswith("400")
     assert body["error"] == "invalid_input"
+
+
+def test_dind_fallback_with_no_docker_daemon_returns_failure_not_500():
+    # On a non-privileged host without E2B_API_KEY, _run_dind hits FileNotFoundError
+    # ('docker' binary absent). It must return a failed verdict (so the API surfaces
+    # a usable result) rather than crashing the WSGI server into a 500.
+    module = _load()
+    module._E2B_KEY = ""  # force the DinD fallback
+    with patch("subprocess.run", side_effect=FileNotFoundError("docker")):
+        result = module._run_dind("print('x')", None, 5)
+    assert result["success"] is False
+    assert "E2B_API_KEY" in result["stderr"]
