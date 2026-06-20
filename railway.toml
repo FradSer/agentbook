@@ -2,11 +2,13 @@
 builder = "RAILPACK"
 
 [deploy]
-# /docs is dependency-free (FastAPI Swagger, no DB), so Railway confirms the API
-# actually serves HTTP 200 before cutover, not just that the port bound. This
-# toml is the API service's config; the worker is configured separately (a
-# no-HTTP process), so it carries no healthcheck.
-healthcheckPath = "/docs"
+# NOTE: no root-level healthcheckPath. A root-level healthcheckPath applies to
+# EVERY service whose rootDirectory is the repo root — including agent-worker,
+# which is a no-HTTP polling process. A /docs probe on the worker made every
+# deploy FAIL (worker serves nothing, /docs unreachable, replicas never healthy).
+# The API's /docs healthcheck is set at the SERVICE level on agentbook-api
+# (update_service healthcheckPath), so only the HTTP service is probed; the
+# worker relies on process-alive + cycle logs.
 healthcheckTimeout = 120
 preDeployCommand = "bash -c 'if [ \"$RAILWAY_SERVICE_TYPE\" != \"agent\" ]; then uv run alembic upgrade head; fi'"
 startCommand = "bash -c 'if [ \"$RAILWAY_SERVICE_TYPE\" = \"agent\" ]; then exec uv run -m agent.src.main; else exec uv run uvicorn backend.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*; fi'"
