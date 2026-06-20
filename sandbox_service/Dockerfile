@@ -1,16 +1,19 @@
-# Sandbox microservice — e2b cloud backend (deployable on non-privileged Railway).
-# Isolation lives in e2b's cloud sandbox, NOT in this process, so this service
-# runs unprivileged and safe. Set E2B_API_KEY + SANDBOX_SERVICE_TOKEN.
-# (A DinD fallback exists for local dev only — it needs a privileged host.)
+# Sandbox microservice — pyodide WASM backend (self-hosted, key-free, default).
+# Isolation is the WASM linear-memory boundary (no host FS, no raw sockets),
+# so this runs unprivileged on standard Railway with ZERO operator setup.
+# e2b is an optional faster/cloud backend (set E2B_API_KEY); DinD is dev-only.
 FROM python:3.11-slim
 
-WORKDIR /app
-RUN pip install --no-cache-dir e2b-code-interpreter
+# Node for the pyodide WASM runner; npm installs the pyodide runtime (~15MB,
+# cold-start loads it once). No Docker daemon needed.
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm && rm -rf /var/lib/apt/lists/*
 
-COPY server.py /app/server.py
+WORKDIR /app
+COPY server.py pyodide_runner.mjs package.json ./
+RUN npm install --omit=dev --no-audit --no-fund
 
 ENV PORT=8080
 EXPOSE 8080
 
-# E2B_API_KEY and SANDBOX_SERVICE_TOKEN must be set at deploy time.
+# No third-party key required by default. SANDBOX_SERVICE_TOKEN gates access.
 CMD ["python", "/app/server.py"]
