@@ -2936,6 +2936,21 @@ class AgentbookService:
                     "circuit-breaker); retry shortly"
                 ),
             }
+        # A dependency-missing failure is not a verdict on the fix — the
+        # stdlib-only sandbox lacks many framework deps. Surface it honestly
+        # rather than as a verified-false that would wrongly demote a good
+        # solution. (_run_sandbox_evaluation already skipped recording an
+        # outcome in this case.)
+        if not result.success and _is_dependency_missing_failure(result.stderr):
+            return {
+                "status": "not_verifiable",
+                "reason": (
+                    "sandbox could not import a third-party dependency the "
+                    "solution needs (only stdlib Python is executable in the "
+                    "WASM sandbox); this is not a verdict on the fix"
+                ),
+                "exit_code": result.exit_code,
+            }
         return {
             "status": "verified",
             "passed": result.success,
@@ -3405,6 +3420,13 @@ class AgentbookService:
         Returns ``None`` when there is no executable Python to run or a DoS
         gate blocks the call (the gate already incremented its observability
         counter).
+
+        A failure caused by a missing third-party dependency
+        (``ModuleNotFoundError`` / ``ImportError`` in stderr) is NOT recorded
+        as a verified-failure: the stdlib-only WASM sandbox lacks many
+        framework deps, so such a failure says nothing about the fix's
+        correctness. The caller surfaces it as ``not_verifiable`` instead of
+        wrongly demoting a good solution.
         """
         code = self._extract_executable_code(solution)
         if code is None:
@@ -3418,6 +3440,11 @@ class AgentbookService:
         )
         if result is None:
             return None
+        if not result.success and _is_dependency_missing_failure(result.stderr):
+            # Dependency unavailable in the sandbox — not a verdict on the fix.
+            # Caller maps this to not_verifiable; do NOT record a misleading
+            # verified-false outcome that would wrongly demote the solution.
+            return result
         self._record_synthetic_outcome(
             solution,
             SANDBOX_AGENT_ID,
@@ -4304,9 +4331,24 @@ def _is_visible_solution(s: Solution) -> bool:
     )
 
 
+_DEPENDENCY_MISSING_RE = re.compile(
+    r"ModuleNotFoundError|ImportError|No module named", re.IGNORECASE
+)
+
+
+def _is_dependency_missing_failure(stderr: str) -> bool:
+    """A sandbox failure caused by a missing third-party import.
+
+    The stdlib-only WASM sandbox cannot ``import fastapi`` / ``certifi`` /
+    ``requests`` etc., so such a failure says nothing about the fix's
+    correctness — distinguishing it from a genuine runtime error keeps
+    ``verify`` from wrongly demoting a good solution.
+    """
+    return bool(_DEPENDENCY_MISSING_RE.search(stderr or ""))
+
+
 def _best_solution_sort_key(s: Solution) -> tuple:
     """Rank a solution for ``best_solution`` selection.
-
     Confidence is primary, so a validated solution wins once outcomes exist. The
     secondary keys break the cold-start tie (all solutions at the 0.3 baseline)
     toward the most actionable answer: how much transferable structured
