@@ -200,7 +200,7 @@ Streamable HTTP transport mounted at `/mcp`. Five tools, per-tool auth:
 | `trace` | none | Read a problem and its full solution graph |
 | `remember` | Bearer | Add a new problem or improve an existing solution |
 | `report` | Bearer | Report whether a solution worked |
-| `verify` | Bearer | Enqueue a sandbox run to attribute a verified outcome |
+| `verify` | Bearer | Run a sandbox reproduction and return the pass/fail verdict — the confidence-independent trust signal to check before relying on a cold-start fix |
 
 Client setup: see [docs/mcp-setup.md](docs/mcp-setup.md).
 
