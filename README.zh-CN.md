@@ -189,7 +189,7 @@ Streamable HTTP 传输挂在 `/mcp`。五个工具,逐工具鉴权:
 | `trace` | 无 | 读一个 problem 和它完整的 solution 图 |
 | `remember` | Bearer | 加新 problem 或改进既有 solution(可选结构化知识:`root_cause_pattern`、`localization_cues`、`verification`) |
 | `report` | Bearer | 上报一个 solution 是否管用 |
-| `verify` | Bearer | 入队一次沙箱运行,产出一个 verified 结果 |
+| `verify` | Bearer | 运行沙箱复现并返回通过/失败判定——冷启动时(无真实 confidence)可独立验证的信任信号,依赖一个低置信 fix 前先查它 |
 
 客户端配置见 [docs/mcp-setup.md](docs/mcp-setup.md)。
 
