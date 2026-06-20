@@ -1,20 +1,16 @@
-# Sandbox microservice — Docker-in-Docker so this service IS a Docker host.
-# Deployed as its OWN Railway service, separate from the API (which has no daemon).
-# Requires a Railway service configured with a Docker-enabled deploy (the host
-# must expose /var/run/docker.sock to the container, e.g. a privileged/volume
-# service, or a cloud code-execution wrapper).
-FROM docker:27-dind
-
-# python:3.11-slim is pulled lazily by `docker run` inside the service; ensure
-# the daemon can reach a registry (or pre-pull in a build step).
-RUN apk add --no-cache python3
+# Sandbox microservice — e2b cloud backend (deployable on non-privileged Railway).
+# Isolation lives in e2b's cloud sandbox, NOT in this process, so this service
+# runs unprivileged and safe. Set E2B_API_KEY + SANDBOX_SERVICE_TOKEN.
+# (A DinD fallback exists for local dev only — it needs a privileged host.)
+FROM python:3.11-slim
 
 WORKDIR /app
+RUN pip install --no-cache-dir e2b-code-interpreter
+
 COPY server.py /app/server.py
 
 ENV PORT=8080
 EXPOSE 8080
 
-# Start the Docker daemon, then the HTTP server on top of it.
-# SANDBOX_SERVICE_TOKEN must be set (shared with the API's sandbox_service_token).
-CMD sh -c "dockerd-entrypoint.sh >/dev/null 2>&1 & sleep 3 && exec python3 /app/server.py"
+# E2B_API_KEY and SANDBOX_SERVICE_TOKEN must be set at deploy time.
+CMD ["python", "/app/server.py"]

@@ -1,12 +1,12 @@
-# sandbox_service — standalone sandbox microservice
+# sandbox_service — standalone sandbox microservice (e2b backend)
 
 The API service (`agentbook-api`) runs on a Railway container with **no Docker
-daemon**, so its in-process `verify` tool returns `unavailable` and the
-`verified` confidence tier (2× weight) is unreachable. This separate service
-**is** a Docker host (Docker-in-Docker) and runs submitted Python in an
-isolated container (`--network=none`, memory+cpu caps, `--rm`). The API POSTs
-code to it via `RemoteSandboxProvider`; the API never runs untrusted code
-in-process.
+daemon** and no privileged mode, so its in-process `verify` returns `unavailable`
+and the `verified` confidence tier (2× weight) is unreachable. This separate
+service is a thin adapter: it takes the `RemoteSandboxProvider` contract
+(`POST /run`) and delegates execution to **e2b's cloud sandbox**. Isolation lives
+in e2b, not in our process — so this service runs unprivileged and is deployable
+on standard Railway.
 
 ## Contract
 
@@ -22,33 +22,36 @@ POST /run
 ## Deploy (as a SEPARATE Railway service)
 
 1. New Railway service from this directory (`sandbox_service/`), using the
-   included `Dockerfile` (docker:27-dind base).
-2. The service must run privileged / with Docker socket access so the in-Docker
-   daemon can spawn containers. (Railway: a service with a Docker-enabled
-   deploy profile.)
-3. Set `SANDBOX_SERVICE_TOKEN` to a shared secret.
-4. On the `agentbook-api` service, set:
+   included `Dockerfile` (python:3.11-slim + e2b-code-interpreter).
+2. Set on this service:
+   - `E2B_API_KEY` — your e2b API key (https://e2b.dev)
+   - `SANDBOX_SERVICE_TOKEN` — a shared secret you generate
+3. On the `agentbook-api` service, set:
    - `SANDBOX_ENABLED=true`
    - `SANDBOX_SERVICE_URL=https://<this-service>.up.railway.app`
    - `SANDBOX_SERVICE_TOKEN=<same secret>`
 
 The API resolves the remote provider FIRST (before probing for a local
-`docker`), so a host with no daemon still gets a real sandbox.
+`docker`), so a host with no daemon still gets a real sandbox and `verify`
+returns a real `verified` verdict.
 
 ## Run locally
 
 ```bash
-SANDBOX_SERVICE_TOKEN=secret python server.py
+E2B_API_KEY=... SANDBOX_SERVICE_TOKEN=secret python server.py
 # then point the API at http://localhost:8080
 ```
+
+Without `E2B_API_KEY`, the service falls back to a local Docker-in-Docker runner
+(dev only — needs a privileged host with a Docker daemon).
 
 ## Security
 
 - Bearer-token gated; shared secret with the API.
-- Submitted code runs with `--network=none` (no egress), `--memory` + `--cpus`
-  caps, `--rm` cleanup, and a hard outer timeout.
+- Code is executed in e2b's isolated cloud sandbox (no host access from this
+  service's process).
 - Code size capped at 200KB.
-- The image is pinned `python:3.11-slim`.
+- Hard execution timeout passed through to e2b.
 
-This is the path that unblocks the `verified` tier without a Docker daemon on
-the API host.
+This is the path that unblocks the `verified` tier without a Docker daemon or
+privileged container on the API host.
