@@ -3243,11 +3243,14 @@ class AgentbookService:
     def _extract_executable_code(solution: Solution) -> str | None:
         """Extract fenced Python code blocks from a solution.
 
-        Only Python blocks are sandbox-executable; shell/prose is skipped.
+        Only blocks explicitly tagged ``python``/``py`` are sandbox-executable;
+        untagged or other-language fences (shell, dockerfile, prose snippets)
+        are skipped. Running prose like ``Then use in your code:`` as Python
+        yields a ``SyntaxError`` that verify would wrongly report as a failed
+        fix, so requiring the explicit tag keeps verify honest.
         """
-
         blocks = re.findall(
-            r"```(?:python|py)?\s*\n(.*?)```",
+            r"```(?:python|py)\s*\n(.*?)```",
             solution.content,
             re.DOTALL,
         )
