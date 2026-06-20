@@ -1,12 +1,11 @@
-# Railway config for the standalone sandbox microservice.
+# Railway config for the standalone sandbox microservice (e2b backend).
 # Deploy as a SEPARATE Railway service rooted at sandbox_service/.
-# It runs Docker-in-Docker (it is itself a Docker host), so it must be a
-# privileged service with access to a Docker daemon. The API service points at
-# this one via SANDBOX_SERVICE_URL + a shared SANDBOX_SERVICE_TOKEN.
+# Runs UNPRIVILEGED — isolation is e2b's cloud sandbox, not this process.
+# The API service points at this one via SANDBOX_SERVICE_URL + a shared
+# SANDBOX_SERVICE_TOKEN. Set E2B_API_KEY + SANDBOX_SERVICE_TOKEN on this service.
 [deploy]
-# A health probe: the service returns 404 on / (only /run is valid), but a
-# connection succeeding means the HTTP server is up. Use /run with GET -> 404
-# as a liveness signal (404 is a real response, not a hang).
+# /run with a GET returns 404 (only POST is valid) — a real response proving
+# the HTTP server is up, not a hang. Railway treats any 2xx-4xx as healthy.
 healthcheckPath = "/run"
 healthcheckTimeout = 60
-startCommand = "sh -c 'dockerd-entrypoint.sh >/dev/null 2>&1 & sleep 3 && exec python3 /app/server.py'"
+startCommand = "python /app/server.py"
