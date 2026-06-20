@@ -125,6 +125,11 @@ def app(environ, start_response):
     """WSGI app — stdlib only, no framework."""
     method = environ.get("REQUEST_METHOD", "")
     path = environ.get("PATH_INFO", "")
+    # Unauthenticated liveness probe — Railway requires a 2xx healthcheck, and
+    # /run's POST-only contract returns 404 on a GET, so expose /healthz.
+    if method == "GET" and path == "/healthz":
+        start_response("200 OK", [("Content-Type", "application/json")])
+        return [json.dumps({"status": "ok"}).encode()]
     if method != "POST" or path != "/run":
         start_response("404 Not Found", [("Content-Type", "application/json")])
         return [json.dumps({"error": "not_found"}).encode()]

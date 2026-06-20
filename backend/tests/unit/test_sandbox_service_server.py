@@ -54,6 +54,14 @@ def test_wrong_path_returns_404():
     assert status.startswith("404")
 
 
+def test_healthz_returns_200_unauthenticated():
+    # Railway needs a 2xx healthcheck; /run is POST-only (404 on GET), so
+    # /healthz is the liveness path. Must be reachable without a token.
+    status, body = _call(method="GET", path="/healthz", token="secret")
+    assert status.startswith("200")
+    assert body["status"] == "ok"
+
+
 def test_missing_token_when_configured_returns_401():
     status, body = _call(token="secret", auth=None, body=b"{}")
     assert status.startswith("401")
