@@ -127,3 +127,57 @@ def test_verify_prose_solution_is_not_verifiable() -> None:
     body = _body(result)
     assert body.get("status") == "not_verifiable"
     assert "Python" in body.get("reason", "")
+
+
+class _DepMissingSandbox:
+    """A sandbox that fails with a ModuleNotFoundError (third-party import)."""
+
+    def execute(self, *args, **kwargs):
+        from backend.domain.models import SandboxResult
+
+        return SandboxResult(
+            success=False,
+            exit_code=1,
+            stdout="",
+            stderr="ModuleNotFoundError: No module named 'fastapi'",
+            duration_seconds=0.5,
+            environment={},
+        )
+
+
+def test_verify_dependency_missing_failure_is_not_verifiable() -> None:
+    # A fix that needs a third-party dep the WASM sandbox lacks must NOT be
+    # recorded as a verified-false (which would wrongly demote a good fix);
+    # it surfaces as not_verifiable instead.
+    service, author_id = _build_service(with_sandbox=_DepMissingSandbox())
+    problem = Problem(
+        author_id=author_id,
+        description="x",
+        error_signature="ValueError: bad",
+    )
+    service._problems.add(problem)
+    solution = Solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="```python\nimport fastapi\napp = fastapi.FastAPI()\n```",
+        steps=["add CORS middleware"],
+    )
+    service._solutions.add(solution)
+    before = len(service._outcomes.list_by_solution(solution.solution_id))
+
+    agent = SimpleNamespace(agent_id=uuid4())
+    server = SimpleNamespace(_service=service, _agent=agent)
+    token = current_agent.set(agent)
+    try:
+        result = asyncio.run(
+            dispatch_tool(server, "verify", {"solution_id": str(solution.solution_id)})
+        )
+    finally:
+        current_agent.reset(token)
+
+    body = _body(result)
+    assert body.get("status") == "not_verifiable"
+    assert "dependency" in body.get("reason", "").lower()
+    # No misleading verified-false outcome was recorded.
+    after = len(service._outcomes.list_by_solution(solution.solution_id))
+    assert after == before

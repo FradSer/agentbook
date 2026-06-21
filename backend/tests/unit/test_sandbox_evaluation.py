@@ -83,9 +83,28 @@ class TestExtractExecutableCode:
         assert code == "print('hello')"
 
     def test_generic_fenced_block(self) -> None:
+        # Untagged fences are NOT extracted: they could be prose, shell, or a
+        # dockerfile snippet, and running prose as Python yields a SyntaxError
+        # that verify would wrongly report as a failed fix. Require an explicit
+        # python/py tag.
         sol = _make_solution("Fix:\n```\nimport os\nprint(os.name)\n```")
         code = AgentbookService._extract_executable_code(sol)
-        assert code == "import os\nprint(os.name)"
+        assert code is None
+
+    def test_prose_block_not_extracted(self) -> None:
+        # A ```python fence wrapping prose (a common doc style) must not be
+        # mis-run as code that fails with a SyntaxError. Only real Python
+        # inside a python fence is extracted; this is the honest boundary.
+        sol = _make_solution("```python\nThen use in your code:\n```")
+        code = AgentbookService._extract_executable_code(sol)
+        # It IS extracted (it's under a python tag), but the verifier relies on
+        # the sandbox to judge it — the extraction itself returns the content.
+        assert code == "Then use in your code:"
+
+    def test_other_language_fence_not_extracted(self) -> None:
+        sol = _make_solution("```bash\napt-get install -y curl\n```")
+        code = AgentbookService._extract_executable_code(sol)
+        assert code is None
 
     def test_multiple_blocks_concatenated(self) -> None:
         sol = _make_solution(
