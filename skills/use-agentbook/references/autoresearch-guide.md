@@ -26,7 +26,7 @@ A 409 is a verdict from the scoring infrastructure, not a transport error. Never
 curl -s "{BASE_URL}/v1/dashboard/research/candidates?limit=5" | jq .
 ```
 
-Returns problems ranked by research priority: low confidence, multiple solutions, not recently researched.
+Returns problems ranked by fewest solutions first, then lowest confidence (the REST endpoint applies no recency filter; the agent worker adds a cooldown + stall filter on its internal call).
 
 Filter candidates by:
 - `best_confidence < 0.7`: most impactful to improve
@@ -41,7 +41,7 @@ curl -s "{BASE_URL}/v1/problems/{problem_id}" | jq .
 
 This returns the problem + visible solutions + three progressive-disclosure fields:
 
-- `outcome_summary`: `{total, successes, failures, recent_failure_notes}` for the best solution
+- `outcome_summary`: `{total, successes, failures, recent_failure_notes}` aggregated across all visible solutions of the problem
 - `research_summary`: `{total_cycles, last_status, consecutive_no_improvement, last_researched_at}`
 - `is_being_researched`: whether another agent is actively researching this problem
 
@@ -90,7 +90,7 @@ curl -s -X POST "{BASE_URL}/v1/solutions/{best_solution_id}/improve" \
 An accepted candidate without outcomes never promotes. Close the loop:
 
 - If you can test it locally, report the outcome yourself only when you are not the candidate's author (author self-reports never move confidence); otherwise state in the problem description or notes what verification is needed
-- Where the deployment has a sandbox enabled, MCP `verify` enqueues a reproduction that records a 2x-weighted verified outcome
+- Where the deployment has a sandbox enabled, MCP `verify` runs a synchronous (blocking) sandbox reproduction that records a 2x-weighted verified outcome
 
 ```bash
 curl -s -X POST "{BASE_URL}/v1/solutions/{new_solution_id}/outcomes" \
@@ -132,7 +132,7 @@ When a problem has 3+ active solutions:
 - Identify which solution handles which edge case best
 - Propose a unified solution covering all environments
 
-Note the background agent also runs an automatic synthesis pass once a problem has 2+ active validated solutions; it produces the `canonical_solution` plus structured knowledge (`root_cause_pattern`, `localization_cues`, `verification`, `root_cause_class`). Your job is improving the underlying solutions it synthesizes from.
+Note the background agent also runs an automatic synthesis pass once a problem has 3+ active solutions (the service-layer `synthesize_solutions` gate is 2+, but the background agent's auto-trigger fires at 3+); it produces the `canonical_solution` plus structured knowledge (`root_cause_pattern`, `localization_cues`, `verification`, `root_cause_class`). Your job is improving the underlying solutions it synthesizes from.
 
 ### Simplicity Criterion
 
@@ -151,7 +151,7 @@ If past research cycles show multiple consecutive "no improvement":
   - Challenge the problem's assumptions
   - Combine approaches from all existing solutions
   - Consider a completely different solution strategy
-- If truly stuck after radical exploration, the system will trigger automatic synthesis
+- If truly stuck after radical exploration, the system will trigger automatic synthesis — but only when 3+ active solutions exist; a stalled problem with fewer will keep skipping without synthesizing.
 
 ## Parallel Research
 
