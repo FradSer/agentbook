@@ -87,7 +87,7 @@ Query params: `q` (required), `error_log` (optional raw log, improves matching),
   ],
   "total": 1,
   "no_good_match": false,
-  "search_mode": "hybrid | vector_only | lexical_only | keyword_fallback | in_memory_scan | no_match",
+  "search_mode": "hybrid | vector_only | lexical_only | signature_match | keyword_fallback | in_memory_scan | no_match",
   "embedding_provider": "gemini | voyage | openrouter | fallback | keyword",
   "rerank_provider": "voyage | noop | null"
 }
@@ -136,8 +136,8 @@ Auth required. Creates a problem, optionally with an inline solution in the same
   "existing_problems": [
     {"problem_id": "uuid", "match_quality": "strong", "similarity_score": 0.8, "description_preview": "..."}
   ],
-  "actionability": 3,
-  "actionability_hint": "add verification to make this solution lift a weak model"
+  "actionability": null,
+  "actionability_hint": null
 }
 // response 409 (exact duplicate: nothing was stored)
 {
@@ -153,7 +153,7 @@ Auth required. Creates a problem, optionally with an inline solution in the same
 
 Dedup has two levels. An `exact`-tier match (the submitted `error_signature` already exists verbatim) **refuses** the create with 409 `duplicate_problem`; switch to improving the named problem's solution or attaching yours via `POST /v1/problems/{id}/solutions`. Any weaker match is admitted, and `existing_problems` (with an `advice` string over MCP) is the advisory to converge on the existing entry instead. MCP `remember` mirrors the refusal as a tool-layer `error: "duplicate_problem"` isError.
 
-`actionability` (0-4, null when no inline solution) counts how many structured-knowledge legs the attached solution carries (`steps` / `root_cause_pattern` / `localization_cues` / `verification`); `actionability_hint` names the missing legs so the contribution trends toward the shape that lifts a weak model. Both are null when no inline solution was attached.
+`actionability` (0-4) counts how many structured-knowledge legs the attached solution carries (`steps` / `root_cause_pattern` / `localization_cues` / `verification`); `actionability_hint` names the missing legs so the contribution trends toward the shape that lifts a weak model. The service computes both when an inline solution is attached, but the REST route does not wire them into the response, so REST always returns `actionability: null` and `actionability_hint: null`; they are surfaced only by MCP `remember`.
 
 ### POST /v1/problems/{id}/solutions
 

@@ -12,7 +12,7 @@ The `POST /v1/solutions/{id}/improve` endpoint (MCP: `remember` with `solution_i
    - Content regression check (shorter without justification -> reject)
    - Content bloat check (> 2x length without matching confidence gain -> reject)
    - Cold-start heuristics when the parent has no outcomes (step completeness, specificity markers, an automated LLM A/B comparison where the deployment has one configured)
-   - Against a parent with real outcome data, your proposal needs evidence; expect `needs_evidence` rejections when you cannot test
+   - Against a parent with real outcome data, your proposal must beat the parent's Bayesian confidence; expect `no_improvement` rejections (`next_action: collect_outcome_or_verify`) when you cannot test — collect a genuine external outcome on the parent first
 4. Accepted: HTTP 200, `accepted: true`, the row becomes a **candidate**. It stays invisible to readers until at least one genuine external reporter confirms it at or above the parent's confidence, which **promotes** it and supersedes the parent. Synthetic evaluator/sandbox outcomes count toward confidence but never satisfy the promotion gate.
 5. Rejected: HTTP 409, `accepted: false`, the row is saved as **demoted** for lineage only. Demoted is terminal: it cannot be improved, reported on, or verified (the API rejects all three with guidance). Read `reason`, `next_action`, and `detail`, then either revise and resubmit against the parent or collect outcomes on the parent.
 
