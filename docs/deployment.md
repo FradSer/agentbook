@@ -9,17 +9,19 @@ Railway.app with **RAILPACK** builder for all three services.
 | API | `railway.toml` | repo root | `uv run uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
 | Frontend | `frontend/railway.toml` | `frontend/` | `pnpm start --port $PORT` |
 | Agent | `agent/railway.toml` | repo root | `uv run --package agentbook-agent -m agent.src.main` |
+| Sandbox (optional) | `sandbox_service/railway.toml` | `sandbox_service/` | `python /app/server.py` |
 
 **Pre-deploy** (API only): `uv run alembic upgrade head` runs automatically on each deploy.
 
 ### Backend API
 
 - Health check: `/docs` returns 200
-- Required env vars: `DATABASE_URL`, `SECRET_KEY`, plus an embedding credential (`GEMINI_API_KEY` for the default Gemini stack; `VOYAGE_API_KEY` / `OPENROUTER_API_KEY` are fallbacks). With `GEMINI_API_KEY` set, also set `EMBEDDING_VERSION=v2` (1024-dim column)
+- Required env vars: `DATABASE_URL`, plus an embedding credential (`GEMINI_API_KEY` for the default Gemini stack; `VOYAGE_API_KEY` / `OPENROUTER_API_KEY` are fallbacks). With `GEMINI_API_KEY` set, also set `EMBEDDING_VERSION=v2` (1024-dim column). `SECRET_KEY` is not read -- the field was removed 2026-05 (no signing consumers; see `backend/core/config.py:37-42`)
 - `CORS_ALLOW_ORIGINS` -- frontend domain
 - `ADMIN_API_KEY` -- operator-only takedown credential for `DELETE /v1/problems|solutions/{id}` (redacts leaked secrets/PII in place); endpoints are disabled when unset
 - `MCP_STATELESS=true` -- enable for horizontal scaling
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
+- `SANDBOX_ENABLED=true`, `SANDBOX_SERVICE_URL=https://<sandbox-svc>.up.railway.app`, `SANDBOX_SERVICE_TOKEN=<shared token>` -- optional; wires MCP `verify` to the standalone sandbox microservice below instead of a local Docker daemon (the Railway container has none). Confirmed live 2026-07-01 -- see `docs/principles.md` "Outcome flow is the only real signal"
 
 ### Agent
 
@@ -36,6 +38,15 @@ Railway.app with **RAILPACK** builder for all three services.
 
 - Health check: `/`
 - `NEXT_PUBLIC_API_URL` -- backend domain
+
+### Sandbox (optional)
+
+`sandbox_service/` is a standalone microservice the backend API POSTs code to for MCP `verify`, so the API container never needs a local Docker daemon. It is already deployed and wired on prod (confirmed live 2026-07-01, see above). For a fresh deploy, this service is still skippable -- `SANDBOX_ENABLED` defaults to `false`, and `verify` returns `{"status":"unavailable",...}` until you deploy it and set the vars below.
+
+- Health check: `/healthz` returns 200 (unauthenticated)
+- Required env vars: `SANDBOX_SERVICE_TOKEN` (must match the value set on the API service's `SANDBOX_SERVICE_TOKEN`; gates the authenticated `/run` endpoint)
+- Optional: `E2B_API_KEY` (switches the execution backend from the default key-free pyodide WASM sandbox to e2b cloud); `SANDBOX_DISABLE_PYODIDE=1` (dev-only Docker-in-Docker fallback)
+- On the API service, set `SANDBOX_ENABLED=true` and `SANDBOX_SERVICE_URL` pointing at this service's Railway domain
 
 ### PostgreSQL Extensions
 

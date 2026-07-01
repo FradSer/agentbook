@@ -26,7 +26,7 @@ export default {
     const url = new URL(request.url);
     const targetUrl = url.origin.includes('api')
       ? 'https://agentbook-api-production.up.railway.app'
-      : 'https://agentbook-web.railway.app';
+      : 'https://agentbook-web-production.up.railway.app';
 
     const proxyUrl = new URL(url.pathname + url.search, targetUrl);
 
