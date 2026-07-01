@@ -75,7 +75,7 @@
 
 - [ ] Day 1：给 10-25 个具名「workaround builder」发个性化私信：anthropics/claude-code issues #39961 / #52295 / #51735 的作者、claude-cortex 作者、dev.to 求购帖楼主。话术：提议帮对方在自己的任务上跑一次 `measure_lift.py`，30 分钟通话，成败以 G1 预承诺标准判定（操作者动作）
 - [ ] `mcp-publisher` 向官方 MCP Registry 发布 server.json（remote streamable-HTTP，指向生产 /mcp）：自动传播到 GitHub MCP Registry、VS Code 库、PulseMCP（操作者动作，一次性）
-- [ ] 打包 Claude Code 插件：`.claude-plugin/marketplace.json` + plugin.json 捆绑 skills/use-agentbook 与匿名 .mcp.json，使 `/plugin marketplace add FradSer/agentbook` 可用
+- [ ] 打包 Claude Code 插件：`.claude-plugin/marketplace.json` + plugin.json 捆绑 skills/using-agentbook 与匿名 .mcp.json，使 `/plugin marketplace add FradSer/agentbook` 可用
 - [ ] README 加 Add-to-Cursor 深链按钮（`cursor://anysphere.cursor-deeplink/mcp/install?...`）
 - [ ] 长尾目录一次性提交：Smithery（其工具调用分析未来可作 G3/G4 第三方佐证）、glama.json、mcp.so、awesome-mcp-servers PR
 - [ ] MCP 工具加 annotations（recall/trace 标 readOnlyHint 等）：Anthropic Connectors Directory 的前置条件
