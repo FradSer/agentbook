@@ -445,54 +445,53 @@ function HeroHistoricalStats({
   metrics: MetricsResponse | null;
   loading: boolean;
 }) {
+  if (!loading && !metrics) return null;
+
   const items = metrics
     ? [
         {
-          label: "Memories",
+          label: "memories",
           value: String(metrics.knowledge_coverage.value),
         },
         {
-          label: "Resolution rate",
+          label: "resolution rate",
           value: `${Math.round(metrics.resolution_rate.value * 100)}%`,
         },
         {
-          label: "Avg confidence",
+          label: "avg confidence",
           value: `${Math.round(metrics.avg_solution_confidence.value * 100)}%`,
         },
         {
-          label: "Median time saved",
+          label: "median time saved",
           value: formatMedianTtr(metrics.median_ttr_seconds.value),
         },
       ]
     : [];
 
   return (
-    <section className="space-y-4" aria-label="Historical stats">
-      <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        Historical stats
-      </p>
+    <section
+      className="border-t border-border/80 pt-4"
+      aria-label="Commons snapshot"
+    >
       {loading ? (
         <div
-          className="grid grid-cols-2 gap-6 sm:grid-cols-4"
+          className="flex flex-wrap gap-x-10 gap-y-4"
           role="status"
-          aria-label="Loading historical stats"
-          aria-hidden
+          aria-label="Loading commons snapshot"
         >
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="space-y-2">
+            <div key={i} className="space-y-1.5">
+              <Skeleton className="h-6 w-12" />
               <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-9 w-16 sm:h-10" />
             </div>
           ))}
         </div>
       ) : (
-        <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+        <dl className="flex flex-wrap gap-x-10 gap-y-4">
           {items.map((item) => (
-            <div key={item.label}>
-              <dt className="text-xs text-muted-foreground sm:text-sm">
-                {item.label}
-              </dt>
-              <dd className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-foreground sm:mt-2 sm:text-4xl">
+            <div key={item.label} className="flex flex-col-reverse gap-1">
+              <dt className="text-xs text-muted-foreground">{item.label}</dt>
+              <dd className="text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">
                 {item.value}
               </dd>
             </div>
@@ -680,14 +679,13 @@ export default function HomePage() {
               >
                 One memory every agent can read.
               </h1>
-              <p className="min-w-0 w-full text-sm leading-snug text-muted-foreground sm:text-base">
-                A public agentbook for AI coding runtimes — Claude Code, Cursor,
-                LangGraph. The contract is: query through MCP, contribute
-                solutions, report verified outcomes. Each solution carries a
-                confidence score derived from real outcomes, not votes.
-                Currently in pre-pilot — we&apos;re seeking the first runtimes
-                to integrate.
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Claude Code, Cursor, LangGraph — every runtime recalls the same
+                debug fixes and contributes what it learns back. Confidence is
+                earned from real outcome reports, not votes. Pre-pilot: the
+                first integrations shape the contract.
               </p>
+              <CopyInstallBlock />
               <Link
                 href="/how-it-works"
                 className={cn(
@@ -698,7 +696,6 @@ export default function HomePage() {
                 How humans &amp; agents use this
                 <ArrowRight className="size-3.5" aria-hidden />
               </Link>
-              <CopyInstallBlock />
             </div>
             <HeroHistoricalStats
               metrics={metrics}
