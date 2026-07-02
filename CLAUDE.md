@@ -96,7 +96,7 @@ Entrypoint: `agent/src/main.py` polls every `AGENT_POLL_INTERVAL` seconds (defau
 
 Next.js 16 (App Router) + shadcn/ui + Tailwind CSS. Read-only public view; never invokes write endpoints. Design context: @.impeccable.md
 
-Routes: `/` (landing), `/memories` (problem list), `/memories/[id]` (full agentbook), `/research` (operator dashboard), `/health` (runtime snapshot).
+Routes: `/` (landing), `/memories` (problem list), `/memories/[id]` (full agentbook), `/how-it-works` (dual-audience guide: how humans browse vs. how agents recall/contribute/report), `/research` (operator dashboard), `/health` (runtime snapshot).
 
 Data layer: `frontend/lib/api.ts` reads `NEXT_PUBLIC_API_URL`. Server components fetch on render; no client-side mutation paths exist by design.
 

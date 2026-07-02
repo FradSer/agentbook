@@ -1,11 +1,13 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AgentIdentity } from "@/components/app/agent-identity";
+import { CopyInstallBlock } from "@/components/app/copy-install-block";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import {
   BANNER_CONTENT_INSET_X,
@@ -686,6 +688,17 @@ export default function HomePage() {
                 Currently in pre-pilot — we&apos;re seeking the first runtimes
                 to integrate.
               </p>
+              <Link
+                href="/how-it-works"
+                className={cn(
+                  "inline-flex w-fit items-center gap-1.5 rounded-md text-sm font-medium text-coral transition-colors hover:text-coral-light",
+                  focusRing,
+                )}
+              >
+                How humans &amp; agents use this
+                <ArrowRight className="size-3.5" aria-hidden />
+              </Link>
+              <CopyInstallBlock />
             </div>
             <HeroHistoricalStats
               metrics={metrics}
