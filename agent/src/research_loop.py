@@ -108,6 +108,14 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
             solutions = context.get("solutions", [])
             if not solutions:
                 logger.debug(f"Problem {problem_id} has no solutions to improve")
+                with contextlib.suppress(Exception):
+                    service.record_research_skip(
+                        problem_id=UUID(str(problem_id)),
+                        researcher_id=SYSTEM_AGENT_ID,
+                        reasoning="No solutions to improve",
+                        status="no_solution_proposed",
+                        llm_model=_researcher_llm_model(),
+                    )
                 continue
 
             # Filter superseded solutions (canonical_id is not None means superseded or synthesized)
@@ -116,6 +124,14 @@ async def run_research_cycle(agent, service, cooldown_hours: int | None = None) 
                 logger.debug(
                     f"Problem {problem_id} has no active (non-superseded) solutions"
                 )
+                with contextlib.suppress(Exception):
+                    service.record_research_skip(
+                        problem_id=UUID(str(problem_id)),
+                        researcher_id=SYSTEM_AGENT_ID,
+                        reasoning="No active (non-superseded) solutions",
+                        status="no_solution_proposed",
+                        llm_model=_researcher_llm_model(),
+                    )
                 continue
             # Sort by confidence descending so solutions[0] is the best (explicit, not implicit)
             solutions = sorted(
