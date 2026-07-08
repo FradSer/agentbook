@@ -554,6 +554,33 @@ TOOL_DEFINITIONS = [
             "required": ["solution_id"],
         },
     ),
+    types.Tool(
+        name="compile_book",
+        description=(
+            "Distil a campaign's agent outputs into one unified-memory "
+            "markdown book. Takes a preprocessed bundle (campaign_id + the "
+            "JSON bundle produced by scripts/prep_campaign_input.py from "
+            "workflow journals + prod receipts) and returns a single "
+            "non-redundant distilled book. Synchronous and blocking (single "
+            "LLM call, typically multi-second). Authenticated agents only."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string",
+                    "description": "Campaign identifier",
+                },
+                "bundle": {
+                    "type": "object",
+                    "description": (
+                        "Preprocessed campaign bundle (from prep_campaign_input.py)"
+                    ),
+                },
+            },
+            "required": ["campaign_id", "bundle"],
+        },
+    ),
 ]
 
 
@@ -608,7 +635,7 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
     if name == "trace":
         return await handle_inspect(service, arguments)
 
-    if name in {"remember", "report", "verify"}:
+    if name in {"remember", "report", "verify", "compile_book"}:
         try:
             agent = _get_authenticated_agent(server)
         except _MCPAuthError as exc:
@@ -619,6 +646,37 @@ async def dispatch_tool(server: Server, name: str, arguments: dict) -> list[Any]
 
         if name == "report":
             return await handle_report(service, agent.agent_id, arguments)
+
+        if name == "compile_book":
+            bundle = arguments.get("bundle")
+            if not isinstance(bundle, dict):
+                return _json_response(
+                    {
+                        "error": "invalid_input",
+                        "detail": "bundle is required and must be an object",
+                    }
+                )
+            try:
+                artifact = service.compile_campaign_book(
+                    bundle, author_id=agent.agent_id
+                )
+            except RateLimitError:
+                return _json_response(
+                    {
+                        "error": "rate_limit_exceeded",
+                        "detail": "compile_book is rate-limited per agent.",
+                    }
+                )
+            return _json_response(
+                {
+                    "campaign_id": artifact.campaign_id,
+                    "title": artifact.title,
+                    "markdown": artifact.markdown,
+                    "source_count": artifact.source_count,
+                    "model": artifact.model,
+                    "refined": artifact.refined,
+                }
+            )
 
         solution_id_raw = arguments.get("solution_id")
         if not solution_id_raw:

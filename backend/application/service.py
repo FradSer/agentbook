@@ -54,6 +54,7 @@ from backend.core.search_cache import TTLCache
 from backend.core.write_rate_limit import write_limiter
 from backend.domain.models import (
     Agent,
+    BookArtifact,
     Outcome,
     OutcomeKind,
     Problem,
@@ -74,6 +75,7 @@ from backend.domain.repositories import (
     SolutionRepository,
 )
 from backend.domain.services import (
+    BookSynthesizer,
     EmbeddingProvider,
     EvaluatorProvider,
     RerankFn,
@@ -463,11 +465,13 @@ class AgentbookService:
         rerank_fn: RerankFn | None = None,
         embedding_provider_name: str = "fallback",
         rerank_provider_name: str = "noop",
+        book_synthesizer: BookSynthesizer | None = None,
     ) -> None:
         self._agents = agents
         self._embedding_provider = embedding_provider
         self._embedding_provider_name = embedding_provider_name
         self._rerank_provider_name = rerank_provider_name
+        self._book_synthesizer = book_synthesizer
         self._evaluator = evaluator
         self._sandbox = sandbox
         self._problems = problems
@@ -3874,6 +3878,109 @@ class AgentbookService:
             llm_model=self._llm_model_for_author(researcher_id, llm_model),
         )
         self._research_cycles.add(cycle)
+
+    def compile_campaign_book(
+        self, bundle: dict, author_id: UUID | None = None
+    ) -> BookArtifact:
+        """Distil a preprocessed campaign bundle into one unified-memory book.
+
+        The backend owns the synthesis: an injected ``BookSynthesizer`` LLM
+        distils the bundle into non-redundant markdown. When no synthesizer is
+        configured or the LLM call fails, fall back to ``_mechanical_book``
+        (a verbatim render of the bundle, clearly labelled "unrefined") so the
+        endpoint never refuses — it just degrades honestly. ``author_id`` is
+        rate-limited via the shared write budget so one key cannot burn the
+        LLM budget (same contract as contribute/report).
+        """
+        if author_id is not None:
+            self._check_write_rate(author_id)
+        campaign_id = str(bundle.get("campaign_id") or "campaign")
+        agents = bundle.get("agents") or {}
+        source_count = int(agents.get("completed") or 0)
+        if self._book_synthesizer is not None:
+            markdown = self._book_synthesizer.synthesize(bundle)
+            if markdown:
+                return BookArtifact(
+                    campaign_id=campaign_id,
+                    title=f"Campaign Book — {campaign_id}",
+                    markdown=markdown,
+                    source_count=source_count,
+                    model=self._book_synthesizer.model,
+                    refined=True,
+                )
+        # Mechanical fallback: render the bundle verbatim, labelled unrefined.
+        return BookArtifact(
+            campaign_id=campaign_id,
+            title=f"Campaign Book — {campaign_id} (unrefined)",
+            markdown=self._mechanical_book(bundle),
+            source_count=source_count,
+            model="mechanical-fallback",
+            refined=False,
+        )
+
+    def _mechanical_book(self, bundle: dict) -> str:
+        """Verbatim render of the bundle when the LLM is unavailable.
+
+        Clearly labelled "unrefined" — this is NOT the product path; it exists
+        so the endpoint degrades honestly instead of refusing or silently
+        returning an empty book. The LLM path is the real synthesis.
+        """
+        lines = [
+            f"# Campaign Book — {bundle.get('campaign_id') or 'unknown'}",
+            "",
+            "> UNREFINED — LLM synthesizer unavailable. This is a mechanical "
+            "render of the bundle, not a distilled book. Configure "
+            "OPENROUTER_API_KEY for the refined synthesis.",
+            "",
+        ]
+        agents = bundle.get("agents") or {}
+        lines.append(
+            f"**Agents:** {agents.get('completed') or 0} completed / "
+            f"{agents.get('spawned') or 0} spawned "
+            f"({agents.get('skipped') or 0} skipped)"
+        )
+        lines.append("")
+        lines.append("## Grounding")
+        for g in bundle.get("grounding") or []:
+            if not isinstance(g, dict):
+                continue
+            kind = g.get("_kind") or "grounding"
+            lines.append(f"### {kind}")
+            for k, v in g.items():
+                if k.startswith("_"):
+                    continue
+                lines.append(f"- **{k}:** {v}")
+            lines.append("")
+        lines.append("## Published Solutions")
+        for p in bundle.get("published") or []:
+            if not isinstance(p, dict):
+                continue
+            title = (p.get("title") or p.get("problem_id") or "")[:80]
+            lines.append(f"### {title}")
+            lines.append(f"- prod: {p.get('prod_url') or ''}")
+            if p.get("final_content"):
+                lines.append("")
+                lines.append(p["final_content"])
+            if p.get("review_changes_made"):
+                lines.append("")
+                lines.append("**Adversarial review changes:**")
+                lines.append(p["review_changes_made"])
+            lines.append("")
+        lines.append("## Verifications")
+        lines.append("| verdict | solution | summary |")
+        lines.append("|---|---|---|")
+        for v in bundle.get("verifications", []):
+            summary = (v.get("summary") or "")[:80]
+            lines.append(
+                f"| {v.get('verdict', '')} | "
+                f"{(v.get('solution_id') or '')[:8]} | {summary} |"
+            )
+        lines.append("")
+        if bundle.get("incidents"):
+            lines.append("## Appendix — Incidents")
+            for line in bundle["incidents"]:
+                lines.append(f"- {line}")
+        return "\n".join(lines)
 
     def get_solution_lineage(self, solution_id: UUID) -> list[dict]:
         solution = self._solutions.get(solution_id)
