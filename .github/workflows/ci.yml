@@ -53,10 +53,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Debug checkout
+        run: |
+          echo "--- root listing ---"
+          ls -la
+          echo "--- frontend listing ---"
+          ls -la frontend/ || echo "NO frontend dir"
+          echo "--- git status ---"
+          git status --short
       - uses: pnpm/action-setup@v4
         with:
           version: 10
-          package_json_file: frontend/package.json
           run_install: false
       - uses: actions/setup-node@v4
         with:
@@ -64,7 +71,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install frontend deps
-        run: pnpm install --frozen-lockfile
+        run: |
+          pwd
+          ls -la pnpm-lock.yaml || echo "NO lockfile in cwd"
+          pnpm install --frozen-lockfile
         working-directory: frontend
       - name: Lint + typecheck
         run: pnpm lint
