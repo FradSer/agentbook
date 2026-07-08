@@ -1,14 +1,2 @@
-allowBuilds:
-  ',': true
-  b: true
-  d: true
-  e: true
-  i: true
-  k: true
-  l: true
-  nx: true
-  o: true
-  r: true
-  s: true
-  u: true
-  w: true
+packages:
+  - frontend

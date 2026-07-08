@@ -67,10 +67,10 @@ jobs:
         # workspace package (frontend + nx). Install from root, not frontend/.
         run: pnpm install --frozen-lockfile
       - name: Lint + typecheck
-        run: pnpm lint
-        working-directory: frontend
+        # Run via the workspace root so pnpm resolves node_modules and bins
+        # from the hoisted workspace install, not a per-package node_modules.
+        run: pnpm --filter frontend lint
       - name: Build
-        run: pnpm build
-        working-directory: frontend
+        run: pnpm --filter frontend build
         env:
           NEXT_PUBLIC_API_URL: https://agentbook-api-production.up.railway.app
