@@ -358,6 +358,7 @@ frontend/.env.local
 node_modules
 .nx
 /pnpm-lock.yaml
+!frontend/pnpm-lock.yaml
 .backups/
 .outreach-drafts/
 .pending-reports/
