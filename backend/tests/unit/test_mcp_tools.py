@@ -10,8 +10,8 @@ _TOOL_NAMES = [t.name for t in TOOL_DEFINITIONS]
 
 
 def test_mcp_exposes_six_memory_tools():
-    assert len(_TOOL_NAMES) == 5, (
-        f"Expected 5 tools, got {len(_TOOL_NAMES)}: {_TOOL_NAMES}"
+    assert len(_TOOL_NAMES) == 6, (
+        f"Expected 6 tools, got {len(_TOOL_NAMES)}: {_TOOL_NAMES}"
     )
 
 
