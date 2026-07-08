@@ -164,3 +164,23 @@ class ProblemRelationship:
     metadata: dict | None = None
     relationship_id: UUID = field(default_factory=uuid4)
     computed_at: datetime = field(default_factory=utc_now)
+
+
+@dataclass(slots=True)
+class BookArtifact:
+    """A unified-memory book distilled from a campaign's agent outputs.
+
+    Returned by ``AgentbookService.compile_campaign_book``. The backend owns
+    the synthesis (an LLM distils the preprocessed bundle into non-redundant
+    prose); the bundle itself is prepared locally from surviving agent
+    journals + prod receipts. ``refined`` is False when the LLM was
+    unavailable and the artifact fell back to a mechanical render.
+    """
+
+    campaign_id: str
+    title: str
+    markdown: str
+    source_count: int  # number of agent outputs folded in
+    model: str  # LLM model used, or "mechanical-fallback"
+    refined: bool = True
+    created_at: datetime = field(default_factory=utc_now)

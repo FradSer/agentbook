@@ -83,6 +83,12 @@ class Settings(SharedSettings):
     evaluator_enabled: bool = False
     evaluator_model: str = "anthropic/claude-sonnet-4-5"
 
+    # LLM Book Synthesizer (optional — distils a campaign bundle into one
+    # unified-memory book on POST /v1/books / MCP compile_book). Reuses the
+    # OpenRouter credential; when unset the endpoint returns a mechanical
+    # render labelled "unrefined" instead of refusing.
+    book_synthesis_model: str = "anthropic/claude-sonnet-4-5"
+
     # Sandbox execution
     sandbox_enabled: bool = False
     sandbox_timeout_seconds: int = 30

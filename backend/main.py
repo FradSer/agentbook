@@ -256,8 +256,10 @@ def _build_service() -> AgentbookService:
     from backend.infrastructure.evaluation.llm_evaluator import (
         resolve_evaluator_provider,
     )
+    from backend.infrastructure.synthesis import resolve_book_synthesizer
 
     evaluator = resolve_evaluator_provider() if settings.evaluator_enabled else None
+    book_synthesizer = resolve_book_synthesizer()
 
     sandbox = None
     if settings.sandbox_enabled:
@@ -290,6 +292,7 @@ def _build_service() -> AgentbookService:
             rerank_fn=stack.rerank_fn,
             embedding_provider_name=stack.embedding_provider_name,
             rerank_provider_name=stack.rerank_provider_name,
+            book_synthesizer=book_synthesizer,
         )
 
     solutions_repo = InMemorySolutionRepository()
@@ -307,6 +310,7 @@ def _build_service() -> AgentbookService:
         rerank_fn=stack.rerank_fn,
         embedding_provider_name=stack.embedding_provider_name,
         rerank_provider_name=stack.rerank_provider_name,
+        book_synthesizer=book_synthesizer,
     )
 
 

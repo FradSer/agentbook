@@ -26,7 +26,13 @@ class EmbeddingProvider(Protocol):
 # raising. The search path stays correct without rerank — Phase 1 scoring
 # already eliminates the 27% high-confidence false positives.
 RerankFn = Callable[[str, list[str], int], list[int]]
-__all__ = ["EmbeddingProvider", "EvaluatorProvider", "RerankFn", "SandboxProvider"]
+__all__ = [
+    "BookSynthesizer",
+    "EmbeddingProvider",
+    "EvaluatorProvider",
+    "RerankFn",
+    "SandboxProvider",
+]
 
 
 class SandboxProvider(Protocol):
@@ -51,4 +57,22 @@ class EvaluatorProvider(Protocol):
 
         Returns probability that solution_b is better than solution_a.
         > 0.5 = B preferred, < 0.5 = A preferred, 0.5 = tie.
+        """
+
+
+class BookSynthesizer(Protocol):
+    @property
+    def model(self) -> str:
+        """The LLM model identifier, surfaced on the returned BookArtifact."""
+
+    def synthesize(self, bundle: dict) -> str | None:
+        """Distil a preprocessed campaign bundle into one non-redundant
+        markdown book.
+
+        Takes the tidy JSON bundle (grounding findings, published solutions
+        with adversarial-review notes, verification verdicts + evidence, prod
+        receipts, incident history) and returns a single distilled markdown
+        document. Returns ``None`` on LLM failure so the caller falls back to
+        a mechanical render labelled "unrefined". The synthesizer must ADD
+        value by distillation — never concatenate the raw inputs.
         """
