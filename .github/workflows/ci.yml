@@ -61,13 +61,11 @@ jobs:
         with:
           node-version: "20"
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: Install frontend deps
-        # The repo root is a pnpm workspace (pnpm-workspace.yaml) but has no
-        # root lockfile; the lockfile lives in frontend/. Install with --dir
-        # so pnpm resolves the frontend lockfile directly instead of looking
-        # for a workspace-root lockfile that was never committed.
-        run: pnpm install --frozen-lockfile --dir frontend
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install deps
+        # Root is the pnpm workspace root; the root lockfile pins every
+        # workspace package (frontend + nx). Install from root, not frontend/.
+        run: pnpm install --frozen-lockfile
       - name: Lint + typecheck
         run: pnpm lint
         working-directory: frontend
