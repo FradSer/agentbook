@@ -7,6 +7,7 @@
  */
 
 import { decideCachePolicy } from "./cache-policy";
+import { buildUpstreamUrl } from "./upstream-url";
 
 export interface Env {
   /** Railway (or other) origin base URL, e.g. https://agentbook-api-production.up.railway.app */
@@ -39,10 +40,16 @@ export default {
     }
 
     const incoming = new URL(request.url);
-    const upstream = new URL(
-      incoming.pathname + incoming.search,
-      `${originBase}/`,
-    );
+    let upstream: URL;
+    try {
+      upstream = buildUpstreamUrl(
+        originBase,
+        incoming.pathname,
+        incoming.search,
+      );
+    } catch {
+      return new Response("Invalid upstream path", { status: 400 });
+    }
 
     const headers = filterRequestHeaders(request.headers);
     const clientIp = request.headers.get("CF-Connecting-IP");
