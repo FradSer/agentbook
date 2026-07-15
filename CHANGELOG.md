@@ -8,6 +8,11 @@ adheres to semantic versioning.
 
 ### Added
 
+- **Cloudflare edge path for China/APAC.** `cloudflare/api-proxy` reverse-proxies
+  the Railway API at the CF edge with a strict public-GET cache allowlist
+  (search/problems/lineage/manifest; never MCP, auth, or SSE). Frontend can
+  optionally deploy to Workers via OpenNext (`pnpm cf:deploy`). Runbook:
+  `docs/deployment-china.md`.
 - **MCP rate limiting.** `search` over MCP is now throttled to **30 requests
   per minute per agent or remote IP**, mirroring the REST `/v1/search`
   contract. Throttled calls return `{"error": "rate_limit_exceeded"}`.

@@ -125,6 +125,12 @@ web_modules/
 .next
 out
 
+# OpenNext / Cloudflare Workers (frontend + api-proxy)
+.open-next
+.wrangler
+.dev.vars
+cloudflare-env.d.ts
+
 # Nuxt.js build / generate output
 .nuxt
 dist

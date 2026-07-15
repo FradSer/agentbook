@@ -104,4 +104,8 @@ the problem `description` (→ placeholder), `error_signature`, `environment`,
 
 ## China Access
 
-See @docs/deployment-china.md for Cloudflare Workers reverse proxy setup.
+See @docs/deployment-china.md for the Cloudflare edge path:
+
+1. `cloudflare/api-proxy` Worker → Railway API (selective public-GET cache)
+2. Optional: frontend on Cloudflare Workers via OpenNext (`pnpm cf:deploy` in `frontend/`)
+3. Keep API / Agent / Postgres / Sandbox on Railway

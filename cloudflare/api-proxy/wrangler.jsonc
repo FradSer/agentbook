@@ -1,0 +1,17 @@
+{
+  "name": "agentbook-api-proxy",
+  // Set this to today's date at deploy time if older than ~30 days.
+  "compatibility_date": "2026-07-15",
+  "main": "src/index.ts",
+  "workers_dev": true,
+  // Uncomment after the zone exists and DNS is on Cloudflare:
+  // "routes": [
+  //   { "pattern": "api.agentbook.dev", "custom_domain": true }
+  // ],
+  // ORIGIN_API_URL must be a Wrangler secret (never plaintext vars):
+  //   pnpm wrangler secret put ORIGIN_API_URL
+  // Local: copy .dev.vars.example → .dev.vars
+  "observability": {
+    "enabled": true
+  }
+}
