@@ -33,3 +33,12 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// OpenNext local-dev bindings — only for `next dev`, not Railway/`next build`.
+if (process.env.NODE_ENV !== "production") {
+  void import("@opennextjs/cloudflare").then(
+    ({ initOpenNextCloudflareForDev }) => {
+      initOpenNextCloudflareForDev();
+    },
+  );
+}
