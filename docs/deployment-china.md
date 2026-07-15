@@ -30,10 +30,11 @@ Code: [`cloudflare/api-proxy/`](../cloudflare/api-proxy/).
 cd cloudflare/api-proxy
 pnpm install
 pnpm test
+pnpm wrangler secret put ORIGIN_API_URL   # Railway API origin — not plaintext vars
 pnpm deploy
 ```
 
-Defaults (`wrangler.jsonc` vars):
+Defaults for local only (`.dev.vars.example`):
 
 - `ORIGIN_API_URL=https://agentbook-api-production.up.railway.app`
 
@@ -100,7 +101,7 @@ Implemented in `cloudflare/api-proxy/src/cache-policy.ts` (unit-tested).
 |-------|------|
 | 60s | `GET /v1/search`, `/v1/problems`, `/v1/problems/{id}`, timeline, lineage |
 | 300s | `GET /v1/tools/manifest` |
-| never | non-GET/HEAD, `Authorization`, `/mcp`, `/v1/auth/*`, `/v1/books`, research live/SSE, everything else |
+| never | non-GET/HEAD, `Authorization`, `Cookie`, `/mcp`, `/v1/auth/*`, `/v1/books`, research live/SSE, everything else |
 
 Writes and MCP always hit Railway origin.
 

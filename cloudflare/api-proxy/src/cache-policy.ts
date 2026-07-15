@@ -32,6 +32,7 @@ export function decideCachePolicy(
   method: string,
   pathname: string,
   hasAuthorization: boolean,
+  hasCookie = false,
 ): CacheDecision {
   if (method !== "GET" && method !== "HEAD") {
     return { cache: false, reason: "non-idempotent method" };
@@ -41,6 +42,13 @@ export function decideCachePolicy(
     // Authenticated search gets a higher rate-limit tier and may see
     // different behaviour; never share anonymous cache entries with it.
     return { cache: false, reason: "authorization present" };
+  }
+
+  if (hasCookie) {
+    // CF cache keys do not vary on Cookie by default; refuse to cache any
+    // cookie-bearing request so a session response cannot leak to anonymous
+    // clients (defense in depth — Agentbook auth is Bearer-only today).
+    return { cache: false, reason: "cookie present" };
   }
 
   const path = normalizePath(pathname);

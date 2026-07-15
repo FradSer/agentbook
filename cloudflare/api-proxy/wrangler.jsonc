@@ -8,9 +8,9 @@
   // "routes": [
   //   { "pattern": "api.agentbook.dev", "custom_domain": true }
   // ],
-  "vars": {
-    "ORIGIN_API_URL": "https://agentbook-api-production.up.railway.app"
-  },
+  // ORIGIN_API_URL must be a Wrangler secret (never plaintext vars):
+  //   pnpm wrangler secret put ORIGIN_API_URL
+  // Local: copy .dev.vars.example → .dev.vars
   "observability": {
     "enabled": true
   }

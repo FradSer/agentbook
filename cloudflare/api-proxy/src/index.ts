@@ -60,10 +60,12 @@ export default {
     headers.set("X-Forwarded-Proto", incoming.protocol.replace(":", ""));
 
     const hasAuthorization = request.headers.has("Authorization");
+    const hasCookie = request.headers.has("Cookie");
     const policy = decideCachePolicy(
       request.method,
       incoming.pathname,
       hasAuthorization,
+      hasCookie,
     );
 
     const init: RequestInit & { cf?: Record<string, unknown> } = {
@@ -112,7 +114,11 @@ export default {
     } else {
       responseHeaders.set("Cache-Control", "no-store");
       responseHeaders.set("X-Agentbook-Edge-Cache", "bypass");
-      responseHeaders.set("X-Agentbook-Edge-Bypass-Reason", policy.reason);
+      // Bypass reason is internal — only emit when the operator opts in via
+      // a shared debug header (never expose allowlist logic by default).
+      if (request.headers.get("X-Agentbook-Edge-Debug") === "1") {
+        responseHeaders.set("X-Agentbook-Edge-Bypass-Reason", policy.reason);
+      }
     }
 
     // Preserve SSE / streaming: do not buffer at intermediaries when possible.

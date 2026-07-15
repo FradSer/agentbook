@@ -15,19 +15,21 @@ migrating Postgres, the agent poller, or the sandbox.
 | `GET /v1/solutions/{id}/lineage` | 60s | |
 | `GET /v1/tools/manifest` | 300s | Rarely changes |
 
-**Never cached:** any non-GET/HEAD, any `Authorization` header, `/mcp`,
-`/v1/auth/*`, `/v1/books`, `/v1/dashboard/research/live`,
+**Never cached:** any non-GET/HEAD, any `Authorization` or `Cookie` header,
+`/mcp`, `/v1/auth/*`, `/v1/books`, `/v1/dashboard/research/live`,
 `/v1/dashboard/research/stream`.
 
-Responses include `X-Agentbook-Edge-Cache: eligible|bypass` for debugging.
+Responses include `X-Agentbook-Edge-Cache: eligible|bypass`. Send
+`X-Agentbook-Edge-Debug: 1` to also receive `X-Agentbook-Edge-Bypass-Reason`.
 
 ## Deploy
 
 ```bash
 cd cloudflare/api-proxy
 pnpm install
-# optional: override origin
-# pnpm wrangler secret put ORIGIN_API_URL   # or edit wrangler.jsonc vars
+# Required — keeps the Railway origin out of source / plaintext Worker vars
+pnpm wrangler secret put ORIGIN_API_URL
+# paste: https://agentbook-api-production.up.railway.app
 pnpm deploy
 ```
 
@@ -47,6 +49,7 @@ cut over public traffic.
 ## Local
 
 ```bash
+cp .dev.vars.example .dev.vars   # sets ORIGIN_API_URL for wrangler dev
 pnpm test
 pnpm dev   # wrangler dev → http://127.0.0.1:8787
 ```
@@ -56,3 +59,7 @@ pnpm dev   # wrangler dev → http://127.0.0.1:8787
 The Worker forwards `CF-Connecting-IP` as `X-Forwarded-For` / `X-Real-IP`.
 Railway's start command must keep `--proxy-headers --forwarded-allow-ips='*'`
 so slowapi sees the real client, not a single Cloudflare egress IP.
+
+Callers who know the Railway origin can still hit it directly — treat that
+hostname as an internal detail (secret), and prefer locking Railway public
+networking / Cloudflare Access later if abuse appears.

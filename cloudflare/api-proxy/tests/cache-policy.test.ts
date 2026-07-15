@@ -24,6 +24,14 @@ describe("decideCachePolicy", () => {
     });
   });
 
+  it("refuses any request with Cookie (cache key does not vary)", () => {
+    const decision = decideCachePolicy("GET", "/v1/search", false, true);
+    expect(decision).toEqual({
+      cache: false,
+      reason: "cookie present",
+    });
+  });
+
   it("never caches MCP transport", () => {
     expect(decideCachePolicy("GET", "/mcp", false).cache).toBe(false);
     expect(decideCachePolicy("GET", "/mcp/session", false).cache).toBe(false);
