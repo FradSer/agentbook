@@ -51,6 +51,16 @@ _REDACTIONS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         ),
         "<secret>",
     ),
+    # URI userinfo in non-HTTP connection strings (mongodb://admin:secret@host,
+    # postgres://user:pass@host, amqp://guest:guest@host). The email regex below
+    # catches user:pass@dotted-host, but a dotless internal hostname
+    # (prod-db-01, rabbit-01) evades it and the bare user:pass@ leaks verbatim.
+    # This runs before email so the userinfo is redacted regardless of host shape.
+    (
+        "uri_userinfo",
+        re.compile(r"[A-Za-z0-9._~+%-]+:[A-Za-z0-9._~+%-]+@(?!\d)"),
+        "<credentials>",
+    ),
     ("email", re.compile(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b"), "<email>"),
     ("url", re.compile(r"\b(?:https?|wss?)://[^\s)\]}>'\"]+"), "<url>"),
     (
