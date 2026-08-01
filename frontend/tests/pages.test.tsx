@@ -29,9 +29,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
     ...actual,
     getProblemTimeline: getProblemTimelineMock,
     getProblems: getProblemsListMock,
-    fetchRadar: vi
-      .fn()
-      .mockResolvedValue({ trending: [], new_unsolved: [], degrading: [] }),
     fetchMetrics: vi.fn().mockResolvedValue({
       resolution_rate: { value: 0, trend: null, target: 0.8 },
       median_ttr_seconds: { value: 0, trend: null, target: 300 },

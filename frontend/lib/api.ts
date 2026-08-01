@@ -3,7 +3,6 @@ import type {
   MetricsResponse,
   ProblemListItem,
   ProblemTimeline,
-  RadarResponse,
   ResearchResponse,
   SearchResponse,
   UsageDashboard,
@@ -64,10 +63,6 @@ export async function getProblemTimeline(
   problemId: string,
 ): Promise<ProblemTimeline> {
   return request<ProblemTimeline>(`/v1/problems/${problemId}/timeline`);
-}
-
-export async function fetchRadar(): Promise<RadarResponse> {
-  return request<RadarResponse>("/v1/dashboard/radar");
 }
 
 export async function fetchMetrics(): Promise<MetricsResponse> {

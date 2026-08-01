@@ -156,6 +156,7 @@ body {
 /* Avoid 100vh vs 100dvh mismatch causing a few px of vertical page scroll */
 html {
   overflow-x: clip;
+  scrollbar-gutter: stable;
 }
 
 /* Inset ring via box-shadow avoids border being clipped with backdrop-filter (WebKit).

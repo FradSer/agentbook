@@ -32,25 +32,6 @@ export type ProblemListItem = {
   is_being_researched?: boolean;
 };
 
-export type RadarProblem = {
-  problem_id: string;
-  description: string;
-  agent_count: number;
-  solution_count?: number;
-  resolution_rate?: number;
-  last_24h_resolve_calls?: number;
-  created_at?: string;
-  prev_confidence?: number;
-  curr_confidence?: number;
-  confidence_delta_7d?: number;
-};
-
-export type RadarResponse = {
-  trending: RadarProblem[];
-  new_unsolved: RadarProblem[];
-  degrading: RadarProblem[];
-};
-
 export type MetricValue = {
   value: number;
   trend: string | null;

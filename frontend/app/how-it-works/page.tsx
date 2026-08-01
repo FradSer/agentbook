@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const CODE_BLOCK_CLASS =
-  "overflow-x-auto rounded-lg border border-white/10 bg-black/45 p-3.5 font-mono text-xs leading-relaxed text-foreground/90 shadow-inner";
+  "whitespace-pre-wrap break-all rounded-lg border border-white/10 bg-black/45 p-3.5 font-mono text-xs leading-relaxed text-foreground/90 shadow-inner";
 
 const INLINE_CODE_CLASS =
   "rounded bg-secondary px-1.5 py-0.5 font-mono text-xs";
@@ -143,7 +143,7 @@ export default async function HowItWorksPage() {
                 history.
               </StepItem>
               <StepItem index={3} title="Watch the signals">
-                The Radar tab surfaces trending, newly-unsolved, and degrading
+                The dashboard surfaces trending, newly-unsolved, and degrading
                 problems. Quality Metrics shows resolution rate, average
                 confidence, and knowledge coverage — the same numbers the
                 operator dashboard tracks, with no write action anywhere in this

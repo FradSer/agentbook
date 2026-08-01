@@ -4,16 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
 
-const { fetchRadarMock, fetchMetricsMock, getProblemsListMock } = vi.hoisted(
-  () => ({
-    fetchRadarMock: vi.fn(),
-    fetchMetricsMock: vi.fn(),
-    getProblemsListMock: vi.fn(),
-  }),
-);
+const { fetchMetricsMock, getProblemsListMock } = vi.hoisted(() => ({
+  fetchMetricsMock: vi.fn(),
+  getProblemsListMock: vi.fn(),
+}));
 
 vi.mock("@/lib/api", () => ({
-  fetchRadar: fetchRadarMock,
   fetchMetrics: fetchMetricsMock,
   getProblems: getProblemsListMock,
   ApiError: class ApiError extends Error {
@@ -25,7 +21,6 @@ vi.mock("@/lib/api", () => ({
   },
 }));
 
-const emptyRadar = { trending: [], new_unsolved: [], degrading: [] };
 const emptyMetrics = {
   resolution_rate: { value: 0, trend: null, target: 0.8 },
   median_ttr_seconds: { value: 0, trend: null, target: 300 },
@@ -36,53 +31,25 @@ const emptyMetrics = {
   stale_solutions: 0,
 };
 
-describe("HomePage — Memory Radar & Metrics tabs", () => {
+describe("HomePage — Memories & Metrics tabs", () => {
   beforeEach(() => {
-    fetchRadarMock.mockReset();
     fetchMetricsMock.mockReset();
     getProblemsListMock.mockReset();
-    fetchRadarMock.mockResolvedValue(emptyRadar);
     fetchMetricsMock.mockResolvedValue(emptyMetrics);
     getProblemsListMock.mockResolvedValue([]);
   });
 
-  it("given home page load when initial data resolves then both primary tabs are visible", async () => {
+  it("given home page load when initial data resolves then only Memories and Quality Metrics tabs are visible", async () => {
     render(<HomePage />);
-    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
-    expect(
-      screen.getByRole("tab", { name: "Memory Radar" }),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Memories",
+      "Quality Metrics",
+    ]);
     expect(
       screen.getByRole("tab", { name: "Quality Metrics" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("tabpanel")).toBeInTheDocument();
-  });
-
-  it("shows trending section with activity badge when trending data exists", async () => {
-    fetchRadarMock.mockResolvedValue({
-      trending: [
-        {
-          problem_id: "abc",
-          description: "pgvector not installed",
-          agent_count: 5,
-          solution_count: 2,
-          resolution_rate: 0.8,
-          last_24h_resolve_calls: 10,
-        },
-      ],
-      new_unsolved: [],
-      degrading: [],
-    });
-    render(<HomePage />);
-    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
-
-    const radarTab = screen.getByText("Memory Radar");
-    await userEvent.click(radarTab);
-
-    await waitFor(() =>
-      expect(screen.getByText("Trending")).toBeInTheDocument(),
-    );
-    expect(screen.getByText("10 in 24h")).toBeInTheDocument();
   });
 
   it("given metrics data when switching tabs then metric cards are rendered", async () => {
@@ -104,7 +71,7 @@ describe("HomePage — Memory Radar & Metrics tabs", () => {
 
   it("given home page mounted when locating landmarks then live research banner sits between the hero subtitle and the Tabs region", async () => {
     render(<HomePage />);
-    await waitFor(() => expect(fetchRadarMock).toHaveBeenCalled());
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
 
     const banner = screen.getByRole("status", {
       name: /live research status/i,
@@ -126,6 +93,19 @@ describe("HomePage — Memory Radar & Metrics tabs", () => {
     const computed = window.getComputedStyle(banner);
     expect(computed.position).not.toBe("fixed");
     expect(computed.position).not.toBe("sticky");
+  });
+
+  it("aligns the tab labels and sort controls with the hero copy", async () => {
+    render(<HomePage />);
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
+
+    const tablist = screen.getByRole("tablist");
+    const sortBar = screen.getByRole("button", {
+      name: "Newest",
+    }).parentElement;
+
+    expect(tablist).toHaveClass("pl-2", "border-b", "border-border", "pb-px");
+    expect(sortBar).toHaveClass("pl-2");
   });
 
   it("given a researching problem when home page renders both surfaces then the per-card Researching badge still appears alongside the banner", async () => {
@@ -172,5 +152,18 @@ describe("HowItWorksPage layout", () => {
       "lg:col-start-1",
       "lg:row-start-1",
     );
+  });
+
+  it("wraps agent commands instead of creating a horizontal scrollbar", async () => {
+    const { default: HowItWorksPage } = await import("@/app/how-it-works/page");
+    const page = await HowItWorksPage();
+    const { container } = render(page);
+    const codeBlocks = container.querySelectorAll("pre");
+
+    expect(codeBlocks.length).toBeGreaterThan(0);
+    for (const codeBlock of codeBlocks) {
+      expect(codeBlock).toHaveClass("whitespace-pre-wrap", "break-all");
+      expect(codeBlock).not.toHaveClass("overflow-x-auto");
+    }
   });
 });

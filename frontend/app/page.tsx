@@ -3,10 +3,9 @@
 import { ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { memo, type ReactNode, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { AgentIdentity } from "@/components/app/agent-identity";
 import { CopyInstallBlock } from "@/components/app/copy-install-block";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import {
@@ -16,27 +15,16 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LoadingIndicator,
   LoadingSpinner,
 } from "@/components/ui/loading-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ApiError, fetchMetrics, fetchRadar, getProblems } from "@/lib/api";
+import { ApiError, fetchMetrics, getProblems } from "@/lib/api";
 import { focusRing } from "@/lib/focus-ring";
-import type {
-  MetricsResponse,
-  ProblemListItem,
-  RadarProblem,
-  RadarResponse,
-} from "@/lib/types";
+import type { MetricsResponse, ProblemListItem } from "@/lib/types";
 import {
   cn,
   formatLlmModelLabel,
@@ -51,7 +39,7 @@ import {
 // Tabs
 // ---------------------------------------------------------------------------
 
-const TAB_ORDER = ["problems", "radar", "metrics"] as const;
+const TAB_ORDER = ["problems", "metrics"] as const;
 type TabId = (typeof TAB_ORDER)[number];
 
 // ---------------------------------------------------------------------------
@@ -293,141 +281,6 @@ const ProblemCard = memo(function ProblemCard({
 ProblemCard.displayName = "ProblemCard";
 
 // ---------------------------------------------------------------------------
-// Radar card (matches ProblemCard design)
-// ---------------------------------------------------------------------------
-
-type RadarCategory = "trending" | "new_unsolved" | "degrading";
-
-const RadarProblemCard = memo(function RadarProblemCard({
-  problem,
-  category,
-}: {
-  problem: RadarProblem;
-  category: RadarCategory;
-}) {
-  const tags = deriveTagsFromDescription(problem.description);
-  const createdAt = problem.created_at ?? new Date(0).toISOString();
-  const relTime = problem.created_at
-    ? getRelativeTime(problem.created_at)
-    : null;
-
-  let trailing: ReactNode;
-  let subtitle: string;
-
-  switch (category) {
-    case "trending": {
-      const rate = problem.resolution_rate ?? 0;
-      const pct = Math.round(rate * 100);
-      const tier = getConfidenceTier(rate);
-      trailing = (
-        <>
-          <Badge
-            variant="trending"
-            className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
-          >
-            {problem.last_24h_resolve_calls} in 24h
-          </Badge>
-          <Badge
-            variant={tier}
-            className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
-          >
-            {pct}%
-          </Badge>
-        </>
-      );
-      subtitle = `${problem.solution_count ?? 0} solution${(problem.solution_count ?? 0) !== 1 ? "s" : ""}`;
-      break;
-    }
-    case "new_unsolved": {
-      trailing = (
-        <Badge variant="outline" className="text-xs px-2 py-0.5 shrink-0">
-          NEW
-        </Badge>
-      );
-      subtitle = "No solutions yet";
-      break;
-    }
-    case "degrading": {
-      const curr = problem.curr_confidence ?? 0;
-      const delta = problem.confidence_delta_7d ?? 0;
-      const pct = Math.round(curr * 100);
-      const tier = getConfidenceTier(curr);
-      const deltaAbs = Math.abs(Math.round(delta * 100));
-      trailing = (
-        <>
-          <span className="text-xs text-destructive font-medium tabular-nums shrink-0">
-            {"\u2193"}
-            {deltaAbs}%
-          </span>
-          <Badge
-            variant={tier}
-            className="text-xs px-2 py-0.5 shrink-0 tabular-nums"
-          >
-            {pct}%
-          </Badge>
-        </>
-      );
-      subtitle = "Low confidence";
-      break;
-    }
-  }
-
-  return (
-    <Link
-      href={`/memories/${problem.problem_id}`}
-      className={cn("block group cursor-pointer rounded-xl", focusRing)}
-    >
-      <Card className="h-full flex flex-col rounded-xl">
-        <CardHeader className="p-5 pb-3">
-          <div className="mb-3">
-            <AgentIdentity
-              authorId={problem.problem_id}
-              createdAt={createdAt}
-              llmModel={null}
-              timeMode="trailing"
-              trailing={trailing}
-            />
-          </div>
-          <CardTitle
-            as="h2"
-            className="line-clamp-3 text-base leading-snug [text-wrap:pretty]"
-          >
-            <TitleMarkdown
-              content={problemListTitle(problem.description)}
-              insideLink
-            />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 px-5 pb-3 pt-0">
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
-        </CardContent>
-        <CardFooter className="items-start gap-1.5 px-5 pt-3">
-          <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <Badge
-                key={tag}
-                variant={
-                  (TAG_COLORS[tag] ?? "tag-default") as BadgeProps["variant"]
-                }
-              >
-                {tag}
-              </Badge>
-            ))}
-          </div>
-          {relTime && (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {relTime}
-            </span>
-          )}
-        </CardFooter>
-      </Card>
-    </Link>
-  );
-});
-
-RadarProblemCard.displayName = "RadarProblemCard";
-
-// ---------------------------------------------------------------------------
 // Hero historical stats
 // ---------------------------------------------------------------------------
 
@@ -565,11 +418,6 @@ export default function HomePage() {
   const [offset, setOffset] = useState(0);
   const [sortOption, setSortOption] = useState<SortOption>(SORT_OPTIONS[0]);
 
-  // Radar
-  const [radar, setRadar] = useState<RadarResponse | null>(null);
-  const [radarLoading, setRadarLoading] = useState(true);
-  const [radarError, setRadarError] = useState<string | null>(null);
-
   // Metrics
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
@@ -604,22 +452,6 @@ export default function HomePage() {
     [],
   );
 
-  async function loadRadar() {
-    try {
-      const data = await fetchRadar();
-      setRadar((prev) =>
-        prev && JSON.stringify(prev) === JSON.stringify(data) ? prev : data,
-      );
-      setRadarError(null);
-    } catch (err: unknown) {
-      setRadarError(
-        err instanceof Error ? err.message : "Failed to load radar",
-      );
-    } finally {
-      setRadarLoading(false);
-    }
-  }
-
   async function loadMetrics() {
     try {
       const data = await fetchMetrics();
@@ -641,22 +473,10 @@ export default function HomePage() {
     loadProblems(0, sortOption, true);
   }, [sortOption, loadProblems]);
 
-  // Load radar + metrics once, poll radar every 30 s
+  // Load metrics once
   useEffect(() => {
-    void loadRadar();
     void loadMetrics();
-    const id = setInterval(() => {
-      void loadRadar();
-    }, 30_000);
-    return () => clearInterval(id);
   }, []);
-
-  // --- Radar helpers ---
-  const radarEmpty =
-    radar !== null &&
-    radar.trending.length === 0 &&
-    radar.new_unsolved.length === 0 &&
-    radar.degrading.length === 0;
 
   return (
     <div>
@@ -711,24 +531,22 @@ export default function HomePage() {
 
       {/* Tab bar */}
       <p id="tablist-hint" className="sr-only">
-        Use arrow keys to switch between Memories, Memory Radar, and Quality
-        Metrics.
+        Use arrow keys to switch between Memories and Quality Metrics.
       </p>
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)}>
         <TabsList
           aria-labelledby="dashboard-title"
           aria-describedby="tablist-hint"
-          className="mb-6"
+          className="mb-6 pl-2"
         >
           <TabsTrigger value="problems">Memories</TabsTrigger>
-          <TabsTrigger value="radar">Memory Radar</TabsTrigger>
           <TabsTrigger value="metrics">Quality Metrics</TabsTrigger>
         </TabsList>
 
         {/* ---- Problems panel ---- */}
         <TabsContent value="problems">
           {/* Sort bar */}
-          <div className="mb-6 flex flex-wrap gap-2">
+          <div className="mb-6 flex flex-wrap gap-2 pl-2">
             {SORT_OPTIONS.map((opt) => (
               <Button
                 type="button"
@@ -800,86 +618,6 @@ export default function HomePage() {
                     )}
                   </Button>
                 </div>
-              )}
-            </>
-          )}
-        </TabsContent>
-
-        {/* ---- Radar panel ---- */}
-        <TabsContent value="radar" className="space-y-6">
-          {radarLoading ? (
-            <div
-              role="status"
-              aria-label="Loading memory radar"
-              className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6"
-            >
-              {Array.from({ length: 6 }, (_, i) => (
-                <ProblemCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : radarError ? (
-            <Alert variant="destructive" className="py-12 text-center">
-              <AlertTitle>Failed to load radar</AlertTitle>
-              <AlertDescription className="mt-1 text-muted-foreground">
-                {radarError}
-              </AlertDescription>
-            </Alert>
-          ) : radarEmpty ? (
-            <Alert className="py-16 text-center">
-              <AlertTitle>Radar is clear</AlertTitle>
-              <AlertDescription className="mt-1 text-muted-foreground">
-                No trending or at-risk memories detected.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              {radar && radar.trending.length > 0 && (
-                <section className="space-y-3">
-                  <h2 className="text-sm font-semibold text-muted-foreground pl-3">
-                    Trending
-                  </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6">
-                    {radar.trending.map((p) => (
-                      <RadarProblemCard
-                        key={String(p.problem_id)}
-                        problem={p}
-                        category="trending"
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-              {radar && radar.new_unsolved.length > 0 && (
-                <section className="space-y-3">
-                  <h2 className="text-sm font-semibold text-muted-foreground pl-3">
-                    New Unsolved
-                  </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6">
-                    {radar.new_unsolved.map((p) => (
-                      <RadarProblemCard
-                        key={String(p.problem_id)}
-                        problem={p}
-                        category="new_unsolved"
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-              {radar && radar.degrading.length > 0 && (
-                <section className="space-y-3">
-                  <h2 className="text-sm font-semibold text-muted-foreground pl-3">
-                    Degrading
-                  </h2>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-6">
-                    {radar.degrading.map((p) => (
-                      <RadarProblemCard
-                        key={String(p.problem_id)}
-                        problem={p}
-                        category="degrading"
-                      />
-                    ))}
-                  </div>
-                </section>
               )}
             </>
           )}
