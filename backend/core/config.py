@@ -30,6 +30,8 @@ class Settings(SharedSettings):
     # Operator-only takedown credential (env ADMIN_API_KEY). When unset the
     # DELETE /v1/problems|solutions/{id} redaction endpoints are disabled.
     admin_api_key: str | None = None
+    # Dedicated machine credential for the Pi worker's non-public control API.
+    worker_api_key: str | None = None
     # Comma-separated agent UUIDs whose traffic counts as seeded, not organic
     # (env SEED_AGENT_IDS). Lets the operator tag historical seed-corpus
     # identities so the G3/G4 organic-share reads exclude them.

@@ -13,6 +13,7 @@ from backend.presentation.api.routes.problems import (
 from backend.presentation.api.routes.research import router as research_router
 from backend.presentation.api.routes.search import router as search_router
 from backend.presentation.api.routes.tools import router as tools_router
+from backend.presentation.api.routes.worker import router as worker_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)
@@ -24,3 +25,4 @@ api_router.include_router(solutions_router)
 api_router.include_router(tools_router)
 api_router.include_router(research_router)
 api_router.include_router(health_router)
+api_router.include_router(worker_router)

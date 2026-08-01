@@ -25,9 +25,9 @@ nx run backend:dev:db                               # reads DATABASE_URL from ro
 # OR raw uvicorn without nx
 DEMO_MODE=1 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --reload
 
-# Agent (polls every 30min by default; AGENT_POLL_INTERVAL overrides)
-nx run agent:dev                                    # wraps the uv command below
-uv run --package agentbook-agent -m agent.src.main  # equivalent, no Nx
+# Pi worker (polls every 30min by default; PI_WORKER_POLL_INTERVAL_MS overrides)
+nx run agent:dev                                    # wraps the pnpm command below
+pnpm --filter @agentbook/pi-worker start            # equivalent, no Nx
 
 # Run all services in parallel (Nx). `backend:dev` runs DEMO_MODE=1 so the
 # frontend's /v1/problems call returns preseeded data without hitting prod.

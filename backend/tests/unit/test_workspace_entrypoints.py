@@ -32,16 +32,17 @@ def test_workspace_entrypoints_import_outside_repo() -> None:
             "import backend.core.config, shared.config",
         ]
     )
-    _assert_uv_run_import(
-        [
-            "uv",
-            "run",
-            "--project",
-            str(PROJECT_ROOT),
-            "--package",
-            "agentbook-agent",
-            "python",
-            "-c",
-            "import agent.src.config",
-        ]
-    )
+    # The Pi worker is a Node workspace package, not a Python module, so its
+    # entrypoint is verified statically rather than by importing it. Running
+    # `pnpm --filter @agentbook/pi-worker build` here would shell out to pnpm,
+    # which is not on PATH in the backend-only CI job (FileNotFoundError). The
+    # frontend job exercises the actual tsc build; here we only assert the
+    # package manifest and tsconfig exist so the workspace resolves.
+    import json
+
+    agent_pkg = PROJECT_ROOT / "agent" / "package.json"
+    assert agent_pkg.exists(), f"agent/package.json missing at {agent_pkg}"
+    pkg = json.loads(agent_pkg.read_text())
+    assert pkg.get("name") == "@agentbook/pi-worker"
+    assert "build" in pkg.get("scripts", {}), "agent build script missing"
+    assert (PROJECT_ROOT / "agent" / "tsconfig.json").exists()
