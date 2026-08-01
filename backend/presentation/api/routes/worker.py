@@ -98,13 +98,16 @@ def review_content(
     if problem is not None:
         result = check_spam(problem.description, "problem")
     else:
+        # inspect_resource for a solution id returns {"type": "solution",
+        # "data": <_solution_to_dict>}; the "data" dict carries "content". The
+        # earlier code read solution.get("solutions") which only exists on
+        # problem resources, so content was always "" and check_spam("") forced
+        # every queued solution to be rejected before the model's verdict.
         solution = service.inspect_resource(
-            resource_id=content_id, include=["solutions"]
+            resource_id=content_id, include=["outcomes"]
         )
-        sols = solution.get("solutions") or []
-        content = ""
-        if sols and isinstance(sols[0], dict):
-            content = sols[0].get("content", "")
+        sdata = solution.get("data") or {}
+        content = sdata.get("content", "") if isinstance(sdata, dict) else ""
         result = check_spam(content, "solution")
     if not result.passed:
         service.update_review(
