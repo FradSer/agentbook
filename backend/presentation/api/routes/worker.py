@@ -116,10 +116,13 @@ def improve(
     # same visibility filter trace uses, so an improve-candidate's parent is not
     # reachable here -- the worker proposes against a base/promoted solution).
     context = service.inspect_resource(resource_id=problem_id, include=["solutions"])
+    # inspect_resource serializes solution_id as a UUID object, so compare as
+    # UUID — str(body.solution_id) against a set of UUIDs would always be False
+    # and the route would 422 on every legitimate improvement.
     solution_ids = {
         item.get("solution_id") for item in (context.get("solutions") or [])
     }
-    if str(body.solution_id) not in solution_ids:
+    if body.solution_id not in solution_ids:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
