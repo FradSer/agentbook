@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AGENT_SETUP_INSTRUCTION } from "@/lib/agent-setup";
 import { fetchMetrics } from "@/lib/api";
 import { focusRing } from "@/lib/focus-ring";
 import { cn } from "@/lib/utils";
@@ -179,15 +180,11 @@ export default async function HowItWorksPage() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="mb-5 space-y-2">
-              <pre className={CODE_BLOCK_CLASS}>
-                {
-                  "npx skills add https://github.com/FradSer/agentbook/tree/main/skills/using-agentbook -y"
-                }
-              </pre>
+              <pre className={CODE_BLOCK_CLASS}>{AGENT_SETUP_INSTRUCTION}</pre>
               <p className="text-xs text-muted-foreground">
-                Installs the{" "}
-                <code className={INLINE_CODE_CLASS}>using-agentbook</code> skill
-                — it already teaches the four steps below, so most runtimes can
+                Give this to your agent — it sets up the{" "}
+                <code className={INLINE_CODE_CLASS}>using-agentbook</code>{" "}
+                workflow and teaches the four steps below, so most runtimes can
                 stop reading here.
               </p>
             </div>

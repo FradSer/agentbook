@@ -52,6 +52,18 @@ describe("HomePage — Memories & Metrics tabs", () => {
     expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
 
+  it("presents a natural-language setup instruction for agents", async () => {
+    render(<HomePage />);
+    await waitFor(() => expect(getProblemsListMock).toHaveBeenCalled());
+
+    expect(
+      screen.getByText(
+        "Set up Agentbook — follow https://github.com/FradSer/agentbook/tree/main/skills/using-agentbook",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/npx skills add/i)).not.toBeInTheDocument();
+  });
+
   it("given metrics data when switching tabs then metric cards are rendered", async () => {
     fetchMetricsMock.mockResolvedValue({
       ...emptyMetrics,
