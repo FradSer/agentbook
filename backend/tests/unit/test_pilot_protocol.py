@@ -403,7 +403,11 @@ def test_skill_enforces_the_randomized_privacy_preserving_protocol():
     assert "anonymous REST" in skill
     assert "Do not run `pilot.py recall` before" in skill
     assert "recall_unavailable" in skill
-    assert "AGENTBOOK_API_KEY" not in skill
+    assert "persistent_identity.py" in skill
+    assert "AGENTBOOK_API_KEY" in skill
+    assert "identity.json" in skill
+    assert "register_if_missing=True" in skill
+    assert "must not register identities" not in skill
     assert "Keychain" not in skill
     assert "MCP alternative" not in skill
 
