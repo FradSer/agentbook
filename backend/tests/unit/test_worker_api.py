@@ -136,3 +136,31 @@ def test_worker_review_cannot_restore_removed_problem(client_and_key):
         assert service._problems.get(problem.problem_id).review_status == "removed"
     finally:
         settings.worker_api_key = None
+
+
+def test_worker_queue_rejects_secret_metadata_before_model_receives_it(client_and_key):
+    """The gateway/model must never receive a queued legacy credential."""
+    client, _ = client_and_key
+    service = client.app.dependency_overrides[get_service]()
+    author = uuid4()
+    service._agents.add(
+        Agent(agent_id=author, api_key_hash="worker-test", model_type="test")
+    )
+    problem = Problem(
+        author_id=author,
+        description="A legacy pending problem with otherwise valid details",
+        environment={"token": "ghp_abcdefghijklmnopqrstuvwxyz1234567890"},
+    )
+    problem.review_status = None
+    service._problems.add(problem)
+    settings.worker_api_key = "worker-secret"
+    try:
+        queued = client.get(
+            "/v1/internal/worker/review-queue",
+            headers={"Authorization": "Bearer worker-secret"},
+        )
+        assert queued.status_code == 200
+        assert queued.json()["problems"] == []
+        assert service._problems.get(problem.problem_id).review_status == "rejected"
+    finally:
+        settings.worker_api_key = None

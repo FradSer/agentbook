@@ -46,6 +46,42 @@ class SkipRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=4000)
 
 
+def _gate_problem(
+    description: str,
+    error_signature: str | None,
+    environment: object,
+    tags: object,
+):
+    result = check_spam(description, "problem")
+    struct_label = detect_secret_in(error_signature, environment, tags)
+    return secret_rejection(struct_label) if struct_label and result.passed else result
+
+
+def _gate_solution(
+    content: str,
+    steps: object,
+    root_cause_pattern: object,
+    localization_cues: object,
+    verification: object,
+):
+    result = check_spam(content, "solution", {"steps": steps} if steps else None)
+    struct_label = detect_secret_in(
+        root_cause_pattern, localization_cues, verification
+    )
+    return secret_rejection(struct_label) if struct_label and result.passed else result
+
+
+def _reject_gate_failure(
+    service: AgentbookService, content_id: UUID
+) -> None:
+    service.update_review(
+        content_id=content_id,
+        status="rejected",
+        score=0.0,
+        reviewed_at=utc_now(),
+    )
+
+
 @router.get("/review-queue", dependencies=[Depends(require_worker)])
 def review_queue(
     limit: int = 100, service: AgentbookService = Depends(get_service)
@@ -56,31 +92,53 @@ def review_queue(
     # body into the model's context, so unprojected responses push ~0.5-1MB
     # of vectors into every cycle under a 40-req/h gateway cap. The old
     # Python loop fed only {problem_id, description} (agent/src/main.py:81-92).
-    problems = [
-        {
-            "problem_id": str(p.problem_id),
-            "description": p.description,
-            "error_signature": p.error_signature,
-            "environment": p.environment,
-            "tags": list(p.tags or []),
-            "review_status": p.review_status,
-            "created_at": p.created_at,
-        }
-        for p in service.get_unreviewed_problems(limit=limit)
-    ]
-    solutions = [
-        {
-            "solution_id": str(s.solution_id),
-            "problem_id": str(s.problem_id),
-            "content": s.content,
-            "steps": list(s.steps or []),
-            "confidence": s.confidence,
-            "promotion_status": s.promotion_status,
-            "review_status": s.review_status,
-            "created_at": s.created_at,
-        }
-        for s in service.get_unreviewed_solutions(limit=limit)
-    ]
+    problems = []
+    for problem in service.get_unreviewed_problems(limit=limit):
+        result = _gate_problem(
+            problem.description,
+            problem.error_signature,
+            problem.environment,
+            problem.tags,
+        )
+        if not result.passed:
+            _reject_gate_failure(service, problem.problem_id)
+            continue
+        problems.append(
+            {
+                "problem_id": str(problem.problem_id),
+                "description": problem.description,
+                "error_signature": problem.error_signature,
+                "environment": problem.environment,
+                "tags": list(problem.tags or []),
+                "review_status": problem.review_status,
+                "created_at": problem.created_at,
+            }
+        )
+
+    solutions = []
+    for solution in service.get_unreviewed_solutions(limit=limit):
+        result = _gate_solution(
+            solution.content,
+            solution.steps,
+            solution.root_cause_pattern,
+            solution.localization_cues,
+            solution.verification,
+        )
+        if not result.passed:
+            _reject_gate_failure(service, solution.solution_id)
+            continue
+        solutions.append(
+            {
+                "solution_id": str(solution.solution_id),
+                "problem_id": str(solution.problem_id),
+                "content": solution.content,
+                "steps": list(solution.steps or []),
+                "confidence": solution.confidence,
+                "promotion_status": solution.promotion_status,
+                "review_status": solution.review_status,
+                "created_at": solution.created_at,
+            }
+        )
     return {"problems": problems, "solutions": solutions}
 
 
@@ -102,17 +160,12 @@ def review_content(
     if problem is not None and problem.review_status == "removed":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Content not found")
     if problem is not None:
-        result = check_spam(problem.description, "problem")
-        # Mirror the insert-time gate (service.create_problem): error_signature
-        # is publicly readable and a pasted log line can carry a live token;
-        # environment/tags are published verbatim. A legacy row with a
-        # credential in any of these passes the description-only scan above, so
-        # scan the structured fields too before honoring the model's approve.
-        struct_label = detect_secret_in(
-            problem.error_signature, problem.environment, problem.tags
+        result = _gate_problem(
+            problem.description,
+            problem.error_signature,
+            problem.environment,
+            problem.tags,
         )
-        if struct_label is not None and result.passed:
-            result = secret_rejection(struct_label)
     else:
         # inspect_resource for a solution id returns {"type": "solution",
         # "data": <_solution_to_dict>}; the "data" dict carries the published
@@ -129,21 +182,15 @@ def review_content(
         sdata = solution.get("data") or {}
         content = sdata.get("content", "") if isinstance(sdata, dict) else ""
         steps = sdata.get("steps") if isinstance(sdata, dict) else None
-        result = check_spam(content, "solution", {"steps": steps} if steps else None)
-        struct_label = detect_secret_in(
+        result = _gate_solution(
+            content,
+            steps,
             sdata.get("root_cause_pattern") if isinstance(sdata, dict) else None,
             sdata.get("localization_cues") if isinstance(sdata, dict) else None,
             sdata.get("verification") if isinstance(sdata, dict) else None,
         )
-        if struct_label is not None and result.passed:
-            result = secret_rejection(struct_label)
     if not result.passed:
-        service.update_review(
-            content_id=content_id,
-            status="rejected",
-            score=0.0,
-            reviewed_at=utc_now(),
-        )
+        _reject_gate_failure(service, content_id)
         return {
             "status": "rejected",
             "content_id": str(content_id),
