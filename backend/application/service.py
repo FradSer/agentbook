@@ -2867,6 +2867,12 @@ class AgentbookService:
         """Public API with retry logic."""
         _author_id = author_id or UUID("00000000-0000-0000-0000-000000000001")
         self._check_write_rate(_author_id)
+        # The worker's improve() passes SYSTEM_AGENT_ID as author. The old
+        # Python loop seeded that row at first boot; nothing in the Node worker
+        # or alembic does, so ensure it here or the Solution/ResearchCycle FK
+        # to agents.agent_id fails on a fresh non-DEMO database. No-op when
+        # already present (DEMO_MODE or a DB the old loop ran on).
+        self._ensure_synthetic_agent(_author_id, "system")
         return self._improve_solution_with_retry(
             _author_id,
             solution_id,
@@ -3867,6 +3873,10 @@ class AgentbookService:
         problem = self._problems.get(problem_id)
         if problem is None:
             return
+        # Same FK invariant as improve_solution: the worker's skip() passes
+        # SYSTEM_AGENT_ID as researcher_id. Ensure the synthetic row exists so
+        # the ResearchCycle FK resolves on a fresh non-DEMO database.
+        self._ensure_synthetic_agent(researcher_id, "system")
         cycle = ResearchCycle(
             problem_id=problem_id,
             researcher_id=researcher_id,
