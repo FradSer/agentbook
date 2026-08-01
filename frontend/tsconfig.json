@@ -20,14 +20,7 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    },
-    // Explicit `types` so tsc loads them regardless of pnpm hoisting. Without
-    // this, @types/aria-query may land in a node_modules/@types dir tsc does
-    // not scan under CI's pnpm layout; jest-dom's `TestingLibraryMatchers` then
-    // fails to resolve (aria-query ships no types of its own) and its vitest
-    // module augmentation becomes a no-op, so matchers like toBeInTheDocument
-    // vanish from the Assertion type. Listing the set explicitly is hoist-proof.
-    "types": ["node", "react", "react-dom", "aria-query"]
+    }
   },
   "include": [
     "next-env.d.ts",

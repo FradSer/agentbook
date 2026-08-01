@@ -6,6 +6,7 @@
     "nx:graph": "nx graph"
   },
   "devDependencies": {
-    "nx": "23.0.1"
+    "nx": "23.0.1",
+    "vitest": "^4.1.10"
   }
 }
