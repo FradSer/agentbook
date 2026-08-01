@@ -1,15 +1,23 @@
 import { config } from "./config.js";
 
 export class WorkerApi {
-  async get<T>(path: string): Promise<T> {
-    return this.request<T>(path);
+  async get<T>(path: string, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(path, {}, signal);
   }
 
-  async post<T>(path: string, body: unknown): Promise<T> {
-    return this.request<T>(path, { method: "POST", body: JSON.stringify(body) });
+  async post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(
+      path,
+      { method: "POST", body: JSON.stringify(body) },
+      signal,
+    );
   }
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    path: string,
+    init: RequestInit = {},
+    signal?: AbortSignal,
+  ): Promise<T> {
     // Bound each backend tool-call leg. The old Python loop relied on the
     // OS/undici defaults; this Node fetch is bare without an AbortSignal, so a
     // stalled backend (Railway deploy churn, a hung DB query) would hang the
@@ -23,9 +31,14 @@ export class WorkerApi {
         "Content-Type": "application/json",
         ...init.headers,
       },
-      signal: AbortSignal.timeout(30_000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000),
     });
-    if (!response.ok) throw new Error(`worker API ${response.status}: ${await response.text()}`);
+    if (!response.ok)
+      throw new Error(
+        `worker API ${response.status}: ${await response.text()}`,
+      );
     return response.json() as Promise<T>;
   }
 }

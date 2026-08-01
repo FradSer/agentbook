@@ -1,4 +1,8 @@
-import { createAgentSession, ModelRuntime, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+  createAgentSession,
+  ModelRuntime,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
 import { WorkerApi } from "./api.js";
 import { config, validateConfig } from "./config.js";
 import { createWorkerTools } from "./tools.js";
@@ -50,7 +54,10 @@ async function runCycle(): Promise<void> {
   const runtime = await ModelRuntime.create();
   registerDynamicModel(runtime);
   const model = runtime.getModel("cloudflare-ai-gateway", config.model);
-  if (!model) throw new Error(`Pi cannot resolve ${config.model} through Cloudflare AI Gateway`);
+  if (!model)
+    throw new Error(
+      `Pi cannot resolve ${config.model} through Cloudflare AI Gateway`,
+    );
   const { session } = await createAgentSession({
     model,
     modelRuntime: runtime,
@@ -75,17 +82,19 @@ async function runCycle(): Promise<void> {
   // misbehaving model can therefore run one cycle for hours. Race prompt()
   // against a 1500s wall clock so a stuck cycle aborts and the next poll runs.
   const CYCLE_DEADLINE_MS = 1_500_000;
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       session.prompt(INSTRUCTIONS, { source: "interactive" }),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Pi cycle exceeded 1500s deadline")),
-          CYCLE_DEADLINE_MS,
-        ),
-      ),
+      new Promise<never>((_, reject) => {
+        deadlineTimer = setTimeout(() => {
+          void session.abort().catch(() => undefined);
+          reject(new Error("Pi cycle exceeded 1500s deadline"));
+        }, CYCLE_DEADLINE_MS);
+      }),
     ]);
   } finally {
+    if (deadlineTimer) clearTimeout(deadlineTimer);
     session.dispose();
   }
 }
@@ -93,7 +102,11 @@ async function runCycle(): Promise<void> {
 async function main(): Promise<void> {
   validateConfig();
   for (;;) {
-    try { await runCycle(); } catch (error) { console.error("Pi worker cycle failed", error); }
+    try {
+      await runCycle();
+    } catch (error) {
+      console.error("Pi worker cycle failed", error);
+    }
     await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs));
   }
 }

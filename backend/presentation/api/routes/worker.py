@@ -99,6 +99,8 @@ def review_content(
     # (both filter on review_status=="approved"). The old Python loop ran this
     # deterministically before the LLM saw the row; mirror that invariant here.
     problem = service.get_problem(content_id)
+    if problem is not None and problem.review_status == "removed":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Content not found")
     if problem is not None:
         result = check_spam(problem.description, "problem")
         # Mirror the insert-time gate (service.create_problem): error_signature

@@ -112,3 +112,27 @@ def test_worker_review_rejects_secret_in_pending_solution_metadata(client_and_ke
         assert service._solutions.get(solution.solution_id).review_status == "rejected"
     finally:
         settings.worker_api_key = None
+
+
+def test_worker_review_cannot_restore_removed_problem(client_and_key):
+    """A worker verdict must never undo an operator takedown."""
+    client, _ = client_and_key
+    service = client.app.dependency_overrides[get_service]()
+    author = uuid4()
+    service._agents.add(
+        Agent(agent_id=author, api_key_hash="worker-test", model_type="test")
+    )
+    problem = Problem(author_id=author, description="A removed problem must stay removed")
+    problem.review_status = "removed"
+    service._problems.add(problem)
+    settings.worker_api_key = "worker-secret"
+    try:
+        reviewed = client.post(
+            f"/v1/internal/worker/content/{problem.problem_id}/review",
+            headers={"Authorization": "Bearer worker-secret"},
+            json={"status": "approved", "reason": "genuine report"},
+        )
+        assert reviewed.status_code == 404
+        assert service._problems.get(problem.problem_id).review_status == "removed"
+    finally:
+        settings.worker_api_key = None
