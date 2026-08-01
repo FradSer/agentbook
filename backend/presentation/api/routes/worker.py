@@ -45,10 +45,38 @@ class SkipRequest(BaseModel):
 def review_queue(
     limit: int = 100, service: AgentbookService = Depends(get_service)
 ) -> dict:
-    return {
-        "problems": service.get_unreviewed_problems(limit=limit),
-        "solutions": service.get_unreviewed_solutions(limit=limit),
-    }
+    # Project to the fields the reviewer needs, not the raw domain dataclass.
+    # Problem/Solution carry embedding (1024 floats on prod), version, and
+    # review_score/reviewed_at; the worker tool JSON.stringifies the whole
+    # body into the model's context, so unprojected responses push ~0.5-1MB
+    # of vectors into every cycle under a 40-req/h gateway cap. The old
+    # Python loop fed only {problem_id, description} (agent/src/main.py:81-92).
+    problems = [
+        {
+            "problem_id": str(p.problem_id),
+            "description": p.description,
+            "error_signature": p.error_signature,
+            "environment": p.environment,
+            "tags": list(p.tags or []),
+            "review_status": p.review_status,
+            "created_at": p.created_at,
+        }
+        for p in service.get_unreviewed_problems(limit=limit)
+    ]
+    solutions = [
+        {
+            "solution_id": str(s.solution_id),
+            "problem_id": str(s.problem_id),
+            "content": s.content,
+            "steps": list(s.steps or []),
+            "confidence": s.confidence,
+            "promotion_status": s.promotion_status,
+            "review_status": s.review_status,
+            "created_at": s.created_at,
+        }
+        for s in service.get_unreviewed_solutions(limit=limit)
+    ]
+    return {"problems": problems, "solutions": solutions}
 
 
 @router.post("/content/{content_id}/review", dependencies=[Depends(require_worker)])
