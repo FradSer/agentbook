@@ -8,7 +8,19 @@ export const config = {
   // (gateway holds the upstream DeepSeek key); a bare `deepseek/` slug would hit
   // api.deepseek.com directly and bypass the gateway. See docs/deployment.md.
   model: "dynamic/deepseek-v4-flash",
-  pollIntervalMs: Number(process.env.PI_WORKER_POLL_INTERVAL_MS ?? 1_800_000),
+  // Coerce + validate so a typo like "1800000ms" (NaN) or a negative value
+  // can't collapse the 30-minute poll cadence to a zero-delay tight loop —
+  // setTimeout(resolve, NaN) fires on the next tick, and a fast-failing cycle
+  // (backend 401, refused gateway call) would then hammer the API with no
+  // backoff. Reject at startup instead.
+  pollIntervalMs: (() => {
+    const raw = process.env.PI_WORKER_POLL_INTERVAL_MS ?? "1800000";
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`PI_WORKER_POLL_INTERVAL_MS must be a positive number, got: ${raw}`);
+    }
+    return value;
+  })(),
 };
 
 export function validateConfig(): void {
