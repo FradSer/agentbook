@@ -73,6 +73,15 @@ _REDACTIONS: tuple[tuple[str, re.Pattern[str], str], ...] = (
         re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"),
         "<ip>",
     ),
+    # IPv6 literals (full and ::-compressed, optional brackets). The ip_address
+    # entry above is dotted-IPv4 only; without this, an error line like
+    # "Connection to [2606:4700::6810:84e5]:443 failed" passes every pattern
+    # unchanged, is stored as public_query, and reaches the public /v1/search.
+    (
+        "ipv6_address",
+        re.compile(r"\[?[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{0,4}){2,}\]?"),
+        "<ip>",
+    ),
     (
         "uuid",
         re.compile(
