@@ -55,7 +55,16 @@ async function runCycle(): Promise<void> {
     model,
     modelRuntime: runtime,
     sessionManager: SessionManager.inMemory(),
-    noTools: "all",
+    // "builtin" disables the default read/bash/edit/write tools but KEEPS the
+    // customTools array enabled. The earlier "all" was a showstopper: pi-ai's
+    // runtime turns noTools==="all" into an empty allowedToolNames Set, whose
+    // isAllowedTool predicate rejects EVERY name — including the six custom
+    // Agentbook tools — so the session exposed zero tools and session.prompt()
+    // produced a text-only no-op (process-alive health looked green, no review
+    // or improve call ever fired). "builtin" leaves allowedToolNames undefined,
+    // so the predicate short-circuits true for customTools while the builtin
+    // tools stay inactive. See @earendil-works/pi-coding-agent sdk.d.ts / docs.
+    noTools: "builtin",
     customTools: createWorkerTools(new WorkerApi()),
   });
   try {
