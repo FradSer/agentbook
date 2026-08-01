@@ -67,8 +67,24 @@ async function runCycle(): Promise<void> {
     noTools: "builtin",
     customTools: createWorkerTools(new WorkerApi()),
   });
+  // The old Python loop capped every cycle at 1500s (agent_max_cycle_seconds)
+  // to stop a model that keeps re-issuing tool calls from looping indefinitely
+  // under a green process-alive health check. pi 0.83.0's turn loop is an
+  // unbounded while(true) (agent-loop.js) with no iteration cap and no total-
+  // time deadline; it only exits when the model stops issuing tool calls. A
+  // misbehaving model can therefore run one cycle for hours. Race prompt()
+  // against a 1500s wall clock so a stuck cycle aborts and the next poll runs.
+  const CYCLE_DEADLINE_MS = 1_500_000;
   try {
-    await session.prompt(INSTRUCTIONS, { source: "interactive" });
+    await Promise.race([
+      session.prompt(INSTRUCTIONS, { source: "interactive" }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Pi cycle exceeded 1500s deadline")),
+          CYCLE_DEADLINE_MS,
+        ),
+      ),
+    ]);
   } finally {
     session.dispose();
   }

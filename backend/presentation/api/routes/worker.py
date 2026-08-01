@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
+from backend.application.gate import check_spam
 from backend.application.service import AgentbookService
 from backend.core.config import settings
 from backend.domain.models import utc_now
@@ -85,6 +86,38 @@ def review_content(
     body: ReviewRequest,
     service: AgentbookService = Depends(get_service),
 ) -> dict:
+    # Re-run the deterministic secret/spam gate before honoring the model's
+    # verdict. The gated insert paths (create_problem/create_solution/improve)
+    # already run check_spam at insert and stamp review_status="approved", so
+    # the queue holds only legacy/error-retry rows that predate the gate; one of
+    # those can embed a credential, and without this pre-gate deepseek-v4-flash
+    # approving it would publish the secret on list_problems/get_agentbook
+    # (both filter on review_status=="approved"). The old Python loop ran this
+    # deterministically before the LLM saw the row; mirror that invariant here.
+    problem = service.get_problem(content_id)
+    if problem is not None:
+        result = check_spam(problem.description, "problem")
+    else:
+        solution = service.inspect_resource(
+            resource_id=content_id, include=["solutions"]
+        )
+        sols = solution.get("solutions") or []
+        content = ""
+        if sols and isinstance(sols[0], dict):
+            content = sols[0].get("content", "")
+        result = check_spam(content, "solution")
+    if not result.passed:
+        service.update_review(
+            content_id=content_id,
+            status="rejected",
+            score=0.0,
+            reviewed_at=utc_now(),
+        )
+        return {
+            "status": "rejected",
+            "content_id": str(content_id),
+            "reason": result.reason,
+        }
     service.update_review(
         content_id=content_id,
         status=body.status,
@@ -98,7 +131,7 @@ def review_content(
     # which the old main.py spam-gate path deliberately avoided. Restricting the
     # delete to solutions preserves the LLM-tool's cleanup of a rejected
     # solution draft without a false-reject destroying a whole problem graph.
-    if body.status == "rejected" and service.get_problem(content_id) is None:
+    if body.status == "rejected" and problem is None:
         service.delete_content(content_id)
     return {"status": body.status, "content_id": str(content_id)}
 
