@@ -152,3 +152,25 @@ describe("HomePage — Memory Radar & Metrics tabs", () => {
     expect(cardBadges.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe("HowItWorksPage layout", () => {
+  it("uses the shared application content width and hero reading column", async () => {
+    const { default: HowItWorksPage } = await import("@/app/how-it-works/page");
+    const page = await HowItWorksPage();
+    const { container } = render(page);
+    const content = container.firstElementChild;
+    const intro = content?.querySelector("header > div");
+
+    expect(content).toHaveClass("py-10");
+    expect(content).not.toHaveClass("max-w-4xl");
+    expect(content).not.toHaveClass("px-4");
+    expect(intro).toHaveClass(
+      "px-5",
+      "flex",
+      "flex-col",
+      "gap-6",
+      "lg:col-start-1",
+      "lg:row-start-1",
+    );
+  });
+});
