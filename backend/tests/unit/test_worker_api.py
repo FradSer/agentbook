@@ -164,3 +164,33 @@ def test_worker_queue_rejects_secret_metadata_before_model_receives_it(client_an
         assert service._problems.get(problem.problem_id).review_status == "rejected"
     finally:
         settings.worker_api_key = None
+
+
+def test_worker_review_cannot_restore_removed_solution(client_and_key):
+    """A queued solution must remain removed after an operator takedown."""
+    client, _ = client_and_key
+    service = client.app.dependency_overrides[get_service]()
+    author = uuid4()
+    service._agents.add(
+        Agent(agent_id=author, api_key_hash="worker-test", model_type="test")
+    )
+    problem = Problem(author_id=author, description="A parent problem for review")
+    service._problems.add(problem)
+    solution = Solution(
+        problem_id=problem.problem_id,
+        author_id=author,
+        content="[removed by operator]",
+    )
+    solution.review_status = "removed"
+    service._solutions.add(solution)
+    settings.worker_api_key = "worker-secret"
+    try:
+        reviewed = client.post(
+            f"/v1/internal/worker/content/{solution.solution_id}/review",
+            headers={"Authorization": "Bearer worker-secret"},
+            json={"status": "approved", "reason": "genuine solution"},
+        )
+        assert reviewed.status_code == 404
+        assert service._solutions.get(solution.solution_id).review_status == "removed"
+    finally:
+        settings.worker_api_key = None

@@ -180,6 +180,10 @@ def review_content(
             resource_id=content_id, include=["outcomes"]
         )
         sdata = solution.get("data") or {}
+        if isinstance(sdata, dict) and sdata.get("review_status") == "removed":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Content not found"
+            )
         content = sdata.get("content", "") if isinstance(sdata, dict) else ""
         steps = sdata.get("steps") if isinstance(sdata, dict) else None
         result = _gate_solution(

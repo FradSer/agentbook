@@ -209,7 +209,13 @@ def sanitize_error(
     if code_like:
         block_reasons = tuple(sorted({*block_reasons, "code_like_payload"}))
     if safe_dependencies:
-        redacted = f"{redacted} | env: {', '.join(safe_dependencies)}"
+        env_suffix = ", ".join(safe_dependencies)
+        env_suffix, dependency_private_redacted = _redact_private_terms(
+            env_suffix, private_terms
+        )
+        if dependency_private_redacted:
+            categories = tuple(sorted({*categories, "private_term"}))
+        redacted = f"{redacted} | env: {env_suffix}"
     redacted = redacted[:MAX_PUBLIC_QUERY_CHARS].rstrip()
     residual, _ = _redact(redacted)
     if residual != redacted:

@@ -92,6 +92,18 @@ def test_sanitize_error_redacts_operator_supplied_private_terms():
     assert "private_term" in result.redactions
 
 
+def test_sanitize_error_redacts_private_terms_from_dependency_values():
+    result = sanitize_error(
+        "RuntimeError: dependency resolution failed",
+        dependencies=["acme-payments-sdk=2.0"],
+        private_terms=["acme-payments"],
+    )
+
+    assert result.eligible is True
+    assert "acme-payments" not in result.public_query.casefold()
+    assert "<private>" in result.public_query
+
+
 def test_sanitize_error_redacts_quoted_values_relative_paths_and_long_ids():
     result = sanitize_error(
         "RuntimeError: customer 'Northwind Health' failed loading "
