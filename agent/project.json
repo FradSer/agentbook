@@ -6,7 +6,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
-        "command": "uv run --package agentbook-agent -m agent.src.main"
+        "command": "pnpm --filter @agentbook/pi-worker start"
       }
     }
   }

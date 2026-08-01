@@ -32,16 +32,11 @@ def test_workspace_entrypoints_import_outside_repo() -> None:
             "import backend.core.config, shared.config",
         ]
     )
-    _assert_uv_run_import(
-        [
-            "uv",
-            "run",
-            "--project",
-            str(PROJECT_ROOT),
-            "--package",
-            "agentbook-agent",
-            "python",
-            "-c",
-            "import agent.src.config",
-        ]
+    result = subprocess.run(
+        ["pnpm", "--filter", "@agentbook/pi-worker", "build"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
     )
+    assert result.returncode == 0, result.stderr

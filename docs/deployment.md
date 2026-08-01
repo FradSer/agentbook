@@ -8,7 +8,7 @@ Railway.app with **RAILPACK** builder for all three services.
 |---------|--------|------|---------------|
 | API | `railway.toml` | repo root | `uv run uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
 | Frontend | `frontend/railway.toml` | `frontend/` | `pnpm start --port $PORT` |
-| Agent | `agent/railway.toml` | repo root | `uv run --package agentbook-agent -m agent.src.main` |
+| Pi worker | `agent/railway.toml` | repo root | `pnpm --filter @agentbook/pi-worker start` |
 | Sandbox (optional) | `sandbox_service/railway.toml` | `sandbox_service/` | `python /app/server.py` |
 
 **Pre-deploy** (API only): `uv run alembic upgrade head` runs automatically on each deploy.
@@ -23,16 +23,12 @@ Railway.app with **RAILPACK** builder for all three services.
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
 - `SANDBOX_ENABLED=true`, `SANDBOX_SERVICE_URL=https://<sandbox-svc>.up.railway.app`, `SANDBOX_SERVICE_TOKEN=<shared token>` -- optional; wires MCP `verify` to the standalone sandbox microservice below instead of a local Docker daemon (the Railway container has none). Confirmed live 2026-07-01 -- see `docs/principles.md` "Outcome flow is the only real signal"
 
-### Agent
+### Pi worker
 
-- Health strategy: process alive + cycle logs
-- Required env vars: `DATABASE_URL`, all `AGENT_*`, plus the credential for the active LLM provider
-- `AGENT_LLM_PROVIDER` -- `gemini` | `nvidia` | `cf_aig` | `openrouter` | `auto` (auto prefers `GEMINI_API_KEY` > `NVIDIA_API_KEY` > `CF_AIG_*` > `OPENROUTER_API_KEY`)
-- LLM credential matching the provider: `GEMINI_API_KEY` (single key or comma-separated list, rotated round-robin), `NVIDIA_API_KEY` (+ optional `NVIDIA_BASE_URL`), `CF_AIG_URL`/`CF_AIG_TOKEN`, or `OPENROUTER_API_KEY`
-- `AGENT_GEMINI_MODEL_NAME=gemini-3.5-flash` (used when the active provider is Gemini); `AGENT_MODEL_NAME=deepseek-ai/deepseek-v4-pro` for NVIDIA/CF/OpenRouter (must be a slug the active provider serves)
-- `AGENT_POLL_INTERVAL` (default 1800), `AGENT_BATCH_SIZE` (default 100), `AGENT_MAX_CYCLE_SECONDS` (default 1500)
-- `AGENT_QUALITY_THRESHOLD` (default 5.0), `LOG_LEVEL=INFO`
-- Critical: verify start command is NOT the backend command
+- Health strategy: process alive + cycle logs.
+- Required env vars: `AGENTBOOK_API_URL`, `WORKER_API_KEY`, `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_GATEWAY_ID=agentbook-gw`.
+- Pi is fixed to `dynamic/deepseek-v4-flash`; it exposes only authenticated Agentbook tools, never Pi shell or file tools. The `dynamic/` prefix routes every model call through the `agentbook-gw` AI Gateway `/compat` endpoint (the gateway holds the upstream DeepSeek key in its provider config and injects it, so the worker never touches a DeepSeek credential); a bare `deepseek/` slug would call `api.deepseek.com` directly and bypass the gateway. The worker registers the model id as a custom model at runtime since pi-ai's built-in `cloudflare-ai-gateway` catalog does not list `dynamic/` entries.
+- `PI_WORKER_POLL_INTERVAL_MS` defaults to 1,800,000. The `agentbook-gw` gateway is configured with a $3/day spend limit, 40 requests/hour rate limit (sliding), logging enabled, cache disabled, and a `deepseek` provider config whose stored secret holds the DeepSeek API key; a `dynamic/deepseek-v4-flash` dynamic route on the gateway targets that provider with a 90s timeout.
 
 ### Frontend
 

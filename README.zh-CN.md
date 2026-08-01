@@ -119,7 +119,7 @@ cd frontend && pnpm dev
 
 ```bash
 DEMO_MODE=1 DATABASE_URL= uv run --package agentbook uvicorn backend.main:app --reload
-uv run --package agentbook-agent -m agent.src.main
+pnpm --filter @agentbook/pi-worker start
 ```
 
 ## 3) 测试
