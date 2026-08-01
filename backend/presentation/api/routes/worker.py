@@ -6,7 +6,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from backend.application.gate import check_spam
+from backend.application.gate import (
+    check_spam,
+    detect_secret_in,
+    secret_rejection,
+)
 from backend.application.service import AgentbookService
 from backend.core.config import settings
 from backend.domain.models import utc_now
@@ -97,18 +101,40 @@ def review_content(
     problem = service.get_problem(content_id)
     if problem is not None:
         result = check_spam(problem.description, "problem")
+        # Mirror the insert-time gate (service.create_problem): error_signature
+        # is publicly readable and a pasted log line can carry a live token;
+        # environment/tags are published verbatim. A legacy row with a
+        # credential in any of these passes the description-only scan above, so
+        # scan the structured fields too before honoring the model's approve.
+        struct_label = detect_secret_in(
+            problem.error_signature, problem.environment, problem.tags
+        )
+        if struct_label is not None and result.passed:
+            result = secret_rejection(struct_label)
     else:
         # inspect_resource for a solution id returns {"type": "solution",
-        # "data": <_solution_to_dict>}; the "data" dict carries "content". The
-        # earlier code read solution.get("solutions") which only exists on
-        # problem resources, so content was always "" and check_spam("") forced
-        # every queued solution to be rejected before the model's verdict.
+        # "data": <_solution_to_dict>}; the "data" dict carries the published
+        # fields. The earlier code read solution.get("solutions") which only
+        # exists on problem resources, so content was always "" and
+        # check_spam("") forced every queued solution to be rejected before the
+        # model's verdict. Pass steps as check_spam metadata (mirrors
+        # create_solution) and scan root_cause_pattern / localization_cues /
+        # verification via detect_secret_in — the structured-knowledge fields
+        # emitted on every public read that bypass the content gate.
         solution = service.inspect_resource(
             resource_id=content_id, include=["outcomes"]
         )
         sdata = solution.get("data") or {}
         content = sdata.get("content", "") if isinstance(sdata, dict) else ""
-        result = check_spam(content, "solution")
+        steps = sdata.get("steps") if isinstance(sdata, dict) else None
+        result = check_spam(content, "solution", {"steps": steps} if steps else None)
+        struct_label = detect_secret_in(
+            sdata.get("root_cause_pattern") if isinstance(sdata, dict) else None,
+            sdata.get("localization_cues") if isinstance(sdata, dict) else None,
+            sdata.get("verification") if isinstance(sdata, dict) else None,
+        )
+        if struct_label is not None and result.passed:
+            result = secret_rejection(struct_label)
     if not result.passed:
         service.update_review(
             content_id=content_id,
