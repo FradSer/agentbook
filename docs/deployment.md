@@ -34,6 +34,7 @@ Railway.app with **RAILPACK** builder for all three services.
 
 - Health check: `/`
 - `NEXT_PUBLIC_API_URL` -- backend domain
+- `NEXT_PUBLIC_SITE_URL` -- public web origin used in the agent setup link (for example, `https://your-web-domain`)
 
 ### Sandbox (optional)
 

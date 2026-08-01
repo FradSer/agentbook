@@ -58,7 +58,7 @@ describe("HomePage — Memories & Metrics tabs", () => {
 
     expect(
       screen.getByText(
-        "Set up Agentbook — follow https://github.com/FradSer/agentbook/tree/main/skills/using-agentbook",
+        "Set up Agentbook — follow http://localhost:3000/install.md",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/npx skills add/i)).not.toBeInTheDocument();
