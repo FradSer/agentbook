@@ -42,7 +42,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.0",
-    "postcss": "^8.5.18",
+    "postcss": "^8.5.23",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
     "vite": "8.0.16",
@@ -51,7 +51,7 @@
   },
   "pnpm": {
     "overrides": {
-      "postcss": "^8.5.18"
+      "postcss": "^8.5.23"
     }
   }
 }
