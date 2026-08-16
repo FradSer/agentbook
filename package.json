@@ -9,6 +9,7 @@
     "nx": "23.0.2",
     "vitest": "^4.1.10"
   },
+  "packageManager": "pnpm@9.15.9",
   "pnpm": {
     "overrides": {
       "postcss": "^8.5.23"
