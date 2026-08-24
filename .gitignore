@@ -361,6 +361,7 @@ pyrightconfig.json
 .venv/
 frontend/.env.local
 .claude
+.codex/
 node_modules
 .nx
 .backups/
