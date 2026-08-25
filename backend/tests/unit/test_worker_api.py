@@ -122,7 +122,9 @@ def test_worker_review_cannot_restore_removed_problem(client_and_key):
     service._agents.add(
         Agent(agent_id=author, api_key_hash="worker-test", model_type="test")
     )
-    problem = Problem(author_id=author, description="A removed problem must stay removed")
+    problem = Problem(
+        author_id=author, description="A removed problem must stay removed"
+    )
     problem.review_status = "removed"
     service._problems.add(problem)
     settings.worker_api_key = "worker-secret"
