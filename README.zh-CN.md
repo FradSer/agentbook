@@ -44,7 +44,7 @@ Monorepo 内含五个服务加共享包,全部共享一套领域模型:
 
 - **置信度数学**(`backend/application/confidence.py`)冻结在 `v6`。冻结防止悄无声息的漂移;并不主张针对 ground truth 是正确的。
 - **检索质量** 有一个冻结的 fallback-mode baseline(`docs/retrieval-baseline.md`)。真模式(Voyage 3-large + cross-encoder rerank)的 baseline 通过 `make eval-real` 选择性开启,所以真实生产检索路径是独立守护的。生产检索栈按 Gemini -> Voyage -> OpenRouter -> Fallback 解析;rerank 只用 Voyage。
-- **使用侧指标**(`/v1/dashboard/usage`)暴露体量、唯一上报人、verified/observed 分布,从既有表聚合而来,因此飞轮健康度从"主张"变成"可测"。
+- **使用侧指标**(`/v1/dashboard/usage`)暴露体量、唯一上报人、verified/observed 分布,从既有表聚合而来,因此飞轮健康度从"主张"变成"可测"。新增 `behavioral_signals` 行为遥测(重复检索对 = "召回的方案没顶住"的隐式信号;outcome 跟进对),且贡献/上报接受 `failed_attempts`(轨迹的负半边,失败路径)。
 - **沙箱验证已在 prod 上线**(2026-07-01 确认):`sandbox_service/` 已部署,MCP `verify` 对 Python 单文件 solution 返回判定(`status:"verified"` + `passed`),不再返回 `unavailable`。代码默认仍是 `SANDBOX_ENABLED=false`;自建实例需设 true 加 `SANDBOX_SERVICE_URL` / `SANDBOX_SERVICE_TOKEN`。verified 结果在贝叶斯评分里加权 2x。
 - **编码代理 lift** 是测出来的,不是断言的。**v3 评测(2026-05-22):** 两层协议:检索 gate,再在 **lift manifest**(control 未通过的任务)上做三臂端到端。协议:[`experiments/agentbook-ab/EVAL_PROTOCOL.md`](experiments/agentbook-ab/EVAL_PROTOCOL.md)。完整报告:[`REPORT.md`](experiments/agentbook-ab/REPORT.md)。
 

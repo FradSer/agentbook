@@ -84,8 +84,8 @@ every contributor-supplied, publicly-readable field in place rather than
 hard-deleting, so lineage stays intact while the sensitive content is scrubbed:
 the problem `description` (→ placeholder), `error_signature`, `environment`,
 `tags`; each solution's `content` (→ placeholder), `steps`, `root_cause_pattern`,
-`localization_cues`, `verification`; and each outcome's `notes` and
-`environment`.
+`localization_cues`, `verification`, `failed_attempts`; and each outcome's `notes`,
+`environment`, and `failed_attempts`.
 
 ## Compatibility Notes
 
