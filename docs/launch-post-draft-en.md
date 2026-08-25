@@ -67,10 +67,10 @@ This post therefore uses “outcome-verified” only to describe the intended ga
 
 The evidence summary reports the following same-task transitions:
 
-| Model | `control_loop` → `good_loop` | Interpretation |
+| Model | Reported transition (right side is `good_loop`) | Interpretation |
 |---|---:|---|
-| Qwen | **13/17 → 17/17** [†] | Same-task recalled knowledge plus the verification/retry loop |
-| `gpt-oss` | **1/17 → 6/17** | Same-task recalled knowledge plus the verification/retry loop |
+| `qwen3.6-35b` | **13/17 → 17/17** [†] | Same-task recalled knowledge plus the verification/retry loop |
+| `gpt-oss:20b` | **1/17 → 6/17** [†] | Same-task recalled knowledge plus the verification/retry loop |
 
 These are `good_loop` results: recall plus the harness verification/retry path. They are not naked recall percentages, and they are not cross-task results. The paired runs reported **zero paired harm**. [S1][S6]
 
