@@ -14,4 +14,11 @@ type: project
 - 生产数据基线：150 problems / 62 outcomes 全为存量；last_30d 活动 = 0（截至 2026-08-24）。recurrence-density 面板的 RD=0.76/organic=0.62 是自测流量灌水值，不可当 G2/G3 证据
 - Codex 狗粮试点 ledger（~/.local/share/agentbook/pilot.jsonl）仅 10 条事件，最后一条 2026-08-01；G0 门未判定
 
+## 2026-08-24 会话增量
+
+- Landing page 转化优化已提交部署（4ee8ae9）：痛点 H1、按钮 CTA、seeded-corpus 诚实标注、底部重复 CTA、meta description 红线修复
+- MCP annotations 已提交（221f029）：6 工具全部声明 ToolAnnotations，Connectors Directory 前置条件就绪
+- 分发打包已提交（6d08a75）：server.json（MCP Registry）、.claude-plugin/ 插件、双语 README Cursor 深链。**注意：server.json 已创建但尚未发布到 registry——发布需操作者运行 `npx mcp-publisher login`（GitHub OAuth）后 publish；目录提交（Smithery 等）也是手动网页动作**
+- 私信模板已完成：`.outreach-drafts/dm-templates-en.md`（gitignored，本地私有），3 变体 + bump，基于真实 issue 引文；how-it-works 链接指向线上页
+
 **Related:** [[railway-custom-domain-api]]
