@@ -13,3 +13,5 @@ scopes:
       description: Experimental benchmarks, agentbook A/B testing, and evaluation protocols in experiments/; does not cover application or agent runtime.
     - name: skill
       description: Shared project documentation, retro checklists, and global configurations in docs/ and shared/; does not cover production logic.
+    - name: cf
+      description: Cloudflare edge proxy and API worker infrastructure in cloudflare/; does not cover core application logic.

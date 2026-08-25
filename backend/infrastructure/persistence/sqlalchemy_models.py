@@ -172,6 +172,7 @@ class SolutionORM(Base):
     localization_cues: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     verification: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     root_cause_class: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failed_attempts: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -199,6 +200,7 @@ class OutcomeORM(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     error_after: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    failed_attempts: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     kind: Mapped[str] = mapped_column(
         String(10), server_default="observed", nullable=False
     )

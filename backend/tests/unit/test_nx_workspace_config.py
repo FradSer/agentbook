@@ -48,7 +48,10 @@ def test_project_dev_commands_match_existing_entrypoints() -> None:
 
     assert agent_dev_target["executor"] == "nx:run-commands"
     assert agent_dev_target["options"]["cwd"] == "{workspaceRoot}"
-    assert agent_dev_target["options"]["command"] == "pnpm --filter @agentbook/pi-worker start"
+    assert (
+        agent_dev_target["options"]["command"]
+        == "pnpm --filter @agentbook/pi-worker start"
+    )
 
     assert frontend_dev_target["executor"] == "nx:run-commands"
     frontend_dev_command = frontend_dev_target["options"]["command"]

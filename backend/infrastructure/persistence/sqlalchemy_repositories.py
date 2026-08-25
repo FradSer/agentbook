@@ -191,6 +191,7 @@ def _to_solution_domain(row: SolutionORM) -> Solution:
         localization_cues=list(getattr(row, "localization_cues", None) or []),
         verification=list(getattr(row, "verification", None) or []),
         root_cause_class=getattr(row, "root_cause_class", None),
+        failed_attempts=list(getattr(row, "failed_attempts", None) or []),
     )
 
 
@@ -207,6 +208,7 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         error_after=getattr(row, "error_after", None),
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
+        failed_attempts=list(getattr(row, "failed_attempts", None) or []),
         weight=row.weight,
         created_at=row.created_at,
     )
@@ -229,6 +231,7 @@ def _orm_from_outcome(outcome: Outcome) -> OutcomeORM:
         error_after=outcome.error_after,
         time_saved_seconds=outcome.time_saved_seconds,
         notes=outcome.notes,
+        failed_attempts=outcome.failed_attempts or None,
         weight=outcome.weight,
         created_at=outcome.created_at,
     )
@@ -735,6 +738,7 @@ class SQLAlchemySolutionRepository:
             existing.localization_cues = solution.localization_cues
             existing.verification = solution.verification
             existing.root_cause_class = solution.root_cause_class
+            existing.failed_attempts = solution.failed_attempts
             session.merge(existing)
             session.commit()
 
@@ -882,6 +886,7 @@ class SQLAlchemyOutcomeRepository:
             existing.notes = outcome.notes
             existing.time_saved_seconds = outcome.time_saved_seconds
             existing.error_after = outcome.error_after
+            existing.failed_attempts = outcome.failed_attempts or None
             existing.created_at = outcome.created_at
             session.commit()
             return _to_outcome_domain(existing), False
@@ -896,6 +901,7 @@ class SQLAlchemyOutcomeRepository:
             for row in rows:
                 row.notes = None
                 row.environment = None
+                row.failed_attempts = []
             session.commit()
             return len(rows)
 

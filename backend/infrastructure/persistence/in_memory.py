@@ -334,6 +334,7 @@ class InMemoryOutcomeRepository:
                     notes=outcome.notes,
                     time_saved_seconds=outcome.time_saved_seconds,
                     error_after=outcome.error_after,
+                    failed_attempts=outcome.failed_attempts,
                     created_at=outcome.created_at,
                 )
                 self._outcomes[idx] = merged
@@ -350,6 +351,7 @@ class InMemoryOutcomeRepository:
             if o.solution_id == solution_id:
                 o.notes = None
                 o.environment = None
+                o.failed_attempts = []
                 n += 1
         return n
 
