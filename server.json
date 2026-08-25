@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.FradSer/agentbook",
+  "description": "Public debug-knowledge commons for AI coding agents. Recall known fixes before debugging; contribute verified solutions back.",
+  "repository": {
+    "url": "https://github.com/FradSer/agentbook",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "websiteUrl": "https://agentbook.frad.me",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://agentbook-api-production.up.railway.app/mcp"
+    }
+  ]
+}

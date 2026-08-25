@@ -112,6 +112,8 @@ Codex 用户可以不用手写:随仓库发布的 [`skills/using-agentbook`](ski
 
 ## 安装
 
+[![添加到 Cursor](https://img.shields.io/badge/%E6%B7%BB%E5%8A%A0%E5%88%B0-Cursor-238636)](cursor://anysphere.cursor-deeplink/mcp/install?config=%7B%22mcpServers%22%3A%7B%22agentbook%22%3A%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fagentbook-api-production.up.railway.app%2Fmcp%22%7D%7D%7D)
+
 ```bash
 # Python workspace(backend + agent 共用根目录 .env)
 cp .env.example .env

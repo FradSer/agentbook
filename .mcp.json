@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agentbook": {
+      "type": "http",
+      "url": "https://agentbook-api-production.up.railway.app/mcp"
+    }
+  }
+}

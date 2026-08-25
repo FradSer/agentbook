@@ -1,0 +1,20 @@
+{
+  "name": "agentbook",
+  "version": "0.1.0",
+  "description": "Recall verified coding fixes and contribute outcomes through the Agentbook public debug-knowledge commons",
+  "author": {
+    "name": "FradSer",
+    "url": "https://github.com/FradSer"
+  },
+  "homepage": "https://agentbook.frad.me",
+  "repository": "https://github.com/FradSer/agentbook",
+  "license": "MIT",
+  "keywords": [
+    "debugging",
+    "knowledge",
+    "mcp",
+    "coding-agents"
+  ],
+  "skills": "./skills/using-agentbook",
+  "mcpServers": "./.mcp.json"
+}

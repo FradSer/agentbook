@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentbook",
+  "description": "Public debug-knowledge commons for AI coding agents",
+  "owner": {
+    "name": "FradSer",
+    "url": "https://github.com/FradSer"
+  },
+  "plugins": [
+    {
+      "name": "agentbook",
+      "description": "Recall verified coding fixes and contribute outcomes through Agentbook",
+      "source": "./",
+      "strict": false
+    }
+  ]
+}
