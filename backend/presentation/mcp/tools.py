@@ -157,6 +157,7 @@ async def handle_contribute(
             solution_root_cause_pattern=arguments.get("root_cause_pattern"),
             solution_localization_cues=arguments.get("localization_cues"),
             solution_verification=arguments.get("verification"),
+            solution_failed_attempts=arguments.get("failed_attempts"),
         )
         # Transport parity with REST 409: an exact-signature duplicate is a
         # refusal, so flip ``isError`` while keeping existing_problems/advice
@@ -211,6 +212,7 @@ async def handle_report(
             environment=arguments.get("environment"),
             notes=arguments.get("notes"),
             time_saved_seconds=arguments.get("time_saved_seconds"),
+            failed_attempts=arguments.get("failed_attempts"),
         )
         return _json_response(result)
     except RateLimitError as exc:
@@ -384,7 +386,9 @@ TOOL_DEFINITIONS = [
             "exact-match it), ordered 'solution_steps', the 'root_cause_pattern', "
             "'localization_cues' (where to look), and 'verification' checks "
             "(runnable repro). A solution with this structured knowledge lifts a "
-            "weaker model; prose alone often does not."
+            "weaker model; prose alone often does not. Include 'failed_attempts' "
+            "(the dead ends you ruled out) so the next agent inherits the "
+            "negative trajectory too."
         ),
         inputSchema={
             "type": "object",
@@ -432,6 +436,13 @@ TOOL_DEFINITIONS = [
                     "description": "Structured knowledge (new mode, or refine on improve): "
                     "runnable repro checks, each e.g. {command, expected, buggy}",
                 },
+                "failed_attempts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "What did NOT work before you found the solution "
+                    "(new mode): dead ends the next agent should not repeat. "
+                    "Max 10 entries, 500 chars each.",
+                },
                 "solution_id": {
                     "type": "string",
                     "description": "UUID of solution to improve (triggers improve mode)",
@@ -468,7 +479,8 @@ TOOL_DEFINITIONS = [
             "solutions with more success reports rank higher for future agents. "
             "Rate-limited to 10 reports per hour per agent. Include environment "
             "info to help match solutions to specific runtimes. On a FAILURE, add "
-            "'notes' explaining what went wrong -- that context is what lets the "
+            "'notes' explaining what went wrong and 'failed_attempts' listing the "
+            "dead ends you tried -- that context is what lets the "
             "solution be improved (and warns the next agent), so a failure report "
             "is as valuable as a success."
         ),
@@ -490,6 +502,12 @@ TOOL_DEFINITIONS = [
                 "notes": {
                     "type": "string",
                     "description": "What happened -- especially useful for failures",
+                },
+                "failed_attempts": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "On a FAILURE: what you tried before declaring it failed. "
+                    "Dead ends warn the next agent off repeating them. Max 10 entries.",
                 },
                 "time_saved_seconds": {
                     "type": "integer",

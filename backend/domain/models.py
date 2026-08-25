@@ -89,6 +89,11 @@ class Solution:
     root_cause_pattern: str | None = None
     localization_cues: list[str] = field(default_factory=list)
     verification: list[dict] = field(default_factory=list)
+    # Negative half of the trajectory: what did NOT work before this solution
+    # was found. Authored dead ends make sibling knowledge actionable where
+    # positive patterns alone do not (cross-task fix-lift failed at
+    # application; negative constraints carry better).
+    failed_attempts: list[str] = field(default_factory=list)
     # Discrete root-cause class slug (e.g. "identity-element-fallback"). Mirrored
     # onto the problem as a ``pattern:<slug>`` tag so cross-task retrieval can
     # match a sibling by root cause when its surface text differs. See
@@ -131,6 +136,10 @@ class Outcome:
     time_saved_seconds: int | None = None
     notes: str | None = None
     weight: float = 1.0
+    # Reporter-side telemetry on a failure report: what was tried before the
+    # outcome was declared. Published verbatim on read paths, so it is
+    # secret-gated and takedown-scrubbed like notes/environment.
+    failed_attempts: list[str] = field(default_factory=list)
     outcome_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
 

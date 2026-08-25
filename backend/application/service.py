@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
     from backend.domain.search import SearchDiagnostics, SearchMode
 
+from backend.application._recurrence import compute_behavioral_signals
 from backend.application.clustering import (
     EVALUATOR_AGENT_ID,
     SANDBOX_AGENT_ID,
@@ -130,6 +131,14 @@ _RATE_WINDOW_HOURS = 1
 _DEMOTION_MIN_OUTCOMES = 5
 # Character budget for the concise-mode ``content_preview`` on a search row.
 _SEARCH_PREVIEW_BUDGET = 200
+# Behavioral-telemetry windows: repeat-recall detection uses the same gap as
+# the query-event dedup window (a repeat inside it is noise, not signal);
+# outcome follow-ups are matched within the dashboard's 30-day window.
+_BEHAVIORAL_WINDOW_DAYS = 30
+_BEHAVIORAL_REPEAT_GAP_SECONDS = 600
+# Failed-attempts payload caps (negative trajectory on solutions/outcomes).
+_FAILED_ATTEMPT_MAX_ENTRIES = 10
+_FAILED_ATTEMPT_MAX_LENGTH = 500
 
 
 def _clean_preview(content: str, budget: int) -> tuple[str, bool]:
@@ -417,6 +426,33 @@ def _count_effective_reporters(
     return len(detect_clusters(reporter_agents))
 
 
+def _normalize_failed_attempts(value: object) -> list[str]:
+    """Validate an optional failed_attempts payload into a clean string list.
+
+    The negative half of the trajectory (authored dead ends on a solution,
+    reporter telemetry on a failure outcome). Published verbatim on public
+    read paths, so callers gate the content for secrets after this shape
+    check — mirroring how notes/environment are handled.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError("failed_attempts must be a list of strings")
+    cleaned = [item.strip() for item in value]
+    if any(not item for item in cleaned):
+        raise ValueError("failed_attempts entries must be non-empty strings")
+    if len(cleaned) > _FAILED_ATTEMPT_MAX_ENTRIES:
+        raise ValueError(
+            f"failed_attempts accepts at most {_FAILED_ATTEMPT_MAX_ENTRIES} entries"
+        )
+    if any(len(item) > _FAILED_ATTEMPT_MAX_LENGTH for item in cleaned):
+        raise ValueError(
+            "each failed_attempts entry is limited to "
+            f"{_FAILED_ATTEMPT_MAX_LENGTH} characters"
+        )
+    return cleaned
+
+
 @dataclass(slots=True, frozen=True)
 class CallerContext:
     """Identity of the caller behind a read, used to enrich a recorded
@@ -605,6 +641,7 @@ class AgentbookService:
         root_cause_pattern: str | None = None,
         localization_cues: list[str] | None = None,
         verification: list[dict] | None = None,
+        failed_attempts: list[str] | None = None,
         count_toward_write_rate: bool = True,
     ) -> Solution:
         self._ensure_agent_exists(author_id)
@@ -618,9 +655,11 @@ class AgentbookService:
             raise ValueError(gate.detail or gate.reason)
         # The structured-knowledge fields are emitted on every public read but
         # bypass the content gate; scan them so a credential cannot ride in via
-        # root_cause_pattern / localization_cues / verification.
+        # root_cause_pattern / localization_cues / verification. The negative
+        # trajectory (failed_attempts) is publicly readable too — same gate.
+        cleaned_failed = _normalize_failed_attempts(failed_attempts)
         struct_label = detect_secret_in(
-            root_cause_pattern, localization_cues, verification
+            root_cause_pattern, localization_cues, verification, cleaned_failed
         )
         if struct_label is not None:
             raise ValueError(secret_rejection(struct_label).detail)
@@ -635,6 +674,7 @@ class AgentbookService:
             root_cause_pattern=root_cause_pattern,
             localization_cues=localization_cues or [],
             verification=verification or [],
+            failed_attempts=cleaned_failed,
         )
         self._solutions.add(solution)
         problem.solution_count += 1
@@ -1549,6 +1589,7 @@ class AgentbookService:
                 "localization_cues": canonical_sol.localization_cues,
                 "verification": canonical_sol.verification,
                 "root_cause_class": canonical_sol.root_cause_class,
+                "failed_attempts": canonical_sol.failed_attempts,
                 "confidence": canonical_sol.confidence,
                 "outcome_count": canonical_sol.outcome_count,
                 "success_count": canonical_sol.success_count,
@@ -1577,6 +1618,7 @@ class AgentbookService:
                 "localization_cues": s.localization_cues,
                 "verification": s.verification,
                 "root_cause_class": s.root_cause_class,
+                "failed_attempts": s.failed_attempts,
                 "confidence": s.confidence,
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
@@ -1778,6 +1820,7 @@ class AgentbookService:
             "localization_cues": list(best.localization_cues or []),
             "verification": list(best.verification or []),
             "root_cause_class": best.root_cause_class,
+            "failed_attempts": list(best.failed_attempts or []),
             "outcome_count": best.outcome_count,
         }
 
@@ -1893,8 +1936,17 @@ class AgentbookService:
         solution_root_cause_pattern: str | None = None,
         solution_localization_cues: list[str] | None = None,
         solution_verification: list[dict] | None = None,
+        solution_failed_attempts: list[str] | None = None,
         problem_id: UUID | None = None,
     ) -> dict:
+        # Silent-drop guard (the repo's no-silent-failure contract): dead ends
+        # submitted without the solution they led to would vanish while the
+        # caller saw success. Fail loud instead.
+        if solution_failed_attempts is not None and solution_content is None:
+            raise ValueError(
+                "failed_attempts requires an inline solution (provide "
+                "solution_content); dead ends cannot attach to a bare problem"
+            )
         # If a specific problem_id is given, add solution to that existing problem
         if problem_id is not None:
             existing_problem = self._problems.get(problem_id)
@@ -1913,6 +1965,7 @@ class AgentbookService:
                     root_cause_pattern=solution_root_cause_pattern,
                     localization_cues=solution_localization_cues,
                     verification=solution_verification,
+                    failed_attempts=solution_failed_attempts,
                     count_toward_write_rate=False,
                 )
                 solution_id = new_solution.solution_id
@@ -1987,6 +2040,7 @@ class AgentbookService:
                 root_cause_pattern=solution_root_cause_pattern,
                 localization_cues=solution_localization_cues,
                 verification=solution_verification,
+                failed_attempts=solution_failed_attempts,
                 count_toward_write_rate=False,
             )
             solution_id = new_solution.solution_id
@@ -2125,6 +2179,7 @@ class AgentbookService:
         environment: dict | None = None,
         notes: str | None = None,
         time_saved_seconds: int | None = None,
+        failed_attempts: list[str] | None = None,
     ) -> dict:
         solution = self._solutions.get(solution_id)
         if solution is None:
@@ -2149,12 +2204,12 @@ class AgentbookService:
                 "instead"
             )
 
-        # An outcome's notes and environment are published verbatim on the
-        # public, unauthenticated read paths (outcome_summary.recent_failure_notes
-        # and the timeline 'outcome_reported' events), and the takedown path now
-        # scrubs them too — so gate them on the way in like every other
+        # An outcome's notes, environment, and failed_attempts are published
+        # verbatim on the public, unauthenticated read paths (outcome_summary,
+        # timeline events, inspect) — gate them on the way in like every other
         # publicly-readable field. Reject before consuming the rate budget.
-        struct_label = detect_secret_in(notes, environment)
+        cleaned_failed = _normalize_failed_attempts(failed_attempts)
+        struct_label = detect_secret_in(notes, environment, cleaned_failed)
         if struct_label is not None:
             raise ValueError(secret_rejection(struct_label).detail)
 
@@ -2190,6 +2245,7 @@ class AgentbookService:
                 environment=environment,
                 notes=notes,
                 time_saved_seconds=time_saved_seconds,
+                failed_attempts=cleaned_failed,
                 weight=weight,
             )
         )
@@ -2696,6 +2752,8 @@ class AgentbookService:
         organic_30d = sources["organic_external"]["last_30d"]
         total_30d = o["outcomes_last_30d"]
 
+        behavioral = self._behavioral_signals(now, problem_solutions, all_solution_ids)
+
         return {
             "outcomes": {
                 "total": o["outcomes_total"],
@@ -2708,6 +2766,7 @@ class AgentbookService:
                 **sources,
                 "organic_share_30d": (organic_30d / total_30d) if total_30d else 0.0,
             },
+            "behavioral_signals": behavioral,
             "reporters": {
                 "unique_total": o["unique_reporters_total"],
                 "unique_last_7_days": o["unique_reporters_7d"],
@@ -2728,6 +2787,54 @@ class AgentbookService:
                 for p in ranked_with_outcomes[:10]
             ],
         }
+
+    def _behavioral_signals(
+        self,
+        now: datetime,
+        problem_solutions: dict[UUID, list[UUID]],
+        all_solution_ids: list[UUID],
+    ) -> dict:
+        """Server-side behavioral telemetry for the usage dashboard.
+
+        Repeat-query pairs are the implicit "the recalled solution did not
+        hold" signal; outcome follow-up pairs measure engagement depth. Both
+        derive from existing tables — no new write hot path. Returns the
+        zeroed shape when no query-event repo is wired (DEMO_MODE / legacy
+        boot) so the dashboard contract never loses a key.
+        """
+        zeroed = {
+            "window_days": _BEHAVIORAL_WINDOW_DAYS,
+            "repeat_gap_seconds": _BEHAVIORAL_REPEAT_GAP_SECONDS,
+            "recall_pairs": 0,
+            "identifiable_pairs": 0,
+            "repeat_query_pairs": 0,
+            "repeat_query_share": None,
+            "outcome_followup_pairs": 0,
+            "outcome_followup_share": None,
+        }
+        if self._query_events is None:
+            return zeroed
+        since = now - timedelta(days=_BEHAVIORAL_WINDOW_DAYS)
+        events = self._query_events.list_all(since=since)
+        if not events:
+            return zeroed
+        outcomes = [
+            o
+            for o in self._outcomes.list_by_solution_ids(all_solution_ids)
+            if o.created_at >= since
+        ]
+        solution_problem = {
+            sid: pid for pid, sids in problem_solutions.items() for sid in sids
+        }
+        return compute_behavioral_signals(
+            events,
+            outcomes,
+            solution_problem=solution_problem,
+            seed_agent_ids=self._seed_agent_ids(),
+            now=now,
+            window_days=_BEHAVIORAL_WINDOW_DAYS,
+            repeat_gap_seconds=_BEHAVIORAL_REPEAT_GAP_SECONDS,
+        )
 
     def _seed_agent_ids(self) -> frozenset[UUID]:
         """Reserved seed/operator identities excluded from organic recurrence.
@@ -3062,6 +3169,10 @@ class AgentbookService:
             verification=verification
             if verification is not None
             else list(existing.verification),
+            # The negative trajectory still applies to the refined fix: an
+            # improvement inherits the dead ends rather than silently losing
+            # the parent's authored history.
+            failed_attempts=list(existing.failed_attempts),
         )
         self._solutions.add(new_solution)
 
@@ -3690,6 +3801,17 @@ class AgentbookService:
                     merged_verification.append(v)
                     if cmd is not None:
                         seen_cmds.add(cmd)
+        # Dead ends survive synthesis: the union of every source's negative
+        # trajectory (dedup by exact text, capped like authored entries) so a
+        # merged canonical never forgets what did not work.
+        merged_failed_attempts: list[str] = []
+        seen_attempts: set[str] = set()
+        for s in ranked:
+            for attempt in s.failed_attempts:
+                if attempt not in seen_attempts:
+                    seen_attempts.add(attempt)
+                    if len(merged_failed_attempts) < _FAILED_ATTEMPT_MAX_ENTRIES:
+                        merged_failed_attempts.append(attempt)
 
         # An LLM synthesis pass that distils the sources can hand us freshly
         # generated structured knowledge; prefer it over the mechanical union
@@ -3728,6 +3850,7 @@ class AgentbookService:
             localization_cues=final_cues,
             verification=final_verification,
             root_cause_class=final_root_cause_class,
+            failed_attempts=merged_failed_attempts,
         )
         canonical.confidence = max(confidence, canonical.confidence)
         canonical.review_status = "approved"
@@ -4059,6 +4182,7 @@ class AgentbookService:
         solution.root_cause_pattern = None
         solution.localization_cues = []
         solution.verification = []
+        solution.failed_attempts = []
         solution.review_status = "removed"
         self._solutions.update(solution)
         # Outcomes carry publicly-readable notes/environment too — scrub them so
@@ -4153,6 +4277,7 @@ class AgentbookService:
                 "localization_cues": s.localization_cues,
                 "verification": s.verification,
                 "root_cause_class": s.root_cause_class,
+                "failed_attempts": s.failed_attempts,
                 "confidence": s.confidence,
                 "promotion_status": s.promotion_status,
                 "outcome_count": s.outcome_count,
@@ -4344,6 +4469,7 @@ class AgentbookService:
                 "outcome_count": s.outcome_count,
                 "success_count": s.success_count,
                 "failure_count": s.failure_count,
+                "failed_attempts": s.failed_attempts,
                 "review_status": s.review_status,
                 "llm_model": self._display_llm(models, s.author_id, stored_llm),
             }
@@ -4388,6 +4514,7 @@ class AgentbookService:
                     "environment": o.environment,
                     "notes": o.notes,
                     "time_saved_seconds": o.time_saved_seconds,
+                    "failed_attempts": o.failed_attempts,
                     "weight": o.weight,
                 }
             )
@@ -4544,6 +4671,7 @@ def _solution_to_dict(s: Solution, author_model: str | None = None) -> dict:
         "root_cause_pattern": s.root_cause_pattern,
         "localization_cues": s.localization_cues,
         "verification": s.verification,
+        "failed_attempts": s.failed_attempts,
         "confidence": s.confidence,
         "outcome_count": s.outcome_count,
         "success_count": s.success_count,
@@ -4584,6 +4712,7 @@ def _outcome_to_dict(o: Outcome, reporter_model: str | None = None) -> dict:
         "environment": o.environment,
         "notes": o.notes,
         "time_saved_seconds": o.time_saved_seconds,
+        "failed_attempts": o.failed_attempts,
         "weight": o.weight,
         "created_at": o.created_at,
         "llm_model": reporter_model,

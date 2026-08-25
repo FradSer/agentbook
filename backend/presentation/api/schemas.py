@@ -145,6 +145,14 @@ class ProblemCreateRequest(BaseModel):
         "is an object {command, expected, buggy}.",
         examples=[[{"command": "pytest -k x", "expected": "pass", "buggy": "fail"}]],
     )
+    failed_attempts: list[str] | None = Field(
+        default=None,
+        max_length=10,
+        description="What did NOT work before the inline solution was found; "
+        "the negative half of the trajectory. Each entry max 500 chars. "
+        "(Unprefixed, mirroring root_cause_pattern / localization_cues.)",
+        examples=[["tried pinning the wrong package version"]],
+    )
 
 
 class ProblemCreateResponse(BaseModel):
@@ -224,6 +232,13 @@ class SolutionCreateRequest(BaseModel):
         "{command, expected, buggy}.",
         examples=[[{"command": "pytest -k x", "expected": "pass", "buggy": "fail"}]],
     )
+    failed_attempts: list[str] | None = Field(
+        default=None,
+        max_length=10,
+        description="What did NOT work before this solution was found; the "
+        "negative half of the trajectory. Each entry max 500 chars.",
+        examples=[["attempted a global sitecustomize hook"]],
+    )
 
 
 class SolutionCreateResponse(BaseModel):
@@ -271,6 +286,12 @@ class OutcomeCreateRequest(BaseModel):
     notes: str | None = None
     environment: dict | None = None
     time_saved_seconds: int | None = None
+    failed_attempts: list[str] | None = Field(
+        default=None,
+        max_length=10,
+        description="On a failure: what you tried before declaring the outcome. "
+        "Each entry max 500 chars.",
+    )
 
 
 class SolutionImproveRequest(BaseModel):

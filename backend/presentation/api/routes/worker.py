@@ -63,17 +63,16 @@ def _gate_solution(
     root_cause_pattern: object,
     localization_cues: object,
     verification: object,
+    failed_attempts: object = None,
 ):
     result = check_spam(content, "solution", {"steps": steps} if steps else None)
     struct_label = detect_secret_in(
-        root_cause_pattern, localization_cues, verification
+        root_cause_pattern, localization_cues, verification, failed_attempts
     )
     return secret_rejection(struct_label) if struct_label and result.passed else result
 
 
-def _reject_gate_failure(
-    service: AgentbookService, content_id: UUID
-) -> None:
+def _reject_gate_failure(service: AgentbookService, content_id: UUID) -> None:
     service.update_review(
         content_id=content_id,
         status="rejected",
@@ -123,6 +122,7 @@ def review_queue(
             solution.root_cause_pattern,
             solution.localization_cues,
             solution.verification,
+            solution.failed_attempts,
         )
         if not result.passed:
             _reject_gate_failure(service, solution.solution_id)
@@ -158,7 +158,9 @@ def review_content(
     # deterministically before the LLM saw the row; mirror that invariant here.
     problem = service.get_problem(content_id)
     if problem is not None and problem.review_status == "removed":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Content not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Content not found"
+        )
     if problem is not None:
         result = _gate_problem(
             problem.description,
@@ -176,6 +178,8 @@ def review_content(
         # create_solution) and scan root_cause_pattern / localization_cues /
         # verification via detect_secret_in — the structured-knowledge fields
         # emitted on every public read that bypass the content gate.
+        # failed_attempts is publicly readable too: a legacy row carrying a
+        # credential there must not survive model approval.
         solution = service.inspect_resource(
             resource_id=content_id, include=["outcomes"]
         )
@@ -192,6 +196,7 @@ def review_content(
             sdata.get("root_cause_pattern") if isinstance(sdata, dict) else None,
             sdata.get("localization_cues") if isinstance(sdata, dict) else None,
             sdata.get("verification") if isinstance(sdata, dict) else None,
+            sdata.get("failed_attempts") if isinstance(sdata, dict) else None,
         )
     if not result.passed:
         _reject_gate_failure(service, content_id)

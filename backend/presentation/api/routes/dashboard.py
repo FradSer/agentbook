@@ -255,7 +255,9 @@ def get_usage(
     Public read; aggregated from existing tables (no write hot path).
     Surfaces outcome volume (total / 7d / 30d), the verified-vs-observed
     split, unique reporter counts per window, problems-with-outcomes vs
-    total approved, and the top 10 problems by outcome count.
+    total approved, the top 10 problems by outcome count, and
+    ``behavioral_signals`` (server-side repeat-query and outcome follow-up
+    telemetry derived from query_events + outcomes).
     """
     return service.get_usage_dashboard()
 

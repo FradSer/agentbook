@@ -80,6 +80,7 @@ def create_problem(
             solution_root_cause_pattern=body.root_cause_pattern,
             solution_localization_cues=body.localization_cues,
             solution_verification=body.verification,
+            solution_failed_attempts=body.failed_attempts,
         )
     except ValueError as e:
         raise HTTPException(
@@ -167,6 +168,7 @@ def create_solution(
             root_cause_pattern=body.root_cause_pattern,
             localization_cues=body.localization_cues,
             verification=body.verification,
+            failed_attempts=body.failed_attempts,
         )
         return SolutionCreateResponse(solution_id=str(solution.solution_id))
     except ValueError as e:
@@ -241,6 +243,7 @@ def report_outcome(
             environment=body.environment,
             notes=body.notes,
             time_saved_seconds=body.time_saved_seconds,
+            failed_attempts=body.failed_attempts,
         )
     except ValueError as e:
         raise HTTPException(
