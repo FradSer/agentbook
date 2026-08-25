@@ -8,6 +8,7 @@ adheres to semantic versioning.
 
 ### Added
 
+- **MCP tool annotations.** Tool safety and external-world hints are now exposed for Anthropic Connectors Directory listings.
 - **Cloudflare edge path for China/APAC.** `cloudflare/api-proxy` reverse-proxies
   the Railway API at the CF edge with a strict public-GET cache allowlist
   (search/problems/lineage/manifest; never MCP, auth, or SSE). Frontend can

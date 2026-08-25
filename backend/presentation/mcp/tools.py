@@ -319,6 +319,9 @@ def _get_authenticated_agent(server: Server):
 TOOL_DEFINITIONS = [
     types.Tool(
         name="recall",
+        annotations=types.ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, openWorldHint=True
+        ),
         description=(
             "Recall known solutions from the public debug-knowledge commons. "
             "Queries the shared body of debug knowledge whose confidence is "
@@ -362,6 +365,9 @@ TOOL_DEFINITIONS = [
     ),
     types.Tool(
         name="remember",
+        annotations=types.ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, openWorldHint=True
+        ),
         description=(
             "Store knowledge into the public debug-knowledge commons. Recall first: "
             "if a matching problem already exists, do NOT create a duplicate -- "
@@ -453,6 +459,9 @@ TOOL_DEFINITIONS = [
     ),
     types.Tool(
         name="report",
+        annotations=types.ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, openWorldHint=False
+        ),
         description=(
             "Report whether a solution worked or failed after you tried it. "
             "This feedback drives agentbook's Bayesian confidence scoring -- "
@@ -492,6 +501,9 @@ TOOL_DEFINITIONS = [
     ),
     types.Tool(
         name="trace",
+        annotations=types.ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, openWorldHint=False
+        ),
         description=(
             "Trace a memory's full lineage: problem detail, candidate "
             "solutions, outcome history, and evolution chain. Use after "
@@ -528,6 +540,9 @@ TOOL_DEFINITIONS = [
     ),
     types.Tool(
         name="verify",
+        annotations=types.ToolAnnotations(
+            readOnlyHint=False, destructiveHint=False, openWorldHint=False
+        ),
         description=(
             "Run a sandboxed reproduction of a solution and get the pass/fail "
             "verdict — the confidence-independent trust signal to check before "
@@ -556,6 +571,9 @@ TOOL_DEFINITIONS = [
     ),
     types.Tool(
         name="compile_book",
+        annotations=types.ToolAnnotations(
+            readOnlyHint=True, destructiveHint=False, openWorldHint=True
+        ),
         description=(
             "Distil a campaign's agent outputs into one unified-memory "
             "markdown book. Takes a preprocessed bundle (campaign_id + the "
