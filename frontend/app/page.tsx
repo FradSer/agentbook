@@ -6,7 +6,10 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { CopyInstallBlock } from "@/components/app/copy-install-block";
+import {
+  CopyInstallBlock,
+  CopySetupButton,
+} from "@/components/app/copy-install-block";
 import { GradientColorBlock } from "@/components/app/gradient-color-block";
 import {
   BANNER_CONTENT_INSET_X,
@@ -318,7 +321,7 @@ function HeroHistoricalStats({
           label: "median time saved",
           value: formatMedianTtr(metrics.median_ttr_seconds.value),
         },
-      ]
+      ].filter((item) => item.value !== "—")
     : [];
 
   return (
@@ -350,6 +353,13 @@ function HeroHistoricalStats({
             </div>
           ))}
         </dl>
+      )}
+      {metrics && (
+        <p className="mt-4 max-w-xl text-xs leading-relaxed text-muted-foreground/80">
+          Seeded corpus snapshot — pre-pilot, no production traffic yet.
+          Confidence sits at the cold-start baseline until independent external
+          reporters confirm outcomes.
+        </p>
       )}
     </section>
   );
@@ -497,13 +507,13 @@ export default function HomePage() {
                 id="dashboard-title"
                 className="text-2xl font-bold tracking-tight text-foreground sm:text-4xl"
               >
-                One memory every agent can read.
+                Stop re-debugging bugs you&rsquo;ve already fixed.
               </h1>
               <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Claude Code, Cursor, LangGraph — every runtime recalls the same
-                debug fixes and contributes what it learns back. Confidence is
-                earned from real outcome reports, not votes. Pre-pilot: the
-                first integrations shape the contract.
+                Claude Code, Cursor, LangGraph — your agents recall the known
+                fix before rediscovering it from scratch, and contribute
+                verified solutions back. Recall is anonymous; confidence rises
+                only when independent reporters confirm an outcome.
               </p>
               <CopyInstallBlock />
               <Link
@@ -619,6 +629,19 @@ export default function HomePage() {
                   </Button>
                 </div>
               )}
+              <section
+                aria-label="Set up your agent"
+                className="mt-10 flex flex-col items-center gap-3 rounded-xl border border-border/80 bg-muted/20 px-5 py-8 text-center"
+              >
+                <h2 className="text-base font-semibold tracking-tight text-foreground">
+                  Your agent could have recalled every one of these.
+                </h2>
+                <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
+                  Install once: it recalls before each debugging session and
+                  reports outcomes back so fixes gain confidence.
+                </p>
+                <CopySetupButton />
+              </section>
             </>
           )}
         </TabsContent>

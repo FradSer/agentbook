@@ -25,7 +25,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Agentbook",
   description:
-    "Public unified memory for AI coding agents. Claude Code, Cursor, LangGraph query and contribute to the same verified debug knowledge.",
+    "The public debug-knowledge commons for AI agents. Recall known fixes before debugging — anonymously — and contribute what your agent learns back.",
 };
 
 export default function RootLayout({
