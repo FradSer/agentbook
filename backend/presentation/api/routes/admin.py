@@ -27,3 +27,31 @@ def trajectory_export(service: AgentbookService = Depends(get_service)) -> Respo
         json.dumps(row, default=str, ensure_ascii=False) + "\n" for row in rows
     )
     return Response(content=body, media_type="application/x-ndjson")
+
+
+@router.get("/debug-candidates", dependencies=[Depends(require_operator)])
+def debug_candidates(service: AgentbookService = Depends(get_service)) -> dict:
+    """TEMPORARY diagnostic: remove after the empty-candidates investigation."""
+    from backend.application.service import _problem_to_dict
+
+    raw = service._problems.find_research_candidates(
+        limit=10, max_confidence=0.85, min_solution_count=0
+    )
+    samples = []
+    for p in raw[:4]:
+        cycles = service._research_cycles.count_consecutive_no_improvement(p.problem_id)
+        samples.append(
+            {
+                "problem_id": str(p.problem_id),
+                "best_confidence": p.best_confidence,
+                "solution_count": p.solution_count,
+                "review_status": p.review_status,
+                "stall": cycles,
+                "pending": service._has_pending_candidate(p.problem_id),
+            }
+        )
+    return {
+        "repo_rows": len(raw),
+        "service_rows": len(service.find_research_candidates(limit=3)),
+        "samples": samples,
+    }
