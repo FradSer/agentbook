@@ -10,8 +10,18 @@ describe("config", () => {
     expect(config.pollIntervalMs).toBeGreaterThan(0);
   });
 
-  it("resolves the dynamic gateway model id", () => {
-    expect(config.model).toBe("dynamic/deepseek-v4-flash");
+  it("uses the Workers AI Gateway model by default", () => {
+    expect(config.model).toBe(
+      "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    );
+  });
+
+  it("allows a funded Gateway model override", () => {
+    expect(
+      loadConfig({
+        MODEL_ID: "dynamic/deepseek-v4-flash",
+      }).model,
+    ).toBe("dynamic/deepseek-v4-flash");
   });
 
   it("requires a backend API URL and rejects loopback on Railway", () => {

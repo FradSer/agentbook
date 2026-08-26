@@ -23,10 +23,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
     cloudflareApiKey: env.CLOUDFLARE_API_KEY ?? "",
     cloudflareAccountId: env.CLOUDFLARE_ACCOUNT_ID ?? "",
     cloudflareGatewayId: env.CLOUDFLARE_GATEWAY_ID ?? "agentbook-gw",
-    // `dynamic/` prefix routes through the Cloudflare AI Gateway /compat endpoint
-    // (gateway holds the upstream DeepSeek key); a bare `deepseek/` slug would hit
-    // api.deepseek.com directly and bypass the gateway. See docs/deployment.md.
-    model: "dynamic/deepseek-v4-flash",
+    // Workers AI is the no-provider-balance default for the worker. Operators
+    // can override MODEL_ID with a Gateway compat slug (for example a funded
+    // dynamic/ route) without changing the deployment artifact.
+    model: env.MODEL_ID ?? "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     // Coerce + validate so a typo like "1800000ms" (NaN) or a negative value
     // can't collapse the 30-minute poll cadence to a zero-delay tight loop —
     // setTimeout(resolve, NaN) fires on the next tick, and a fast-failing cycle
