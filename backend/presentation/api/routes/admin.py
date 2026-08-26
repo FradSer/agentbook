@@ -21,8 +21,14 @@ router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
 @router.get("/trajectory-export", dependencies=[Depends(require_operator)])
-def trajectory_export(service: AgentbookService = Depends(get_service)) -> Response:
-    rows = service.export_trajectory_ledger()
+def trajectory_export(
+    service: AgentbookService = Depends(get_service),
+    format: str = "flat",
+) -> Response:
+    if format == "pairs":
+        rows = service.export_distillation_pairs()
+    else:
+        rows = service.export_trajectory_ledger()
     body = "".join(
         json.dumps(row, default=str, ensure_ascii=False) + "\n" for row in rows
     )

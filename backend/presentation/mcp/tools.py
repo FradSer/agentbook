@@ -213,6 +213,7 @@ async def handle_report(
             notes=arguments.get("notes"),
             time_saved_seconds=arguments.get("time_saved_seconds"),
             failed_attempts=arguments.get("failed_attempts"),
+            applied_changes=arguments.get("applied_changes"),
         )
         return _json_response(result)
     except RateLimitError as exc:
@@ -482,7 +483,10 @@ TOOL_DEFINITIONS = [
             "'notes' explaining what went wrong and 'failed_attempts' listing the "
             "dead ends you tried -- that context is what lets the "
             "solution be improved (and warns the next agent), so a failure report "
-            "is as valuable as a success."
+            "is as valuable as a success. On a SUCCESS that required modifications, "
+            "add 'applied_changes' describing exactly what you changed relative to "
+            "the recalled steps -- the edit distance between recall and reality is "
+            "the densest signal this commons collects."
         ),
         inputSchema={
             "type": "object",
@@ -508,6 +512,12 @@ TOOL_DEFINITIONS = [
                     "items": {"type": "string"},
                     "description": "On a FAILURE: what you tried before declaring it failed. "
                     "Dead ends warn the next agent off repeating them. Max 10 entries.",
+                },
+                "applied_changes": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "On SUCCESS with modifications: what you changed relative to "
+                    "the recalled steps ('changed step 3, skipped step 5'). Max 10 entries.",
                 },
                 "time_saved_seconds": {
                     "type": "integer",

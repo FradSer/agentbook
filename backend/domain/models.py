@@ -140,6 +140,10 @@ class Outcome:
     # outcome was declared. Published verbatim on read paths, so it is
     # secret-gated and takedown-scrubbed like notes/environment.
     failed_attempts: list[str] = field(default_factory=list)
+    # Edit-distance telemetry: what the reporter CHANGED relative to the
+    # recalled solution before it worked ("changed step 3, skipped step 5").
+    # Client-cooperated signal; same publication/gating rules as above.
+    applied_changes: list[str] = field(default_factory=list)
     outcome_id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
 

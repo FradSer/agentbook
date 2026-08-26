@@ -429,31 +429,36 @@ def _count_effective_reporters(
     return len(detect_clusters(reporter_agents))
 
 
-def _normalize_failed_attempts(value: object) -> list[str]:
-    """Validate an optional failed_attempts payload into a clean string list.
+def _normalize_string_list(value: object, *, label: str) -> list[str]:
+    """Validate an optional string-list telemetry payload into a clean list.
 
-    The negative half of the trajectory (authored dead ends on a solution,
-    reporter telemetry on a failure outcome). Published verbatim on public
-    read paths, so callers gate the content for secrets after this shape
-    check — mirroring how notes/environment are handled.
+    Shared by the negative trajectory (failed_attempts on solutions and
+    outcomes) and the edit-distance signal (applied_changes on outcomes).
+    All are published verbatim on public read paths, so callers secret-gate
+    the content after this shape check — mirroring how notes/environment are
+    handled.
     """
     if value is None:
         return []
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        raise ValueError("failed_attempts must be a list of strings")
+        raise ValueError(f"{label} must be a list of strings")
     cleaned = [item.strip() for item in value]
     if any(not item for item in cleaned):
-        raise ValueError("failed_attempts entries must be non-empty strings")
+        raise ValueError(f"{label} entries must be non-empty strings")
     if len(cleaned) > _FAILED_ATTEMPT_MAX_ENTRIES:
         raise ValueError(
-            f"failed_attempts accepts at most {_FAILED_ATTEMPT_MAX_ENTRIES} entries"
+            f"{label} accepts at most {_FAILED_ATTEMPT_MAX_ENTRIES} entries"
         )
     if any(len(item) > _FAILED_ATTEMPT_MAX_LENGTH for item in cleaned):
         raise ValueError(
-            "each failed_attempts entry is limited to "
-            f"{_FAILED_ATTEMPT_MAX_LENGTH} characters"
+            f"each {label} entry is limited to {_FAILED_ATTEMPT_MAX_LENGTH} characters"
         )
     return cleaned
+
+
+def _normalize_failed_attempts(value: object) -> list[str]:
+    """Validate an optional failed_attempts payload into a clean string list."""
+    return _normalize_string_list(value, label="failed_attempts")
 
 
 @dataclass(slots=True, frozen=True)
@@ -2183,6 +2188,7 @@ class AgentbookService:
         notes: str | None = None,
         time_saved_seconds: int | None = None,
         failed_attempts: list[str] | None = None,
+        applied_changes: list[str] | None = None,
     ) -> dict:
         solution = self._solutions.get(solution_id)
         if solution is None:
@@ -2211,8 +2217,15 @@ class AgentbookService:
         # verbatim on the public, unauthenticated read paths (outcome_summary,
         # timeline events, inspect) — gate them on the way in like every other
         # publicly-readable field. Reject before consuming the rate budget.
-        cleaned_failed = _normalize_failed_attempts(failed_attempts)
-        struct_label = detect_secret_in(notes, environment, cleaned_failed)
+        cleaned_failed = _normalize_string_list(
+            failed_attempts, label="failed_attempts"
+        )
+        cleaned_applied = _normalize_string_list(
+            applied_changes, label="applied_changes"
+        )
+        struct_label = detect_secret_in(
+            notes, environment, cleaned_failed, cleaned_applied
+        )
         if struct_label is not None:
             raise ValueError(secret_rejection(struct_label).detail)
 
@@ -2249,6 +2262,7 @@ class AgentbookService:
                 notes=notes,
                 time_saved_seconds=time_saved_seconds,
                 failed_attempts=cleaned_failed,
+                applied_changes=cleaned_applied,
                 weight=weight,
             )
         )
@@ -2682,6 +2696,59 @@ class AgentbookService:
             },
             "solutions_needing_synthesis": needs_synthesis,
             "stale_solutions": stale,
+            "learning_loop": self._learning_loop(),
+        }
+
+    def _learning_loop(self) -> dict:
+        """Throughput of the improvement loop itself — the meta-metric.
+
+        Content-side metrics (resolution rate, confidence, coverage) stay green
+        while the loop is starving; this section answers the only question a
+        continual-learning system must never stop asking: is the loop actually
+        turning? ``starved`` flags an eligible base that surfaces nothing.
+        """
+        now = utc_now()
+        proposals_7d = (
+            self._research_cycles.count_since(now - timedelta(days=7))
+            if self._research_cycles is not None
+            else 0
+        )
+        proposals_30d = (
+            self._research_cycles.count_since(now - timedelta(days=30))
+            if self._research_cycles is not None
+            else 0
+        )
+        accepted_30d = 0
+        if self._research_cycles is not None:
+            for cycle in self._research_cycles.list_recent(500):
+                if cycle.created_at < now - timedelta(days=30):
+                    break
+                if cycle.status == "improved":
+                    accepted_30d += 1
+        last_proposal_at = (
+            self._research_cycles.get_latest_cycle_at()
+            if self._research_cycles is not None
+            else None
+        )
+
+        # Eligible base: what the repo query surfaces pre-filter (bounded scan).
+        eligible = self._problems.find_research_candidates(
+            limit=500, max_confidence=0.85
+        )
+        surfaced = self.find_research_candidates(limit=500)
+        eligible_base = len(eligible)
+        surfaced_count = len(surfaced)
+
+        return {
+            "proposals_last_7d": proposals_7d,
+            "proposals_last_30d": proposals_30d,
+            "accepted_last_30d": accepted_30d,
+            "last_proposal_at": last_proposal_at.isoformat()
+            if last_proposal_at
+            else None,
+            "eligible_base": eligible_base,
+            "surfaced_candidates": surfaced_count,
+            "starved": eligible_base > 0 and surfaced_count == 0,
         }
 
     def get_usage_dashboard(self) -> dict:
@@ -4023,6 +4090,30 @@ class AgentbookService:
         rows.sort(key=lambda r: -r["repeat_queries"])
         return rows
 
+    def _ledger_groups(self) -> list[dict]:
+        """Approved problems with their non-removed solutions and outcomes.
+
+        Shared source for both export formats; removed/redacted content never
+        enters (takedown is honored here).
+        """
+        groups: list[dict] = []
+        approved = [
+            p for p in self._problems.list_all() if p.review_status == "approved"
+        ]
+        for problem in approved:
+            for solution in self._solutions.list_by_problem(problem.problem_id):
+                if solution.review_status == "removed":
+                    continue
+                outcomes = self._outcomes.list_by_solution(solution.solution_id)
+                groups.append(
+                    {
+                        "problem": problem,
+                        "solution": solution,
+                        "outcomes": outcomes,
+                    }
+                )
+        return groups
+
     def export_trajectory_ledger(self) -> list[dict]:
         """Operator-gated trajectory ledger for downstream learning systems.
 
@@ -4031,46 +4122,106 @@ class AgentbookService:
         and the independently reported result. This is the dataset view of the
         commons — the asset a continual-learning pipeline consumes. Governance:
         "you decide what trains" — reachable only via the operator credential;
-        removed/redacted content never exports (takedown is honored here).
+        removed/redacted content never exports.
         """
-        approved = [
-            p for p in self._problems.list_all() if p.review_status == "approved"
-        ]
         rows: list[dict] = []
-        for problem in approved:
-            for solution in self._solutions.list_by_problem(problem.problem_id):
-                if solution.review_status == "removed":
-                    continue
-                for outcome in self._outcomes.list_by_solution(solution.solution_id):
-                    rows.append(
-                        {
-                            "outcome_id": str(outcome.outcome_id),
-                            "created_at": outcome.created_at.isoformat(),
-                            "success": outcome.success,
-                            "kind": outcome.kind,
-                            "weight": outcome.weight,
-                            "environment": outcome.environment,
-                            "notes": outcome.notes,
-                            "time_saved_seconds": outcome.time_saved_seconds,
-                            "outcome_failed_attempts": outcome.failed_attempts,
-                            "solution_id": str(solution.solution_id),
-                            "solution_content": solution.content,
-                            "solution_steps": list(solution.steps or []),
-                            "solution_root_cause_pattern": solution.root_cause_pattern,
-                            "solution_localization_cues": list(
-                                solution.localization_cues or []
-                            ),
-                            "solution_verification": list(solution.verification or []),
-                            "solution_failed_attempts": list(
-                                solution.failed_attempts or []
-                            ),
-                            "promotion_status": solution.promotion_status,
-                            "problem_id": str(problem.problem_id),
-                            "problem_description": problem.description,
-                            "error_signature": problem.error_signature,
-                        }
-                    )
+        for group in self._ledger_groups():
+            problem, solution = group["problem"], group["solution"]
+            for outcome in group["outcomes"]:
+                rows.append(
+                    {
+                        "outcome_id": str(outcome.outcome_id),
+                        "created_at": outcome.created_at.isoformat(),
+                        "success": outcome.success,
+                        "kind": outcome.kind,
+                        "weight": outcome.weight,
+                        "environment": outcome.environment,
+                        "notes": outcome.notes,
+                        "time_saved_seconds": outcome.time_saved_seconds,
+                        "outcome_failed_attempts": outcome.failed_attempts,
+                        "solution_id": str(solution.solution_id),
+                        "solution_content": solution.content,
+                        "solution_steps": list(solution.steps or []),
+                        "solution_root_cause_pattern": solution.root_cause_pattern,
+                        "solution_localization_cues": list(
+                            solution.localization_cues or []
+                        ),
+                        "solution_verification": list(solution.verification or []),
+                        "solution_failed_attempts": list(
+                            solution.failed_attempts or []
+                        ),
+                        "promotion_status": solution.promotion_status,
+                        "problem_id": str(problem.problem_id),
+                        "problem_description": problem.description,
+                        "error_signature": problem.error_signature,
+                    }
+                )
         return rows
+
+    def export_distillation_pairs(self) -> list[dict]:
+        """Hint-structured view of the ledger: one row per solution.
+
+        Each row is a teacher-sample-shaped distillation pair — positive half
+        (the working solution) plus negative half (every recorded dead end:
+        authored failed_attempts merged with failure-outcome dead ends) plus
+        the outcome stats that attest it. This is the structure hint-based
+        methods like SDPO's teacher mechanism consume, at cross-org /
+        cross-runtime scale no closed loop can produce.
+        """
+        pairs: list[dict] = []
+        for group in self._ledger_groups():
+            problem, solution = group["problem"], group["solution"]
+            outcomes = group["outcomes"]
+            dead_ends: list[str] = []
+            seen: set[str] = set()
+            for attempt in solution.failed_attempts or []:
+                if attempt not in seen:
+                    seen.add(attempt)
+                    dead_ends.append(attempt)
+            failure_notes: list[str] = []
+            successes = 0
+            verified = 0
+            for outcome in outcomes:
+                if outcome.success:
+                    successes += 1
+                else:
+                    failure_notes.append(outcome.notes or "")
+                    for attempt in outcome.failed_attempts or []:
+                        if attempt not in seen:
+                            seen.add(attempt)
+                            dead_ends.append(attempt)
+                if outcome.kind == "verified":
+                    verified += 1
+            failure_notes = [n for n in failure_notes if n][-3:]
+            pairs.append(
+                {
+                    "problem_id": str(problem.problem_id),
+                    "problem_description": problem.description,
+                    "error_signature": problem.error_signature,
+                    "environment_tags": problem.tags or [],
+                    "positive": {
+                        "solution_id": str(solution.solution_id),
+                        "content": solution.content,
+                        "steps": list(solution.steps or []),
+                        "root_cause_pattern": solution.root_cause_pattern,
+                        "localization_cues": list(solution.localization_cues or []),
+                        "verification": list(solution.verification or []),
+                        "failed_attempts": list(solution.failed_attempts or []),
+                        "confidence": solution.confidence,
+                    },
+                    "negative": {
+                        "dead_ends": dead_ends,
+                        "failure_notes": failure_notes,
+                    },
+                    "outcome_stats": {
+                        "total": len(outcomes),
+                        "successes": successes,
+                        "failures": len(outcomes) - successes,
+                        "verified": verified,
+                    },
+                }
+            )
+        return pairs
 
     def set_research_status(self, problem_id: UUID, is_researching: bool) -> None:
         """Mark a problem as actively being researched (or clear the flag)."""
@@ -4618,6 +4769,7 @@ class AgentbookService:
                     "notes": o.notes,
                     "time_saved_seconds": o.time_saved_seconds,
                     "failed_attempts": o.failed_attempts,
+                    "applied_changes": o.applied_changes,
                     "weight": o.weight,
                 }
             )
@@ -4816,6 +4968,7 @@ def _outcome_to_dict(o: Outcome, reporter_model: str | None = None) -> dict:
         "notes": o.notes,
         "time_saved_seconds": o.time_saved_seconds,
         "failed_attempts": o.failed_attempts,
+        "applied_changes": o.applied_changes,
         "weight": o.weight,
         "created_at": o.created_at,
         "llm_model": reporter_model,

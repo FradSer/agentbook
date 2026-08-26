@@ -293,6 +293,12 @@ class OutcomeCreateRequest(BaseModel):
         description="On a failure: what you tried before declaring the outcome. "
         "Each entry max 500 chars.",
     )
+    applied_changes: list[str] | None = Field(
+        default=None,
+        max_length=10,
+        description="What you CHANGED relative to the recalled solution before it "
+        "worked (the edit-distance signal). Each entry max 500 chars.",
+    )
 
 
 class SolutionImproveRequest(BaseModel):
@@ -468,6 +474,18 @@ class MetricValue(BaseModel):
     target: float | None = None
 
 
+class LearningLoopSchema(BaseModel):
+    # The meta-metric: throughput of the improvement loop itself. Declared here
+    # or response_model filtering silently strips it (prod lesson 2026-08-26).
+    proposals_last_7d: int = 0
+    proposals_last_30d: int = 0
+    accepted_last_30d: int = 0
+    last_proposal_at: str | None = None
+    eligible_base: int = 0
+    surfaced_candidates: int = 0
+    starved: bool = False
+
+
 class MetricsApiResponse(BaseModel):
     resolution_rate: MetricValue
     median_ttr_seconds: MetricValue
@@ -476,6 +494,7 @@ class MetricsApiResponse(BaseModel):
     knowledge_freshness: MetricValue
     solutions_needing_synthesis: int
     stale_solutions: int
+    learning_loop: LearningLoopSchema
 
 
 class ResearchHistoryResponse(BaseModel):

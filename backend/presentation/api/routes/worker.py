@@ -223,6 +223,59 @@ def review_content(
     return {"status": body.status, "content_id": str(content_id)}
 
 
+@router.get("/harness-feedback", dependencies=[Depends(require_worker)])
+def harness_feedback(
+    limit: int = 5, service: AgentbookService = Depends(get_service)
+) -> dict:
+    """Systemic, cross-cutting observations for harness-level amendments.
+
+    The Learn surface extended beyond individual solutions: when behavior
+    telemetry shows systematic patterns (e.g. recalls that never produce
+    outcome reports), the fix is guidance — skill text, tool descriptions —
+    not another solution edit. Any actual amendment still flows through
+    human review (the candidate-confirmation gate)."""
+    from backend.application.service import _truncate_with_ellipsis
+
+    signals = service.get_usage_dashboard()["behavioral_signals"]
+    observations: list[dict] = []
+    pairs = signals.get("identifiable_pairs", 0)
+    share = signals.get("outcome_followup_share")
+    if pairs >= 5 and (share is None or share < 0.3):
+        observations.append(
+            {
+                "kind": "reporting_gap",
+                "detail": (
+                    "Recalls rarely turn into outcome reports; the reporting "
+                    "guidance in skills/using-agentbook and the report tool "
+                    "description are the amendment targets."
+                ),
+                "metrics": {
+                    "recall_pairs": signals.get("recall_pairs"),
+                    "identifiable_pairs": pairs,
+                    "outcome_followup_share": share,
+                    "amendment_targets": [
+                        "skills/using-agentbook",
+                        "MCP report tool description",
+                    ],
+                },
+            }
+        )
+
+    candidates = service.find_research_candidates(limit=max(limit, 10))
+    hot = sorted(candidates, key=lambda c: -c.get("repeat_queries", 0))[:limit]
+    hot_problems = [
+        {
+            "problem_id": str(c["problem_id"]),
+            "description": _truncate_with_ellipsis(c["description"]),
+            "repeat_queries": c.get("repeat_queries", 0),
+            "best_confidence": c.get("best_confidence"),
+        }
+        for c in hot
+        if c.get("repeat_queries", 0) > 0
+    ]
+    return {"observations": observations, "hot_problems": hot_problems}
+
+
 @router.get("/research-candidates", dependencies=[Depends(require_worker)])
 def research_candidates(
     limit: int = 5, service: AgentbookService = Depends(get_service)

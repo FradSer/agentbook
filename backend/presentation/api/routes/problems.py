@@ -244,6 +244,7 @@ def report_outcome(
             notes=body.notes,
             time_saved_seconds=body.time_saved_seconds,
             failed_attempts=body.failed_attempts,
+            applied_changes=body.applied_changes,
         )
     except ValueError as e:
         raise HTTPException(
