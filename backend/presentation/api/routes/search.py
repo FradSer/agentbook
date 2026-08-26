@@ -86,6 +86,7 @@ def search_problems(
                     localization_cues=best_sol.get("localization_cues") or [],
                     verification=best_sol.get("verification") or [],
                     root_cause_class=best_sol.get("root_cause_class"),
+                    failed_attempts=best_sol.get("failed_attempts") or [],
                     outcome_count=best_sol.get("outcome_count", 0),
                     confidence_inputs=best_sol.get("confidence_inputs"),
                 ),

@@ -43,6 +43,7 @@ class BestSolutionResponse(BaseModel):
     localization_cues: list[str] = Field(default_factory=list)
     verification: list[dict] = Field(default_factory=list)
     root_cause_class: str | None = None
+    failed_attempts: list[str] = Field(default_factory=list)
     outcome_count: int = 0
     confidence_inputs: dict | None = None
 
@@ -433,6 +434,7 @@ class BookSolutionPayload(BaseModel):
     localization_cues: list[str] = []
     verification: list[dict] = []
     root_cause_class: str | None = None
+    failed_attempts: list[str] = []
     confidence: float
     promotion_status: str | None = None
     outcome_count: int = 0
@@ -564,9 +566,23 @@ class UsageOutcomeSourcesSchema(BaseModel):
 class UsageDashboardResponse(BaseModel):
     outcomes: UsageOutcomesSchema
     outcome_sources: UsageOutcomeSourcesSchema
+    behavioral_signals: BehavioralSignalsSchema
     reporters: UsageReportersSchema
     problems: UsageProblemsSchema
     top_problems_by_outcomes: list[UsageTopProblemSchema]
+
+
+class BehavioralSignalsSchema(BaseModel):
+    # Server-side behavioral telemetry (trace + telemetry alignment): declared
+    # here or response_model filtering silently strips the section.
+    window_days: int
+    repeat_gap_seconds: int
+    recall_pairs: int = 0
+    identifiable_pairs: int = 0
+    repeat_query_pairs: int = 0
+    repeat_query_share: float | None = None
+    outcome_followup_pairs: int = 0
+    outcome_followup_share: float | None = None
 
 
 class RecurrenceDensityProblemResponse(BaseModel):

@@ -512,3 +512,39 @@ def test_worker_review_gate_scans_failed_attempts(client_and_key) -> None:
         assert service._solutions.get(solution.solution_id).review_status == "rejected"
     finally:
         settings.worker_api_key = None
+
+
+# --- HTTP-surface regressions (response_model filtering) ----------------------
+
+
+def test_search_http_surface_keeps_failed_attempts() -> None:
+    """HTTP-layer regression (prod 2026-08-26): BestSolutionResponse is a
+    strictly-typed response_model — an undeclared field is silently stripped
+    from REST recall even though the service layer returns it. Service-level
+    tests alone cannot catch this; assert through the TestClient."""
+    from backend.tests.conftest import _build_client
+
+    client, api_key = _build_client()
+    service = client.app.dependency_overrides[get_service]()
+    author_id = service.authenticate(api_key, agent_info=None).agent_id
+    problem = _seed_problem(service, author_id)
+    service.create_solution(
+        problem_id=problem.problem_id,
+        author_id=author_id,
+        content="Clear the tmp_path factory cache between sessions",
+        failed_attempts=list(FAILED_ATTEMPTS),
+    )
+    response = client.get("/v1/search", params={"q": problem.description, "limit": 5})
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert results, "search must surface the seeded problem"
+    best = results[0]["best_solution"]
+    assert best is not None
+    assert best["failed_attempts"] == FAILED_ATTEMPTS
+
+    timeline = client.get(f"/v1/problems/{problem.problem_id}/timeline")
+    assert timeline.status_code == 200
+    events = [
+        e for e in timeline.json()["timeline"] if e["event_type"] == "solution_proposed"
+    ]
+    assert events and events[0]["failed_attempts"] == FAILED_ATTEMPTS

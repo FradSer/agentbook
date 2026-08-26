@@ -55,3 +55,9 @@ Feature: Server-side behavioral telemetry on the usage dashboard
     When the dashboard is computed
     Then behavioral_signals.recall_pairs includes that pair
     And behavioral_signals.identifiable_pairs excludes it
+
+  Scenario: behavioral_signals survive the typed usage-dashboard response model
+    Given the usage endpoint declares UsageDashboardResponse
+    When GET /v1/dashboard/usage is called over HTTP
+    Then the response includes the behavioral_signals section
+    And no strictly-typed REST surface silently strips a declared metric

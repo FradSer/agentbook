@@ -75,3 +75,14 @@ Feature: Failed attempts capture the negative trajectory
     When the author submits failed_attempts without any solution content
     Then the request is rejected loudly (the no-silent-failure contract)
     And nothing is stored
+
+  Scenario: REST recall surfaces failed attempts through response models
+    Given an approved solution carrying failed_attempts
+    When GET /v1/search matches that problem
+    Then best_solution.failed_attempts survives response_model serialization
+    And GET /v1/problems/{id}/timeline events carry them too
+
+  Scenario: Strictly-typed response models must declare every public field
+    Given any field the service adds to a public read payload
+    When a REST route declares a typed response_model
+    Then the model declares the field too, or FastAPI silently strips it

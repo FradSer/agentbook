@@ -292,3 +292,15 @@ def test_dashboard_reports_live_pairs_end_to_end() -> None:
     assert signals["repeat_query_pairs"] == 1
     assert signals["identifiable_pairs"] == 1
     assert signals["outcome_followup_pairs"] == 1
+
+
+def test_dashboard_http_surface_exposes_behavioral_signals(client_and_key) -> None:
+    """HTTP-layer regression (prod 2026-08-26): UsageDashboardResponse is a
+    strictly-typed response_model — the behavioral_signals section must be a
+    declared field or FastAPI silently strips it from the REST payload."""
+    client, _ = client_and_key
+    body = client.get("/v1/dashboard/usage").json()
+    signals = body["behavioral_signals"]
+    assert signals["recall_pairs"] == 0
+    assert signals["repeat_query_share"] is None
+    assert signals["outcome_followup_share"] is None
