@@ -13,6 +13,9 @@ _GEMINI_RESOLVER = "backend.infrastructure.embeddings.gemini.resolve_embedding_p
 
 
 def test_resolve_search_stack_prefers_gemini() -> None:
+    """Gemini leads the failover chain when configured (priority order)."""
+    from backend.infrastructure.embeddings.failover import FailoverEmbeddingProvider
+
     gemini = MagicMock()
     with (
         patch(_GEMINI_RESOLVER, return_value=gemini),
@@ -26,8 +29,9 @@ def test_resolve_search_stack_prefers_gemini() -> None:
         ),
     ):
         stack = resolve_search_stack()
-    assert stack.embedding_provider is gemini
-    assert stack.embedding_provider_name == "gemini"
+    assert isinstance(stack.embedding_provider, FailoverEmbeddingProvider)
+    assert stack.embedding_provider.name_chain.startswith("gemini>")
+    assert stack.embedding_provider_name.startswith("gemini>")
 
 
 def test_resolve_search_stack_prefers_voyage_when_no_gemini() -> None:

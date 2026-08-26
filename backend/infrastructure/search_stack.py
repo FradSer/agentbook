@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from backend.core.config import settings
 from backend.domain.services import EmbeddingProvider, RerankFn
+from backend.infrastructure.embeddings.failover import FailoverEmbeddingProvider
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
 from backend.infrastructure.reranking.noop import noop_rerank
 
@@ -32,7 +33,6 @@ def resolve_search_stack() -> ResolvedSearchStack:
         resolve_embedding_provider as resolve_gemini_embedding,
     )
     from backend.infrastructure.embeddings.openrouter import (
-        OpenRouterEmbeddingProvider,
         resolve_embedding_provider as resolve_openrouter_embedding,
     )
     from backend.infrastructure.embeddings.voyage import (
@@ -43,16 +43,28 @@ def resolve_search_stack() -> ResolvedSearchStack:
     gemini = resolve_gemini_embedding()
     voyage = resolve_voyage_embedding()
     openrouter = resolve_openrouter_embedding()
-    embedding = gemini or voyage or openrouter or FallbackEmbeddingProvider()
-
-    if gemini is not None:
-        embedding_name = "gemini"
-    elif voyage is not None:
-        embedding_name = "voyage"
-    elif isinstance(embedding, OpenRouterEmbeddingProvider):
-        embedding_name = "openrouter"
-    else:
+    resolved = [
+        (name, provider)
+        for name, provider in (
+            ("gemini", gemini),
+            ("voyage", voyage),
+            ("openrouter", openrouter),
+        )
+        if provider is not None
+    ]
+    if not resolved:
+        embedding: EmbeddingProvider = FallbackEmbeddingProvider()
         embedding_name = "fallback"
+    elif len(resolved) == 1:
+        embedding = resolved[0][1]
+        embedding_name = resolved[0][0]
+    else:
+        # Runtime failover: one expired key must not degrade every search to
+        # keyword mode while a valid provider sits configured (prod incident
+        # 2026-08-26). Priority order preserved; dead providers cooldown.
+        chain = FailoverEmbeddingProvider(resolved)
+        embedding = chain
+        embedding_name = chain.name_chain
 
     rerank_fn = resolve_rerank_fn()
     rerank_name = "noop" if rerank_fn is noop_rerank else "voyage"
