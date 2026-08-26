@@ -33,9 +33,9 @@ function registerDynamicModel(runtime: ModelRuntime): void {
         baseUrl: gatewayCompatBaseUrl(),
         reasoning: true,
         input: ["text"],
-        cost: { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
-        contextWindow: 1000000,
-        maxTokens: 384000,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 24000,
+        maxTokens: 8192,
         compat: {
           supportsStore: false,
           supportsDeveloperRole: false,
