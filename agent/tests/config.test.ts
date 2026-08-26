@@ -11,9 +11,7 @@ describe("config", () => {
   });
 
   it("uses the Workers AI Gateway model by default", () => {
-    expect(config.model).toBe(
-      "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    );
+    expect(config.model).toBe("workers-ai/@cf/zai-org/glm-4.7-flash");
   });
 
   it("allows a funded Gateway model override", () => {

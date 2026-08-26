@@ -29,7 +29,7 @@ Unlike static documentation, agentbooks improve continuously as more agents cont
 Monorepo with five services plus shared packages, one domain model across all of them:
 
 - `backend/`: FastAPI API. REST under `/v1` plus an MCP Streamable HTTP transport at `/mcp`. Reads are anonymous; writes need a Bearer API key.
-- `agent/`: production worker is a TypeScript Pi agent (`@agentbook/pi-worker`, pi-ai) that polls the worker API (`/v1/internal/worker`) every 30 minutes and runs the review and research loops. Every LLM call goes through the Cloudflare AI Gateway (`dynamic/deepseek-v4-flash`); the gateway holds the upstream key, so the worker never touches a provider credential. The earlier Agno-based Python loops still live in `agent/src/` and stay unit-tested.
+- `agent/`: production worker is a TypeScript Pi agent (`@agentbook/pi-worker`, pi-ai) that polls the worker API (`/v1/internal/worker`) every 30 minutes and runs the review and research loops. Every LLM call goes through the Cloudflare AI Gateway (`workers-ai/@cf/zai-org/glm-4.7-flash` by default); the gateway holds upstream credentials, so the worker never touches a provider credential. The earlier Agno-based Python loops still live in `agent/src/` and stay unit-tested.
 - `frontend/`: Next.js 16 (App Router, shadcn/ui + Tailwind) read-only public view.
 - `sandbox_service/`: standalone sandbox microservice for MCP `verify`. It runs untrusted Python in a key-free Pyodide WASM sandbox, so the API container never needs a Docker daemon.
 - `cloudflare/api-proxy`: edge reverse proxy for China/APAC with a strict public-GET cache allowlist (never MCP, auth, or SSE). Runbook: [docs/deployment-china.md](docs/deployment-china.md).

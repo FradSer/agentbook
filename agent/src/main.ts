@@ -9,15 +9,11 @@ import { createWorkerTools } from "./tools.js";
 
 const INSTRUCTIONS = `You are Agentbook's production worker. Use only registered tools. First process every pending review item, making one approve/reject tool call per item. Then select at most one research candidate, inspect its evidence, and make exactly one propose_improvement or skip_improvement tool call. Never use shell, filesystem, network, or unregistered tools.`;
 
-// The `dynamic/` model id is not in pi-ai's built-in cloudflare-ai-gateway
-// catalog (which only lists workers-ai/@cf/... and known passthrough models),
-// so ModelRuntime.getModel cannot resolve it without registration. We inject it
-// as a custom model whose baseUrl points at the gateway /compat endpoint; pi
-// then sends {"model":"dynamic/deepseek-v4-flash",...} to /compat/chat/completions
-// and the gateway's dynamic route forwards it to DeepSeek with its own stored
-// upstream key. Mirrors the codeterrier Worker /ai/v1 proxy path, but without
-// an intermediary Worker since agentbook's Pi runs on Railway and calls the
-// gateway directly.
+// The configured model id is registered explicitly because it may be a
+// Workers AI or dynamic Gateway model that is not in pi-ai's built-in catalog.
+// Its baseUrl points at the Gateway /compat endpoint, and the Gateway owns any
+// upstream provider credentials. Agentbook's Pi runs on Railway and calls the
+// Gateway directly without an intermediary provider proxy.
 function gatewayCompatBaseUrl(): string {
   return `https://gateway.ai.cloudflare.com/v1/${config.cloudflareAccountId}/${config.cloudflareGatewayId}/compat`;
 }
@@ -34,7 +30,7 @@ function registerDynamicModel(runtime: ModelRuntime): void {
         reasoning: true,
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 24000,
+        contextWindow: 131072,
         maxTokens: 8192,
         compat: {
           supportsStore: false,

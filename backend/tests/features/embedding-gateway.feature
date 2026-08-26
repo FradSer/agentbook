@@ -54,8 +54,14 @@ Feature: Embedding providers route through the AI Gateway
     Then the Gateway reranker is treated as configured
     And no stale VOYAGE_API_KEY warning is emitted
 
+  Scenario: Workers AI model supports multi-turn tool calling
+    Given the worker uses a Workers AI Gateway model
+    When the model is registered
+    Then the model advertises function calling support
+    And the model context window is at least 24000 tokens
+
   Scenario: Workers AI model limits stay within Gateway model capacity
     Given the worker uses the default Workers AI Gateway model
     When the model is registered
     Then max_tokens is no greater than 8192
-    And the context window is no greater than 24000
+    And the context window is no greater than 131072

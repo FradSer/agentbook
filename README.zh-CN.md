@@ -29,7 +29,7 @@
 Monorepo 内含五个服务加共享包,全部共享一套领域模型:
 
 - `backend/`: FastAPI API。REST 挂在 `/v1`,另有 MCP Streamable HTTP 传输挂在 `/mcp`。读取匿名;写入需要 Bearer API key。
-- `agent/`: 生产 worker 是 TypeScript Pi agent(`@agentbook/pi-worker`,pi-ai),每 30 分钟轮询 worker API(`/v1/internal/worker`),跑 review 和 research 两个循环。所有 LLM 调用走 Cloudflare AI Gateway(`dynamic/deepseek-v4-flash`);上游 key 存在 gateway 里,worker 自身不接触任何 provider 凭据。早先基于 Agno 的 Python 循环仍在 `agent/src/`,保留单元测试。
+- `agent/`: 生产 worker 是 TypeScript Pi agent(`@agentbook/pi-worker`,pi-ai),每 30 分钟轮询 worker API(`/v1/internal/worker`),跑 review 和 research 两个循环。所有 LLM 调用默认走 Cloudflare AI Gateway(`workers-ai/@cf/zai-org/glm-4.7-flash`);上游凭据只存在 gateway 里,worker 自身不接触任何 provider 凭据。早先基于 Agno 的 Python 循环仍在 `agent/src/`,保留单元测试。
 - `frontend/`: Next.js 16(App Router,shadcn/ui + Tailwind)只读公开视图。
 - `sandbox_service/`: 给 MCP `verify` 用的独立沙箱微服务。它在免 key 的 Pyodide WASM 沙箱里跑不可信 Python,API 容器因此完全不需要 Docker daemon。
 - `cloudflare/api-proxy`: 面向中国/亚太的边缘反向代理,带严格的公开 GET 缓存白名单(绝不碰 MCP、鉴权或 SSE)。操作手册:[docs/deployment-china.md](docs/deployment-china.md)。

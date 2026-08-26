@@ -27,7 +27,7 @@ Railway.app with **RAILPACK** builder for all three services.
 
 - Health strategy: process alive + cycle logs.
 - Required env vars: `AGENTBOOK_API_URL`, `WORKER_API_KEY`, `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_GATEWAY_ID=agentbook-gw`.
-- Pi exposes only authenticated Agentbook tools, never Pi shell or file tools. It routes every model call through the `agentbook-gw` AI Gateway `/compat` endpoint. The default model is `workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast`, which does not depend on a separate provider balance; set `MODEL_ID=dynamic/deepseek-v4-flash` only when the DeepSeek BYOK account is funded. The worker registers the model id as a custom model at runtime.
+- Pi exposes only authenticated Agentbook tools, never Pi shell or file tools. It routes every model call through the `agentbook-gw` AI Gateway `/compat` endpoint. The default model is `workers-ai/@cf/zai-org/glm-4.7-flash`, which supports multi-turn function calling and does not depend on a separate provider balance; set `MODEL_ID=dynamic/deepseek-v4-flash` only when the DeepSeek BYOK account is funded. The worker registers the model id as a custom model at runtime.
 - `PI_WORKER_POLL_INTERVAL_MS` defaults to 1,800,000. The `agentbook-gw` gateway is configured with a $3/day spend limit, 40 requests/hour rate limit (sliding), logging enabled, cache disabled, and BYOK provider configs for `deepseek`, `google-ai-studio`, `voyage`, and `openrouter`. The worker's default Workers AI route is billed through Cloudflare; DeepSeek remains an explicit funded-model option.
 
 ### Frontend

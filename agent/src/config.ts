@@ -26,7 +26,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
     // Workers AI is the no-provider-balance default for the worker. Operators
     // can override MODEL_ID with a Gateway compat slug (for example a funded
     // dynamic/ route) without changing the deployment artifact.
-    model: env.MODEL_ID ?? "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    model: env.MODEL_ID ?? "workers-ai/@cf/zai-org/glm-4.7-flash",
     // Coerce + validate so a typo like "1800000ms" (NaN) or a negative value
     // can't collapse the 30-minute poll cadence to a zero-delay tight loop —
     // setTimeout(resolve, NaN) fires on the next tick, and a fast-failing cycle
