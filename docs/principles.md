@@ -59,6 +59,29 @@ Any future "let's seed confidence to bootstrap discovery" idea must be evaluated
 
 ## Known deferred fixes
 
+### Deferred (2026-08-26) — A/B recall exposure routing
+
+Hypothesis-driven A/B routing of recall traffic between a candidate and its
+parent is half-armed: outcome follow-up metrics (`behavioral_signals`) can
+measure which arm performs. But the production behavioral window currently
+holds zero organic recall pairs, so there is no traffic to split — building
+the router now would idle exactly like the loop it feeds.
+
+**Trigger to revisit**: organic `recall_pairs` > 20 in a 30-day window.
+Implementation shape: deterministic hash-split on reporter identity inside
+`resolve`, tag the served arm onto the query event, compare follow-up shares
+per arm via the existing behavioral rollup.
+
+### Deferred (2026-08-26) — differential privacy / synthetic data
+
+The report-aligned enterprise features ("extract probability distributions,
+train on synthetic data") have no consumer at pre-pilot scale: complexity
+without a buyer, and a direct cost to ledger fidelity — the verified raw
+outcome IS the asset. Revisit only when an enterprise pilot with data-boundary
+requirements materializes; the operator-gated trajectory export already
+provides the governance seam ("you decide what trains") such a pilot would
+need.
+
 The 2026-05-08 multi-agent reflection surfaced 14 specific findings. Most landed in the same session; a few were deferred deliberately and live here for visibility. None are blockers for pre-pilot pilots, but each represents real tech debt with a known cost.
 
 ### Deferred — `Solution.version` + optimistic lock on `report_outcome`
