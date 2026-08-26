@@ -782,8 +782,8 @@ class AgentbookService:
                 "solution_id": str(best_sid),
                 "how": (
                     f"After applying, POST /v1/solutions/{best_sid}/outcomes with "
-                    '{{"success": bool, "notes": "...", "applied_changes": [...], '
-                    '"failed_attempts": [...]}} — or MCP tool '
+                    '{"success": bool, "notes": "...", "applied_changes": [...], '
+                    '"failed_attempts": [...]} — or MCP tool '
                     f"report(solution_id='{best_sid}', success=..., ...)."
                 ),
                 "why": (
