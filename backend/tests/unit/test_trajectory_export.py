@@ -172,3 +172,109 @@ def test_export_disabled_without_admin_key() -> None:
     settings.admin_api_key = None
     response = client.get("/v1/admin/trajectory-export")
     assert response.status_code == 403
+
+
+# --- Distillation-pair format -------------------------------------------------
+
+
+def _pairs_client():
+    client, _ = _client_with_ledger()
+    settings.admin_api_key = "admin-secret"
+    return client
+
+
+def test_pairs_format_emits_one_row_per_solution_with_both_sides() -> None:
+    client = _pairs_client()
+    try:
+        response = client.get(
+            "/v1/admin/trajectory-export",
+            params={"format": "pairs"},
+            headers={"Authorization": "Bearer admin-secret"},
+        )
+    finally:
+        settings.admin_api_key = None
+    assert response.status_code == 200
+    lines = [line for line in response.text.splitlines() if line.strip()]
+    # The ledger fixture has 2 live solutions? No — one live solution
+    # (with 2 outcomes) and one removed subtree. Expect exactly 1 pair.
+    assert len(lines) == 1
+    import json
+
+    row = json.loads(lines[0])
+    for key in (
+        "problem_id",
+        "problem_description",
+        "error_signature",
+        "positive",
+        "negative",
+        "outcome_stats",
+    ):
+        assert key in row, key
+    assert row["positive"]["content"] == (
+        "Clear the tmp_path factory cache between sessions"
+    )
+    assert row["positive"]["failed_attempts"] == [
+        "tried pinning the wrong package version"
+    ]
+    # Negative side merges solution dead ends with failure-outcome dead ends.
+    assert "deleted only ~/.pytest_cache" in row["negative"]["dead_ends"]
+    assert row["negative"]["failure_notes"] == ["still leaking on 3.12"]
+    assert row["outcome_stats"] == {
+        "total": 2,
+        "successes": 1,
+        "failures": 1,
+        "verified": 0,
+    }
+
+
+def test_pairs_include_outcomeless_solutions_marked_positive_only() -> None:
+    client, _ = _client_with_ledger()
+
+    service = client.app.dependency_overrides[get_service]()
+    author_id = uuid4()
+    service._agents.add(Agent(agent_id=author_id, api_key_hash="x", model_type="t"))
+    extra = Problem(
+        author_id=author_id,
+        description="An outcomeless problem with no reports at all yet",
+    )
+    extra.review_status = "approved"
+    service._problems.add(extra)
+    bare = Solution(
+        problem_id=extra.problem_id,
+        author_id=author_id,
+        content="A solution that nobody has ever verified or tried.",
+    )
+    service._solutions.add(bare)
+
+    settings.admin_api_key = "admin-secret"
+    try:
+        response = client.get(
+            "/v1/admin/trajectory-export",
+            params={"format": "pairs"},
+            headers={"Authorization": "Bearer admin-secret"},
+        )
+    finally:
+        settings.admin_api_key = None
+    import json
+
+    rows = [json.loads(line) for line in response.text.splitlines() if line.strip()]
+    target = next(r for r in rows if r["problem_description"] == extra.description)
+    assert target["outcome_stats"]["total"] == 0
+    assert target["negative"]["dead_ends"] == []
+
+
+def test_pairs_exclude_removed_content_and_stay_operator_gated() -> None:
+    client, _ = _client_with_ledger()
+    settings.admin_api_key = "admin-secret"
+    try:
+        ok = client.get(
+            "/v1/admin/trajectory-export",
+            params={"format": "pairs"},
+            headers={"Authorization": "Bearer admin-secret"},
+        )
+        denied = client.get("/v1/admin/trajectory-export", params={"format": "pairs"})
+    finally:
+        settings.admin_api_key = None
+    assert "Removed problem" not in ok.text
+    assert "Secret-laden content" not in ok.text
+    assert denied.status_code in (401, 403)
