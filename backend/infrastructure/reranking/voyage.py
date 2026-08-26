@@ -19,6 +19,8 @@ import threading
 import time
 from collections import deque
 
+import httpx
+
 from backend.core.config import settings
 from backend.domain.services import RerankFn
 from backend.infrastructure.reranking.noop import noop_rerank
@@ -71,16 +73,37 @@ class VoyageReranker:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str | None = None,
         model: str = "rerank-2.5-lite",
         rate_limit_rpm: int = 100,
+        *,
+        base_url: str | None = None,
+        auth_token: str | None = None,
+        http_client: httpx.Client | None = None,
     ) -> None:
-        if voyageai is None:
-            raise RuntimeError(
-                "voyageai package is not installed. Run `uv add voyageai` "
-                "before constructing VoyageReranker."
-            )
-        self._client = voyageai.Client(api_key=api_key)
+        self._gateway_mode = base_url is not None
+        if self._gateway_mode:
+            if not auth_token:
+                raise ValueError("gateway auth token is required in gateway mode")
+            self._url = base_url.rstrip("/") + "/v1/rerank"
+            self._headers = {
+                "cf-aig-authorization": f"Bearer {auth_token}",
+                "Content-Type": "application/json",
+            }
+            self._http = http_client
+            self._client = None
+        else:
+            if voyageai is None:
+                raise RuntimeError(
+                    "voyageai package is not installed. Run `uv add voyageai` "
+                    "before constructing VoyageReranker."
+                )
+            if not api_key:
+                raise ValueError("VoyageReranker requires an API key")
+            self._client = voyageai.Client(api_key=api_key)
+            self._url = None
+            self._headers = None
+            self._http = None
         self._model = model
         self._bucket = _RateLimitBucket(capacity=rate_limit_rpm, window_seconds=60.0)
         self.skipped_calls = 0
@@ -98,6 +121,22 @@ class VoyageReranker:
             return noop_rerank(query, candidates, top_k)
 
         try:
+            if self._gateway_mode:
+                client = self._http or httpx.Client(timeout=30.0)
+                response = client.post(
+                    self._url,
+                    headers=self._headers,
+                    json={
+                        "query": query,
+                        "documents": candidates,
+                        "model": self._model,
+                        "top_k": min(top_k, len(candidates)),
+                    },
+                )
+                response.raise_for_status()
+                payload = response.json()
+                results = payload.get("data") or payload.get("results") or []
+                return [int(item["index"]) for item in results]
             response = self._client.rerank(
                 query=query,
                 documents=candidates,
@@ -118,14 +157,26 @@ class VoyageReranker:
 
 
 def resolve_rerank_fn() -> RerankFn:
-    """Build a ``VoyageReranker`` if ``VOYAGE_API_KEY`` is set; else NoOp.
+    """Build a direct or AI Gateway Voyage reranker; else NoOp.
 
     Returning ``noop_rerank`` rather than ``None`` keeps the ``RerankFn``
     type total in callers — they always receive a callable and never need
     to None-check before invoking."""
-    if voyageai is None:
+    if not settings.rerank_enabled:
         return noop_rerank
-    api_key = settings.voyage_api_key
-    if not api_key or not settings.rerank_enabled:
+    if settings.ai_gateway_base_url:
+        return VoyageReranker(
+            model=settings.voyage_rerank_model,
+            base_url=(
+                settings.ai_gateway_base_url.rstrip("/")
+                + "/"
+                + settings.ai_gateway_voyage_slug
+            ),
+            auth_token=settings.ai_gateway_auth_token,
+        )
+    if voyageai is None or not settings.voyage_api_key:
         return noop_rerank
-    return VoyageReranker(api_key=api_key, model=settings.voyage_rerank_model)
+    return VoyageReranker(
+        api_key=settings.voyage_api_key,
+        model=settings.voyage_rerank_model,
+    )

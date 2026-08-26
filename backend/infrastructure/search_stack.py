@@ -84,15 +84,23 @@ def resolve_search_stack() -> ResolvedSearchStack:
 
 def warn_if_degraded_search_stack(stack: ResolvedSearchStack) -> None:
     """Log when API keys exist but the resolver still chose Fallback/NoOp."""
-    if settings.voyage_api_key and stack.rerank_provider_name == "noop":
+    if (
+        not settings.ai_gateway_base_url
+        and settings.voyage_api_key
+        and stack.rerank_provider_name == "noop"
+    ):
         logger.warning(
             "VOYAGE_API_KEY set but reranker is NoOp (disabled or SDK missing)"
         )
     if (
-        settings.gemini_api_key
-        or settings.voyage_api_key
-        or settings.openrouter_api_key
-    ) and (stack.embedding_provider_name == "fallback"):
+        not settings.ai_gateway_base_url
+        and (
+            settings.gemini_api_key
+            or settings.voyage_api_key
+            or settings.openrouter_api_key
+        )
+        and stack.embedding_provider_name == "fallback"
+    ):
         logger.warning(
             "embedding API keys configured but search stack fell back to "
             "deterministic Fallback — good-arm RAG quality will not match production"

@@ -23,13 +23,34 @@ _SYSTEM_PROMPT = (
 class LLMEvaluatorProvider:
     def __init__(
         self,
-        api_key: str,
+        api_key: str | None,
         model: str,
         timeout_seconds: float = 30.0,
+        *,
+        base_url: str | None = None,
+        auth_token: str | None = None,
+        http_client: httpx.Client | None = None,
     ) -> None:
-        self._api_key = api_key
+        self._gateway_mode = base_url is not None
+        if self._gateway_mode:
+            if not auth_token:
+                raise ValueError("gateway auth token is required in gateway mode")
+            self._url = base_url.rstrip("/") + "/api/v1/chat/completions"
+            self._headers = {
+                "cf-aig-authorization": f"Bearer {auth_token}",
+                "Content-Type": "application/json",
+            }
+        else:
+            if not api_key:
+                raise ValueError("LLMEvaluatorProvider requires an API key")
+            self._url = "https://openrouter.ai/api/v1/chat/completions"
+            self._headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
         self._model = model
         self._timeout_seconds = timeout_seconds
+        self._http = http_client
 
     def compare(
         self,
@@ -51,22 +72,24 @@ class LLMEvaluatorProvider:
         )
 
         try:
-            response = httpx.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self._api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self._model,
-                    "messages": [
-                        {"role": "system", "content": _SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "temperature": 0.0,
-                },
-                timeout=self._timeout_seconds,
-            )
+            request = {
+                "model": self._model,
+                "messages": [
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.0,
+            }
+            if self._gateway_mode:
+                client = self._http or httpx.Client(timeout=self._timeout_seconds)
+                response = client.post(self._url, headers=self._headers, json=request)
+            else:
+                response = httpx.post(
+                    self._url,
+                    headers=self._headers,
+                    json=request,
+                    timeout=self._timeout_seconds,
+                )
             response.raise_for_status()
             payload = response.json()
             content = payload["choices"][0]["message"]["content"]
@@ -84,10 +107,18 @@ class LLMEvaluatorProvider:
 
 
 def resolve_evaluator_provider() -> LLMEvaluatorProvider | None:
+    if settings.ai_gateway_base_url:
+        return LLMEvaluatorProvider(
+            api_key=None,
+            model=settings.evaluator_model,
+            base_url=(
+                settings.ai_gateway_base_url.rstrip("/")
+                + "/"
+                + settings.ai_gateway_openrouter_slug
+            ),
+            auth_token=settings.ai_gateway_auth_token,
+        )
     api_key = settings.openrouter_api_key
     if not api_key:
         return None
-    return LLMEvaluatorProvider(
-        api_key=api_key,
-        model=settings.evaluator_model,
-    )
+    return LLMEvaluatorProvider(api_key=api_key, model=settings.evaluator_model)

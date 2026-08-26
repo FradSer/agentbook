@@ -22,6 +22,8 @@ from __future__ import annotations
 import logging
 import math
 
+import httpx
+
 from backend.core.config import settings
 from shared.provider_keys import RoundRobin, parse_keys
 
@@ -63,8 +65,14 @@ class GeminiEmbeddingProvider:
         api_keys: list[str],
         model: str = "gemini-embedding-001",
         output_dimension: int = 1024,
+        *,
+        gateway_base_url: str | None = None,
+        gateway_auth_token: str | None = None,
+        gateway_http_client: httpx.Client | None = None,
     ) -> None:
-        if genai is None:
+        if gateway_base_url and not gateway_auth_token:
+            raise ValueError("gateway auth token is required in gateway mode")
+        if genai is None and not gateway_base_url:
             raise RuntimeError(
                 "google-genai package is not installed. Run `uv add google-genai` "
                 "before constructing GeminiEmbeddingProvider."
@@ -74,6 +82,17 @@ class GeminiEmbeddingProvider:
         self._rotator = RoundRobin(api_keys)
         self._model = model
         self._output_dimension = output_dimension
+        # AI Gateway routing: base_url points the SDK at agentbook-gw's
+        # google-ai-studio passthrough; the gateway auth header travels with
+        # every call. In BYOK mode the api_key itself is a placeholder.
+        self._gateway_base_url = gateway_base_url
+        self._gateway_auth_token = gateway_auth_token
+        self._gateway_http = gateway_http_client
+        self._gateway_headers: dict[str, str] = (
+            {"cf-aig-authorization": f"Bearer {gateway_auth_token}"}
+            if gateway_auth_token
+            else {}
+        )
         self._clients: dict[str, genai.Client] = {}
 
     def _client(self, api_key: str) -> genai.Client:
@@ -88,9 +107,56 @@ class GeminiEmbeddingProvider:
             return _l2_normalize(list(values))
         return list(values)
 
+    def _embed_gateway(
+        self, contents: list[str], task_type: str, timeout_ms: int
+    ) -> list[list[float]]:
+        """Call Google AI Studio through Gateway's native REST endpoint.
+
+        The SDK is intentionally bypassed in Gateway mode: it would attach
+        ``x-goog-api-key`` from its constructor. BYOK requires the application
+        to send only ``cf-aig-authorization`` and let Gateway inject the
+        provider credential from Secrets Store.
+        """
+        url = (
+            self._gateway_base_url.rstrip("/")
+            + f"/google-ai-studio/v1beta/models/{self._model}:batchEmbedContents"
+        )
+        body = {
+            "requests": [
+                {
+                    "model": f"models/{self._model}",
+                    "content": {"parts": [{"text": content}]},
+                    "taskType": task_type,
+                    "outputDimensionality": self._output_dimension,
+                }
+                for content in contents
+            ]
+        }
+        headers = self._gateway_headers | {"Content-Type": "application/json"}
+        if self._gateway_http is not None:
+            response = self._gateway_http.post(url, headers=headers, json=body)
+        else:
+            response = httpx.post(
+                url, headers=headers, json=body, timeout=timeout_ms / 1000
+            )
+        response.raise_for_status()
+        payload = response.json()
+        embeddings = payload.get("embeddings") or []
+        if len(embeddings) != len(contents):
+            raise ValueError("Gemini gateway response missing embeddings")
+        vectors = []
+        for embedding in embeddings:
+            values = embedding.get("values") if isinstance(embedding, dict) else None
+            if not isinstance(values, list):
+                raise ValueError("Gemini gateway response format is invalid")
+            vectors.append(self._normalize(values))
+        return vectors
+
     def _embed(
         self, contents: list[str], task_type: str, timeout_ms: int
     ) -> list[list[float]]:
+        if self._gateway_base_url:
+            return self._embed_gateway(contents, task_type, timeout_ms)
         client = self._client(self._rotator.next())
         result = client.models.embed_content(
             model=self._model,
@@ -128,13 +194,23 @@ def resolve_embedding_provider() -> GeminiEmbeddingProvider | None:
     Returns ``None`` to let the resolver chain fall through to Voyage /
     OpenRouter / Fallback when either prerequisite is missing.
     """
-    if genai is None:
-        return None
-    keys = parse_keys(settings.gemini_api_key)
-    if not keys:
-        return None
+    gateway_base = settings.ai_gateway_base_url
+    if gateway_base:
+        if not settings.ai_gateway_auth_token:
+            raise ValueError("embedding gateway auth token is required")
+        # Gateway BYOK mode uses the native REST path and does not require the
+        # google-genai SDK or a raw Gemini key in this process.
+        keys = ["gateway-byok"]
+    else:
+        if genai is None:
+            return None
+        keys = parse_keys(settings.gemini_api_key)
+        if not keys:
+            return None
     return GeminiEmbeddingProvider(
         api_keys=keys,
         model=settings.gemini_embedding_model,
         output_dimension=settings.embedding_dimension,
+        gateway_base_url=gateway_base,
+        gateway_auth_token=settings.ai_gateway_auth_token,
     )

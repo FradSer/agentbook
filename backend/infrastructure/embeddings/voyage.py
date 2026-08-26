@@ -12,10 +12,15 @@ Asymmetric encoders require the right ``input_type`` pole at every call:
 ``backend.domain.services.EmbeddingProvider`` carries the kwarg uniformly so
 the OpenRouter and Fallback providers stay swap-compatible.
 
-Lazy import: when the ``voyageai`` package is missing the resolver returns
-``None`` and the chain falls through to OpenRouter / Fallback. This mirrors
-``backend.infrastructure.persistence.sqlalchemy_models``'s pgvector lazy
-import and lets local dev / CI run without the SDK installed.
+Transport: direct official SDK against ``api.voyageai.com`` by default.
+When the AI Gateway is configured, ``base_url`` points at
+``{gateway}/custom-voyage`` so every embed flows through agentbook-gw with
+BYOK credentials — no bare provider key required.
+
+Retry policy mirrors the original SDK behavior: the offline backfill path
+(``embed_documents``) keeps a small exponential budget; the live request path
+carries none — a hung provider aborts fast and the caller's ``_safe_embed``
+degrades to keyword fallback.
 """
 
 from __future__ import annotations
@@ -23,15 +28,18 @@ from __future__ import annotations
 import logging
 import time
 
-from backend.core.config import settings
+import httpx
 
-logger = logging.getLogger(__name__)
+from backend.core.config import settings
 
 try:  # pragma: no cover - exercised only when voyageai is installed
     import voyageai
-except Exception:  # noqa: BLE001 - any import failure should disable the provider
+except Exception:  # noqa: BLE001 - any import failure should disable the SDK path
     voyageai = None  # type: ignore[assignment]
 
+logger = logging.getLogger(__name__)
+
+_DIRECT_BASE_URL = "https://api.voyageai.com"
 
 # Voyage rate limit on embed endpoint is 2000 RPM (paid). 429 is exceptional;
 # retry with jitter-free exponential backoff up to a small attempt cap so that
@@ -45,9 +53,9 @@ _RETRY_DELAYS_SECONDS = (1.0, 2.0, 4.0)
 # request thread through a 1s + 2s + 4s storm.
 _LIVE_RETRY_DELAYS_SECONDS: tuple[float, ...] = ()
 # Tight per-request client timeout so a hung connection aborts here instead of
-# hanging the recall. Combined with ``max_retries=0`` (SDK-internal retries
-# disabled) this bounds the worst-case live embed cost.
+# hanging the recall.
 _LIVE_QUERY_TIMEOUT_SECONDS = 2.0
+_BATCH_TIMEOUT_SECONDS = 30.0
 
 
 class VoyageEmbeddingProvider:
@@ -55,22 +63,45 @@ class VoyageEmbeddingProvider:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str | None = None,
         model: str = "voyage-3-large",
         output_dimension: int = 1024,
+        *,
+        base_url: str | None = None,
+        auth_token: str | None = None,
+        http_client: httpx.Client | None = None,
     ) -> None:
-        if voyageai is None:
-            raise RuntimeError(
-                "voyageai package is not installed. Run `uv add voyageai` "
-                "before constructing VoyageEmbeddingProvider."
-            )
-        self._client = voyageai.Client(
-            api_key=api_key,
-            timeout=_LIVE_QUERY_TIMEOUT_SECONDS,
-            max_retries=0,
-        )
+        self._gateway_mode = base_url is not None
+        self._url = (base_url or _DIRECT_BASE_URL).rstrip("/") + "/v1/embeddings"
+        headers: dict[str, str] = {}
+        if self._gateway_mode:
+            if not auth_token:
+                raise ValueError("gateway auth token is required in gateway mode")
+            headers["cf-aig-authorization"] = f"Bearer {auth_token}"
+        elif api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        self._headers = headers
         self._model = model
         self._output_dimension = output_dimension
+        self._http = (
+            (http_client or httpx.Client(timeout=_LIVE_QUERY_TIMEOUT_SECONDS))
+            if self._gateway_mode
+            else None
+        )
+        self._batch_http: httpx.Client | None = None
+        if not self._gateway_mode:
+            if voyageai is None:
+                raise RuntimeError(
+                    "voyageai package is not installed. Run `uv add voyageai` "
+                    "before constructing VoyageEmbeddingProvider."
+                )
+            if not api_key:
+                raise ValueError("VoyageEmbeddingProvider requires an API key")
+            self._client = voyageai.Client(
+                api_key=api_key,
+                timeout=_LIVE_QUERY_TIMEOUT_SECONDS,
+                max_retries=0,
+            )
 
     def embed(self, text: str, *, input_type: str = "query") -> list[float]:
         """Embed a single text on the live request path.
@@ -102,6 +133,24 @@ class VoyageEmbeddingProvider:
             texts, "document", retry_delays=_RETRY_DELAYS_SECONDS
         )
 
+    def _post(
+        self, payload: dict, *, client: httpx.Client | None = None
+    ) -> list[list[float]]:
+        response = (client or self._http).post(
+            self._url, json=payload, headers=self._headers
+        )
+        response.raise_for_status()
+        data = response.json().get("data") or []
+        if not data:
+            raise ValueError("Voyage embedding response missing data")
+        vectors = []
+        for item in data:
+            embedding = item.get("embedding")
+            if not isinstance(embedding, list):
+                raise ValueError("Voyage embedding response format is invalid")
+            vectors.append([float(value) for value in embedding])
+        return vectors
+
     def _embed_batch_with_retry(
         self,
         texts: list[str],
@@ -113,16 +162,31 @@ class VoyageEmbeddingProvider:
         # attempt breaks without sleeping (matching the prior backfill cost of
         # 3 attempts / 2 sleeps). An empty tuple means a single attempt with no
         # sleep — the live request path.
+        if retry_delays and self._batch_http is None:
+            self._batch_http = httpx.Client(timeout=_BATCH_TIMEOUT_SECONDS)
+        client = self._batch_http or self._http
         attempts = max(len(retry_delays), 1)
         last_exc: Exception | None = None
         for attempt in range(attempts):
             try:
-                response = self._client.embed(
-                    texts=texts,
-                    model=self._model,
-                    input_type=input_type,
-                    output_dimension=self._output_dimension,
-                )
+                if not self._gateway_mode:
+                    response = self._client.embed(
+                        texts=texts,
+                        model=self._model,
+                        input_type=input_type,
+                        output_dimension=self._output_dimension,
+                    )
+                    vectors = [list(vector) for vector in response.embeddings]
+                else:
+                    vectors = self._post(
+                        {
+                            "model": self._model,
+                            "input": texts,
+                            "input_type": input_type,
+                            "output_dimension": self._output_dimension,
+                        },
+                        client=client,
+                    )
             except Exception as exc:  # noqa: BLE001 - retry any transient error
                 last_exc = exc
                 if attempt >= attempts - 1:
@@ -136,7 +200,7 @@ class VoyageEmbeddingProvider:
                 )
                 time.sleep(delay)
                 continue
-            return [list(vector) for vector in response.embeddings]
+            return vectors
         # Exhausted retries — re-raise so the caller's ``_safe_embed`` can
         # downgrade to the keyword fallback path.
         assert last_exc is not None
@@ -144,16 +208,23 @@ class VoyageEmbeddingProvider:
 
 
 def resolve_embedding_provider() -> VoyageEmbeddingProvider | None:
-    """Build a Voyage provider when the SDK is installed and the key is set.
+    """Build a Voyage provider when reachable: a key (direct mode), or the
+    gateway configuration (BYOK mode where upstream keys live in agentbook-gw).
 
     Returns ``None`` to let the resolver chain fall through to OpenRouter /
-    Fallback when either prerequisite is missing. The composition root in
-    ``backend/main.py`` calls this first; on ``None`` it falls back to
-    ``backend/infrastructure/embeddings/openrouter.py``."""
-    if voyageai is None:
-        return None
+    Fallback when neither prerequisite is present."""
     api_key = settings.voyage_api_key
-    if not api_key:
+    gateway_base = settings.ai_gateway_base_url
+    if gateway_base:
+        provider_base = gateway_base.rstrip("/") + "/" + settings.ai_gateway_voyage_slug
+        return VoyageEmbeddingProvider(
+            api_key=None,
+            model=settings.voyage_embedding_model,
+            output_dimension=settings.embedding_dimension,
+            base_url=provider_base,
+            auth_token=settings.ai_gateway_auth_token,
+        )
+    if voyageai is None or not api_key:
         return None
     return VoyageEmbeddingProvider(
         api_key=api_key,
