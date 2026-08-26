@@ -15,7 +15,10 @@ if TYPE_CHECKING:
     from backend.domain.repositories import ProblemRelationshipRepository
     from backend.domain.search import SearchDiagnostics, SearchMode
 
-from backend.application._recurrence import compute_behavioral_signals
+from backend.application._recurrence import (
+    compute_behavioral_signals,
+    compute_repeat_query_counts,
+)
 from backend.application.clustering import (
     EVALUATOR_AGENT_ID,
     SANDBOX_AGENT_ID,
@@ -3914,13 +3917,15 @@ class AgentbookService:
             )
             cids = {p.author_id for p in candidates}
             cmap = self._agent_models_map(cids)
-            return [
-                {
-                    **_problem_to_dict(p),
-                    "llm_model": self._display_llm(cmap, p.author_id, None),
-                }
-                for p in candidates
-            ]
+            return self._attach_repeat_pressure(
+                [
+                    {
+                        **_problem_to_dict(p),
+                        "llm_model": self._display_llm(cmap, p.author_id, None),
+                    }
+                    for p in candidates
+                ]
+            )
         cutoff = (
             utc_now() - timedelta(hours=cooldown_hours) if cooldown_hours > 0 else None
         )
@@ -3961,13 +3966,92 @@ class AgentbookService:
             offset += page_size
         fids = {p.author_id for p in filtered}
         fmap = self._agent_models_map(fids)
-        return [
-            {
-                **_problem_to_dict(p),
-                "llm_model": self._display_llm(fmap, p.author_id, None),
-            }
-            for p in filtered
+        return self._attach_repeat_pressure(
+            [
+                {
+                    **_problem_to_dict(p),
+                    "llm_model": self._display_llm(fmap, p.author_id, None),
+                }
+                for p in filtered
+            ]
+        )
+
+    def _attach_repeat_pressure(self, rows: list[dict]) -> list[dict]:
+        """Re-rank improvement candidates by organic recall-retry pressure.
+
+        Understand feeds Learn: repeat-query pairs are the implicit "the
+        recalled solution did not hold" signal, so problems agents keep
+        re-searching get improved first. Each row gains a ``repeat_queries``
+        count so the worker LLM sees why a problem is prioritized. Stable sort:
+        pressure only reorders; the underlying candidate order breaks ties.
+        """
+        counts: dict[UUID, int] = {}
+        if self._query_events is not None:
+            events = self._query_events.list_all(
+                since=utc_now() - timedelta(days=_BEHAVIORAL_WINDOW_DAYS)
+            )
+            if events:
+                counts = compute_repeat_query_counts(
+                    events,
+                    seed_agent_ids=self._seed_agent_ids(),
+                    now=utc_now(),
+                    window_days=_BEHAVIORAL_WINDOW_DAYS,
+                    repeat_gap_seconds=_BEHAVIORAL_REPEAT_GAP_SECONDS,
+                )
+        for row in rows:
+            pid = UUID(str(row["problem_id"]))
+            row["repeat_queries"] = counts.get(pid, 0)
+        rows.sort(key=lambda r: -r["repeat_queries"])
+        return rows
+
+    def export_trajectory_ledger(self) -> list[dict]:
+        """Operator-gated trajectory ledger for downstream learning systems.
+
+        One row per outcome with its full trace+telemetry context: what the
+        solution claims, where it points, what did NOT work on either side,
+        and the independently reported result. This is the dataset view of the
+        commons — the asset a continual-learning pipeline consumes. Governance:
+        "you decide what trains" — reachable only via the operator credential;
+        removed/redacted content never exports (takedown is honored here).
+        """
+        approved = [
+            p for p in self._problems.list_all() if p.review_status == "approved"
         ]
+        rows: list[dict] = []
+        for problem in approved:
+            for solution in self._solutions.list_by_problem(problem.problem_id):
+                if solution.review_status == "removed":
+                    continue
+                for outcome in self._outcomes.list_by_solution(solution.solution_id):
+                    rows.append(
+                        {
+                            "outcome_id": str(outcome.outcome_id),
+                            "created_at": outcome.created_at.isoformat(),
+                            "success": outcome.success,
+                            "kind": outcome.kind,
+                            "weight": outcome.weight,
+                            "environment": outcome.environment,
+                            "notes": outcome.notes,
+                            "time_saved_seconds": outcome.time_saved_seconds,
+                            "outcome_failed_attempts": outcome.failed_attempts,
+                            "solution_id": str(solution.solution_id),
+                            "solution_content": solution.content,
+                            "solution_steps": list(solution.steps or []),
+                            "solution_root_cause_pattern": solution.root_cause_pattern,
+                            "solution_localization_cues": list(
+                                solution.localization_cues or []
+                            ),
+                            "solution_verification": list(solution.verification or []),
+                            "solution_failed_attempts": list(
+                                solution.failed_attempts or []
+                            ),
+                            "promotion_status": solution.promotion_status,
+                            "problem_id": str(problem.problem_id),
+                            "problem_description": problem.description,
+                            "error_signature": problem.error_signature,
+                        }
+                    )
+        return rows
 
     def set_research_status(self, problem_id: UUID, is_researching: bool) -> None:
         """Mark a problem as actively being researched (or clear the flag)."""

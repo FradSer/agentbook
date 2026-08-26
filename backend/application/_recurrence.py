@@ -147,6 +147,36 @@ def _behavioral_identity(event: QueryEvent) -> tuple | None:
     return None
 
 
+def _organic_pair_events(
+    events: list[QueryEvent],
+    *,
+    since: datetime,
+    seed_agent_ids: frozenset[UUID],
+) -> dict[tuple, list[QueryEvent]]:
+    """Group organic recall traffic into ``(identity, problem)`` pairs.
+
+    Shared by both behavioral rollups. Mirrors ``organic_recurrence``
+    exclusions: self-hits, seeded hits, seed queriers, help-less events, and
+    anything outside ``since`` never forms a pair.
+    """
+    pair_events: dict[tuple, list[QueryEvent]] = defaultdict(list)
+    for e in events:
+        if (
+            e.created_at < since
+            or e.top_match_problem_id is None
+            or not e.has_help
+            or e.is_self_hit
+            or e.is_seeded_hit
+            or e.agent_id in seed_agent_ids
+        ):
+            continue
+        identity = _behavioral_identity(e)
+        if identity is None:
+            continue
+        pair_events[(identity, e.top_match_problem_id)].append(e)
+    return pair_events
+
+
 def compute_behavioral_signals(
     events: list[QueryEvent],
     outcomes: list[Outcome],
@@ -179,21 +209,9 @@ def compute_behavioral_signals(
     since = now - timedelta(days=window_days)
     gap = timedelta(seconds=repeat_gap_seconds)
 
-    pair_events: dict[tuple, list[QueryEvent]] = defaultdict(list)
-    for e in events:
-        if (
-            e.created_at < since
-            or e.top_match_problem_id is None
-            or not e.has_help
-            or e.is_self_hit
-            or e.is_seeded_hit
-            or e.agent_id in seed_agent_ids
-        ):
-            continue
-        identity = _behavioral_identity(e)
-        if identity is None:
-            continue
-        pair_events[(identity, e.top_match_problem_id)].append(e)
+    pair_events = _organic_pair_events(
+        events, since=since, seed_agent_ids=seed_agent_ids
+    )
 
     # Outcomes grouped by reporter agent -> {problem: latest report time}.
     # Only reports inside the window are kept; ordering vs first recall is
@@ -241,3 +259,34 @@ def compute_behavioral_signals(
             else None
         ),
     }
+
+
+def compute_repeat_query_counts(
+    events: list[QueryEvent],
+    *,
+    seed_agent_ids: frozenset[UUID] = frozenset(),
+    now: datetime,
+    window_days: int = 30,
+    repeat_gap_seconds: int = 600,
+) -> dict[UUID, int]:
+    """Per-problem recall-retry pressure (Understand -> Learn bridge).
+
+    Counts organic ``(identity, problem)`` pairs that re-searched the problem
+    after ``repeat_gap_seconds`` — the implicit "the recalled solution did not
+    hold" signal. The improvement loop consumes this to decide WHAT to learn
+    first; same exclusions and window as ``compute_behavioral_signals``.
+    """
+    since = now - timedelta(days=window_days)
+    gap = timedelta(seconds=repeat_gap_seconds)
+    pair_events = _organic_pair_events(
+        events, since=since, seed_agent_ids=seed_agent_ids
+    )
+    counts: dict[UUID, int] = {}
+    for _, problem_id in pair_events:
+        evs = sorted(pair_events[(_, problem_id)], key=lambda e: e.created_at)
+        if any(
+            later.created_at - earlier.created_at > gap
+            for earlier, later in zip(evs, evs[1:], strict=False)
+        ):
+            counts[problem_id] = counts.get(problem_id, 0) + 1
+    return counts
