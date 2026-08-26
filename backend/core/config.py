@@ -67,6 +67,16 @@ class Settings(SharedSettings):
     voyage_embedding_model: str = "voyage-3-large"
     voyage_rerank_model: str = "rerank-2.5-lite"
 
+    # Cloudflare AI Gateway routing for every backend AI provider
+    # (agentbook-gw). When configured, provider credentials are resolved by
+    # Gateway BYOK from Secrets Store; the API process sends only the Gateway
+    # auth token. The same base/token is used by embeddings, reranking,
+    # evaluator, and book synthesis. Unset keeps direct provider calls.
+    ai_gateway_base_url: str | None = None
+    ai_gateway_auth_token: str | None = None
+    ai_gateway_voyage_slug: str = "custom-voyage"
+    ai_gateway_openrouter_slug: str = "custom-openrouter"
+
     # Search reranking configuration. ``rerank_top_k`` is the candidate pool
     # size handed to the reranker before final truncation to ``limit``.
     # ``rerank_enabled`` lets operators kill-switch the reranker without
@@ -174,6 +184,10 @@ def validate_production_settings(settings: Settings) -> None:
         ValueError: If production settings are invalid
     """
     if not settings.debug:
+        if settings.ai_gateway_base_url and not settings.ai_gateway_auth_token:
+            raise ValueError(
+                "AI_GATEWAY_AUTH_TOKEN is required when AI_GATEWAY_BASE_URL is set"
+            )
         # CORS '*' + allow_credentials=True is a CSRF surface waiting to be
         # mis-configured. Browsers reject the literal '*' + credentials combo
         # by spec, but `CORS_ALLOW_ORIGINS=https://attacker.com,...` lets
@@ -191,15 +205,15 @@ def validate_production_settings(settings: Settings) -> None:
         # rather than refuse boot: the existing warn-on-degraded-stack path only
         # fires for a set-but-rejected key, never for all-keys-absent.
         if not (
-            settings.gemini_api_key
+            settings.ai_gateway_base_url
+            or settings.gemini_api_key
             or settings.voyage_api_key
             or settings.openrouter_api_key
         ):
             logger.warning(
-                "No embedding credential is configured in production "
-                "(GEMINI_API_KEY / VOYAGE_API_KEY / OPENROUTER_API_KEY all "
-                "unset): recall is degraded to keyword-only search. Set an "
-                "embedding key to restore semantic recall."
+                "No embedding credential or AI Gateway is configured in "
+                "production: recall is degraded to keyword-only search. Set "
+                "AI_GATEWAY_BASE_URL + AI_GATEWAY_AUTH_TOKEN or a provider key."
             )
         # Embedding dimension must match the active column. The legacy
         # ``problems.embedding`` column is vector(1536) (per the init
@@ -209,20 +223,19 @@ def validate_production_settings(settings: Settings) -> None:
         # mismatch on commit. Refuse to boot in this exact configuration —
         # the operator must run ``backend/scripts/reembed_corpus.py`` and
         # flip ``EMBEDDING_VERSION=v2`` before going live with Voyage.
-        if settings.voyage_api_key and settings.embedding_version == "v1":
+        if (
+            settings.voyage_api_key or settings.ai_gateway_base_url
+        ) and settings.embedding_version == "v1":
             raise ValueError(
-                "VOYAGE_API_KEY is set but EMBEDDING_VERSION='v1' (legacy "
+                "Voyage is configured but EMBEDDING_VERSION='v1' (legacy "
                 "1536-dim column). Voyage outputs 1024-dim vectors and "
                 "writes will fail on commit. Run backend/scripts/"
                 "reembed_corpus.py to backfill embedding_v2 then set "
                 "EMBEDDING_VERSION=v2."
             )
-        if settings.voyage_api_key and settings.embedding_dimension not in {
-            256,
-            512,
-            1024,
-            2048,
-        }:
+        if (
+            settings.voyage_api_key or settings.ai_gateway_base_url
+        ) and settings.embedding_dimension not in {256, 512, 1024, 2048}:
             raise ValueError(
                 f"EMBEDDING_DIMENSION={settings.embedding_dimension} is invalid "
                 "for Voyage v3-large (accepted: 256, 512, 1024, 2048). Set "
@@ -232,7 +245,7 @@ def validate_production_settings(settings: Settings) -> None:
         # the only hard constraint is that it equals the active column width
         # (v1=1536, v2=1024). A mismatch makes pgvector reject every commit;
         # refuse to boot rather than fail on the first write.
-        if settings.gemini_api_key:
+        if settings.gemini_api_key and not settings.ai_gateway_base_url:
             expected_dim = 1024 if settings.embedding_version == "v2" else 1536
             if settings.embedding_dimension != expected_dim:
                 raise ValueError(
