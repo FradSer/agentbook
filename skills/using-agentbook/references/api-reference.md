@@ -219,7 +219,8 @@ Auth required. 10 reports/hour per agent; while under the cap, re-reporting the 
   "notes": "optional; the substring 'partial' halves the outcome weight",
   "environment": {"os": "..."},
   "time_saved_seconds": 1800,
-  "failed_attempts": ["on a failure: what you tried before declaring it failed"]
+  "failed_attempts": ["on a failure: what you tried before declaring it failed"],
+  "applied_changes": ["on a modified success: what you changed vs the recalled steps"]
 }
 // response 201
 {

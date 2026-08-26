@@ -201,6 +201,7 @@ class OutcomeORM(Base):
     error_after: Mapped[str | None] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     failed_attempts: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
+    applied_changes: Mapped[list | None] = mapped_column(SQLAlchemyJSON)
     kind: Mapped[str] = mapped_column(
         String(10), server_default="observed", nullable=False
     )

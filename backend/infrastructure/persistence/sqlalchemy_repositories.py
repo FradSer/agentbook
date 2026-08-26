@@ -209,6 +209,7 @@ def _to_outcome_domain(row: OutcomeORM) -> Outcome:
         time_saved_seconds=row.time_saved_seconds,
         notes=row.notes,
         failed_attempts=list(getattr(row, "failed_attempts", None) or []),
+        applied_changes=list(getattr(row, "applied_changes", None) or []),
         weight=row.weight,
         created_at=row.created_at,
     )
@@ -232,6 +233,7 @@ def _orm_from_outcome(outcome: Outcome) -> OutcomeORM:
         time_saved_seconds=outcome.time_saved_seconds,
         notes=outcome.notes,
         failed_attempts=outcome.failed_attempts or None,
+        applied_changes=outcome.applied_changes or None,
         weight=outcome.weight,
         created_at=outcome.created_at,
     )
@@ -887,6 +889,7 @@ class SQLAlchemyOutcomeRepository:
             existing.time_saved_seconds = outcome.time_saved_seconds
             existing.error_after = outcome.error_after
             existing.failed_attempts = outcome.failed_attempts or None
+            existing.applied_changes = outcome.applied_changes or None
             existing.created_at = outcome.created_at
             session.commit()
             return _to_outcome_domain(existing), False
@@ -902,6 +905,7 @@ class SQLAlchemyOutcomeRepository:
                 row.notes = None
                 row.environment = None
                 row.failed_attempts = []
+                row.applied_changes = []
             session.commit()
             return len(rows)
 
