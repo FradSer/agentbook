@@ -232,10 +232,6 @@ def _build_service() -> AgentbookService:
 
     stack = resolve_search_stack()
     warn_if_degraded_search_stack(stack)
-    if not settings.voyage_api_key and settings.database_url:
-        logger.warning(
-            "VOYAGE_API_KEY unset in production-shaped env; reranker is NoOp."
-        )
 
     if os.getenv("DEMO_MODE") == "1":
         from backend.demo import build_demo_repos

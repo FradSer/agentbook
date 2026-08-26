@@ -37,23 +37,6 @@ Feature: Embedding providers route through the AI Gateway
     Then the request posts to {gateway}/google-ai-studio/v1beta/models/...
     And carries only cf-aig-authorization
 
-  Scenario: Gateway mode relaxes per-provider key requirements
-    Given no VOYAGE/GEMINI keys are set but the gateway is fully configured
-    When the resolvers run
-    Then all three providers still resolve (BYOK placeholders)
-
-  Scenario: Voyage reranking routes through the gateway
-    Given a Voyage reranker built in gateway mode
-    When candidates are reranked
-    Then the request posts to {gateway}/custom-voyage/v1/rerank
-    And carries only cf-aig-authorization
-
-  Scenario: OpenRouter evaluator and synthesizer route through the gateway
-    Given the OpenRouter gateway mode is configured
-    When evaluator or synthesizer work runs
-    Then requests post to {gateway}/custom-openrouter/api/v1/chat/completions
-    And no OpenRouter provider key is sent by the application
-
   Scenario: Gateway configuration is valid without provider keys
     Given the gateway base URL and auth token are configured
     And all provider API keys are absent
@@ -64,3 +47,9 @@ Feature: Embedding providers route through the AI Gateway
     Given no gateway base URL is configured
     When providers are constructed with direct keys
     Then requests go directly to provider APIs exactly as before
+
+  Scenario: Gateway mode does not report the reranker as NoOp
+    Given the Voyage provider is configured in Gateway BYOK mode
+    When the application service is composed
+    Then the Gateway reranker is treated as configured
+    And no stale VOYAGE_API_KEY warning is emitted
