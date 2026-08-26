@@ -99,6 +99,7 @@ def create_problem(
                     "retryable": False,
                     "action": "improve_existing",
                     "details": result["existing_problems"],
+                    "improve_template": result.get("improve_template"),
                 }
             },
         )

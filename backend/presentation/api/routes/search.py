@@ -103,4 +103,5 @@ def search_problems(
         search_mode=payload.get("search_mode"),
         embedding_provider=payload.get("embedding_provider"),
         rerank_provider=payload.get("rerank_provider"),
+        report_hint=payload.get("report_hint"),
     )

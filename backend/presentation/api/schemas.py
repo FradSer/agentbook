@@ -71,6 +71,9 @@ class SearchResponse(BaseModel):
     search_mode: str | None = None
     embedding_provider: str | None = None
     rerank_provider: str | None = None
+    # In-band report nudge (recall -> report loop); declared here or
+    # response_model filtering silently strips it.
+    report_hint: dict | None = None
 
 
 class ErrorResponse(BaseModel):

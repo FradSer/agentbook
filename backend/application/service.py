@@ -766,6 +766,31 @@ class AgentbookService:
             ),
             "rerank_provider": (self._rerank_provider_name if dense_used else None),
         }
+        # In-band report nudge: the moment an agent holds a candidate solution
+        # is when reminding it to report costs nothing and closes the loop —
+        # behavioral telemetry showed recalls almost never turned into reports.
+        best_sid = next(
+            (
+                row["best_solution"]["solution_id"]
+                for row in rows
+                if row.get("best_solution")
+            ),
+            None,
+        )
+        if best_sid is not None:
+            payload["report_hint"] = {
+                "solution_id": str(best_sid),
+                "how": (
+                    f"After applying, POST /v1/solutions/{best_sid}/outcomes with "
+                    '{{"success": bool, "notes": "...", "applied_changes": [...], '
+                    '"failed_attempts": [...]}} — or MCP tool '
+                    f"report(solution_id='{best_sid}', success=..., ...)."
+                ),
+                "why": (
+                    "Outcome reports are the only signal that raises confidence; "
+                    "your report decides what the next agent trusts."
+                ),
+            }
         self._search_cache.set(cache_key, payload)
         self._record_query_event(
             query=query,
@@ -1977,7 +2002,7 @@ class AgentbookService:
                     count_toward_write_rate=False,
                 )
                 solution_id = new_solution.solution_id
-            score, hint = _actionability(
+            score, hint, missing_legs = _actionability(
                 steps=solution_steps,
                 root_cause_pattern=solution_root_cause_pattern,
                 localization_cues=solution_localization_cues,
@@ -1990,6 +2015,7 @@ class AgentbookService:
                 "problem_id": str(existing_problem.problem_id),
                 "solution_id": str(solution_id) if solution_id is not None else None,
                 "actionability": score,
+                "actionability_missing": missing_legs,
             }
             if hint is not None:
                 result["actionability_hint"] = hint
@@ -2004,18 +2030,39 @@ class AgentbookService:
         # legs, so the refusal works without any embedding key.
         exact_duplicates = self._exact_duplicate_rows(description, error_signature)
         if exact_duplicates:
+            dup_problem_id = UUID(exact_duplicates[0]["problem_id"])
+            best = self._pick_best_solution(dup_problem_id)
+            improve_template = {
+                "problem_id": str(dup_problem_id),
+                # Prefill with the existing problem's best solution so the
+                # agent can pivot to improve-mode without a second lookup.
+                "solution_id": (str(best["solution_id"]) if best else "<solution_id>"),
+                "endpoint": "/v1/solutions/{solution_id}/improve",
+                "payload": {
+                    "improved_content": "<your better version>",
+                    "improved_steps": ["<ordered steps>"],
+                    "reasoning": "<what was improved and why>",
+                    "root_cause_pattern": "<transferable root cause>",
+                    "localization_cues": ["<file/function hints>"],
+                    "verification": [
+                        {"command": "...", "expected": "...", "buggy": "..."}
+                    ],
+                },
+            }
             return {
                 "status": "duplicate_problem",
                 "problem_id": None,
                 "solution_id": None,
                 "existing_problems": exact_duplicates,
+                "improve_template": improve_template,
                 "advice": (
                     "An identical problem already exists (exact "
                     "error_signature match: problem "
                     f"{exact_duplicates[0]['problem_id']}). Nothing was "
                     "stored. Improve its solution (provide solution_id) or "
                     "attach your solution to it (provide problem_id) instead "
-                    "of creating a duplicate."
+                    "of creating a duplicate. improve_template carries the "
+                    "ready-to-fill request."
                 ),
             }
 
@@ -2067,13 +2114,14 @@ class AgentbookService:
             "existing_problems": existing_similar or None,
         }
         if solution_id is not None:
-            score, hint = _actionability(
+            score, hint, missing_legs = _actionability(
                 steps=solution_steps,
                 root_cause_pattern=solution_root_cause_pattern,
                 localization_cues=solution_localization_cues,
                 verification=solution_verification,
             )
             result["actionability"] = score
+            result["actionability_missing"] = missing_legs
             if hint is not None:
                 result["actionability_hint"] = hint
         if existing_similar:
@@ -4892,12 +4940,16 @@ def _actionability(
     score = sum(legs.values())
     missing = [name for name, present in legs.items() if not present]
     if not missing:
-        return score, None
-    return score, (
-        "This solution is stored but not maximally actionable for the next agent. "
-        "Add the missing structured knowledge so a weaker model can act on it: "
-        + ", ".join(missing)
-        + "."
+        return score, None, []
+    return (
+        score,
+        (
+            "This solution is stored but not maximally actionable for the next agent. "
+            "Add the missing structured knowledge so a weaker model can act on it: "
+            + ", ".join(missing)
+            + "."
+        ),
+        missing,
     )
 
 
