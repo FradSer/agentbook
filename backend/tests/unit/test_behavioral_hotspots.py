@@ -11,7 +11,7 @@ from datetime import timedelta
 from uuid import UUID, uuid4
 
 from backend.application.service import AgentbookService
-from backend.domain.models import Agent, QueryEvent, utc_now
+from backend.domain.models import Agent, QueryEvent, ResearchCycle, utc_now
 from backend.infrastructure.persistence.in_memory import (
     InMemoryAgentRepository,
     InMemoryOutcomeRepository,
@@ -135,3 +135,41 @@ def test_public_candidates_route_surfaces_repeat_queries(client_and_key) -> None
     assert response.status_code == 200
     items = response.json()["candidates"]
     assert items and "repeat_queries" in items[0]
+
+
+def test_behavioral_pressure_overrides_stale_history() -> None:
+    """A stalled problem (>=3 consecutive no_improvement) that agents keep
+    re-searching re-enters the improvement queue — live usage beats a stale
+    research history."""
+    service, author_id = _service()
+    stale_hot = _seed_candidate(
+        service, author_id, "Stalled but hot: agents keep retrying this one"
+    )
+    stale_cold = _seed_candidate(
+        service, author_id, "Stalled and cold: nobody ever retries this one"
+    )
+    # Both carry 3 consecutive no_improvement cycles.
+    now = utc_now()
+    for pid in (stale_hot, stale_cold):
+        for i in range(3):
+            service._research_cycles.add(
+                ResearchCycle(
+                    problem_id=pid,
+                    researcher_id=author_id,
+                    status="no_improvement",
+                    reasoning="eval sweep",
+                    created_at=now - timedelta(days=i + 1),
+                )
+            )
+    # Organic identities re-search ONLY the hot problem.
+    querier_a, querier_b = uuid4(), uuid4()
+    gap = timedelta(hours=2)
+    for querier in (querier_a, querier_b):
+        service._query_events.add(_event(querier, stale_hot, gap * 3))
+        service._query_events.add(_event(querier, stale_hot, gap))
+
+    candidates = service.find_research_candidates(limit=10)
+    by_id = {str(c["problem_id"]): c for c in candidates}
+    assert str(stale_hot) in by_id, "hot problem must bypass the stall filter"
+    assert by_id[str(stale_hot)]["repeat_queries"] >= 2
+    assert str(stale_cold) not in by_id, "cold stalled problem must stay filtered"

@@ -3898,6 +3898,23 @@ class AgentbookService:
             for s in self._solutions.list_by_problem(problem_id)
         )
 
+    def _repeat_query_counts(self) -> dict[UUID, int]:
+        """Per-problem recall-retry pressure over the behavioral window."""
+        if self._query_events is None:
+            return {}
+        events = self._query_events.list_all(
+            since=utc_now() - timedelta(days=_BEHAVIORAL_WINDOW_DAYS)
+        )
+        if not events:
+            return {}
+        return compute_repeat_query_counts(
+            events,
+            seed_agent_ids=self._seed_agent_ids(),
+            now=utc_now(),
+            window_days=_BEHAVIORAL_WINDOW_DAYS,
+            repeat_gap_seconds=_BEHAVIORAL_REPEAT_GAP_SECONDS,
+        )
+
     def find_research_candidates(
         self,
         limit: int = 10,
@@ -3929,6 +3946,7 @@ class AgentbookService:
         cutoff = (
             utc_now() - timedelta(hours=cooldown_hours) if cooldown_hours > 0 else None
         )
+        repeat_counts = self._repeat_query_counts()
         page_size = max(limit, 10)
         offset = 0
         filtered: list = []
@@ -3946,18 +3964,25 @@ class AgentbookService:
                     last = self._research_cycles.get_last_researched_at(p.problem_id)
                     if last is not None and last >= cutoff:
                         continue
-                if stall_threshold > 0:
-                    stalled = self._research_cycles.count_consecutive_no_improvement(
-                        p.problem_id
-                    )
-                    if stalled >= stall_threshold:
-                        continue
+                # A stale research history (past attempts that failed to improve
+                # the solution) normally defers a problem to avoid churn — but
+                # organic recall-retry pressure proves the problem STILL fails
+                # real usage, so behavioral signal overrides the stall.
+                stalled = (
+                    self._research_cycles.count_consecutive_no_improvement(p.problem_id)
+                    if stall_threshold > 0
+                    else 0
+                )
+                hot = repeat_counts.get(p.problem_id, 0) > 0
+                if stall_threshold > 0 and stalled >= stall_threshold and not hot:
+                    continue
                 # Information-triggered scheduling: a problem that already carries an
                 # unvalidated candidate has a proposed improvement awaiting outcome
                 # reports. Proposing another before it is promoted/demoted is churn --
                 # the improve-only loop otherwise piles a fresh candidate on every
                 # cooldown with nothing able to promote it. Skip until an outcome
-                # resolves the candidate, which makes the problem eligible again.
+                # resolves the candidate. Applies even to hot problems: one
+                # improvement at a time per problem.
                 if self._has_pending_candidate(p.problem_id):
                     continue
                 filtered.append(p)
@@ -3973,10 +3998,15 @@ class AgentbookService:
                     "llm_model": self._display_llm(fmap, p.author_id, None),
                 }
                 for p in filtered
-            ]
+            ],
+            counts=repeat_counts,
         )
 
-    def _attach_repeat_pressure(self, rows: list[dict]) -> list[dict]:
+    def _attach_repeat_pressure(
+        self,
+        rows: list[dict],
+        counts: dict[UUID, int] | None = None,
+    ) -> list[dict]:
         """Re-rank improvement candidates by organic recall-retry pressure.
 
         Understand feeds Learn: repeat-query pairs are the implicit "the
@@ -3985,19 +4015,8 @@ class AgentbookService:
         count so the worker LLM sees why a problem is prioritized. Stable sort:
         pressure only reorders; the underlying candidate order breaks ties.
         """
-        counts: dict[UUID, int] = {}
-        if self._query_events is not None:
-            events = self._query_events.list_all(
-                since=utc_now() - timedelta(days=_BEHAVIORAL_WINDOW_DAYS)
-            )
-            if events:
-                counts = compute_repeat_query_counts(
-                    events,
-                    seed_agent_ids=self._seed_agent_ids(),
-                    now=utc_now(),
-                    window_days=_BEHAVIORAL_WINDOW_DAYS,
-                    repeat_gap_seconds=_BEHAVIORAL_REPEAT_GAP_SECONDS,
-                )
+        if counts is None:
+            counts = self._repeat_query_counts()
         for row in rows:
             pid = UUID(str(row["problem_id"]))
             row["repeat_queries"] = counts.get(pid, 0)

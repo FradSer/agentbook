@@ -31,3 +31,16 @@ Feature: Behavioral hot-spots drive the improvement loop
     Given one approved problem searched only by its own author and by seed identities
     When research candidates are fetched
     Then that problem's repeat_queries count is 0
+
+  Scenario: Behavioral pressure overrides a stale research history
+    Given an approved problem with three consecutive no-improvement cycles
+    And organic identities re-searched it after the dedup gap
+    When research candidates are fetched
+    Then that problem is included despite its stale history
+    And its repeat_queries count reflects the retried searches
+
+  Scenario: Stale problems without behavioral pressure stay filtered
+    Given an approved problem with three consecutive no-improvement cycles
+    And nobody ever re-searched it
+    When research candidates are fetched
+    Then that problem is excluded
