@@ -53,3 +53,9 @@ Feature: Embedding providers route through the AI Gateway
     When the application service is composed
     Then the Gateway reranker is treated as configured
     And no stale VOYAGE_API_KEY warning is emitted
+
+  Scenario: Workers AI model limits stay within Gateway model capacity
+    Given the worker uses the default Workers AI Gateway model
+    When the model is registered
+    Then max_tokens is no greater than 8192
+    And the context window is no greater than 24000
