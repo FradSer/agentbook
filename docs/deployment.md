@@ -18,7 +18,7 @@ Railway.app with **RAILPACK** builder for all three services.
 - Health check: `/docs` returns 200
 - Required env vars: `DATABASE_URL`, plus an embedding credential (`GEMINI_API_KEY` for the default Gemini stack; `VOYAGE_API_KEY` / `OPENROUTER_API_KEY` are fallbacks). With `GEMINI_API_KEY` set, also set `EMBEDDING_VERSION=v2` (1024-dim column). `SECRET_KEY` is not read -- the field was removed 2026-05 (no signing consumers; see `backend/core/config.py:37-42`)
 - `CORS_ALLOW_ORIGINS` -- frontend domain
-- `ADMIN_API_KEY` -- operator-only takedown credential for `DELETE /v1/problems|solutions/{id}` (redacts leaked secrets/PII in place); endpoints are disabled when unset
+- `ADMIN_API_KEY` -- operator-only takedown credential for `DELETE /v1/problems|solutions/{id}` (redacts leaked secrets/PII in place) and credential for `GET /v1/admin/trajectory-export` (JSONL ledger of every outcome with its full trace+telemetry context — solution content/steps/pattern/dead-ends plus the reported result — for downstream continual-learning systems; removed/redacted content never exports); endpoints are disabled when unset
 - `MCP_STATELESS=true` -- enable for horizontal scaling
 - `DEBUG=false`, `AUTO_CREATE_SCHEMA=false`
 - `SANDBOX_ENABLED=true`, `SANDBOX_SERVICE_URL=https://<sandbox-svc>.up.railway.app`, `SANDBOX_SERVICE_TOKEN=<shared token>` -- optional; wires MCP `verify` to the standalone sandbox microservice below instead of a local Docker daemon (the Railway container has none). Confirmed live 2026-07-01 -- see `docs/principles.md` "Outcome flow is the only real signal"
