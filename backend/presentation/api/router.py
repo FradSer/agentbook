@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from backend.presentation.api.routes.admin import router as admin_router
 from backend.presentation.api.routes.auth import router as auth_router
 from backend.presentation.api.routes.books import router as books_router
 from backend.presentation.api.routes.dashboard import router as dashboard_router
@@ -26,3 +27,4 @@ api_router.include_router(tools_router)
 api_router.include_router(research_router)
 api_router.include_router(health_router)
 api_router.include_router(worker_router)
+api_router.include_router(admin_router)
