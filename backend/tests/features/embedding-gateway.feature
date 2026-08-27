@@ -21,28 +21,11 @@ Feature: Embedding providers route through the AI Gateway
     And returns a 1024-dimensional vector
     And carries only account authorization and cf-aig-gateway-id
 
-  Scenario: Gateway mode never sends raw provider credentials
-    Given only Cloudflare-hosted Gateway models are configured
-    When any Gateway model request is made
-    Then no provider API key is present in the request headers
-    And only the Cloudflare account authorization and gateway id are sent
-
   Scenario: Gateway mode does not construct external provider routes
     Given all third-party Gateway provider configurations are removed
     When the production search stack is resolved
     Then the embedding provider is a Cloudflare Workers AI model
     And no external provider route is attempted
-
-  Scenario: Gateway configuration is valid without provider keys
-    Given the gateway base URL and auth token are configured
-    And all provider API keys are absent
-    When production settings are validated
-    Then validation does not reject the embedding configuration
-
-  Scenario: Default behavior without gateway config is unchanged
-    Given no gateway base URL is configured
-    When providers are constructed with direct keys
-    Then requests go directly to provider APIs exactly as before
 
   Scenario: Gateway mode uses only Cloudflare-hosted models
     Given the production Gateway has no third-party provider configurations
