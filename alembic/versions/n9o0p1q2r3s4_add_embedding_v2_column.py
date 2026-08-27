@@ -1,15 +1,12 @@
-"""add embedding_v2 column for Voyage v3-large
+"""add the Workers AI embedding column
 
 Revision ID: n9o0p1q2r3s4
 Revises: c7bae2af560d
 Create Date: 2026-05-05 09:00:00.000000
 
-Phase 3a of the false-positive fix migration. Adds a 1024-dim ``embedding_v2``
-column alongside the legacy ``embedding`` column so the corpus can be
-re-embedded with Voyage v3-large without downtime. ``embedding_version`` in
-settings stays at ``v1`` (reads/writes still target ``embedding``) until
-``backend/scripts/reembed_corpus.py`` backfills ``embedding_v2`` for all
-rows; the operator then flips ``EMBEDDING_VERSION=v2`` to switch reads.
+Adds a 1024-dim ``embedding_v2`` column alongside the legacy ``embedding``
+column. Runtime persistence uses ``embedding_v2`` exclusively; the legacy
+column remains for database compatibility while approved rows are backfilled.
 
 ``embedding_v2`` is created as plain ``JSON`` on every backend. A real
 pgvector ``vector`` column is intentionally never created: the ORM binds
