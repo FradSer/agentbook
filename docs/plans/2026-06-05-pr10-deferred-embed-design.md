@@ -51,7 +51,7 @@ whole flywheel depends on.
 - A backfill already exists: `backend/scripts/reembed_corpus.py` selects
   NULL-`embedding_v2` problems by default (`--force` re-embeds all), batch-embeds
   via the offline `embed_documents` path (full retry budget), and writes via
-  `repo.update_embedding_v2`. It is **operator-invoked (CLI)**, not automatic.
+  `repo.update_embedding`. It is **operator-invoked (CLI)**, not automatic.
 - The background worker runs a `while True` poll loop
   (`agent/src/main.py` `run()` ~line 204 → `run_cycle_until_idle`) — a natural
   place to make backfill **automatic**.
@@ -148,13 +148,13 @@ provider is fast, preserving most freshness.
 - **Domain/Infra:** add an optional per-call `timeout_seconds` to the embedding
   provider's single-text `embed()` (default = current live timeout) so the write
   path can pass a tighter budget without changing the read path. Touches the
-  `EmbeddingProvider` Protocol + Voyage/OpenRouter impls.
+  `EmbeddingProvider` Protocol + Workers AI implementation.
 - **Application:** `create_problem` passes the write budget to `_safe_embed`; on
   None, persist the problem NULL-embedding (already the failure behavior). No
   change to `_dedup_advisory` (already embedding-independent).
 - **Worker:** add `backfill_missing_embeddings(service, batch)` invoked once per
   `run_cycle_until_idle` (or once per poll), bounded by a per-cycle cap; reuse
-  `reembed` selection + `update_embedding_v2`.
+  `reembed` selection + `update_embedding`.
 - **Tests (BDD-TDD):**
   - extend `test_recall_latency.py`: a *hung* provider → contribute returns
     `< write_budget` (drop `_WRITE_BUDGET_SECONDS` to the new target); assert the

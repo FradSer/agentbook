@@ -14,14 +14,14 @@
 ### Task 007-test: misconfig-fail-loud — Test (Red)
 
 - [ ] `backend/tests/features/misconfig-fail-loud.feature` contains the 3 Gherkin scenarios verbatim
-- [ ] Asserts `EMBEDDING_VERSION="v1"` + `VOYAGE_API_KEY` set → `create_app()` / `validate_production_settings()` refuses boot with a surfaced error naming the dimension mismatch (1024 vs 1536)
+- [ ] Historical misconfiguration scenario is documented; current Gateway-only validation is covered by backend config tests
 - [ ] Asserts when the service has fallen back to keyword scan, `embedding_provider` reflects the actual mechanism ("keyword" or null), NOT "voyage", and agrees with `search_mode` "in_memory_scan" / "no_match"
-- [ ] Asserts a consistent `EMBEDDING_VERSION="v2"` + `VOYAGE_API_KEY` config boots cleanly
+- [ ] Asserts a valid Workers AI Gateway configuration boots cleanly
 - [ ] Tests hermetic; `uv run pytest backend/tests/unit/test_misconfig_fail_loud.py -q` FAILS Red for contract divergence (provider field lies as "voyage"; v1+voyage WARN absent outside production), not collection error (CODE-TEST-03)
 
 ### Task 007-impl: misconfig-fail-loud — Impl (Green)
 
-- [ ] Loud WARN at boot in EVERY mode (not only production) when `voyage_api_key` set with `embedding_version == "v1"` (1536 vs 1024 mismatch); hard raise retained for production (`validate_production_settings`)
+- [ ] Historical provider mismatch warning is no longer part of the current runtime contract
 - [ ] Per-query provider fields (`embedding_provider`/`rerank_provider`) reflect the mechanism that actually ranked (keyword/null) when `search_mode in {in_memory_scan, keyword_fallback, no_match}` — not the boot-configured name (or add a `dense_used: bool`)
 - [ ] Business logic stays in `AgentbookService`; `main.py` / `config.py` are Composition Root / config only (no per-transport business logic)
 - [ ] `confidence.py:__frozen_policy_version__` NOT bumped; `scripts/check_frozen_policy.sh` exits 0

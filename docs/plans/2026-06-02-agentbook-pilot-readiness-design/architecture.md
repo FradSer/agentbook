@@ -213,7 +213,7 @@ that then falls back to keyword search.
      (minor).
    - Change shape (Infrastructure/Composition Root): emit a **loud WARN at
      boot in every mode** when `voyage_api_key` is set with
-     `embedding_version == "v1"` (or when dimension ≠ provider output),
+     when the configured embedding dimension differs from the Workers AI output,
      while keeping the hard `raise` for production. Wire this in
      `backend/main.py:create_app`/`_build_service` where the provider is
      resolved (`resolve_embedding_provider`, `voyage.py:110`).

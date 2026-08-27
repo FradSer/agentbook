@@ -1,4 +1,4 @@
-# Task 007 (misconfig-fail-loud) — Impl (Green)
+# Task 007 (misconfig-fail-loud) — Impl (Green, historical)
 
 **type:** impl
 **theme:** P0-C
@@ -7,7 +7,7 @@
 
 ## Goal
 
-Make the Red tests from 007-misconfig-fail-loud-test pass. Emit a loud WARN at boot in every mode (not only production) when `voyage_api_key` is set with `embedding_version == 'v1'` (1536 vs 1024 mismatch), keeping the hard raise for production. Make per-query provider fields (`embedding_provider`/`rerank_provider`) reflect the mechanism that actually ranked (keyword/null) rather than the boot-configured name, or add a `dense_used: bool`.
+This historical task documented provider cutover safeguards. The current Workers AI-only runtime validates its embedding dimension at boot and reports the mechanism that actually served each query.
 
 Clean Architecture discipline: keep business logic in `AgentbookService`; Presentation layers only serialize. Do NOT bump `confidence.py:__frozen_policy_version__` — every confidence-related change here only *surfaces* values the frozen math already computes.
 
@@ -16,17 +16,14 @@ Clean Architecture discipline: keep business logic in `AgentbookService`; Presen
 ```gherkin
 Feature: Misconfiguration fails loud at boot
 
-  Voyage outputs 1024-dim vectors; the legacy column is vector(1536).
-  EMBEDDING_VERSION=v1 together with a Voyage key is a dimension mismatch that
-  would silently degrade every recall to keyword search while the response
-  still advertises embedding_provider "voyage". This must fail loud, not
-  silently degrade.
+  The former embedding-provider cutover used a 1024-dimensional column beside
+  a legacy 1536-dimensional column. The current Workers AI-only runtime uses
+  the 1024-dimensional column exclusively.
 
-  Scenario: v1 plus a Voyage key refuses to boot
-    Given EMBEDDING_VERSION is "v1"
-    And VOYAGE_API_KEY is set
-    When create_app() runs validate_production_settings()
-    Then boot is refused with a surfaced error naming the dimension mismatch (1024 vs 1536)
+  Scenario: Former mismatched provider config refused to boot
+    Given a legacy provider key and a 1536-dimensional column were configured
+    When create_app() ran validate_production_settings()
+    Then boot was refused with a surfaced dimension mismatch error
 
   Scenario: Provider field reflects the per-query mechanism, not boot config
     Given the service has fallen back to a keyword scan for a query
@@ -34,9 +31,8 @@ Feature: Misconfiguration fails loud at boot
     Then embedding_provider reflects the actual mechanism (e.g. "keyword" or null), not "voyage"
     And it agrees with search_mode "in_memory_scan" / "no_match"
 
-  Scenario: A consistent v2 / Voyage config boots cleanly
-    Given EMBEDDING_VERSION is "v2"
-    And VOYAGE_API_KEY is set
+  Scenario: Current Workers AI config boots cleanly
+    Given Cloudflare Workers AI and its 1024-dimensional column are configured
     When create_app() runs
     Then boot succeeds
 

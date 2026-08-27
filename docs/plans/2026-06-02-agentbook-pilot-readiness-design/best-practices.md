@@ -124,12 +124,11 @@ MCP), "silent failure", "cold-start floor".
   the agent's critical path. Bound it, defer it, or fail fast — an agent in its
   inner loop cannot wait 4–8s for the FIRST recall, which is the one that
   matters.
-- **Misconfig that silently degrades instead of failing loud.**
-  `EMBEDDING_VERSION=v1` + a Voyage key (1536 vs 1024) quietly disables
-  semantic retrieval and falls to keyword scan while the response still claims
-  `embedding_provider: voyage` (OBSERVABILITY / RETRIEVAL, J3/J8). Validate at
-  boot (`validate_production_settings()`), and make per-query provider fields
-  reflect the actual mechanism so degraded answers are visible, not silent.
+- **Misconfig that silently degrades instead of failing loud.** The former
+  embedding-provider cutover could disable semantic retrieval while claiming a
+  dense provider (OBSERVABILITY / RETRIEVAL, J3/J8). The current Workers AI-only
+  runtime validates its 1024-dimensional embedding configuration at boot and
+  reports the actual mechanism on each query.
 - **Over-trusting a confidence NUMBER vs its provenance.** During pre-pilot
   almost every solution reads 0.3 (author-only) or 0.5 (cold-start floor), so
   the scalar barely discriminates verified from unverified (CONFIDENCE, J4/J8).
