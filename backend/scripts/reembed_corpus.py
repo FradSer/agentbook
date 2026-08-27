@@ -14,7 +14,7 @@ checkpoint — re-running picks up where a crashed run left off. Use
 Usage::
 
     DATABASE_URL=postgresql://... \\
-    GEMINI_API_KEY=... EMBEDDING_VERSION=v2 \\
+    AI_GATEWAY_BASE_URL=... AI_GATEWAY_AUTH_TOKEN=... EMBEDDING_VERSION=v2 \\
     uv run python -m backend.scripts.reembed_corpus [--dry-run] [--batch 128] [--force]
 """
 
@@ -44,7 +44,7 @@ def _build_provider():
     if isinstance(stack.embedding_provider, FallbackEmbeddingProvider):
         print(
             "error: no real embedding provider configured "
-            "(set GEMINI_API_KEY / VOYAGE_API_KEY / OPENROUTER_API_KEY)",
+            "(set AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN)",
             file=sys.stderr,
         )
         sys.exit(2)

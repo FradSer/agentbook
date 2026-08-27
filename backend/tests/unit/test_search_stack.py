@@ -1,43 +1,55 @@
-"""Search stack resolver uses Gemini/Voyage/OpenRouter before Fallback."""
+"""Search stack resolver uses Cloudflare Workers AI in Gateway mode."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
 from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
-from backend.infrastructure.embeddings.openrouter import OpenRouterEmbeddingProvider
-from backend.infrastructure.reranking.noop import noop_rerank
 from backend.infrastructure.search_stack import resolve_search_stack
 
-_GEMINI_RESOLVER = "backend.infrastructure.embeddings.gemini.resolve_embedding_provider"
+_WORKERS_AI_RESOLVER = (
+    "backend.infrastructure.embeddings.workers_ai.resolve_embedding_provider"
+)
+_RERANK_RESOLVER = "backend.infrastructure.reranking.resolve_rerank_fn"
 
 
-def test_resolve_search_stack_prefers_gemini() -> None:
-    """Gemini leads the failover chain when configured (priority order)."""
-    from backend.infrastructure.embeddings.failover import FailoverEmbeddingProvider
-
-    gemini = MagicMock()
+def test_gateway_search_stack_uses_workers_ai() -> None:
+    workers_ai = MagicMock()
     with (
-        patch(_GEMINI_RESOLVER, return_value=gemini),
         patch(
-            "backend.infrastructure.embeddings.voyage.resolve_embedding_provider",
-            return_value=MagicMock(),
+            "backend.infrastructure.search_stack.settings.ai_gateway_base_url",
+            "gateway",
         ),
-        patch(
-            "backend.infrastructure.reranking.resolve_rerank_fn",
-            return_value=noop_rerank,
-        ),
+        patch(_WORKERS_AI_RESOLVER, return_value=workers_ai),
+        patch(_RERANK_RESOLVER, return_value=lambda *_: []),
     ):
         stack = resolve_search_stack()
-    assert isinstance(stack.embedding_provider, FailoverEmbeddingProvider)
-    assert stack.embedding_provider.name_chain.startswith("gemini>")
-    assert stack.embedding_provider_name.startswith("gemini>")
+    assert stack.embedding_provider is workers_ai
+    assert stack.embedding_provider_name == "workers-ai"
 
 
-def test_resolve_search_stack_prefers_voyage_when_no_gemini() -> None:
+def test_gateway_search_stack_falls_back_deterministically() -> None:
+    with (
+        patch(
+            "backend.infrastructure.search_stack.settings.ai_gateway_base_url",
+            "gateway",
+        ),
+        patch(_WORKERS_AI_RESOLVER, return_value=None),
+        patch(_RERANK_RESOLVER, return_value=lambda *_: []),
+    ):
+        stack = resolve_search_stack()
+    assert isinstance(stack.embedding_provider, FallbackEmbeddingProvider)
+    assert stack.embedding_provider_name == "fallback"
+
+
+def test_local_search_stack_keeps_direct_provider_compatibility() -> None:
     voyage = MagicMock()
     with (
-        patch(_GEMINI_RESOLVER, return_value=None),
+        patch("backend.infrastructure.search_stack.settings.ai_gateway_base_url", None),
+        patch(
+            "backend.infrastructure.embeddings.gemini.resolve_embedding_provider",
+            return_value=None,
+        ),
         patch(
             "backend.infrastructure.embeddings.voyage.resolve_embedding_provider",
             return_value=voyage,
@@ -46,54 +58,8 @@ def test_resolve_search_stack_prefers_voyage_when_no_gemini() -> None:
             "backend.infrastructure.embeddings.openrouter.resolve_embedding_provider",
             return_value=None,
         ),
-        patch(
-            "backend.infrastructure.reranking.resolve_rerank_fn",
-            return_value=noop_rerank,
-        ),
+        patch(_RERANK_RESOLVER, return_value=lambda *_: []),
     ):
         stack = resolve_search_stack()
     assert stack.embedding_provider is voyage
     assert stack.embedding_provider_name == "voyage"
-    assert stack.rerank_provider_name == "noop"
-
-
-def test_resolve_search_stack_openrouter_fallback() -> None:
-    or_provider = OpenRouterEmbeddingProvider(api_key="k", model="m")
-    with (
-        patch(_GEMINI_RESOLVER, return_value=None),
-        patch(
-            "backend.infrastructure.embeddings.voyage.resolve_embedding_provider",
-            return_value=None,
-        ),
-        patch(
-            "backend.infrastructure.embeddings.openrouter.resolve_embedding_provider",
-            return_value=or_provider,
-        ),
-        patch(
-            "backend.infrastructure.reranking.resolve_rerank_fn",
-            return_value=noop_rerank,
-        ),
-    ):
-        stack = resolve_search_stack()
-    assert stack.embedding_provider_name == "openrouter"
-
-
-def test_resolve_search_stack_deterministic_fallback() -> None:
-    with (
-        patch(_GEMINI_RESOLVER, return_value=None),
-        patch(
-            "backend.infrastructure.embeddings.voyage.resolve_embedding_provider",
-            return_value=None,
-        ),
-        patch(
-            "backend.infrastructure.embeddings.openrouter.resolve_embedding_provider",
-            return_value=None,
-        ),
-        patch(
-            "backend.infrastructure.reranking.resolve_rerank_fn",
-            return_value=noop_rerank,
-        ),
-    ):
-        stack = resolve_search_stack()
-    assert isinstance(stack.embedding_provider, FallbackEmbeddingProvider)
-    assert stack.embedding_provider_name == "fallback"

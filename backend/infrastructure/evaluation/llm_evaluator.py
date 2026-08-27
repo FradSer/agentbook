@@ -9,6 +9,7 @@ import httpx
 from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
+_DEFAULT_GATEWAY_MODEL = "workers-ai/@cf/zai-org/glm-4.7-flash"
 
 _SYSTEM_PROMPT = (
     "You are a solution quality evaluator. Given a problem description and two "
@@ -35,7 +36,7 @@ class LLMEvaluatorProvider:
         if self._gateway_mode:
             if not auth_token:
                 raise ValueError("gateway auth token is required in gateway mode")
-            self._url = base_url.rstrip("/") + "/api/v1/chat/completions"
+            self._url = base_url.rstrip("/") + "/compat/chat/completions"
             self._headers = {
                 "cf-aig-authorization": f"Bearer {auth_token}",
                 "Content-Type": "application/json",
@@ -107,18 +108,14 @@ class LLMEvaluatorProvider:
 
 
 def resolve_evaluator_provider() -> LLMEvaluatorProvider | None:
-    if settings.ai_gateway_base_url:
+    if settings.ai_gateway_base_url and settings.ai_gateway_auth_token:
+        model = settings.evaluator_model
+        if not model.startswith("workers-ai/"):
+            model = _DEFAULT_GATEWAY_MODEL
         return LLMEvaluatorProvider(
             api_key=None,
-            model=settings.evaluator_model,
-            base_url=(
-                settings.ai_gateway_base_url.rstrip("/")
-                + "/"
-                + settings.ai_gateway_openrouter_slug
-            ),
+            model=model,
+            base_url=settings.ai_gateway_base_url,
             auth_token=settings.ai_gateway_auth_token,
         )
-    api_key = settings.openrouter_api_key
-    if not api_key:
-        return None
-    return LLMEvaluatorProvider(api_key=api_key, model=settings.evaluator_model)
+    return None

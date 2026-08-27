@@ -1,67 +1,57 @@
-"""Runtime failover across configured embedding providers.
-
-Prod incident 2026-08-26: the Gemini key expired (API_KEY_INVALID) while the
-Voyage key remained valid, but ``resolve_search_stack`` had statically picked
-Gemini — so every search degraded to keyword mode and the only working
-provider was never tried. The resolver now wraps multi-provider stacks in a
-failover chain; single-provider stacks keep their exact identity and name.
-"""
+"""Runtime failover across configured Gateway embedding providers."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
 from backend.infrastructure.embeddings.failover import FailoverEmbeddingProvider
-from backend.infrastructure.embeddings.openrouter import OpenRouterEmbeddingProvider
 from backend.infrastructure.reranking.noop import noop_rerank
 from backend.infrastructure.search_stack import resolve_search_stack
 
-_GEMINI_RESOLVER = "backend.infrastructure.embeddings.gemini.resolve_embedding_provider"
+_WORKERS_AI_RESOLVER = (
+    "backend.infrastructure.embeddings.workers_ai.resolve_embedding_provider"
+)
+_VOYAGE_RESOLVER = "backend.infrastructure.embeddings.voyage.resolve_embedding_provider"
+_RERANK_RESOLVER = "backend.infrastructure.reranking.resolve_rerank_fn"
 
 
-def _patch_all(gemini, voyage, openrouter):
+def _patch_all(workers_ai, voyage):
     return (
-        patch(_GEMINI_RESOLVER, return_value=gemini),
         patch(
-            "backend.infrastructure.embeddings.voyage.resolve_embedding_provider",
-            return_value=voyage,
+            "backend.infrastructure.search_stack.settings.ai_gateway_base_url",
+            "gateway",
         ),
-        patch(
-            "backend.infrastructure.embeddings.openrouter.resolve_embedding_provider",
-            return_value=openrouter,
-        ),
-        patch(
-            "backend.infrastructure.reranking.resolve_rerank_fn",
-            return_value=noop_rerank,
-        ),
+        patch(_WORKERS_AI_RESOLVER, return_value=workers_ai),
+        patch(_VOYAGE_RESOLVER, return_value=voyage),
+        patch(_RERANK_RESOLVER, return_value=noop_rerank),
     )
 
 
 def test_single_provider_stack_keeps_identity_and_name() -> None:
-    gemini = MagicMock()
-    patches = _patch_all(gemini, None, None)
+    workers_ai = MagicMock()
+    patches = _patch_all(workers_ai, None)
     with patches[0], patches[1], patches[2], patches[3]:
         stack = resolve_search_stack()
-    assert stack.embedding_provider is gemini
-    assert stack.embedding_provider_name == "gemini"
+    assert stack.embedding_provider is workers_ai
+    assert stack.embedding_provider_name == "workers-ai"
 
 
 def test_multi_provider_stack_wraps_failover_chain_in_priority_order() -> None:
-    gemini, voyage, openrouter = MagicMock(), MagicMock(), MagicMock()
-    patches = _patch_all(gemini, voyage, openrouter)
+    workers_ai, voyage = MagicMock(), MagicMock()
+    patches = _patch_all(workers_ai, voyage)
     with patches[0], patches[1], patches[2], patches[3]:
         stack = resolve_search_stack()
     chain = stack.embedding_provider
     assert isinstance(chain, FailoverEmbeddingProvider)
-    assert chain.name_chain == "gemini>voyage>openrouter"
-    assert stack.embedding_provider_name == "gemini>voyage>openrouter"
+    assert chain.name_chain == "workers-ai>voyage"
+    assert stack.embedding_provider_name == "workers-ai>voyage"
     assert stack.rerank_provider_name == "noop"
 
 
-def test_two_provider_stack_names_both_entries() -> None:
+def test_voyage_is_used_when_workers_ai_is_unavailable() -> None:
     voyage = MagicMock()
-    openrouter = OpenRouterEmbeddingProvider(api_key="k", model="m")
-    patches = _patch_all(None, voyage, openrouter)
+    patches = _patch_all(None, voyage)
     with patches[0], patches[1], patches[2], patches[3]:
         stack = resolve_search_stack()
-    assert stack.embedding_provider_name == "voyage>openrouter"
+    assert stack.embedding_provider is voyage
+    assert stack.embedding_provider_name == "voyage"

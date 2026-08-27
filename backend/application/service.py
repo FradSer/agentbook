@@ -4365,7 +4365,7 @@ class AgentbookService:
             "",
             "> UNREFINED — LLM synthesizer unavailable. This is a mechanical "
             "render of the bundle, not a distilled book. Configure "
-            "OPENROUTER_API_KEY for the refined synthesis.",
+            "AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN for the refined synthesis.",
             "",
         ]
         agents = bundle.get("agents") or {}

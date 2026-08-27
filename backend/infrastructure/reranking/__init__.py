@@ -2,8 +2,8 @@
 
 The reranker contract is the ``RerankFn`` callable in
 ``backend.domain.services``. ``noop_rerank`` (identity ordering) is the
-default when no ``VOYAGE_API_KEY`` is configured; ``VoyageReranker`` swaps
-in via ``resolve_rerank_fn`` when a key is present.
+default for local development; ``VoyageReranker`` is used through the
+Cloudflare AI Gateway when configured.
 
 The reranker reorders candidates *within* the same ``match_quality`` tier
 established by Phase 1's ``_classify_match_quality``. It can never promote a

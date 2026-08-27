@@ -1,10 +1,4 @@
-"""Resolve embedding + rerank providers for the search API.
-
-External fix agents (OpenRouter, Cursor, etc.) must not perform retrieval
-embeddings themselves. All indexing and ``GET /v1/search`` queries use this
-stack on the agentbook server: Gemini → Voyage → OpenRouter → Fallback, with
-Voyage rerank when configured.
-"""
+"""Resolve embedding and rerank providers for the search API."""
 
 from __future__ import annotations
 
@@ -29,29 +23,39 @@ class ResolvedSearchStack:
 
 
 def resolve_search_stack() -> ResolvedSearchStack:
-    from backend.infrastructure.embeddings.gemini import (
-        resolve_embedding_provider as resolve_gemini_embedding,
-    )
-    from backend.infrastructure.embeddings.openrouter import (
-        resolve_embedding_provider as resolve_openrouter_embedding,
-    )
     from backend.infrastructure.embeddings.voyage import (
         resolve_embedding_provider as resolve_voyage_embedding,
     )
+    from backend.infrastructure.embeddings.workers_ai import (
+        resolve_embedding_provider as resolve_workers_ai_embedding,
+    )
     from backend.infrastructure.reranking import resolve_rerank_fn
 
-    gemini = resolve_gemini_embedding()
-    voyage = resolve_voyage_embedding()
-    openrouter = resolve_openrouter_embedding()
-    resolved = [
-        (name, provider)
-        for name, provider in (
-            ("gemini", gemini),
-            ("voyage", voyage),
-            ("openrouter", openrouter),
+    workers_ai = resolve_workers_ai_embedding()
+    if settings.ai_gateway_base_url:
+        voyage = resolve_voyage_embedding()
+        resolved = [
+            (name, provider)
+            for name, provider in (("workers-ai", workers_ai), ("voyage", voyage))
+            if provider is not None
+        ]
+    else:
+        from backend.infrastructure.embeddings.gemini import (
+            resolve_embedding_provider as resolve_gemini_embedding,
         )
-        if provider is not None
-    ]
+        from backend.infrastructure.embeddings.openrouter import (
+            resolve_embedding_provider as resolve_openrouter_embedding,
+        )
+
+        resolved = [
+            (name, provider)
+            for name, provider in (
+                ("gemini", resolve_gemini_embedding()),
+                ("voyage", resolve_voyage_embedding()),
+                ("openrouter", resolve_openrouter_embedding()),
+            )
+            if provider is not None
+        ]
     if not resolved:
         embedding: EmbeddingProvider = FallbackEmbeddingProvider()
         embedding_name = "fallback"
@@ -59,21 +63,13 @@ def resolve_search_stack() -> ResolvedSearchStack:
         embedding = resolved[0][1]
         embedding_name = resolved[0][0]
     else:
-        # Runtime failover: one expired key must not degrade every search to
-        # keyword mode while a valid provider sits configured (prod incident
-        # 2026-08-26). Priority order preserved; dead providers cooldown.
         chain = FailoverEmbeddingProvider(resolved)
         embedding = chain
         embedding_name = chain.name_chain
 
     rerank_fn = resolve_rerank_fn()
     rerank_name = "noop" if rerank_fn is noop_rerank else "voyage"
-
-    logger.info(
-        "search-stack embedding=%s rerank=%s",
-        embedding_name,
-        rerank_name,
-    )
+    logger.info("search-stack embedding=%s rerank=%s", embedding_name, rerank_name)
     return ResolvedSearchStack(
         embedding_provider=embedding,
         rerank_fn=rerank_fn,
@@ -83,25 +79,9 @@ def resolve_search_stack() -> ResolvedSearchStack:
 
 
 def warn_if_degraded_search_stack(stack: ResolvedSearchStack) -> None:
-    """Log when API keys exist but the resolver still chose Fallback/NoOp."""
-    if (
-        not settings.ai_gateway_base_url
-        and settings.voyage_api_key
-        and stack.rerank_provider_name == "noop"
-    ):
+    """Log when local development has no Gateway embedding provider."""
+    if not settings.ai_gateway_base_url and stack.embedding_provider_name == "fallback":
         logger.warning(
-            "VOYAGE_API_KEY set but reranker is NoOp (disabled or SDK missing)"
-        )
-    if (
-        not settings.ai_gateway_base_url
-        and (
-            settings.gemini_api_key
-            or settings.voyage_api_key
-            or settings.openrouter_api_key
-        )
-        and stack.embedding_provider_name == "fallback"
-    ):
-        logger.warning(
-            "embedding API keys configured but search stack fell back to "
-            "deterministic Fallback — good-arm RAG quality will not match production"
+            "Cloudflare AI Gateway is unavailable; search stack fell back to "
+            "deterministic embeddings"
         )

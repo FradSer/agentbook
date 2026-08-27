@@ -27,13 +27,11 @@ variable:
   for this mode lives under ``## Frozen aggregate`` in
   ``docs/retrieval-baseline.md``. ``make eval`` and ``make fast`` exercise
   this path on every CI run.
-* **real** (``RUN_REAL_EVAL=1`` plus ``VOYAGE_API_KEY`` set) — uses the
-  production retrieval stack: Voyage 3-large embeddings + Voyage
-  rerank-2.5-lite cross-encoder, still backed by in-memory repositories.
-  The frozen baseline for this mode lives under
-  ``## Frozen aggregate (real-mode)`` in ``docs/retrieval-baseline.md``.
-  ``make eval-real`` exercises this path; it is deliberately excluded from
-  ``make full`` because real-mode burns Voyage API quota.
+* **real** (``RUN_REAL_EVAL=1`` plus the Gateway variables set) — uses the
+  production retrieval stack: Cloudflare Workers AI embeddings + Gateway
+  Voyage rerank, still backed by in-memory repositories. The frozen baseline
+  for this mode lives under ``## Frozen aggregate (real-mode)`` in
+  ``docs/retrieval-baseline.md``. ``make eval-real`` exercises this path.
 """
 
 from __future__ import annotations
@@ -412,21 +410,11 @@ def _assert_against_baseline(
 
 
 def _build_real_mode_service():
-    """Build an in-memory ``AgentbookService`` wired to real Voyage providers.
-
-    Mirrors the precedence chain in ``backend/main.py:_build_service`` but
-    skips the OpenRouter/Fallback fallthrough — real-mode must use Voyage or
-    not run at all, otherwise the printed metrics would silently describe
-    the wrong stack. Caller is responsible for ensuring ``VOYAGE_API_KEY`` is
-    present in the environment via the conftest ``RUN_REAL_EVAL`` carve-out.
-    """
+    """Build an in-memory service wired to the production Gateway stack."""
     from uuid import uuid4
 
     from backend.application.service import AgentbookService
     from backend.domain.models import Agent
-    from backend.infrastructure.embeddings.voyage import (
-        resolve_embedding_provider as resolve_voyage_embedding,
-    )
     from backend.infrastructure.persistence.in_memory import (
         InMemoryAgentRepository,
         InMemoryOutcomeRepository,
@@ -434,28 +422,20 @@ def _build_real_mode_service():
         InMemoryResearchCycleRepository,
         InMemorySolutionRepository,
     )
-    from backend.infrastructure.reranking import resolve_rerank_fn
+    from backend.infrastructure.search_stack import resolve_search_stack
 
-    embedding_provider = resolve_voyage_embedding()
-    if embedding_provider is None:
-        raise RuntimeError(
-            "real-mode eval requires a working Voyage embedding provider; "
-            "resolve_embedding_provider returned None despite VOYAGE_API_KEY "
-            "being set — check that the voyageai package is installed."
-        )
-    rerank_fn = resolve_rerank_fn()
-
+    stack = resolve_search_stack()
     agents = InMemoryAgentRepository()
     author_id = uuid4()
     agents.add(Agent(api_key_hash="test-hash", model_type="test", agent_id=author_id))
     service = AgentbookService(
         agents=agents,
-        embedding_provider=embedding_provider,
+        embedding_provider=stack.embedding_provider,
         problems=InMemoryProblemRepository(),
         solutions=InMemorySolutionRepository(),
         outcomes=InMemoryOutcomeRepository(),
         research_cycles=InMemoryResearchCycleRepository(),
-        rerank_fn=rerank_fn,
+        rerank_fn=stack.rerank_fn,
     )
     return service, author_id
 
@@ -463,10 +443,14 @@ def _build_real_mode_service():
 @pytest.mark.eval
 def test_retrieval_quality_baseline(service_and_author) -> None:
     active_mode = _active_mode()
-    if active_mode == "real" and not os.environ.get("VOYAGE_API_KEY"):
-        # Skip BEFORE seeding the corpus so we don't waste time on a 65-query
-        # run that has nowhere meaningful to land.
-        pytest.skip("RUN_REAL_EVAL=1 requires VOYAGE_API_KEY in env (real-mode eval)")
+    if active_mode == "real" and not (
+        os.environ.get("AI_GATEWAY_BASE_URL")
+        and os.environ.get("AI_GATEWAY_AUTH_TOKEN")
+    ):
+        pytest.skip(
+            "RUN_REAL_EVAL=1 requires AI_GATEWAY_BASE_URL and "
+            "AI_GATEWAY_AUTH_TOKEN in env (real-mode eval)"
+        )
 
     if active_mode == "real":
         service, author_id = _build_real_mode_service()
@@ -512,7 +496,7 @@ def test_retrieval_quality_baseline(service_and_author) -> None:
             f"under the {anchor!r} heading at {BASELINE_MD_PATH}. Run "
             f"EVAL_BASELINE_MODE=collect "
             f"{'RUN_REAL_EVAL=1 ' if active_mode == 'real' else ''}"
-            f"VOYAGE_API_KEY=... uv run pytest "
+            f"AI_GATEWAY_BASE_URL=... AI_GATEWAY_AUTH_TOKEN=... uv run pytest "
             f"backend/tests/eval/test_retrieval_quality.py -v -s "
             f"and replace the placeholder JSON with the printed "
             f"`--- machine-readable JSON ---` block."

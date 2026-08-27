@@ -157,26 +157,17 @@ class VoyageReranker:
 
 
 def resolve_rerank_fn() -> RerankFn:
-    """Build a direct or AI Gateway Voyage reranker; else NoOp.
-
-    Returning ``noop_rerank`` rather than ``None`` keeps the ``RerankFn``
-    type total in callers — they always receive a callable and never need
-    to None-check before invoking."""
+    """Build a Gateway Voyage reranker; otherwise use NoOp locally."""
     if not settings.rerank_enabled:
         return noop_rerank
     if settings.ai_gateway_base_url:
-        return VoyageReranker(
-            model=settings.voyage_rerank_model,
-            base_url=(
-                settings.ai_gateway_base_url.rstrip("/")
-                + "/"
-                + settings.ai_gateway_voyage_slug
-            ),
-            auth_token=settings.ai_gateway_auth_token,
-        )
-    if voyageai is None or not settings.voyage_api_key:
+        # Production uses Cloudflare-hosted Gateway models only. Voyage is
+        # retained as a directly constructible local compatibility adapter, but
+        # no external reranker route is selected by the production resolver.
         return noop_rerank
-    return VoyageReranker(
-        api_key=settings.voyage_api_key,
-        model=settings.voyage_rerank_model,
-    )
+    if voyageai is not None and settings.voyage_api_key:
+        return VoyageReranker(
+            api_key=settings.voyage_api_key,
+            model=settings.voyage_rerank_model,
+        )
+    return noop_rerank

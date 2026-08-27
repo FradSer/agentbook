@@ -1,14 +1,12 @@
 Feature: Misconfiguration fails loud at boot
 
-  Voyage outputs 1024-dim vectors; the legacy column is vector(1536).
-  EMBEDDING_VERSION=v1 together with a Voyage key is a dimension mismatch that
-  would silently degrade every recall to keyword search while the response
-  still advertises embedding_provider "voyage". This must fail loud, not
-  silently degrade.
+  Cloudflare Workers AI embeddings output 1024-dim vectors; the legacy column
+  is vector(1536). EMBEDDING_VERSION=v1 would make writes target the wrong
+  column and must fail loud, not silently degrade.
 
-  Scenario: v1 plus a Voyage key refuses to boot
+  Scenario: v1 refuses to boot with Gateway embeddings
     Given EMBEDDING_VERSION is "v1"
-    And VOYAGE_API_KEY is set
+    And AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN are set
     When create_app() runs validate_production_settings()
     Then boot is refused with a surfaced error naming the dimension mismatch (1024 vs 1536)
 
@@ -18,19 +16,16 @@ Feature: Misconfiguration fails loud at boot
     Then embedding_provider reflects the actual mechanism (e.g. "keyword" or null), not "voyage"
     And it agrees with search_mode "in_memory_scan" / "no_match"
 
-  Scenario: A consistent v2 / Voyage config boots cleanly
+  Scenario: A consistent v2 / Gateway config boots cleanly
     Given EMBEDDING_VERSION is "v2"
-    And VOYAGE_API_KEY is set
+    And AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN are set
     When create_app() runs
     Then boot succeeds
 
-  Scenario: No embedding credential in production warns loudly at boot
-    Given GEMINI_API_KEY, VOYAGE_API_KEY and OPENROUTER_API_KEY are all unset
-    And DEBUG is false
+  Scenario: Missing Gateway configuration is rejected on Railway
+    Given AI_GATEWAY_BASE_URL is unset
+    And DEBUG is false on Railway
     When create_app() runs validate_production_settings()
-    Then a loud boot WARN names the keyword-only degradation
-    # The existing warn-on-degraded-stack path only fires for a set-but-rejected
-    # key; this closes the all-keys-absent gap. Recall still functions (keyword),
-    # so it warns rather than refusing boot.
+    Then boot is refused with a surfaced Gateway configuration error
 
 ---

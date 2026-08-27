@@ -33,8 +33,14 @@ class TestProductionCorsValidation:
     def test_app_accepts_explicit_origins_in_production(self, monkeypatch):
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
         monkeypatch.setenv("DEBUG", "false")
+        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
+        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
+        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
 
         settings = Settings()
+        settings.ai_gateway_base_url = "https://gateway.example"
+        settings.ai_gateway_auth_token = "gateway-token"
+        settings.embedding_version = "v2"
         validate_production_settings(settings)
         assert "*" not in settings.cors_allow_origins
 
@@ -56,9 +62,13 @@ class TestEmbeddingDimensionValidation:
         monkeypatch.setenv("VOYAGE_API_KEY", "vk-test")
         monkeypatch.setenv("EMBEDDING_VERSION", "v1")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
+        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
+        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
         monkeypatch.setenv("DEBUG", "false")
 
         settings = Settings()
+        settings.ai_gateway_base_url = "https://gateway.example"
+        settings.ai_gateway_auth_token = "gateway-token"
         with pytest.raises(ValueError, match="EMBEDDING_VERSION"):
             validate_production_settings(settings)
 
@@ -66,9 +76,13 @@ class TestEmbeddingDimensionValidation:
         monkeypatch.setenv("VOYAGE_API_KEY", "vk-test")
         monkeypatch.setenv("EMBEDDING_VERSION", "v2")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
+        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
+        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
         monkeypatch.setenv("DEBUG", "false")
 
         settings = Settings()
+        settings.ai_gateway_base_url = "https://gateway.example"
+        settings.ai_gateway_auth_token = "gateway-token"
         validate_production_settings(settings)
 
     def test_no_voyage_key_passes_either_version(self, monkeypatch):
@@ -80,37 +94,40 @@ class TestEmbeddingDimensionValidation:
         # outranks the .env file, so it cleanly exercises the no-key path.
         monkeypatch.setenv("VOYAGE_API_KEY", "")
         monkeypatch.setenv("GEMINI_API_KEY", "")
-        monkeypatch.setenv("EMBEDDING_VERSION", "v1")
+        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
+        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
+        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
         monkeypatch.setenv("DEBUG", "false")
 
         settings = Settings()
         validate_production_settings(settings)
 
-    def test_gemini_dimension_must_match_active_column(self, monkeypatch):
-        # Gemini emits any output_dimensionality, so the only hard rule is that
-        # it equals the active column width. v1 column is 1536; asking for 1024
-        # would make pgvector reject every commit -> refuse to boot.
-        monkeypatch.setenv("VOYAGE_API_KEY", "")
-        monkeypatch.setenv("GEMINI_API_KEY", "gk-test")
-        monkeypatch.setenv("EMBEDDING_VERSION", "v1")
-        monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
+    def test_gateway_embedding_dimension_must_match_active_column(self, monkeypatch):
+        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
+        monkeypatch.setenv("EMBEDDING_DIMENSION", "768")
+        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
+        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
         monkeypatch.setenv("DEBUG", "false")
 
         settings = Settings()
+        settings.ai_gateway_base_url = "https://gateway.example"
+        settings.ai_gateway_auth_token = "gateway-token"
         with pytest.raises(ValueError, match="EMBEDDING_DIMENSION"):
             validate_production_settings(settings)
 
-    def test_gemini_with_v2_column_is_accepted_in_production(self, monkeypatch):
-        monkeypatch.setenv("VOYAGE_API_KEY", "")
-        monkeypatch.setenv("GEMINI_API_KEY", "gk-test")
+    def test_gateway_with_v2_column_is_accepted_in_production(self, monkeypatch):
         monkeypatch.setenv("EMBEDDING_VERSION", "v2")
         monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
+        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
+        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
         monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
         monkeypatch.setenv("DEBUG", "false")
 
         settings = Settings()
+        settings.ai_gateway_base_url = "https://gateway.example"
+        settings.ai_gateway_auth_token = "gateway-token"
         validate_production_settings(settings)
 
 

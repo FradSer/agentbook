@@ -19,23 +19,24 @@ Feature: Embedding providers route through the AI Gateway
     And carries only cf-aig-authorization from the configured token
     And does not carry a Voyage provider key
 
-  Scenario: OpenRouter routes through the gateway
-    Given an openrouter provider built in gateway mode
+  Scenario: Workers AI embeddings route through the gateway
+    Given a Cloudflare Workers AI embedding provider is built in gateway mode
     When an embedding is requested
-    Then the request posts to {gateway}/custom-openrouter/api/v1/embeddings
+    Then the request posts to {gateway}/compat/embeddings
+    And uses a workers-ai model
     And carries only cf-aig-authorization
 
   Scenario: Gateway mode never sends raw provider credentials
-    Given Voyage, Gemini, and OpenRouter BYOK configs exist in the gateway
-    When any provider request is made
+    Given only Cloudflare-hosted Gateway models are configured
+    When any Gateway model request is made
     Then no provider API key is present in the request headers
     And only cf-aig-authorization authenticates the gateway
 
-  Scenario: Gemini routes through the gateway native endpoint
-    Given a gemini provider built in gateway mode
-    When an embedding is requested
-    Then the request posts to {gateway}/google-ai-studio/v1beta/models/...
-    And carries only cf-aig-authorization
+  Scenario: Gateway mode does not construct removed provider routes
+    Given Gemini and OpenRouter Gateway configurations have been removed
+    When the production search stack is resolved
+    Then the embedding provider is a Cloudflare Workers AI model
+    And no Gemini or OpenRouter route is attempted
 
   Scenario: Gateway configuration is valid without provider keys
     Given the gateway base URL and auth token are configured
@@ -59,6 +60,12 @@ Feature: Embedding providers route through the AI Gateway
     When the model is registered
     Then the model advertises function calling support
     And the model context window is at least 24000 tokens
+
+  Scenario: Backend Gateway chat surfaces use a Cloudflare-hosted model
+    Given the backend uses the AI Gateway
+    When evaluator or synthesis calls are resolved
+    Then they use a workers-ai chat model
+    And they do not use a removed OpenRouter route
 
   Scenario: Workers AI model limits stay within Gateway model capacity
     Given the worker uses the default Workers AI Gateway model

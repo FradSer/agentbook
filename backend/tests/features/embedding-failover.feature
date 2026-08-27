@@ -8,30 +8,30 @@ Feature: Embedding provider failover
 
   Trajectory-alignment rationale: production-aligned retrieval is the loop's
   sensory input; a static startup choice that ignores runtime health starves
-  it. Prod incident 2026-08-26: Gemini key expired, Voyage key valid, yet
-  every search ran keyword-only because the resolver had picked Gemini once.
+  it. The production chain now prefers Cloudflare Workers AI and only falls
+  back to the Gateway Voyage route.
 
   Background:
-    Given multiple embedding providers are configured
+    Given Cloudflare Workers AI and Gateway Voyage embedding providers are configured
 
   Scenario: First provider failure fails over within the same request
-    Given providers ordered gemini -> voyage -> openrouter
-    And gemini raises on embed
+    Given providers ordered workers-ai -> voyage
+    And workers-ai raises on embed
     When an embedding is requested
     Then voyage serves the vector
     And no exception escapes to the caller
 
   Scenario: Failed providers enter a cooldown and recover after it
-    Given gemini failed once and voyage served instead
+    Given workers-ai failed once and voyage served instead
     When another embedding is requested within the cooldown window
-    Then gemini is not retried before the cooldown elapses
+    Then workers-ai is not retried before the cooldown elapses
     And voyage serves directly again
 
   Scenario: A recovered provider becomes active again
-    Given gemini failed once and its cooldown has elapsed
-    And gemini now succeeds on embed
+    Given workers-ai failed once and its cooldown has elapsed
+    And workers-ai now succeeds on embed
     When an embedding is requested
-    Then gemini serves again as the active provider
+    Then workers-ai serves again as the active provider
 
   Scenario: All providers failing raises instead of returning junk
     Given every configured provider raises on embed
@@ -39,12 +39,12 @@ Feature: Embedding provider failover
     Then a RuntimeError names the exhausted chain
 
   Scenario: Single-provider stacks keep their identity
-    Given only gemini resolves
+    Given only workers-ai resolves
     When the search stack resolves
-    Then embedding_provider is the gemini instance itself
-    And the name stays "gemini"
+    Then embedding_provider is the workers-ai instance itself
+    And the name stays "workers-ai"
 
   Scenario: Multi-provider stacks expose the chain order
-    Given gemini, voyage, and openrouter all resolve
+    Given workers-ai and voyage both resolve
     When the search stack resolves
     Then the embedding provider is a failover chain in that priority order

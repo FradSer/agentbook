@@ -8,6 +8,7 @@ from unittest.mock import patch
 import httpx
 
 from backend.core.config import Settings, validate_production_settings
+from backend.infrastructure.embeddings.workers_ai import WorkersAIEmbeddingProvider
 from backend.infrastructure.evaluation.llm_evaluator import LLMEvaluatorProvider
 from backend.infrastructure.reranking.voyage import VoyageReranker
 from backend.infrastructure.synthesis.book_synthesizer import LLMBookSynthesizer
@@ -18,6 +19,27 @@ TOKEN = "cf-gateway-token"
 
 def _json_client(handler) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_workers_ai_embedding_gateway_sends_only_gateway_auth() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(
+            url=str(request.url), headers=dict(request.headers), body=request.read()
+        )
+        return httpx.Response(200, json={"data": [{"embedding": [0.1, 0.2]}]})
+
+    provider = WorkersAIEmbeddingProvider(
+        base_url=BASE,
+        auth_token=TOKEN,
+        http_client=_json_client(handler),
+    )
+    assert provider.embed("probe") == [0.1, 0.2]
+    assert seen["url"] == f"{BASE}/compat/embeddings"
+    assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
+    assert "authorization" not in seen["headers"]
+    assert b"workers-ai/@cf/baai/bge-large-en-v1.5" in seen["body"]
 
 
 def test_reranker_gateway_sends_only_gateway_auth() -> None:
@@ -47,7 +69,7 @@ def test_reranker_gateway_sends_only_gateway_auth() -> None:
     assert "authorization" not in seen["headers"]
 
 
-def test_evaluator_gateway_sends_only_gateway_auth() -> None:
+def test_evaluator_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
     seen: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -63,18 +85,18 @@ def test_evaluator_gateway_sends_only_gateway_auth() -> None:
     ):
         evaluator = LLMEvaluatorProvider(
             api_key=None,
-            model="openai/gpt-4.1-mini",
-            base_url=f"{BASE}/custom-openrouter",
+            model="workers-ai/@cf/zai-org/glm-4.7-flash",
+            base_url=BASE,
             auth_token=TOKEN,
             http_client=_json_client(handler),
         )
         assert evaluator.compare("p", "a", "b") == 0.8
-    assert seen["url"] == f"{BASE}/custom-openrouter/api/v1/chat/completions"
+    assert seen["url"] == f"{BASE}/compat/chat/completions"
     assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
     assert "authorization" not in seen["headers"]
 
 
-def test_synthesizer_gateway_gateway_auth_only() -> None:
+def test_synthesizer_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
     seen: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -86,13 +108,13 @@ def test_synthesizer_gateway_gateway_auth_only() -> None:
 
     synthesizer = LLMBookSynthesizer(
         api_key=None,
-        model="openai/gpt-4.1-mini",
-        base_url=f"{BASE}/custom-openrouter",
+        model="workers-ai/@cf/zai-org/glm-4.7-flash",
+        base_url=BASE,
         auth_token=TOKEN,
         http_client=_json_client(handler),
     )
     assert synthesizer.synthesize({"source": "x"}) == "# distilled"
-    assert seen["url"] == f"{BASE}/custom-openrouter/api/v1/chat/completions"
+    assert seen["url"] == f"{BASE}/compat/chat/completions"
     assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
     assert "authorization" not in seen["headers"]
 

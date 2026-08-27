@@ -112,18 +112,16 @@ def test_llm_evaluator_returns_neutral_half_on_missing_score_field() -> None:
     assert score == 0.5
 
 
-def test_resolve_evaluator_provider_returns_none_without_api_key() -> None:
-    # Default test settings have openrouter_api_key=None (see conftest).
+def test_resolve_evaluator_provider_returns_none_without_gateway() -> None:
     assert resolve_evaluator_provider() is None
 
 
-def test_resolve_evaluator_provider_returns_provider_when_api_key_set() -> None:
+def test_resolve_evaluator_provider_uses_workers_ai_gateway(monkeypatch) -> None:
     from backend.core.config import settings
 
-    original = settings.openrouter_api_key
-    settings.openrouter_api_key = "test-key"
-    try:
-        provider = resolve_evaluator_provider()
-        assert isinstance(provider, LLMEvaluatorProvider)
-    finally:
-        settings.openrouter_api_key = original
+    monkeypatch.setattr(settings, "ai_gateway_base_url", "https://gateway.example")
+    monkeypatch.setattr(settings, "ai_gateway_auth_token", "gateway-token")
+    provider = resolve_evaluator_provider()
+    assert isinstance(provider, LLMEvaluatorProvider)
+    assert provider._model == "workers-ai/@cf/zai-org/glm-4.7-flash"
+    assert provider._url == "https://gateway.example/compat/chat/completions"

@@ -12,10 +12,9 @@ Asymmetric encoders require the right ``input_type`` pole at every call:
 ``backend.domain.services.EmbeddingProvider`` carries the kwarg uniformly so
 the OpenRouter and Fallback providers stay swap-compatible.
 
-Transport: direct official SDK against ``api.voyageai.com`` by default.
-When the AI Gateway is configured, ``base_url`` points at
-``{gateway}/custom-voyage`` so every embed flows through agentbook-gw with
-BYOK credentials — no bare provider key required.
+Transport: Gateway-only in production. Local direct SDK compatibility is
+retained for development tests; production resolution never uses a provider
+key.
 
 Retry policy mirrors the original SDK behavior: the offline backfill path
 (``embed_documents``) keeps a small exponential budget; the live request path
@@ -208,15 +207,15 @@ class VoyageEmbeddingProvider:
 
 
 def resolve_embedding_provider() -> VoyageEmbeddingProvider | None:
-    """Build a Voyage provider when reachable: a key (direct mode), or the
-    gateway configuration (BYOK mode where upstream keys live in agentbook-gw).
-
-    Returns ``None`` to let the resolver chain fall through to OpenRouter /
-    Fallback when neither prerequisite is present."""
-    api_key = settings.voyage_api_key
-    gateway_base = settings.ai_gateway_base_url
-    if gateway_base:
-        provider_base = gateway_base.rstrip("/") + "/" + settings.ai_gateway_voyage_slug
+    """Build a Gateway Voyage embedder or a local direct provider."""
+    if settings.ai_gateway_base_url:
+        if not settings.ai_gateway_auth_token:
+            return None
+        provider_base = (
+            settings.ai_gateway_base_url.rstrip("/")
+            + "/"
+            + settings.ai_gateway_voyage_slug
+        )
         return VoyageEmbeddingProvider(
             api_key=None,
             model=settings.voyage_embedding_model,
@@ -224,6 +223,7 @@ def resolve_embedding_provider() -> VoyageEmbeddingProvider | None:
             base_url=provider_base,
             auth_token=settings.ai_gateway_auth_token,
         )
+    api_key = settings.voyage_api_key
     if voyageai is None or not api_key:
         return None
     return VoyageEmbeddingProvider(

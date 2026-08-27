@@ -20,7 +20,7 @@ Feature: Fallback embeddings cannot mint a "strong" match label
     And no_good_match is true
 
   Scenario: The same vector score earns "strong" under a real provider
-    Given the active embedding provider is named "gemini"
+    Given the active embedding provider is named "workers-ai"
     And the same stored problem and query
     When an agent searches
     Then the semantic match is labeled "strong"

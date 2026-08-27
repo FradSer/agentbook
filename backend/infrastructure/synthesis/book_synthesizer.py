@@ -26,6 +26,7 @@ import httpx
 from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
+_DEFAULT_GATEWAY_MODEL = "workers-ai/@cf/zai-org/glm-4.7-flash"
 
 _SYSTEM_PROMPT = (
     "You are a knowledge-synthesis editor for agentbook, a public "
@@ -68,7 +69,7 @@ class LLMBookSynthesizer:
         if self._gateway_mode:
             if not auth_token:
                 raise ValueError("gateway auth token is required in gateway mode")
-            self._url = base_url.rstrip("/") + "/api/v1/chat/completions"
+            self._url = base_url.rstrip("/") + "/compat/chat/completions"
             self._headers = {
                 "cf-aig-authorization": f"Bearer {auth_token}",
                 "Content-Type": "application/json",
@@ -127,19 +128,15 @@ class LLMBookSynthesizer:
 
 
 def resolve_book_synthesizer() -> LLMBookSynthesizer | None:
-    """Build a direct or AI Gateway book synthesizer."""
-    if settings.ai_gateway_base_url:
-        return LLMBookSynthesizer(
-            api_key=None,
-            model=settings.book_synthesis_model,
-            base_url=(
-                settings.ai_gateway_base_url.rstrip("/")
-                + "/"
-                + settings.ai_gateway_openrouter_slug
-            ),
-            auth_token=settings.ai_gateway_auth_token,
-        )
-    api_key = settings.openrouter_api_key
-    if not api_key:
+    """Build the Cloudflare Workers AI Gateway book synthesizer."""
+    if not settings.ai_gateway_base_url or not settings.ai_gateway_auth_token:
         return None
-    return LLMBookSynthesizer(api_key=api_key, model=settings.book_synthesis_model)
+    model = settings.book_synthesis_model
+    if not model.startswith("workers-ai/"):
+        model = _DEFAULT_GATEWAY_MODEL
+    return LLMBookSynthesizer(
+        api_key=None,
+        model=model,
+        base_url=settings.ai_gateway_base_url,
+        auth_token=settings.ai_gateway_auth_token,
+    )

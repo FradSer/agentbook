@@ -11,16 +11,14 @@ eval:
 eval-real:
 	RUN_REAL_EVAL=1 uv run pytest backend/tests/eval -m eval -v
 
-# eval-real-if-key runs the real-mode eval when VOYAGE_API_KEY is set, and
-# emits a clean skip message otherwise. Lets `make full` include real-mode
-# coverage on machines that have the credential without breaking the build
-# on no-key boxes (CI default).
+# eval-real-if-gateway runs the real-mode eval when the Gateway is configured,
+# and emits a clean skip message otherwise.
 eval-real-if-key:
-	@if [ -n "$$VOYAGE_API_KEY" ]; then \
-		echo "==> Running eval-real (VOYAGE_API_KEY detected)"; \
+	@if [ -n "$$AI_GATEWAY_BASE_URL" ] && [ -n "$$AI_GATEWAY_AUTH_TOKEN" ]; then \
+		echo "==> Running eval-real (AI Gateway detected)"; \
 		RUN_REAL_EVAL=1 uv run pytest backend/tests/eval -m eval -v; \
 	else \
-		echo "==> Skipping eval-real (set VOYAGE_API_KEY to enable real-mode regression guard)"; \
+		echo "==> Skipping eval-real (set AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN)"; \
 	fi
 
 smoke:
@@ -38,7 +36,7 @@ perf:
 	RUN_PERF_TESTS=1 uv run pytest -m perf
 
 perf-real:
-	RUN_PERF_TESTS=1 RUN_REAL_EMBED_TESTS=1 uv run pytest -m perf -k real_openrouter_embedding
+	RUN_PERF_TESTS=1 RUN_REAL_EMBED_TESTS=1 uv run pytest -m perf -k real_gateway_embedding
 
 frontend-lint:
 	cd frontend && pnpm lint
