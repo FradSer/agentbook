@@ -20,8 +20,6 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from backend.core.config import settings
-
 try:
     from pgvector.sqlalchemy import Vector
 except Exception:  # pragma: no cover
@@ -65,8 +63,8 @@ class FlexibleVector(TypeDecorator):
         return value
 
 
-def _embedding_column_type() -> Any:
-    return FlexibleVector(settings.embedding_dimension)
+def _legacy_embedding_column_type() -> Any:
+    return FlexibleVector(1536)
 
 
 def _tags_column_type() -> Any:
@@ -108,12 +106,11 @@ class ProblemORM(Base):
     error_signature: Mapped[str | None] = mapped_column(Text, index=True)
     environment: Mapped[dict | None] = mapped_column(_environment_column_type())
     tags: Mapped[list | None] = mapped_column(_tags_column_type())
-    embedding: Mapped[list | None] = mapped_column(_embedding_column_type())
-    # Voyage v3-large 1024-dim column added by the
-    # ``add_embedding_v2_column`` Alembic migration. ``embedding_version=v2``
-    # in settings flips reads to this column. Existing rows stay NULL until
-    # ``backend/scripts/reembed_corpus.py`` backfills them; service-level
-    # dual-write keeps new writes current.
+    # Retained for database compatibility with the original 1536-dim store.
+    # Runtime persistence reads and writes ``embedding_v2`` exclusively.
+    embedding: Mapped[list | None] = mapped_column(_legacy_embedding_column_type())
+    # Workers AI's 1024-dim embedding store, added by the
+    # ``add_embedding_v2_column`` Alembic migration.
     embedding_v2: Mapped[list | None] = mapped_column(FlexibleVector(1024))
     best_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     solution_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

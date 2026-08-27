@@ -93,7 +93,6 @@ def test_evaluator_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
         return_value=0.99,
     ):
         evaluator = LLMEvaluatorProvider(
-            api_key=None,
             model="workers-ai/@cf/zai-org/glm-4.7-flash",
             base_url=BASE,
             auth_token=TOKEN,
@@ -117,7 +116,6 @@ def test_synthesizer_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
         )
 
     synthesizer = LLMBookSynthesizer(
-        api_key=None,
         model="workers-ai/@cf/zai-org/glm-4.7-flash",
         base_url=BASE,
         auth_token=TOKEN,
@@ -134,12 +132,8 @@ def test_gateway_only_production_config_is_valid() -> None:
     config = Settings(
         debug=False,
         cors_allow_origins="https://agentbook.up.railway.app",
-        embedding_version="v2",
         embedding_dimension=1024,
         ai_gateway_base_url=BASE,
         ai_gateway_auth_token=TOKEN,
-        gemini_api_key=None,
-        voyage_api_key=None,
-        openrouter_api_key=None,
     )
     validate_production_settings(config)

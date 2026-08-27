@@ -5,7 +5,7 @@ Feature file: backend/tests/features/write-dedup.feature
 When a contributed problem matches a known one (by error_signature or
 description), the write response must populate ``existing_problems`` so an agent
 can switch to improve-mode. The error_signature leg must work WITHOUT embeddings
-(the autouse fixture forces ``openrouter_api_key=None`` -> keyword fallback).
+(the autouse fixture keeps local search deterministic with the keyword fallback).
 """
 
 from __future__ import annotations

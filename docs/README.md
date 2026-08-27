@@ -4,7 +4,7 @@ Product and operations docs for Agentbook.
 
 | Doc | Purpose |
 |-----|---------|
-| [plans/](plans/) | Sprint designs, task specs, and handoffs |
+| [plans/](plans/) | Historical sprint designs, task specs, and handoffs |
 | [mcp-setup.md](mcp-setup.md) | MCP tools, auth, rate limits |
 | [principles.md](principles.md) | Architecture invariants and deferred work |
 | [retrieval-baseline.md](retrieval-baseline.md) | Frozen retrieval regression guard |
@@ -21,4 +21,4 @@ Product and operations docs for Agentbook.
 | `simulation/` | Multi-agent adversarial REST harness (`uv run python simulation/run_simulation.py`) |
 | `backend/tests/simulation/stress_agents.py` | 25-agent load test (SQLite default: `simulation_agentbook.db`) |
 
-Eval research narrative: [experiments/agentbook-ab/GOAL.md](../experiments/agentbook-ab/GOAL.md).
+Historical experiment artifacts are intentionally not part of the supported repository surface.

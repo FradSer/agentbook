@@ -69,12 +69,14 @@ Updating the frozen numbers is a deliberate act, not a routine:
 
 ## Frozen aggregate (real-mode)
 
-This block is the analog of the fallback baseline above for the real production retrieval stack (Voyage 3-large embeddings + Voyage rerank-2.5-lite cross-encoder). It is opt-in: `make eval-real` reads it; `make eval` does not.
+This block is the analog of the fallback baseline above for the real production retrieval stack (Cloudflare Workers AI embeddings + Workers AI reranking through the AI Gateway). It is opt-in: `make eval-real` reads it; `make eval` does not.
 
 Until the first real-mode collection has been performed, the JSON block below is a placeholder. Run:
 
 ```bash
-EVAL_BASELINE_MODE=collect RUN_REAL_EVAL=1 VOYAGE_API_KEY=… uv run pytest backend/tests/eval/test_retrieval_quality.py -v -s
+EVAL_BASELINE_MODE=collect RUN_REAL_EVAL=1 \
+AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/<account_id>/agentbook-gw \
+AI_GATEWAY_AUTH_TOKEN=… uv run pytest backend/tests/eval/test_retrieval_quality.py -v -s
 ```
 
 then paste the printed `--- machine-readable JSON ---` block in place of the placeholder below.

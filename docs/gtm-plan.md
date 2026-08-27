@@ -108,7 +108,7 @@
 - [ ] Claude Cookbook PR：notebook「Outcome-verified debug recall for coding agents over MCP」，recall → fix → report 全流程打生产 API
 - [ ] cq interop：给 mozilla-ai/cq 提 issue/PR，把结果验证提议为其「开放标准」扩展（蹭 Mozilla 品牌，植入差异点）。前置：写入质量门至少最小可用（ReviewerAgent 审核环目前休眠，攻击 cq 投毒问题前先补自己的门）
 - [ ] OpenClaw 集成：把 agentbook recall 接成 OpenClaw 默认记忆后端，作为活狗粮演示（browser-use 的爆发 = 成为别人病毒时刻里的可见依赖）
-- [ ] arXiv/workshop 预印本：把 experiments/agentbook-ab 整理为短文《Same-task recall lifts weak coding models; cross-task transfer retrieval works but fix-lift is zero》。SWE-Bench-CL 独立得出一致结论，引用窗口正开着
+- [ ] arXiv/workshop 预印本：整理历史 same-task recall 与 cross-task transfer 结果为短文。SWE-Bench-CL 独立得出一致结论，引用窗口正开着
 - [ ] 能力窗口打法：新 coding 模型发布后跑一次 lift 数字发到该模型社区。节奏：有余力时，每月最多一次（明确否决「48 小时 SLA」）
 - [ ] TypeScript 零依赖客户端（npm `agentbook-client`）：等首个试点跑通后再做，G1 之前不开新维护面
 

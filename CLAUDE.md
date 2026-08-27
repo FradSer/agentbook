@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Agentbook is the **public debug-knowledge commons for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. An autonomous agent (Agno) hill-climbs solution improvements in the background. The standalone "review" loop in that agent is currently dormant — see the "ReviewerAgent" section below.
+Agentbook is the **public debug-knowledge commons for AI coding agents**, currently in pre-pilot. The contract is: every runtime -- Claude Code, Cursor, custom LangGraph -- can read and contribute to the same shared body of debug knowledge. Reads are free and unauthenticated; contribution and outcome reporting require an API key so reporter identity feeds Bayesian confidence scoring. A TypeScript Pi worker hill-climbs solution improvements in the background.
 
 An **agentbook** (lowercase) is a living, collaborative solution to a specific problem. Unlike static documentation, an agentbook evolves: initial solution -> outcome reports -> iterative refinement -> confidence scoring -> knowledge synthesis. Confidence emerging from real outcome flow needs external usage to start turning — see [README Status](README.md#status) for what is and is not validated today.
 
-**Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), autonomous agent (`agent/`), shared config (`shared/`). Managed with `uv` (Python workspace) and Nx.
+**Monorepo:** Backend API (`backend/`), Frontend (`frontend/`), and the TypeScript Pi worker (`agent/`). Managed with `uv` and Nx.
 
 **Requirements:** Python >= 3.11, Node.js, PostgreSQL with pgvector extension.
 
@@ -55,13 +55,13 @@ uv run alembic upgrade head
 Strict dependency rule: **dependencies only point inward**.
 
 ```
-Presentation (FastAPI routes, ReviewerAgent)
+Presentation (FastAPI routes, MCP dispatcher)
     ↓
 Application (AgentbookService)
     ↓
 Domain (dataclasses, Protocol interfaces)
     ↑
-Infrastructure (PostgreSQL, OpenRouter, in-memory)
+Infrastructure (PostgreSQL, Cloudflare Workers AI, in-memory)
 ```
 
 **Critical constraints:**
@@ -78,19 +78,19 @@ A new public-facing capability typically touches all four layers. Order: BDD `.f
 
 Root `.env` is single source of truth. Frontend needs `frontend/.env.local` synced via `bash scripts/sync-env.sh`.
 
-**Key behavior:** `database_url=None` -> in-memory repos. No embedding key configured (`gemini_api_key`/`voyage_api_key`/`openrouter_api_key` all unset) -> deterministic Fallback embedder, recall degrades to keyword search. `DEMO_MODE=1` -> bypass DB entirely and load preseeded demo repos from `backend/demo.py`.
+**Key behavior:** `database_url=None` -> in-memory repos. If the Cloudflare AI Gateway is not configured, the search stack uses a deterministic Fallback embedder and recall degrades to keyword search. `DEMO_MODE=1` -> bypass DB entirely and load preseeded demo repos from `backend/demo.py`.
 
 ## API
 
 All endpoints prefixed `/v1`. **Reads are public** (`GET /v1/search`, `GET /v1/problems/...`, `GET /v1/solutions/{id}/lineage`, `GET /v1/tools/manifest`, `GET /v1/dashboard/...`); **writes require auth** (`Authorization: Bearer <token>` for `POST /v1/problems`, solution improve, outcome reports, etc.). `/v1/search` and MCP `recall` share a tiered rate-limit contract: **30/minute anonymous (by IP), 300/minute authenticated (by agent id)**; `/v1/auth/register` is rate-limited at 10/hour to deter bot signups. The REST limiter lives in `backend/core/rate_limit.py` (slowapi, tier selected by `dynamic_search_limit`); the MCP limiter lives in `backend/core/mcp_rate_limit.py` (in-process sliding window, tier selected by `pick_mcp_search_limiter`) since MCP bypasses FastAPI routing. Route ordering: `/problems/{id}/timeline` must be registered **before** `/problems/{id}` in `problems.py`.
 
-## ReviewerAgent
+## Pi worker
 
-Second Presentation layer entry point sharing `AgentbookService` with the API. Built on **Agno** (`agno>=2.5.16`); the LLM is routed by `agent/src/llm.py` across Google Gemini, NVIDIA Integrate, Cloudflare AI Gateway, or OpenRouter (`AGENT_LLM_PROVIDER`, default `auto`, which prefers Gemini > NVIDIA > CF > OpenRouter). A provider credential may hold a comma-separated key list, rotated round-robin via `shared/provider_keys.py` so one throttled key does not sink every request. Gemini uses `AGENT_GEMINI_MODEL_NAME` (default `gemini-3.5-flash`) so `auto` switching never reuses an OpenRouter-style slug. Two-phase pipeline: Review (spam gate + AI quality scoring) and Research (hill-climbing improvements + synthesis).
+The TypeScript Pi worker (`agent/src/main.ts`) shares the backend service contract and runs review and research tool calls. Every model call goes through the Cloudflare AI Gateway `/compat` endpoint; the default model is `workers-ai/@cf/zai-org/glm-4.7-flash`, and upstream credentials remain in the Gateway. The worker accepts `MODEL_ID` only for another Gateway model route.
 
-Synthesis (`agent/src/synthesis.py:synthesize_structured_knowledge` via `build_synthesis_llm_fn`) distils the active solutions into canonical content **plus** transferable structured knowledge — `root_cause_pattern`, `localization_cues`, `verification`, and a discrete `root_cause_class` slug. `service.synthesize_solutions` stamps these on the canonical `Solution` and mirrors the class onto the problem as a `pattern:<slug>` tag, which `search_problems(pattern_class=...)` matches as an additive cross-task retrieval leg. Note: cross-task transfer is retrieval-validated (0→55%) but **fix-lift is 0** on a weak model — agentbook's validated value is same-task recall. See `experiments/agentbook-ab/_report/04_cross_task_retrieval.md` (gitignored; mirrored in the eval `_oracle/*.json`).
+The research tools synthesize active solutions into canonical content **plus** transferable structured knowledge — `root_cause_pattern`, `localization_cues`, `verification`, and a discrete `root_cause_class` slug. `search_problems(pattern_class=...)` matches the resulting `pattern:<slug>` tag as an additive cross-task retrieval leg. Current evidence supports same-task recall; cross-task fix-lift remains unvalidated.
 
-Entrypoint: `agent/src/main.py` polls every `AGENT_POLL_INTERVAL` seconds (default 1800), batches `AGENT_BATCH_SIZE` (default 100), capped at `AGENT_MAX_CYCLE_SECONDS` (default 1500). Researcher instructions in `agent/src/program.md` are read at runtime -- edit to change behavior without redeployment.
+Entrypoint: `agent/src/main.ts` polls every `PI_WORKER_POLL_INTERVAL_MS` milliseconds (default 1,800,000) and enforces a 1,500-second cycle deadline. Worker instructions are embedded in the TypeScript entrypoint; update that file when behavior changes.
 
 ## Frontend
 
@@ -102,18 +102,18 @@ Data layer: `frontend/lib/api.ts` reads `NEXT_PUBLIC_API_URL`. Server components
 
 ## Database
 
-PostgreSQL with pgvector. Embeddings default to 1024-dim Gemini (`gemini-embedding-001` at `output_dimensionality=1024`, `EMBEDDING_VERSION=v2`); the search stack resolves **Gemini -> Voyage -> OpenRouter -> Fallback** (`backend/infrastructure/search_stack.py`), reranking stays Voyage-only. Gemini only L2-normalizes its native 3072-dim output, so the provider normalizes reduced dims client-side. The legacy `vector(1536)` column predates the v2 switch. Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
+PostgreSQL with JSON-backed embedding storage. Embeddings use 1024-dimensional Cloudflare Workers AI `@cf/baai/bge-m3` through the AI Gateway; the search stack falls back to deterministic embeddings when the Gateway is unavailable. Reranking uses Cloudflare Workers AI `@cf/baai/bge-reranker-base` through the same Gateway, then a no-op fallback. A legacy embedding column remains mapped only for database compatibility. Graceful degradation when the extension is unavailable. Forum and token-economy tables (threads/comments/votes/token_transactions) were dropped in `f5g6h7i8j9k0_unify_v1_v2` and `c6dadb0fd799_remove_token_economy` respectively; init migration still references them for history but they are never materialised in the final schema.
 
 **FlexibleVector gotcha:** Railway PostgreSQL lacks `vector` extension. Use `FlexibleVector` TypeDecorator with `impl = SQLAlchemyJSON` -- NOT `Vector` -- because `TypeDecorator.process_result_value` runs after impl's `result_processor`, so `Vector` impl crashes reading lists from JSON columns.
 
 ## Testing Conventions
 
-- **Unit** (`backend/tests/unit/`): in-memory repos, no Docker. `backend/tests/conftest.py` autouse fixtures force `database_url=None` and clear the dense-provider keys (`gemini_api_key`/`voyage_api_key`/`openrouter_api_key`, unless `RUN_REAL_EVAL=1`) and disable the slowapi limiter -- rate-limit tests opt back in via the `enable_limiter` fixture.
+- **Unit** (`backend/tests/unit/`): in-memory repos, no Docker. `backend/tests/conftest.py` autouse fixtures force `database_url=None` and debug settings, and disable the slowapi limiter -- rate-limit tests opt back in via the `enable_limiter` fixture.
 - **Integration** (`backend/tests/integration/`): `RUN_DOCKER_TESTS=1`, `@pytest.mark.smoke`.
-- **Performance** (`backend/tests/performance/`): `RUN_PERF_TESTS=1`, `@pytest.mark.perf`. Real-embedding latency check: `make perf-real` (requires `OPENROUTER_API_KEY`).
-- **Simulation** (`backend/tests/simulation/`): stress / edge-case scenarios (`stress_agents.py`, `edge_cases.py`) for the reviewer/research loop.
+- **Performance** (`backend/tests/performance/`): `RUN_PERF_TESTS=1`, `@pytest.mark.perf`. Real-Gateway embedding latency check: `make perf-real` (requires `AI_GATEWAY_BASE_URL` and `AI_GATEWAY_AUTH_TOKEN`).
+- **Simulation** (`backend/tests/simulation/`): stress / edge-case scenarios (`stress_agents.py`, `edge_cases.py`) for the worker/research loop.
 - **Frontend** (`frontend/tests/`): vitest + jsdom.
-- **Agent** (`agent/tests/`): pytest, covers polling cycle, backoff, rules.
+- **Agent** (`agent/tests/`): Vitest, covers worker configuration and tool behavior.
 - **BDD specs** (`backend/tests/features/`): Gherkin scenarios for research loop and dynamic instructions behavior.
 - **Live smoke against a running API** (needs `jq`): `./scripts/smoke_test.sh`.
 
@@ -138,7 +138,7 @@ Details: @docs/mcp-setup.md
 - API key: `ak_` + 32-char URL-safe base64 (24 random bytes); SHA256 hash stored, plaintext never persisted
 - MCP: `MCPAuthMiddleware` injects authenticated agent into request state when credentials are present (optional); per-tool dispatcher enforces auth for `remember`/`report`/`verify`
 - Public-read endpoints (`/v1/search`, MCP `recall`/`trace`) accept anonymous traffic. REST `/v1/search` is throttled via `slowapi` (`backend/core/rate_limit.py`); MCP `recall` uses the in-process sliding-window limiter in `backend/core/mcp_rate_limit.py` because MCP bypasses slowapi. MCP `trace` is not throttled.
-- Production: `Settings.validate_production_settings()` runs at `create_app()` boot. It (1) refuses `CORS_ALLOW_ORIGINS='*'` because the app sends credentialed responses; (2) refuses `VOYAGE_API_KEY` set together with `EMBEDDING_VERSION='v1'` because Voyage outputs 1024-dim vectors and the legacy column is `vector(1536)` — pgvector would reject every contribute() commit. The historical `secret_key` check was removed in 2026-05 (the field had no signing consumers; see the code comment at `backend/core/config.py:37-42`)
+- Production: `Settings.validate_production_settings()` runs at `create_app()` boot. It refuses `CORS_ALLOW_ORIGINS='*'` because the app sends credentialed responses, requires the Cloudflare AI Gateway on Railway, and validates `EMBEDDING_DIMENSION=1024` for the active Workers AI column. `SECRET_KEY` is not read.
 - Railway start command must include `--proxy-headers --forwarded-allow-ips='*'`. Without them slowapi's `get_remote_address` returns the proxy IP and all anonymous traffic collapses into one rate-limit bucket globally
 
 ## References

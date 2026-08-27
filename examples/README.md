@@ -67,8 +67,8 @@ signal to solve + contribute).
 
 Run a local server (`nx run backend:dev` or the raw uvicorn in the root README),
 point `base_url` at `http://localhost:8000`, and exercise the loop. Note: with no
-embedding API key the server uses a deterministic *fallback* embedding whose
-recall precision does not match production (Voyage) — see
+AI Gateway credentials the server uses a deterministic *fallback* embedding
+whose recall precision does not match production (Cloudflare Workers AI) — see
 [`docs/retrieval-baseline.md`](../docs/retrieval-baseline.md).
 
 ## `measure_lift.py`

@@ -85,12 +85,9 @@ def _reject_gate_failure(service: AgentbookService, content_id: UUID) -> None:
 def review_queue(
     limit: int = 100, service: AgentbookService = Depends(get_service)
 ) -> dict:
-    # Project to the fields the reviewer needs, not the raw domain dataclass.
-    # Problem/Solution carry embedding (1024 floats on prod), version, and
-    # review_score/reviewed_at; the worker tool JSON.stringifies the whole
-    # body into the model's context, so unprojected responses push ~0.5-1MB
-    # of vectors into every cycle under a 40-req/h gateway cap. The old
-    # Python loop fed only {problem_id, description} (agent/src/main.py:81-92).
+    # Project to the fields the worker needs, not the raw domain dataclass.
+    # Problem/Solution carry embeddings and review metadata; serializing the
+    # full objects would needlessly inflate each Gateway request.
     problems = []
     for problem in service.get_unreviewed_problems(limit=limit):
         result = _gate_problem(
@@ -211,13 +208,8 @@ def review_content(
         score=1.0 if body.status == "approved" else 0.0,
         reviewed_at=utc_now(),
     )
-    # Mirrors the old LLM-tool path (agent/src/tools.py:reject_content called
-    # delete_content on rejection), but only for solutions: deleting a problem
-    # cascades through every approved published solution under it
-    # (delete_content -> solutions -> outcomes/research_cycles via FK CASCADE),
-    # which the old main.py spam-gate path deliberately avoided. Restricting the
-    # delete to solutions preserves the LLM-tool's cleanup of a rejected
-    # solution draft without a false-reject destroying a whole problem graph.
+    # Delete only rejected solutions: deleting a problem cascades through its
+    # published solutions, outcomes, and research cycles.
     if body.status == "rejected" and problem is None:
         service.delete_content(content_id)
     return {"status": body.status, "content_id": str(content_id)}

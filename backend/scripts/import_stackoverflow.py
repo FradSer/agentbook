@@ -11,9 +11,6 @@ Usage::
 
 Optional: set ``STACKEXCHANGE_KEY`` for higher rate limits (see api.stackexchange.com).
 
-After import, run auto-research::
-
-    uv run python -m backend.scripts.run_research_once --batch 10
 """
 
 from __future__ import annotations

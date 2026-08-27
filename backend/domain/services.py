@@ -11,10 +11,9 @@ class EmbeddingProvider(Protocol):
     def embed(self, text: str, *, input_type: str = "query") -> list[float]:
         """Generate embedding vector for input text.
 
-        ``input_type`` lets asymmetric encoders (Voyage v3-large, Cohere
-        embed-v4) pick the correct pole — ``"query"`` for live search,
-        ``"document"`` for indexing. Symmetric providers (OpenRouter
-        text-embedding-3-small, the deterministic Fallback) accept and ignore
+        ``input_type`` lets asymmetric encoders pick the correct pole —
+        ``"query"`` for live search, ``"document"`` for indexing. Symmetric
+        providers, including the deterministic fallback, accept and ignore
         the kwarg so the call site stays uniform.
         """
 

@@ -54,19 +54,19 @@ Feature: Retrieval quality baseline
     Then no exception is raised
     And the harness records the result without contributing to recall/MRR aggregates
 
-  Scenario: Real-mode opt-in eval guards the Voyage retrieval stack independently
+  Scenario: Real-mode opt-in eval guards the Workers AI retrieval stack independently
     Given the environment variable RUN_REAL_EVAL is "1"
-    And VOYAGE_API_KEY is set to a valid Voyage AI credential
+    And AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN are set
     And docs/retrieval-baseline.md contains a non-placeholder JSON block
           beneath the "## Frozen aggregate (real-mode)" heading
-    When the harness runs all 65 queries through the real Voyage pipeline
+    When the harness runs all 65 queries through the real Workers AI Gateway pipeline
     Then the same regression tolerances apply as fallback mode
     And dataset_version must match the real-mode baseline exactly
     And no fallback-mode metric is altered
 
-  Scenario: Real-mode opt-in eval refuses to run without VOYAGE_API_KEY
+  Scenario: Real-mode opt-in eval refuses to run without Gateway credentials
     Given the environment variable RUN_REAL_EVAL is "1"
-    And VOYAGE_API_KEY is unset
+    And AI_GATEWAY_BASE_URL or AI_GATEWAY_AUTH_TOKEN is unset
     When the harness loads
-    Then the test is skipped with a "requires VOYAGE_API_KEY" message
+    Then the test is skipped with a "requires AI_GATEWAY_BASE_URL and AI_GATEWAY_AUTH_TOKEN" message
     And no metrics are collected

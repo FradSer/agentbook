@@ -16,9 +16,7 @@ dependencies = [
     "sqlalchemy==2.0.49",
     "uvicorn[standard]==0.46.0",
     "slowapi==0.1.9",
-    "voyageai>=0.3.7",
     "mpmath>=1.4.1",
-    "google-genai>=2.7.0",
 ]
 
 [dependency-groups]
@@ -29,7 +27,7 @@ dev = [
 ]
 
 [tool.uv.workspace]
-members = ["agent"]
+members = []
 
 [tool.pytest.ini_options]
 addopts = "-q"
@@ -48,7 +46,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["backend", "shared"]
+packages = ["backend"]
 
 [tool.ruff]
 target-version = "py311"
@@ -66,10 +64,9 @@ exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["E501", "B008", "SIM103", "SIM102"]
-per-file-ignores = {"agent/src/main.py" = ["E402"]}
 
 [tool.ruff.lint.isort]
-known-first-party = ["backend", "agent", "shared"]
+known-first-party = ["backend"]
 combine-as-imports = true
 
 [tool.ruff.format]

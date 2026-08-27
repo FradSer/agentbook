@@ -29,7 +29,7 @@ def test_workspace_entrypoints_import_outside_repo() -> None:
             "agentbook",
             "python",
             "-c",
-            "import backend.core.config, shared.config",
+            "import backend.core.config",
         ]
     )
     # The Pi worker is a Node workspace package, not a Python module, so its

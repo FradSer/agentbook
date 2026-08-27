@@ -72,7 +72,7 @@ def test_vector_only_match_is_capped_at_partial_under_fallback_provider():
 
 
 def test_same_vector_score_earns_strong_under_real_provider():
-    service = _build_service("gemini")
+    service = _build_service("workers-ai")
 
     response = service.search_problems(query=NONSENSE_QUERY, limit=5)
 

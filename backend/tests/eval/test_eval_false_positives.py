@@ -19,8 +19,8 @@ misleading collider. Each phase of the fix must satisfy the same invariants:
   ``"exact"`` because the query is a true substring of its ``error_signature``.
 
 Designed to FAIL on the broken pre-fix code (proving the bug reproduces) and
-PASS once Phase 1 lands. The same harness re-runs unchanged after Phase 2
-ships the Voyage reranker, where the assertions tighten to "target ranks #1".
+PASS once the relevance contract is enforced. The harness is independent of
+remote provider availability and reranking configuration.
 """
 
 from __future__ import annotations

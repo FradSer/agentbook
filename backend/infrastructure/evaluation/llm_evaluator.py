@@ -24,7 +24,6 @@ _SYSTEM_PROMPT = (
 class LLMEvaluatorProvider:
     def __init__(
         self,
-        api_key: str | None,
         model: str,
         timeout_seconds: float = 30.0,
         *,
@@ -32,28 +31,20 @@ class LLMEvaluatorProvider:
         auth_token: str | None = None,
         http_client: httpx.Client | None = None,
     ) -> None:
-        self._gateway_mode = base_url is not None
-        if self._gateway_mode:
-            if not auth_token:
-                raise ValueError("gateway auth token is required in gateway mode")
-            self._url = (
-                "https://api.cloudflare.com/client/v4/accounts/"
-                + base_url.rstrip("/").split("/")[-2]
-                + "/ai/run"
-            )
-            self._headers = {
-                "Authorization": f"Bearer {auth_token}",
-                "cf-aig-gateway-id": settings.ai_gateway_id,
-                "Content-Type": "application/json",
-            }
-        else:
-            if not api_key:
-                raise ValueError("LLMEvaluatorProvider requires an API key")
-            self._url = "https://openrouter.ai/api/v1/chat/completions"
-            self._headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
+        if base_url is None:
+            raise ValueError("LLMEvaluatorProvider requires an AI Gateway URL")
+        if not auth_token:
+            raise ValueError("gateway auth token is required")
+        self._url = (
+            "https://api.cloudflare.com/client/v4/accounts/"
+            + base_url.rstrip("/").split("/")[-2]
+            + "/ai/run"
+        )
+        self._headers = {
+            "Authorization": f"Bearer {auth_token}",
+            "cf-aig-gateway-id": settings.ai_gateway_id,
+            "Content-Type": "application/json",
+        }
         self._model = model
         self._timeout_seconds = timeout_seconds
         self._http = http_client
@@ -89,16 +80,8 @@ class LLMEvaluatorProvider:
                     "temperature": 0.0,
                 },
             }
-            if self._gateway_mode:
-                client = self._http or httpx.Client(timeout=self._timeout_seconds)
-                response = client.post(self._url, headers=self._headers, json=request)
-            else:
-                response = httpx.post(
-                    self._url,
-                    headers=self._headers,
-                    json=request,
-                    timeout=self._timeout_seconds,
-                )
+            client = self._http or httpx.Client(timeout=self._timeout_seconds)
+            response = client.post(self._url, headers=self._headers, json=request)
             response.raise_for_status()
             payload = response.json()
             result = payload.get("result") or payload
@@ -124,7 +107,6 @@ def resolve_evaluator_provider() -> LLMEvaluatorProvider | None:
         if not model.startswith("workers-ai/"):
             model = _DEFAULT_GATEWAY_MODEL
         return LLMEvaluatorProvider(
-            api_key=None,
             model=model,
             base_url=settings.ai_gateway_base_url,
             auth_token=settings.ai_gateway_auth_token,

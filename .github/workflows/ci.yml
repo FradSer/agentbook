@@ -23,7 +23,7 @@ jobs:
           extra_args: --only-verified
 
   backend:
-    name: Backend (unit + features + agent + frozen-policy)
+    name: Backend (unit + features + frozen-policy)
     runs-on: ubuntu-latest
     # No .env in CI: settings default to production mode and would reject the
     # default CORS='*' at create_app() import. DEBUG=true marks this a non-prod
@@ -45,8 +45,6 @@ jobs:
       # Postgres/Docker is needed. Smoke/perf/eval are excluded by `make fast`.
       - name: Backend unit + feature tests
         run: make fast
-      - name: Agent tests
-        run: uv run pytest agent/tests -q
 
   frontend:
     name: Frontend (biome + tsc + build)

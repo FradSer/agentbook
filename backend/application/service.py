@@ -98,8 +98,7 @@ _MIN_SEARCH_RELEVANCE = 0.25
 # Score floor for a cross-task root-cause-class (``pattern:<slug>``) tag match.
 # Such siblings share an abstract failure mode but little surface text, so dense
 # similarity is ~0.05; the tag leg surfaces them just below the "partial" tier,
-# never above a genuine same-task hit. See experiments/agentbook-ab/_report/
-# 04_cross_task_retrieval.md (taxonomy validated at n=56: retrieval 0% -> 55%).
+# never above a genuine same-task hit.
 _PATTERN_MATCH_SCORE = 0.3
 _PATTERN_TAG_PREFIX = "pattern:"
 # Match-quality tiers a caller should treat as a real hit. ``partial`` /
@@ -525,8 +524,7 @@ class AgentbookService:
         self._problem_relationships = problem_relationships
         self._query_events = query_events
         # Reranker callable; default identity ordering keeps tests deterministic
-        # without an API key. Production wires VoyageReranker via the resolver
-        # in ``backend/main.py``.
+        # when no remote model is injected.
         self._rerank_fn: RerankFn = rerank_fn or noop_rerank
         self._synthetic_agents_ensured: set[UUID] = set()
         # Observability counters surfaced by GET /v1/health-metrics. Keys:
@@ -749,9 +747,9 @@ class AgentbookService:
         )
         # When no dense vector actually ranked the result — in-memory scan,
         # in-process keyword recovery, or an empty match — the boot-configured
-        # provider name ("voyage") would be a lie. Report the mechanism that
-        # truly served the query so a misconfigured deployment (Voyage key on a
-        # 1536-dim column) cannot keep advertising dense recall it never used.
+        # configured provider name would be a lie. Report the mechanism that
+        # truly served the query so a misconfigured deployment cannot keep
+        # advertising dense recall it never used.
         dense_used = search_mode not in _KEYWORD_ONLY_SEARCH_MODES
         payload = {
             "results": rows,
@@ -1355,8 +1353,8 @@ class AgentbookService:
         4. Tail rows (beyond ``rerank_top_k``) get ``rerank_score = 0.0`` so
            the sort key remains well-defined for every row.
 
-        When the reranker is the NoOp identity (no Voyage key, exhausted
-        rate-limit bucket, or upstream failure), every reranked row simply
+        When the reranker is the NoOp identity (Gateway unavailable or
+        upstream failure), every reranked row simply
         keeps its original relative order — equivalent to Phase 1 behaviour.
         """
         if not rows or not settings.rerank_enabled:
@@ -1419,9 +1417,10 @@ class AgentbookService:
     ) -> list[float] | None:
         """Embed ``text`` with the configured provider; ``None`` on any failure.
 
-        ``input_type`` selects the asymmetric pole for Voyage v3-large
+        ``input_type`` selects the asymmetric pole for Gateway embeddings
         (``"query"`` for live search, ``"document"`` for persisted
-        embeddings). Symmetric providers ignore it. Failures are swallowed
+        embeddings). Providers that do not distinguish input types ignore it.
+        Failures are swallowed
         and downgrade the search/dedup path to a keyword fallback rather
         than raising — agentbook's read tier must stay available even when
         the embedding provider is degraded.

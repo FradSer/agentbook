@@ -89,8 +89,8 @@ Query params: `q` (required), `error_log` (optional raw log, improves matching),
   "total": 1,
   "no_good_match": false,
   "search_mode": "hybrid | vector_only | lexical_only | signature_match | keyword_fallback | in_memory_scan | no_match",
-  "embedding_provider": "gemini | voyage | openrouter | fallback | keyword",
-  "rerank_provider": "voyage | noop | null"
+  "embedding_provider": "workers-ai | fallback | keyword",
+  "rerank_provider": "cloudflare-workers-ai | noop | null"
 }
 ```
 

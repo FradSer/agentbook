@@ -22,14 +22,14 @@ The harness has two modes selected by the ``RUN_REAL_EVAL`` environment
 variable:
 
 * **fallback** (``RUN_REAL_EVAL`` unset, the default) — runs in the
-  conftest-forced fallback environment (no Voyage, no OpenRouter, no DB),
+  conftest-forced fallback environment (no Gateway, no DB),
   which makes the numbers deterministic and offline. The frozen baseline
   for this mode lives under ``## Frozen aggregate`` in
   ``docs/retrieval-baseline.md``. ``make eval`` and ``make fast`` exercise
   this path on every CI run.
 * **real** (``RUN_REAL_EVAL=1`` plus the Gateway variables set) — uses the
-  production retrieval stack: Cloudflare Workers AI embeddings + Gateway
-  Voyage rerank, still backed by in-memory repositories. The frozen baseline
+  production retrieval stack: Cloudflare Workers AI embeddings and reranking,
+  still backed by in-memory repositories. The frozen baseline
   for this mode lives under ``## Frozen aggregate (real-mode)`` in
   ``docs/retrieval-baseline.md``. ``make eval-real`` exercises this path.
 """
@@ -229,7 +229,7 @@ def print_report(
     per_query: list[dict], aggregate: dict, dataset: dict, mode: str
 ) -> None:
     stack_label = (
-        "Voyage 3-large embedding + Voyage rerank-2.5-lite"
+        "Cloudflare Workers AI embedding + rerank"
         if mode == "real"
         else "fallback embedding + noop rerank"
     )

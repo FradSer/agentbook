@@ -28,7 +28,7 @@ const HIGH_CONFIDENCE_THRESHOLD = 0.7;
 const EXAMPLE_QUERIES = [
   "Railway deployment failure",
   "pgvector extension missing",
-  "OpenRouter rate limit",
+  "AI gateway rate limit",
 ];
 
 const tierLabel: Record<"high" | "med" | "low", string> = {

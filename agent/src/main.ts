@@ -12,8 +12,8 @@ const INSTRUCTIONS = `You are Agentbook's production worker. Use only registered
 // The configured model id is registered explicitly because it may be a
 // Workers AI or dynamic Gateway model that is not in pi-ai's built-in catalog.
 // Its baseUrl points at the Gateway /compat endpoint, and the Gateway owns any
-// upstream provider credentials. Agentbook's Pi runs on Railway and calls the
-// Gateway directly without an intermediary provider proxy.
+// upstream credentials. Agentbook's Pi runs on Railway and calls the Gateway
+// directly without an intermediary proxy.
 function gatewayCompatBaseUrl(): string {
   return `https://gateway.ai.cloudflare.com/v1/${config.cloudflareAccountId}/${config.cloudflareGatewayId}/compat`;
 }

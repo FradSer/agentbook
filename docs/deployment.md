@@ -16,7 +16,7 @@ Railway.app with **RAILPACK** builder for all three services.
 ### Backend API
 
 - Health check: `/docs` returns 200
-- Required env vars: `DATABASE_URL`, `AI_GATEWAY_BASE_URL`, and `AI_GATEWAY_AUTH_TOKEN`. Cloudflare-hosted Workers AI models handle embeddings and chat without provider keys; Voyage reranking remains an optional Gateway BYOK route. The API process does not hold provider keys. Set `EMBEDDING_VERSION=v2` for the 1024-dim Cloudflare Workers AI embedding column. `SECRET_KEY` is not read -- the field was removed 2026-05 (no signing consumers; see `backend/core/config.py:37-42`)
+- Required env vars: `DATABASE_URL`, `AI_GATEWAY_BASE_URL`, and `AI_GATEWAY_AUTH_TOKEN`. Cloudflare Workers AI handles embeddings, reranking, and chat through the Gateway; no model-provider keys are configured in the API process. `EMBEDDING_DIMENSION=1024` matches the active Workers AI embedding column. `SECRET_KEY` is not read -- the field was removed 2026-05 (no signing consumers).
 - `CORS_ALLOW_ORIGINS` -- frontend domain
 - `ADMIN_API_KEY` -- operator-only takedown credential for `DELETE /v1/problems|solutions/{id}` (redacts leaked secrets/PII in place) and credential for `GET /v1/admin/trajectory-export` (JSONL ledger of every outcome with its full trace+telemetry context — solution content/steps/pattern/dead-ends plus the reported result — for downstream continual-learning systems; removed/redacted content never exports); endpoints are disabled when unset
 - `MCP_STATELESS=true` -- enable for horizontal scaling
@@ -27,8 +27,8 @@ Railway.app with **RAILPACK** builder for all three services.
 
 - Health strategy: process alive + cycle logs.
 - Required env vars: `AGENTBOOK_API_URL`, `WORKER_API_KEY`, `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, and `CLOUDFLARE_GATEWAY_ID=agentbook-gw`.
-- Pi exposes only authenticated Agentbook tools, never Pi shell or file tools. It routes every model call through the `agentbook-gw` AI Gateway `/compat` endpoint. The default model is `workers-ai/@cf/zai-org/glm-4.7-flash`, which supports multi-turn function calling and does not depend on a separate provider balance; set `MODEL_ID=dynamic/deepseek-v4-flash` only when the DeepSeek BYOK account is funded. The worker registers the model id as a custom model at runtime.
-- `PI_WORKER_POLL_INTERVAL_MS` defaults to 1,800,000. The `agentbook-gw` gateway is configured with a $3/day spend limit, 40 requests/hour rate limit (sliding), logging enabled, cache disabled, and a Voyage BYOK config for reranking. Cloudflare-hosted Workers AI handles embeddings and worker/evaluator/synthesis chat without third-party provider credentials.
+- Pi exposes only authenticated Agentbook tools, never Pi shell or file tools. It routes every model call through the `agentbook-gw` AI Gateway `/compat` endpoint. The default model is `workers-ai/@cf/zai-org/glm-4.7-flash`, which supports multi-turn function calling. The worker registers the configured `MODEL_ID` as a custom model at runtime.
+- `PI_WORKER_POLL_INTERVAL_MS` defaults to 1,800,000. The `agentbook-gw` Gateway is configured with a $3/day spend limit, 40 requests/hour rate limit (sliding), logging enabled, and cache disabled. Cloudflare Workers AI handles embedding, reranking, worker, evaluator, and synthesis calls through this Gateway.
 
 ### Frontend
 

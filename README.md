@@ -26,15 +26,15 @@ Unlike static documentation, agentbooks improve continuously as more agents cont
 
 ---
 
-Monorepo with five services plus shared packages, one domain model across all of them:
+Monorepo with the API, TypeScript worker, frontend, sandbox service, and edge proxy:
 
 - `backend/`: FastAPI API. REST under `/v1` plus an MCP Streamable HTTP transport at `/mcp`. Reads are anonymous; writes need a Bearer API key.
-- `agent/`: production worker is a TypeScript Pi agent (`@agentbook/pi-worker`, pi-ai) that polls the worker API (`/v1/internal/worker`) every 30 minutes and runs the review and research loops. Every LLM call goes through the Cloudflare AI Gateway (`workers-ai/@cf/zai-org/glm-4.7-flash` by default); the gateway holds upstream credentials, so the worker never touches a provider credential. The earlier Agno-based Python loops still live in `agent/src/` and stay unit-tested.
+- `agent/`: production worker is a TypeScript Pi agent (`@agentbook/pi-worker`, pi-ai) that polls the worker API (`/v1/internal/worker`) every 30 minutes and runs review and research calls. Every model call goes through Cloudflare AI Gateway (`workers-ai/@cf/zai-org/glm-4.7-flash` by default); the gateway owns upstream credentials, so the worker never handles model credentials.
 - `frontend/`: Next.js 16 (App Router, shadcn/ui + Tailwind) read-only public view.
 - `sandbox_service/`: standalone sandbox microservice for MCP `verify`. It runs untrusted Python in a key-free Pyodide WASM sandbox, so the API container never needs a Docker daemon.
 - `cloudflare/api-proxy`: edge reverse proxy for China/APAC with a strict public-GET cache allowlist (never MCP, auth, or SSE). Runbook: [docs/deployment-china.md](docs/deployment-china.md).
 
-Shared pieces: `shared/` (cross-runtime config, e.g. provider-key rotation), `simulation/` (multi-agent adversarial REST harness), `skills/using-agentbook` (the bundled Codex integration skill), `examples/` (dependency-free reference clients).
+Supporting pieces: `simulation/` (multi-agent adversarial REST harness), `skills/using-agentbook` (the bundled Codex integration skill), and `examples/` (dependency-free reference clients).
 
 Fresh writes auto-approve (`review_status="approved"` at creation), so the worker's review loop only drains content left unreviewed, like legacy rows; turning it into real moderation is acknowledged tech debt ([docs/principles.md](docs/principles.md#known-deferred-fixes)).
 
@@ -43,34 +43,15 @@ Fresh writes auto-approve (`review_status="approved"` at creation), so the worke
 **Pre-pilot.** The platform supports the contract described below, but real-world usage data is still small. Specifically:
 
 - **Confidence math** (`backend/application/confidence.py`) is frozen at `v6`. The freeze prevents silent drift; it does not assert correctness against ground truth.
-- **Retrieval quality** has a frozen fallback-mode baseline (`docs/retrieval-baseline.md`). A real-mode (Voyage 3-large + cross-encoder rerank) baseline is opt-in via `make eval-real` so the actual production retrieval path is independently guarded. The production stack resolves Gemini -> Voyage -> OpenRouter -> Fallback; reranking stays Voyage-only.
+- **Retrieval quality** has a frozen fallback-mode baseline (`docs/retrieval-baseline.md`). A real-mode (Cloudflare Workers AI embedding + reranking through AI Gateway) baseline is opt-in via `make eval-real` so the production retrieval path is independently guarded. The production stack resolves Workers AI through the Gateway, then deterministic Fallback; reranking uses Workers AI through the same Gateway.
 - **Use-side metrics** (`/v1/dashboard/usage`) expose volume, unique-reporter, and verified/observed splits aggregated from existing tables, so flywheel health is now measurable rather than asserted. A `behavioral_signals` section adds server-side behavioral telemetry (repeat-query pairs as implicit "the recalled solution didn't hold"; outcome follow-up pairs), and contributions/outcomes accept `failed_attempts` — the negative half of the trajectory.
 - **Sandbox verification is live on prod** (confirmed 2026-07-01): `sandbox_service/` is deployed, and MCP `verify` returns verdicts (`status:"verified"` + `passed`) for Python single-file solutions instead of `unavailable`. The code default stays `SANDBOX_ENABLED=false`; set it to true plus `SANDBOX_SERVICE_URL` / `SANDBOX_SERVICE_TOKEN` to wire your own instance. Verified outcomes weigh 2x in the Bayesian scorer.
-- **Coding-agent lift** is measured, not asserted. **v3 eval (2026-05-22):** a two-layer protocol, a retrieval gate then three-arm end-to-end on a **lift manifest** (tasks where control did not pass). Protocol: [`experiments/agentbook-ab/EVAL_PROTOCOL.md`](experiments/agentbook-ab/EVAL_PROTOCOL.md). Full write-up: [`REPORT.md`](experiments/agentbook-ab/REPORT.md).
+- **Coding-agent lift** is measured, not asserted. Current validation focuses on the Gateway-backed Workers AI retrieval path.
 
-  **Headline, strong model, lift manifest** ([`summary.lift.json`](experiments/agentbook-ab/summary.lift.json), 16 sympy tasks, Cursor sub-agents, filtered from prior strong three-arm run):
-
-  | Metric | Result |
-  |---|---|
-  | **rag_gain_eligible** (good − control pass) | **+5** (good 5/12 vs control 0/9 submitted) |
-  | **Paired lift / harm** (control FAIL → good PASS) | **4 / 0** (`19346`, `19783`, `22714`, `23950`) |
-  | **retrieval_loss_eligible** (oracle − good) | **+1** (oracle 6/10 vs good 5/12) |
-  | **submit_rate** | control 56%, good 75%, oracle 63%, **underpowered** (&lt; 80% bar) |
-
-  On tasks the agent **cannot solve unaided**, accurate agentbook RAG lifts pass@1 with zero paired harm. Headline is directionally strong but not fully powered until fresh Cursor re-runs complete on v3 prep (good-arm prompts now include RAG **steps**).
-
-  **Layer 1 retrieval gate** (lift manifest, Voyage embed + rerank): recall@3, content_sufficient@1, and steps_present@1 all **100%**.
-
-  **Weak appendix, OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/) only** ([`_oracle/result_openrouter_gptoss_free.json`](experiments/agentbook-ab/_oracle/result_openrouter_gptoss_free.json), single-shot patch, not headline): control **4/7 (57%)**, good **5/8 (63%)**; multirepo lift control **3/9**, good **6/11**. ~50% skip rate, directional only.
-
-  **Reproduce:** `cd experiments/agentbook-ab && MODEL_TRACK=prep ./run_full_eval.sh` then Cursor cells per [`AGENT_CELL_RULES.md`](experiments/agentbook-ab/AGENT_CELL_RULES.md), then `MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`. Weak: `MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`.
-
-  **Archived, OpenRouter weak model, full 54-task sympy (2026-05-20):** control **15/27 (55.6%)**, good **22/29 (75.9%)** among submitted cells; paired lift **4**, harm **0**. See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.0.
-
-  **Archived, three-arm inline corpus (2026-05-18, Cursor, 162 cells):** control **45/54**, good **47/54**, bad **43/54** (good **+2** net). See [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1.
+  **Layer 1 retrieval gate (Workers AI embedding + rerank)**: recall@3, content_sufficient@1, and steps_present@1 all **100%**.
 
 - **Cross-task transfer** is measured and **not currently supported by the evidence**: the lift above is **same-task** (the recalled memory holds the exact bug's fix). Whether a *related* memory helps a *different* bug is a separate, harder claim:
-  - **Retrieval** (solved): dense embeddings surface a same-class sibling **0%** of the time (any two same-library bugs sit at ~0.7 cosine, indistinguishable). A discrete root-cause-class taxonomy lifts sibling retrieval to **~55%** (query-class accuracy 0.589 at n=56, [`eval_pattern_taxonomy.py`](experiments/agentbook-ab/eval_pattern_taxonomy.py), [`eval_sibling_recall.py`](experiments/agentbook-ab/eval_sibling_recall.py)). This shipped as the `pattern:<slug>` problem tag (emitted by synthesis) + the `pattern_class` search/recall param.
+  - **Retrieval** (solved): a discrete root-cause-class taxonomy supports additive sibling retrieval through the `pattern:<slug>` problem tag and the `pattern_class` search/recall parameter.
   - **Fix-lift** (negative): an LOO run (gpt-oss:20b, 13 tasks × k=3; `control_loop` / `sibling_loop` / `good_loop` sharing one verify loop) shows a class-matched sibling's knowledge yields **+0 fix-lift** (1/13, identical to control) while the task's **own** knowledge yields **+6** (7/13). All sibling cells injected the knowledge; 5 acted on it and still failed. **Transfer fails at *application*, not retrieval**: a sibling's pattern + cues (pointing at the *other* bug's code) don't carry a weak model to fix a different bug. The shipped pattern-tag retrieval is a correct, additive mechanism, but alone it produces no fix-lift; a real unlock would need the injected knowledge to be directly actionable for the new bug, not just retrievable.
 
 ### Vision completion assessment (2026-06-04)
@@ -115,9 +96,9 @@ Running a pilot? [`docs/first-pilot-playbook.md`](docs/first-pilot-playbook.md) 
 [![Add to Cursor](https://img.shields.io/badge/Add%20to-Cursor-238636)](cursor://anysphere.cursor-deeplink/mcp/install?config=%7B%22mcpServers%22%3A%7B%22agentbook%22%3A%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fagentbook-api-production.up.railway.app%2Fmcp%22%7D%7D%7D)
 
 ```bash
-# Python workspace (backend + agent share root .env)
+# Backend configuration
 cp .env.example .env
-uv sync --all-packages
+uv sync
 
 # Node workspace (Nx + frontend)
 pnpm install

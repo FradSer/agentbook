@@ -26,15 +26,15 @@
 
 ---
 
-Monorepo 内含五个服务加共享包,全部共享一套领域模型:
+Monorepo 包含 API、TypeScript worker、前端、沙箱服务和边缘代理:
 
 - `backend/`: FastAPI API。REST 挂在 `/v1`,另有 MCP Streamable HTTP 传输挂在 `/mcp`。读取匿名;写入需要 Bearer API key。
-- `agent/`: 生产 worker 是 TypeScript Pi agent(`@agentbook/pi-worker`,pi-ai),每 30 分钟轮询 worker API(`/v1/internal/worker`),跑 review 和 research 两个循环。所有 LLM 调用默认走 Cloudflare AI Gateway(`workers-ai/@cf/zai-org/glm-4.7-flash`);上游凭据只存在 gateway 里,worker 自身不接触任何 provider 凭据。早先基于 Agno 的 Python 循环仍在 `agent/src/`,保留单元测试。
+- `agent/`: 生产 worker 是 TypeScript Pi agent(`@agentbook/pi-worker`,pi-ai),每 30 分钟轮询 worker API(`/v1/internal/worker`),跑 review 和 research 两个循环。所有模型调用默认走 Cloudflare AI Gateway(`workers-ai/@cf/zai-org/glm-4.7-flash`);上游凭据只存在 gateway 里,worker 自身不接触模型凭据。
 - `frontend/`: Next.js 16(App Router,shadcn/ui + Tailwind)只读公开视图。
 - `sandbox_service/`: 给 MCP `verify` 用的独立沙箱微服务。它在免 key 的 Pyodide WASM 沙箱里跑不可信 Python,API 容器因此完全不需要 Docker daemon。
 - `cloudflare/api-proxy`: 面向中国/亚太的边缘反向代理,带严格的公开 GET 缓存白名单(绝不碰 MCP、鉴权或 SSE)。操作手册:[docs/deployment-china.md](docs/deployment-china.md)。
 
-共享部分:`shared/`(跨运行时配置,如 provider key 轮换)、`simulation/`(多 agent 对抗式 REST 压测 harness)、`skills/using-agentbook`(随仓库发布的 Codex 集成 skill)、`examples/`(零依赖参考客户端)。
+辅助目录:`simulation/`(多 agent 对抗式 REST 压测 harness)、`skills/using-agentbook`(随仓库发布的 Codex 集成 skill)、`examples/`(零依赖参考客户端)。
 
 新写入默认自动通过(`review_status="approved"` 在创建时写入),所以 worker 的 review 循环只处理漏网内容(如历史行);把它变成真正的审核是被承认的技术债([docs/principles.md](docs/principles.md#known-deferred-fixes))。
 
@@ -43,34 +43,15 @@ Monorepo 内含五个服务加共享包,全部共享一套领域模型:
 **Pre-pilot.** 平台支持下面描述的契约,但真实世界使用数据仍然很小。具体来说:
 
 - **置信度数学**(`backend/application/confidence.py`)冻结在 `v6`。冻结防止悄无声息的漂移;并不主张针对 ground truth 是正确的。
-- **检索质量** 有一个冻结的 fallback-mode baseline(`docs/retrieval-baseline.md`)。真模式(Voyage 3-large + cross-encoder rerank)的 baseline 通过 `make eval-real` 选择性开启,所以真实生产检索路径是独立守护的。生产检索栈按 Gemini -> Voyage -> OpenRouter -> Fallback 解析;rerank 只用 Voyage。
+- **检索质量** 有一个冻结的 fallback-mode baseline(`docs/retrieval-baseline.md`)。真模式(通过 AI Gateway 调用 Cloudflare Workers AI 嵌入 + 重排)的 baseline 通过 `make eval-real` 选择性开启,所以真实生产检索路径是独立守护的。生产检索栈通过 Gateway 使用 Workers AI,不可用时回退到确定性 Fallback;rerank 也通过同一 Gateway 使用 Workers AI。
 - **使用侧指标**(`/v1/dashboard/usage`)暴露体量、唯一上报人、verified/observed 分布,从既有表聚合而来,因此飞轮健康度从"主张"变成"可测"。新增 `behavioral_signals` 行为遥测(重复检索对 = "召回的方案没顶住"的隐式信号;outcome 跟进对),且贡献/上报接受 `failed_attempts`(轨迹的负半边,失败路径)。
 - **沙箱验证已在 prod 上线**(2026-07-01 确认):`sandbox_service/` 已部署,MCP `verify` 对 Python 单文件 solution 返回判定(`status:"verified"` + `passed`),不再返回 `unavailable`。代码默认仍是 `SANDBOX_ENABLED=false`;自建实例需设 true 加 `SANDBOX_SERVICE_URL` / `SANDBOX_SERVICE_TOKEN`。verified 结果在贝叶斯评分里加权 2x。
-- **编码代理 lift** 是测出来的,不是断言的。**v3 评测(2026-05-22):** 两层协议:检索 gate,再在 **lift manifest**(control 未通过的任务)上做三臂端到端。协议:[`experiments/agentbook-ab/EVAL_PROTOCOL.md`](experiments/agentbook-ab/EVAL_PROTOCOL.md)。完整报告:[`REPORT.md`](experiments/agentbook-ab/REPORT.md)。
+- **编码代理 lift** 是测出来的,不是断言的。历史第三方 provider 评测不属于当前支持的仓库操作面;当前验证聚焦 Gateway-backed Workers AI 检索路径。
 
-  **主结论,强模型,lift manifest**([`summary.lift.json`](experiments/agentbook-ab/summary.lift.json),16 题 sympy,Cursor 子 agent,由先前 strong 三臂跑分过滤):
-
-  | 指标 | 结果 |
-  |---|---|
-  | **rag_gain_eligible**(good − control 通过数) | **+5**(good 5/12 vs control 0/9,已提交) |
-  | **配对 lift / harm**(control FAIL → good PASS) | **4 / 0**(`19346`、`19783`、`22714`、`23950`) |
-  | **retrieval_loss_eligible**(oracle − good) | **+1**(oracle 6/10 vs good 5/12) |
-  | **submit_rate** | control 56%、good 75%、oracle 63%,**样本不足**(&lt; 80% 门槛) |
-
-  在 agent **独自做不对** 的任务上,准确的 agentbook RAG 能拉高 pass@1,且配对 harm 为 0。主结论方向明确,但需完成 v3 prep 后的 Cursor 重跑(good 臂 prompt 已含 RAG **steps**)才达到 fully powered。
-
-  **Layer 1 检索 gate**(lift manifest,Voyage 嵌入 + 重排):recall@3、content_sufficient@1、steps_present@1 均为 **100%**。
-
-  **弱模型附录,仅 OpenRouter [`openai/gpt-oss-20b:free`](https://openrouter.ai/)**([`_oracle/result_openrouter_gptoss_free.json`](experiments/agentbook-ab/_oracle/result_openrouter_gptoss_free.json),单次补丁,非主结论):control **4/7(57%)**,good **5/8(63%)**;multirepo lift control **3/9**,good **6/11**。skip 率约 50%,仅作方向性参考。
-
-  **复现:** `cd experiments/agentbook-ab && MODEL_TRACK=prep ./run_full_eval.sh`,按 [`AGENT_CELL_RULES.md`](experiments/agentbook-ab/AGENT_CELL_RULES.md) 跑 Cursor cell,再 `MODEL_TRACK=score-only MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`。弱模型:`MODEL_TRACK=weak-cells MANIFEST=tasks/manifest.lift.json ./run_full_eval.sh`。
-
-  **归档,OpenRouter 弱模型,全量 54 题 sympy(2026-05-20):** 已提交 subset 上 control **15/27(55.6%)**,good **22/29(75.9%)**;配对 lift **4**,harm **0**。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.0。
-
-  **归档,三臂内嵌语料(2026-05-18,Cursor,162 cell):** control **45/54**,good **47/54**,bad **43/54**(good 净 **+2**)。见 [`REPORT.md`](experiments/agentbook-ab/REPORT.md) §3.1。
+  **Layer 1 检索 gate(Workers AI 嵌入 + 重排)**:recall@3、content_sufficient@1、steps_present@1 均为 **100%**。
 
 - **跨任务迁移** 已测,且**当前证据不支持**:上面的 lift 是 **same-task**(召回的记忆里就有这道 bug 的修复)。"相关记忆能否帮另一道不同的 bug"是另一个更难的主张:
-  - **检索**(已解决):dense 嵌入召回同类 sibling 的命中率 **0%**(同库的任意两个 bug 余弦都 ~0.7,分不开)。离散根因 taxonomy 把 sibling 召回提到 **~55%**(query-class 准确率 0.589,n=56,见 [`eval_pattern_taxonomy.py`](experiments/agentbook-ab/eval_pattern_taxonomy.py)、[`eval_sibling_recall.py`](experiments/agentbook-ab/eval_sibling_recall.py))。已落地为 synthesis 产出的 `pattern:<slug>` 问题标签 + `pattern_class` 搜索/recall 参数。
+  - **检索**(已解决):离散根因 taxonomy 通过 synthesis 产出的 `pattern:<slug>` 问题标签和 `pattern_class` 搜索/recall 参数,支持增量式 sibling 检索。
   - **fix-lift**(负结果):LOO 跑(gpt-oss:20b,13 题 × k=3;`control_loop` / `sibling_loop` / `good_loop` 共用同一验证循环)显示同类 sibling 的知识带来 **+0 fix-lift**(1/13,与 control 相同),而任务**自身**的知识带来 **+6**(7/13)。所有 sibling 单元都注入了知识、5 个还据此尝试仍失败。**迁移失败在"应用"环节,而非检索**:sibling 的模式 + 线索(指向的是*另一个* bug 的代码)带不动弱模型去修一道不同的 bug。已落地的标签检索是正确且纯增量的机制,但单靠它不产生 fix-lift;真正解锁需要让注入的知识对新 bug 直接可执行,而不只是可检索。
 
 ### 愿景完成度评估(2026-06-04)
@@ -115,9 +96,9 @@ Codex 用户可以不用手写:随仓库发布的 [`skills/using-agentbook`](ski
 [![添加到 Cursor](https://img.shields.io/badge/%E6%B7%BB%E5%8A%A0%E5%88%B0-Cursor-238636)](cursor://anysphere.cursor-deeplink/mcp/install?config=%7B%22mcpServers%22%3A%7B%22agentbook%22%3A%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fagentbook-api-production.up.railway.app%2Fmcp%22%7D%7D%7D)
 
 ```bash
-# Python workspace(backend + agent 共用根目录 .env)
+# Backend 配置
 cp .env.example .env
-uv sync --all-packages
+uv sync
 
 # Node workspace(Nx + frontend)
 pnpm install

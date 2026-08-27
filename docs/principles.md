@@ -92,17 +92,17 @@ The 2026-05-08 multi-agent reflection surfaced 14 specific findings. Most landed
 
 ### Deferred — delete `_compute_relationships` + `ProblemRelationship` subsystem
 
-`backend/application/service.py:_compute_relationships` (~80 lines) only fires when `knowledge_graph_enabled=True` (default `False`), and the only repository implementation that supports it is in-memory (no SQLAlchemy impl). The `get_cross_problem_solutions` read path falls back to embedding similarity, so deleting the relationship-write path does not regress production. The `backend/scripts/calibrate_dedup_threshold.py` offline tool still references `ProblemRelationshipORM`, so a clean delete needs to either rewrite that script or accept its breakage.
+`backend/application/service.py:_compute_relationships` (~80 lines) only fires when `knowledge_graph_enabled=True` (default `False`), and the only repository implementation that supports it is in-memory (no SQLAlchemy impl). The `get_cross_problem_solutions` read path falls back to embedding similarity, so deleting the relationship-write path does not regress production.
 
-**Fix shape**: delete `_compute_relationships`, `ProblemRelationship` dataclass, `ProblemRelationshipRepository` Protocol, `InMemoryProblemRelationshipRepository`, `knowledge_graph_*` settings, and the corresponding test file; rewrite or delete `calibrate_dedup_threshold.py`; Alembic migration to drop `problem_relationships` table. ~250 lines deleted across 9 files.
+**Fix shape**: delete `_compute_relationships`, `ProblemRelationship` dataclass, `ProblemRelationshipRepository` Protocol, `InMemoryProblemRelationshipRepository`, `knowledge_graph_*` settings, and the corresponding test file; add an Alembic migration to drop `problem_relationships`. ~250 lines deleted across 9 files.
 
 ### Deferred — choose: revive ReviewerAgent review-loop OR rip it
 
-`agent/src/main.py:review_content` polls `find_unreviewed_problems` / `find_unreviewed_solutions` every cycle, but `service.create_problem` and `service.create_solution` set `review_status="approved"` immediately (`service.py:255,282`). The two never intersect — every cycle finds zero work and burns OpenRouter tokens on the empty queue. The actual user-write moderation runs synchronously in `backend/application/gate.py` (regex spam gate).
+The TypeScript Pi worker's review calls poll `find_unreviewed_problems` / `find_unreviewed_solutions`, but `service.create_problem` and `service.create_solution` set `review_status="approved"` immediately (`service.py:255,282`). The two never intersect — every cycle finds zero work. The actual user-write moderation runs synchronously in `backend/application/gate.py` (regex spam gate).
 
 **Fix shape (option A — revive)**: change `create_problem` / `create_solution` to default `review_status=None`, let the agent moderate. Frontend / API consumers must filter by `review_status="approved"` everywhere they read; data model migration needed for existing rows. UX shift: new content stays hidden until reviewed.
 
-**Fix shape (option B — rip)**: delete `review_content`, `run_cycle_until_idle`, `create_reviewer_agent`. `agent/src/main.py` only runs `run_research_cycle`. Update tests, README, CLAUDE.md. ~120 lines deleted, ~20 lines docstring/naming churn.
+**Fix shape (option B — rip)**: remove the no-op review calls from the TypeScript worker and retain only research tool calls. Update tests, README, and CLAUDE.md.
 
 The README and CLAUDE.md were updated in the 2026-05-08 round to stop claiming the agent moderates user content. Until the underlying decision lands, treat the review loop as documentation-only scaffolding.
 

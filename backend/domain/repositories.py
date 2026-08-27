@@ -83,12 +83,8 @@ class ProblemRepository(Protocol):
 
     def update(self, problem: Problem) -> None: ...
 
-    def update_embedding_v2(
-        self, problem_id: UUID, embedding: list[float] | None
-    ) -> None:
-        """Side-channel write of the v2 embedding column for dual-write
-        during the EMBEDDING_VERSION cutover. Implementations may no-op when
-        no v2 column exists (in-memory repo)."""
+    def update_embedding(self, problem_id: UUID, embedding: list[float] | None) -> None:
+        """Side-channel Workers AI embedding write used by corpus backfill."""
         ...
 
     def delete(self, problem_id: UUID) -> None: ...

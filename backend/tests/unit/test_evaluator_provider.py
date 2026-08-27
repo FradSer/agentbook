@@ -6,6 +6,8 @@ import json
 from unittest.mock import patch
 from uuid import uuid4
 
+import httpx
+
 from backend.application.service import EVALUATOR_AGENT_ID
 from backend.infrastructure.evaluation.fallback import FallbackEvaluatorProvider
 
@@ -22,76 +24,72 @@ def test_fallback_ignores_all_inputs():
     assert provider.compare("x" * 10000, "a", "b") == 0.5
 
 
-def test_llm_evaluator_parses_valid_response():
+def _gateway_provider(payload: dict):
     from backend.infrastructure.evaluation.llm_evaluator import LLMEvaluatorProvider
 
-    mock_response = {"choices": [{"message": {"content": json.dumps({"score": 0.8})}}]}
-
-    with patch("backend.infrastructure.evaluation.llm_evaluator.httpx.post") as mock:
-        mock.return_value.status_code = 200
-        mock.return_value.raise_for_status = lambda: None
-        mock.return_value.json.return_value = mock_response
-
-        provider = LLMEvaluatorProvider(api_key="test", model="test-model")
-
-        # Run enough times to test both swap orders
-        scores = set()
-        with patch(
-            "backend.infrastructure.evaluation.llm_evaluator.random.random",
-            return_value=0.9,
-        ):
-            score = provider.compare("problem", "A", "B")
-            scores.add(round(score, 1))
-
-        with patch(
-            "backend.infrastructure.evaluation.llm_evaluator.random.random",
-            return_value=0.1,
-        ):
-            score = provider.compare("problem", "A", "B")
-            scores.add(round(score, 1))
-
-        # When not swapped (random > 0.5): score = 0.8 (B better)
-        # When swapped (random < 0.5): score = 1.0 - 0.8 = 0.2 (A better after inversion)
-        assert 0.8 in scores
-        assert 0.2 in scores
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=payload))
+    )
+    return LLMEvaluatorProvider(
+        model="workers-ai/@cf/zai-org/glm-4.7-flash",
+        base_url="https://gateway.ai.cloudflare.com/v1/acct/agentbook-gw",
+        auth_token="gateway-token",
+        http_client=client,
+    )
 
 
-def test_llm_evaluator_defaults_on_failure():
+def test_llm_evaluator_parses_valid_gateway_response():
+    mock_response = {
+        "result": {"choices": [{"message": {"content": json.dumps({"score": 0.8})}}]}
+    }
+    provider = _gateway_provider(mock_response)
+
+    scores = set()
+    with patch(
+        "backend.infrastructure.evaluation.llm_evaluator.random.random",
+        return_value=0.9,
+    ):
+        scores.add(round(provider.compare("problem", "A", "B"), 1))
+
+    with patch(
+        "backend.infrastructure.evaluation.llm_evaluator.random.random",
+        return_value=0.1,
+    ):
+        scores.add(round(provider.compare("problem", "A", "B"), 1))
+
+    assert 0.8 in scores
+    assert 0.2 in scores
+
+
+def test_llm_evaluator_defaults_on_gateway_failure():
     from backend.infrastructure.evaluation.llm_evaluator import LLMEvaluatorProvider
 
-    with patch("backend.infrastructure.evaluation.llm_evaluator.httpx.post") as mock:
-        mock.side_effect = Exception("connection refused")
+    def raise_error(_: httpx.Request) -> httpx.Response:
+        raise httpx.HTTPError("connection refused")
 
-        provider = LLMEvaluatorProvider(api_key="test", model="test-model")
-        score = provider.compare("problem", "A", "B")
-
-    assert score == 0.5
+    provider = LLMEvaluatorProvider(
+        model="workers-ai/@cf/zai-org/glm-4.7-flash",
+        base_url="https://gateway.ai.cloudflare.com/v1/acct/agentbook-gw",
+        auth_token="gateway-token",
+        http_client=httpx.Client(transport=httpx.MockTransport(raise_error)),
+    )
+    assert provider.compare("problem", "A", "B") == 0.5
 
 
 def test_llm_evaluator_clamps_out_of_range():
-    from backend.infrastructure.evaluation.llm_evaluator import LLMEvaluatorProvider
-
-    mock_response = {"choices": [{"message": {"content": json.dumps({"score": 1.5})}}]}
-
-    with (
-        patch("backend.infrastructure.evaluation.llm_evaluator.httpx.post") as mock,
-        patch(
-            "backend.infrastructure.evaluation.llm_evaluator.random.random",
-            return_value=0.9,
-        ),
+    mock_response = {
+        "result": {"choices": [{"message": {"content": json.dumps({"score": 1.5})}}]}
+    }
+    with patch(
+        "backend.infrastructure.evaluation.llm_evaluator.random.random",
+        return_value=0.9,
     ):
-        mock.return_value.status_code = 200
-        mock.return_value.raise_for_status = lambda: None
-        mock.return_value.json.return_value = mock_response
-
-        provider = LLMEvaluatorProvider(api_key="test", model="test-model")
-        score = provider.compare("problem", "A", "B")
-
+        score = _gateway_provider(mock_response).compare("problem", "A", "B")
     assert 0.0 <= score <= 1.0
 
 
 def test_evaluator_agent_id_is_distinct():
-    from agent.src.synthesis import SYSTEM_AGENT_ID
+    from backend.presentation.api.routes.worker import SYSTEM_AGENT_ID
 
     assert EVALUATOR_AGENT_ID != SYSTEM_AGENT_ID
 

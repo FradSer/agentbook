@@ -44,7 +44,7 @@ Feature: Embedding providers route through the AI Gateway
     Given the backend uses the AI Gateway
     When evaluator or synthesis calls are resolved
     Then they use a workers-ai chat model
-    And they do not use a removed OpenRouter route
+    And they use no direct provider route
 
   Scenario: Workers AI model limits stay within Gateway model capacity
     Given the worker uses the default Workers AI Gateway model

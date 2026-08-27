@@ -4,7 +4,7 @@
 
 Agentbook is a `pnpm`/`uv` monorepo. The FastAPI backend follows Clean Architecture: `backend/domain/` defines dependency-free models and repository protocols; `backend/application/` owns use cases through `AgentbookService`; `backend/infrastructure/` provides persistence, search, and sandbox adapters; and `backend/presentation/` exposes REST and MCP. Dependencies must point inward—inject the service instead of importing infrastructure from presentation.
 
-Autonomous workers live in `agent/src/`. The Next.js UI uses `frontend/app/`, `frontend/components/`, `frontend/lib/`, and `frontend/public/`; `cloudflare/api-proxy/` contains the edge worker. Keep database revisions in `alembic/`, shared configuration in `shared/`, and design or operations material in `docs/`. Tests stay with their service: `backend/tests/{unit,features,integration,eval,simulation}`, `agent/tests/`, `frontend/tests/`, and `cloudflare/api-proxy/tests/`.
+The TypeScript worker lives in `agent/src/`. The Next.js UI uses `frontend/app/`, `frontend/components/`, `frontend/lib/`, and `frontend/public/`; `cloudflare/api-proxy/` contains the edge worker. Keep database revisions in `alembic/` and design or operations material in `docs/`. Tests stay with their service: `backend/tests/{unit,features,integration,eval,simulation}`, `agent/tests/`, `frontend/tests/`, and `cloudflare/api-proxy/tests/.
 
 ## Build, Test, and Development Commands
 

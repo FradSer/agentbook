@@ -3,11 +3,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Optional: reclaim disk from local experiment runs (gitignored, safe to re-run)
-if [ "${RELEASE_GATE_CLEAN_EXPERIMENTS:-0}" = "1" ]; then
-  uv run python experiments/agentbook-ab/cleanup_experiment.py
-fi
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
@@ -42,10 +37,10 @@ fi
 run_step "Frontend lint" make frontend-lint
 run_step "Frontend build" make frontend-build
 
-if [ -n "${VOYAGE_API_KEY:-}" ]; then
+if [ -n "${AI_GATEWAY_BASE_URL:-}" ] && [ -n "${AI_GATEWAY_AUTH_TOKEN:-}" ]; then
   run_step "Real-mode retrieval eval" make eval-real
 else
-  echo "SKIP: VOYAGE_API_KEY unset — real-mode retrieval eval"
+  echo "SKIP: AI Gateway credentials unset — real-mode retrieval eval"
 fi
 
 # Live product path (DEMO_MODE)

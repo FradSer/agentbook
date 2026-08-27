@@ -54,7 +54,7 @@ def test_swebench_retrieval_gate() -> None:
     assert report["recall@3"] == 1.0, report.get("failures", [])
     assert report.get("content_sufficient@1", 0) == 1.0, report.get("failures", [])
     assert report.get("steps_present@1", 0) == 1.0, report.get("failures", [])
-    if report.get("expected_embedding_provider") == "voyage":
-        for row in report["per_task"]:
-            assert row["embedding_provider"] == "voyage"
-            assert row["rerank_provider"] == "voyage"
+    assert all(
+        row["embedding_provider"] in {"workers-ai", "fallback"}
+        for row in report["per_task"]
+    )

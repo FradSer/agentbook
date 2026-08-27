@@ -108,39 +108,6 @@ class SQLAlchemyAgentRepository:
             return _to_agent_domain(row)
 
 
-def _write_active_embedding(row: ProblemORM, embedding: list[float] | None) -> None:
-    """Mirror of ``_read_active_embedding`` for write paths.
-
-    During cutover (``EMBEDDING_VERSION=v1`` with ``VOYAGE_API_KEY`` set),
-    service-level callers also invoke ``update_embedding_v2`` separately so
-    the v2 column tracks new writes — that's the dual-write strategy. This
-    helper just picks the primary column based on the active version."""
-    from backend.core.config import settings
-
-    if settings.embedding_version == "v2":
-        row.embedding_v2 = embedding
-    else:
-        row.embedding = embedding
-
-
-def _read_active_embedding(row: ProblemORM) -> list[float] | None:
-    """Pick whichever embedding column the cutover flag selects.
-
-    Falls back to the legacy column when ``embedding_v2`` is NULL during the
-    backfill window — that way queries before the operator flips
-    ``EMBEDDING_VERSION=v2`` continue to retrieve relevant rows even though
-    they may have already had v2 embeddings written by service-level
-    dual-write."""
-    from backend.core.config import settings
-
-    if settings.embedding_version == "v2":
-        primary = getattr(row, "embedding_v2", None)
-        if primary is not None:
-            return primary
-        return row.embedding
-    return row.embedding
-
-
 def _to_problem_domain(row: ProblemORM) -> Problem:
     return Problem(
         problem_id=parse_uuid(row.problem_id),
@@ -149,7 +116,9 @@ def _to_problem_domain(row: ProblemORM) -> Problem:
         error_signature=row.error_signature,
         environment=row.environment,
         tags=list(row.tags) if row.tags else None,
-        embedding=_read_active_embedding(row),
+        # Workers AI is the sole runtime embedding store. The legacy
+        # ``embedding`` column remains mapped only for schema compatibility.
+        embedding=row.embedding_v2,
         best_confidence=row.best_confidence,
         solution_count=row.solution_count,
         version=row.version,
@@ -254,7 +223,7 @@ class SQLAlchemyProblemRepository:
             existing.error_signature = problem.error_signature
             existing.environment = problem.environment
             existing.tags = problem.tags
-            _write_active_embedding(existing, problem.embedding)
+            existing.embedding_v2 = problem.embedding
             existing.best_confidence = problem.best_confidence
             existing.solution_count = problem.solution_count
             existing.version = problem.version
@@ -298,22 +267,8 @@ class SQLAlchemyProblemRepository:
             return None if row is None else _to_problem_domain(row)
 
     def _active_embedding_column(self):
-        """Return the ORM column matching ``settings.embedding_version``.
-
-        ``v1`` reads/writes ``problems.embedding`` (legacy 1536-dim).
-        ``v2`` reads/writes ``problems.embedding_v2`` (Voyage v3-large 1024-dim,
-        added by the ``add_embedding_v2_column`` Alembic migration).
-
-        Centralised so ``find_similar``, ``find_similar_scored`` and
-        ``find_hybrid`` cannot drift apart during the cutover window — every
-        vector query path resolves to the same column on every call."""
-        from backend.core.config import settings
-
-        return (
-            ProblemORM.embedding_v2
-            if settings.embedding_version == "v2"
-            else ProblemORM.embedding
-        )
+        """Return the Workers AI embedding column used by all search paths."""
+        return ProblemORM.embedding_v2
 
     def _vector_query(self, session, embedding: list[float]) -> tuple | None:
         """Build base cosine-distance query. Returns (distance_expr, base_stmt) or None."""
@@ -406,13 +361,9 @@ class SQLAlchemyProblemRepository:
         ``pgvector_available: true`` while every dense query silently
         degraded to the lexical leg.
         """
-        from backend.core.config import settings
-
         if Vector is None:
             return ("postgres", False)
-        column_name = (
-            "embedding_v2" if settings.embedding_version == "v2" else "embedding"
-        )
+        column_name = "embedding_v2"
         with self._session_factory() as session:
             if session.bind is None or session.bind.dialect.name != "postgresql":
                 return ("unavailable", False)
@@ -566,7 +517,7 @@ class SQLAlchemyProblemRepository:
             )
         scored: list[tuple[float, ProblemORM]] = []
         for row in rows:
-            score = _cosine(query_embedding, _read_active_embedding(row))
+            score = _cosine(query_embedding, row.embedding_v2)
             if score > 0.0:
                 scored.append((score, row))
         scored.sort(key=lambda item: item[0], reverse=True)
@@ -594,7 +545,7 @@ class SQLAlchemyProblemRepository:
             existing.error_signature = problem.error_signature
             existing.environment = problem.environment
             existing.tags = problem.tags
-            _write_active_embedding(existing, problem.embedding)
+            existing.embedding_v2 = problem.embedding
             existing.best_confidence = problem.best_confidence
             existing.solution_count = problem.solution_count
             existing.version = problem.version + 1
@@ -610,22 +561,13 @@ class SQLAlchemyProblemRepository:
             session.merge(existing)
             session.commit()
 
-    def update_embedding_v2(
-        self, problem_id: UUID, embedding: list[float] | None
-    ) -> None:
-        """Write only the ``embedding_v2`` column for an existing problem.
+    def update_embedding(self, problem_id: UUID, embedding: list[float] | None) -> None:
+        """Write the Workers AI embedding during corpus backfill.
 
-        Used by:
-
-        * ``backend/scripts/reembed_corpus.py`` — bulk backfill from Voyage.
-        * ``AgentbookService`` dual-write during the
-          ``EMBEDDING_VERSION=v1`` window with ``VOYAGE_API_KEY`` set, so new
-          problems land both columns simultaneously and the eventual flip is
-          a no-op for new rows.
-
-        Does NOT bump ``version`` — this is a side-channel write that should
-        never trigger optimistic-lock contention with the primary write
-        path."""
+        This side-channel does not bump ``version`` and is intentionally
+        separate from the primary problem update path so re-embedding cannot
+        trigger optimistic-lock contention.
+        """
         with self._session_factory() as session:
             existing = session.get(ProblemORM, str(problem_id))
             if existing is None:

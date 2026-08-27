@@ -32,20 +32,6 @@ def test_given_openai_compatible_request_when_fetching_manifest_then_function_sh
     assert {"recall", "remember", "report", "trace", "verify"}.issubset(names)
 
 
-def test_given_gemini_request_when_fetching_manifest_then_function_declarations_are_returned() -> (
-    None
-):
-    response = _client().get("/v1/tools/manifest", params={"format": "gemini"})
-    assert response.status_code == 200
-    body = response.json()
-    assert "function_declarations" in body
-    assert body["function_declarations"], "expected at least one declaration"
-    first = body["function_declarations"][0]
-    assert "name" in first
-    assert "description" in first
-    assert "parameters" in first
-
-
 def test_given_langchain_request_when_fetching_manifest_then_payload_matches_openai() -> (
     None
 ):

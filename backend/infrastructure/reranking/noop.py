@@ -1,10 +1,8 @@
 """Identity-order reranker.
 
-Used in two scenarios:
-
-* No ``VOYAGE_API_KEY`` configured (local dev, CI, anonymous tier ops).
-* ``VoyageReranker`` exhausts its token bucket or hits a 429 — it falls back
-  to this implementation rather than propagate the failure.
+Used when the Cloudflare Workers AI reranker is unavailable (local
+development, CI, or an upstream failure). It falls back to this implementation
+rather than propagating the failure.
 
 Returning the identity ordering means the search result still surfaces in
 ``similarity_score`` order from Phase 1, which already eliminates the 27%

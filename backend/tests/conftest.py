@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from uuid import uuid4
 
@@ -31,36 +30,16 @@ def _disabled(lim):
 
 @pytest.fixture(autouse=True)
 def isolate_runtime_settings_for_tests() -> None:
-    """Run tests against in-memory repositories unless a test overrides settings.
-
-    ``database_url`` / ``debug`` are clobbered unconditionally so every test
-    still uses the in-memory repos. The Gemini, Voyage and OpenRouter keys are
-    clobbered only when ``RUN_REAL_EVAL`` is unset — the real-mode
-    retrieval-quality eval (``backend/tests/eval/test_retrieval_quality.py``)
-    opts in by exporting ``RUN_REAL_EVAL=1``, at which point we let whatever
-    the operator already loaded from the root ``.env`` flow through to the
-    service.
-    """
+    """Run tests against in-memory repositories and debug settings."""
     original_database_url = app_settings.database_url
-    original_gemini_api_key = app_settings.gemini_api_key
-    original_openrouter_api_key = app_settings.openrouter_api_key
-    original_voyage_api_key = app_settings.voyage_api_key
     original_debug = app_settings.debug
 
     app_settings.database_url = None
-    if not os.environ.get("RUN_REAL_EVAL"):
-        app_settings.gemini_api_key = None
-        app_settings.openrouter_api_key = None
-        app_settings.voyage_api_key = None
     app_settings.debug = True
-
     try:
         yield
     finally:
         app_settings.database_url = original_database_url
-        app_settings.gemini_api_key = original_gemini_api_key
-        app_settings.openrouter_api_key = original_openrouter_api_key
-        app_settings.voyage_api_key = original_voyage_api_key
         app_settings.debug = original_debug
 
 
@@ -257,7 +236,7 @@ class _FaultEmbeddingProvider:
       so latency budgets can be asserted without a real network round-trip.
     * ``"failing"`` — raises, exercising the service's swallow-and-fallback path.
     * ``"dimension_mismatch"`` — returns a vector of the wrong length, exercising
-      the misconfig guard (Voyage 1024-dim vs legacy ``vector(1536)``).
+      validation at the service boundary.
     """
 
     def __init__(self, mode: str, *, delay_seconds: float = 0.5) -> None:

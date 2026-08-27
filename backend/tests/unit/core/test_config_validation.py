@@ -2,7 +2,7 @@
 
 Covers:
 - Permissive CORS rejected in production (was warning, now hard-fail)
-- Voyage + EMBEDDING_VERSION=v1 rejected in production (dim mismatch)
+- Workers AI Gateway authentication and dimension validation
 - Permissive CORS no warning in debug mode
 
 The legacy ``secret_key`` validation was removed in 2026-05 — the field
@@ -35,12 +35,9 @@ class TestProductionCorsValidation:
         monkeypatch.setenv("DEBUG", "false")
         monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
         monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
-        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
-
         settings = Settings()
         settings.ai_gateway_base_url = "https://gateway.example"
         settings.ai_gateway_auth_token = "gateway-token"
-        settings.embedding_version = "v2"
         validate_production_settings(settings)
         assert "*" not in settings.cors_allow_origins
 
@@ -53,58 +50,9 @@ class TestProductionCorsValidation:
 
 
 class TestEmbeddingDimensionValidation:
-    """Voyage outputs 1024-dim vectors; the legacy ``problems.embedding``
-    column is ``vector(1536)``. With ``EMBEDDING_VERSION=v1`` writes
-    target the legacy column and pgvector rejects the dim mismatch on
-    commit. We hard-fail at boot in this exact configuration."""
-
-    def test_voyage_with_v1_column_is_rejected_in_production(self, monkeypatch):
-        monkeypatch.setenv("VOYAGE_API_KEY", "vk-test")
-        monkeypatch.setenv("EMBEDDING_VERSION", "v1")
-        monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
-        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
-        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
-        monkeypatch.setenv("DEBUG", "false")
-
-        settings = Settings()
-        settings.ai_gateway_base_url = "https://gateway.example"
-        settings.ai_gateway_auth_token = "gateway-token"
-        with pytest.raises(ValueError, match="EMBEDDING_VERSION"):
-            validate_production_settings(settings)
-
-    def test_voyage_with_v2_column_is_accepted_in_production(self, monkeypatch):
-        monkeypatch.setenv("VOYAGE_API_KEY", "vk-test")
-        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
-        monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
-        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
-        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
-        monkeypatch.setenv("DEBUG", "false")
-
-        settings = Settings()
-        settings.ai_gateway_base_url = "https://gateway.example"
-        settings.ai_gateway_auth_token = "gateway-token"
-        validate_production_settings(settings)
-
-    def test_no_voyage_key_passes_either_version(self, monkeypatch):
-        # Without a dense key the OpenRouter / Fallback chain runs at
-        # whatever dim the active column expects. The startup check
-        # only fires for the specific Voyage+v1 / Gemini-mismatch cases.
-        # Keep hermetic: the repo .env (read directly by pydantic-settings) may
-        # carry a real VOYAGE_API_KEY / GEMINI_API_KEY. An empty env var
-        # outranks the .env file, so it cleanly exercises the no-key path.
-        monkeypatch.setenv("VOYAGE_API_KEY", "")
-        monkeypatch.setenv("GEMINI_API_KEY", "")
-        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
-        monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
-        monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
-        monkeypatch.setenv("CORS_ALLOW_ORIGINS", "https://app.example.com")
-        monkeypatch.setenv("DEBUG", "false")
-
-        settings = Settings()
-        validate_production_settings(settings)
+    """Workers AI Gateway embeddings require the 1024-dimensional column."""
 
     def test_gateway_embedding_dimension_must_match_active_column(self, monkeypatch):
-        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
         monkeypatch.setenv("EMBEDDING_DIMENSION", "768")
         monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
         monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")
@@ -117,8 +65,7 @@ class TestEmbeddingDimensionValidation:
         with pytest.raises(ValueError, match="EMBEDDING_DIMENSION"):
             validate_production_settings(settings)
 
-    def test_gateway_with_v2_column_is_accepted_in_production(self, monkeypatch):
-        monkeypatch.setenv("EMBEDDING_VERSION", "v2")
+    def test_gateway_with_valid_dimension_is_accepted_in_production(self, monkeypatch):
         monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
         monkeypatch.setenv("AI_GATEWAY_BASE_URL", "https://gateway.example")
         monkeypatch.setenv("AI_GATEWAY_AUTH_TOKEN", "gateway-token")

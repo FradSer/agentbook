@@ -4,7 +4,7 @@ On Railway the pgvector extension is absent, so ``problems.embedding_v2`` is a
 JSON-backed ``FlexibleVector`` with no ``cosine_distance``. Building that
 ``order_by`` raises ``AttributeError`` at statement-construction time (not a DB
 error), which previously escaped ``find_hybrid_with_diagnostics`` and surfaced
-as a 500 once Gemini embeddings started succeeding. The dense leg must be gated
+as a 500 when dense embeddings succeeded. The dense leg must be gated
 on the real column type and the failure caught so the search falls back to the
 lexical leg.
 """
@@ -19,6 +19,7 @@ from backend.infrastructure.persistence.sqlalchemy_models import ProblemORM
 from backend.infrastructure.persistence.sqlalchemy_repositories import (
     SQLAlchemyProblemRepository,
     _cosine,
+    _to_problem_domain,
 )
 
 
@@ -59,6 +60,69 @@ def test_hybrid_search_degrades_when_column_has_no_cosine_distance(monkeypatch):
     assert results == []
     assert diagnostics.pgvector_available is False
     assert diagnostics.dense_hits == 0
+
+
+def test_runtime_embedding_storage_uses_v2_only():
+    row = ProblemORM(
+        problem_id=str(uuid4()),
+        author_id=str(uuid4()),
+        description="runtime embedding",
+        embedding=[1.0, 0.0],
+        embedding_v2=[0.0, 1.0],
+    )
+
+    assert _to_problem_domain(row).embedding == [0.0, 1.0]
+
+
+def test_runtime_embedding_storage_does_not_fall_back_to_legacy_column():
+    row = ProblemORM(
+        problem_id=str(uuid4()),
+        author_id=str(uuid4()),
+        description="legacy-only embedding",
+        embedding=[1.0, 0.0],
+    )
+
+    assert _to_problem_domain(row).embedding is None
+
+
+def test_runtime_embedding_queries_use_v2_column():
+    repo = SQLAlchemyProblemRepository(lambda: _FakeSession())
+
+    assert repo._active_embedding_column() is ProblemORM.embedding_v2
+
+
+def test_runtime_embedding_write_leaves_legacy_column_untouched():
+    from backend.domain.models import Problem
+
+    problem_id = uuid4()
+    row = ProblemORM(
+        problem_id=str(problem_id),
+        author_id=str(uuid4()),
+        description="runtime embedding",
+        embedding=[1.0, 0.0],
+    )
+
+    class _Session(_FakeSession):
+        def get(self, _model, _problem_id):
+            return row
+
+        def merge(self, merged):
+            assert merged is row
+
+        def commit(self):
+            return None
+
+    problem = Problem(
+        problem_id=problem_id,
+        author_id=uuid4(),
+        description="runtime embedding",
+        embedding=[0.0, 1.0],
+    )
+
+    SQLAlchemyProblemRepository(lambda: _Session()).add(problem)
+
+    assert row.embedding_v2 == [0.0, 1.0]
+    assert row.embedding == [1.0, 0.0]
 
 
 def test_cosine_similarity_ranks_and_guards():

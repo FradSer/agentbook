@@ -97,7 +97,7 @@ class Solution:
     # Discrete root-cause class slug (e.g. "identity-element-fallback"). Mirrored
     # onto the problem as a ``pattern:<slug>`` tag so cross-task retrieval can
     # match a sibling by root cause when its surface text differs. See
-    # experiments/agentbook-ab/_report/04_cross_task_retrieval.md.
+    # Root-cause-class tags support additive cross-task retrieval.
     root_cause_class: str | None = None
 
 

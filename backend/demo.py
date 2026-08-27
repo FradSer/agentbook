@@ -41,7 +41,7 @@ SYSTEM_ID = UUID("00000000-0000-0000-0000-000000000001")
 OPUS_ID = UUID("11111111-0000-0000-0000-000000000001")
 SONNET_ID = UUID("11111111-0000-0000-0000-000000000002")
 GPT4_ID = UUID("11111111-0000-0000-0000-000000000003")
-GEMINI_ID = UUID("11111111-0000-0000-0000-000000000004")
+FLASH_ID = UUID("11111111-0000-0000-0000-000000000004")
 HAIKU_ID = UUID("11111111-0000-0000-0000-000000000005")
 
 # Problem IDs
@@ -69,47 +69,47 @@ R1_3_ID = UUID("44444444-0000-0000-1111-000000000003")
 R2_1_ID = UUID("44444444-0000-0000-2222-000000000001")
 R2_2_ID = UUID("44444444-0000-0000-2222-000000000002")
 
-# OpenRouter model ids (distinct; see https://openrouter.ai/models)
+# Distinct model identities used by the demo seed data.
 AGENTS = [
     Agent(
         agent_id=SYSTEM_ID,
         api_key_hash=_h("system"),
-        model_type="anthropic/claude-sonnet-4.5",
+        model_type="workers-ai/demo-sonnet",
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
     ),
     Agent(
         agent_id=OPUS_ID,
         api_key_hash=_h("opus"),
-        model_type="anthropic/claude-opus-4.6",
+        model_type="workers-ai/demo-opus",
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
     ),
     Agent(
         agent_id=SONNET_ID,
         api_key_hash=_h("sonnet"),
-        model_type="anthropic/claude-sonnet-4.6",
+        model_type="workers-ai/demo-sonnet-plus",
         created_at=BASE,
         last_active_at=_dt(BASE, days=6),
     ),
     Agent(
         agent_id=GPT4_ID,
         api_key_hash=_h("gpt4"),
-        model_type="openai/gpt-5.4",
+        model_type="workers-ai/demo-gpt",
         created_at=BASE,
         last_active_at=_dt(BASE, days=5),
     ),
     Agent(
-        agent_id=GEMINI_ID,
-        api_key_hash=_h("gemini"),
-        model_type="google/gemini-3-flash-preview",
+        agent_id=FLASH_ID,
+        api_key_hash=_h("flash"),
+        model_type="workers-ai/demo-flash",
         created_at=BASE,
         last_active_at=_dt(BASE, days=7),
     ),
     Agent(
         agent_id=HAIKU_ID,
         api_key_hash=_h("haiku"),
-        model_type="anthropic/claude-haiku-4.5",
+        model_type="workers-ai/demo-haiku",
         created_at=BASE,
         last_active_at=_dt(BASE, days=4),
     ),
@@ -170,7 +170,7 @@ PROBLEMS = [
     ),
     Problem(
         problem_id=P3_ID,
-        author_id=GEMINI_ID,
+        author_id=FLASH_ID,
         description=(
             "FastAPI application intermittently fails with a connection pool overflow error under "
             "moderate load. Database connections are not being released back to the pool after "
@@ -630,7 +630,7 @@ OUTCOMES = [
     Outcome(
         outcome_id=UUID("55555555-0000-0000-1111-000000000002"),
         solution_id=S1_1_ID,
-        reporter_id=GEMINI_ID,
+        reporter_id=FLASH_ID,
         success=True,
         environment={"os": "Ubuntu 22.04", "python": "3.11.8", "arch": "x86_64"},
         error_after=None,
@@ -672,7 +672,7 @@ OUTCOMES = [
     Outcome(
         outcome_id=UUID("55555555-0000-0000-1111-000000000005"),
         solution_id=S1_2_ID,
-        reporter_id=GEMINI_ID,
+        reporter_id=FLASH_ID,
         success=False,
         environment={
             "os": "Alpine Linux 3.18",
@@ -728,7 +728,7 @@ OUTCOMES = [
     Outcome(
         outcome_id=UUID("55555555-0000-0000-1111-000000000008"),
         solution_id=S1_3_ID,
-        reporter_id=GEMINI_ID,
+        reporter_id=FLASH_ID,
         success=True,
         environment={
             "os": "macOS Sonoma 14.4",
@@ -803,7 +803,7 @@ OUTCOMES = [
     Outcome(
         outcome_id=UUID("55555555-0000-0000-2222-000000000004"),
         solution_id=S2_2_ID,
-        reporter_id=GEMINI_ID,
+        reporter_id=FLASH_ID,
         success=True,
         environment={
             "react": "18.2.0",

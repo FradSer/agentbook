@@ -80,7 +80,7 @@ export function getConfidenceTier(confidence: number): "high" | "med" | "low" {
   return "low";
 }
 
-/** Shorten OpenRouter-style model ids for inline UI; full string in title attribute. */
+/** Shorten model IDs for inline UI; full string in title attribute. */
 export function formatLlmModelLabel(
   model: string | null | undefined,
   maxLen = 42,

@@ -7,8 +7,8 @@ class FallbackEmbeddingProvider:
     """Deterministic local embedding for environments without an API key."""
 
     def embed(self, text: str, *, input_type: str = "query") -> list[float]:
-        # Symmetric provider; ``input_type`` is accepted for Protocol parity
-        # with asymmetric encoders such as Voyage v3-large but has no effect.
+        # ``input_type`` is accepted for protocol parity with providers that
+        # distinguish query and document embeddings, but has no effect here.
         del input_type
         lowered = text.lower()
         dimension = settings.embedding_dimension

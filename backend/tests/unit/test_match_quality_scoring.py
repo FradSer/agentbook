@@ -147,7 +147,7 @@ def test_high_raw_score_alone_promotes_to_strong_under_real_provider():
     # The vector-score promotion requires a trusted embedding provider; under
     # the deterministic fallback the same score caps at "partial" (see
     # test_fallback_label_cap.py / fallback-label-cap.feature).
-    service = _make_service(embedding_provider_name="gemini")
+    service = _make_service(embedding_provider_name="workers-ai")
     p = _problem(description="any description", error_signature=None)
     quality, reasons, _ = service._classify_match_quality(
         p, "totally different query terms here", raw_score=0.85

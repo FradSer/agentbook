@@ -1,20 +1,17 @@
-"""Backfill ``problems.embedding_v2`` with the configured embedding provider.
+"""Backfill missing Workers AI embeddings for approved problems.
 
 Iterates approved problems in batches, embeds them with
 ``input_type="document"`` at ``EMBEDDING_DIMENSION`` dimensions, and writes
-them to ``problems.embedding_v2`` via the side-channel ``update_embedding_v2``
-method. The provider is whatever ``resolve_search_stack`` selects (Gemini →
-Voyage → OpenRouter → Fallback), so a model/provider change is picked up by
-re-running with ``--force``.
+them through a side-channel update. Embeddings use Cloudflare Workers AI
+through the AI Gateway. Re-run with ``--force`` after changing the model.
 
-Idempotent + resumable: ``WHERE embedding_v2 IS NULL`` is the natural
-checkpoint — re-running picks up where a crashed run left off. Use
-``--force`` to re-embed every problem (e.g., after a model change).
+Rows without an embedding are the natural checkpoint. Use ``--force`` to
+re-embed every problem.
 
 Usage::
 
     DATABASE_URL=postgresql://... \\
-    AI_GATEWAY_BASE_URL=... AI_GATEWAY_AUTH_TOKEN=... EMBEDDING_VERSION=v2 \\
+    AI_GATEWAY_BASE_URL=... AI_GATEWAY_AUTH_TOKEN=... \\
     uv run python -m backend.scripts.reembed_corpus [--dry-run] [--batch 128] [--force]
 """
 
@@ -34,7 +31,7 @@ def _build_provider():
 
     Uses the same resolver as the live API (``resolve_search_stack``) so the
     backfill embeds with whatever provider production runs. Refuses the
-    deterministic Fallback — backfilling with it would poison ``embedding_v2``
+    deterministic Fallback — backfilling with it would poison stored vectors
     with non-semantic vectors.
     """
     from backend.infrastructure.embeddings.fallback import FallbackEmbeddingProvider
@@ -111,7 +108,7 @@ def reembed(batch_size: int, dry_run: bool, force: bool) -> int:
         for problem_id, vector in zip(ids, vectors, strict=True):
             from uuid import UUID
 
-            repo.update_embedding_v2(UUID(problem_id), vector)
+            repo.update_embedding(UUID(problem_id), vector)
         processed += len(chunk)
         logger.info(
             "batch-done offset=%d size=%d embed_ms=%d processed=%d/%d",
@@ -137,7 +134,7 @@ def main() -> int:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="re-embed every approved problem (default: only NULL embedding_v2)",
+        help="re-embed every approved problem (default: only missing embeddings)",
     )
     args = parser.parse_args()
 
