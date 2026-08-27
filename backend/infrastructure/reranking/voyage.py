@@ -157,17 +157,16 @@ class VoyageReranker:
 
 
 def resolve_rerank_fn() -> RerankFn:
-    """Build a Gateway Voyage reranker; otherwise use NoOp locally."""
+    """Use Cloudflare Workers AI in production; keep direct mode for tests."""
     if not settings.rerank_enabled:
         return noop_rerank
     if settings.ai_gateway_base_url:
-        # Production uses Cloudflare-hosted Gateway models only. Voyage is
-        # retained as a directly constructible local compatibility adapter, but
-        # no external reranker route is selected by the production resolver.
-        return noop_rerank
+        from backend.infrastructure.reranking.cloudflare import resolve_rerank_fn
+
+        return resolve_rerank_fn()
     if voyageai is not None and settings.voyage_api_key:
         return VoyageReranker(
             api_key=settings.voyage_api_key,
-            model=settings.voyage_rerank_model,
+            model="rerank-2.5-lite",
         )
     return noop_rerank

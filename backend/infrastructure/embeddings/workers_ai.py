@@ -6,7 +6,7 @@ import httpx
 
 from backend.core.config import settings
 
-_DEFAULT_MODEL = "@cf/baai/bge-large-en-v1.5"
+_DEFAULT_MODEL = "@cf/baai/bge-m3"
 _DEFAULT_TIMEOUT_SECONDS = 5.0
 
 

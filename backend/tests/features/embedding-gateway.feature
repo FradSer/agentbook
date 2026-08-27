@@ -17,7 +17,7 @@ Feature: Embedding providers route through the AI Gateway
     Given a Cloudflare Workers AI embedding provider is built in Gateway mode
     When an embedding is requested
     Then the request posts to the Cloudflare AI REST /ai/run endpoint
-    And uses the @cf/baai/bge-large-en-v1.5 model
+    And uses the @cf/baai/bge-m3 model
     And returns a 1024-dimensional vector
     And carries only account authorization and cf-aig-gateway-id
 

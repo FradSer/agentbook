@@ -47,8 +47,8 @@ class Settings(SharedSettings):
     # Cloudflare-hosted embedding model used through the AI Gateway. The
     # documented bge-large-en-v1.5 model emits exactly 1024 dimensions, which
     # matches the active embedding_v2 pgvector column.
-    workers_ai_embedding_model: str = "@cf/baai/bge-large-en-v1.5"
-    # Local-only compatibility settings; Railway production ignores these.
+    workers_ai_embedding_model: str = "@cf/baai/bge-m3"
+    # Legacy names remain for direct-mode tests and local development only.
     gemini_embedding_model: str = "gemini-embedding-001"
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
     voyage_embedding_model: str = "voyage-3-large"
@@ -60,11 +60,11 @@ class Settings(SharedSettings):
     ai_gateway_base_url: str | None = None
     ai_gateway_auth_token: str | None = None
     ai_gateway_id: str = "agentbook-gw"
+    workers_ai_rerank_model: str = "@cf/baai/bge-reranker-base"
 
     # Search reranking configuration. ``rerank_top_k`` is the candidate pool
-    # size handed to the reranker before final truncation to ``limit``.
-    # ``rerank_enabled`` lets operators kill-switch the reranker without
-    # redeploy if Voyage has an outage.
+    # size handed to the Cloudflare Workers AI reranker before final truncation
+    # to ``limit``.
     rerank_enabled: bool = True
     rerank_top_k: int = 30
 
@@ -80,9 +80,8 @@ class Settings(SharedSettings):
     evaluator_model: str = "workers-ai/@cf/zai-org/glm-4.7-flash"
 
     # LLM Book Synthesizer (optional — distils a campaign bundle into one
-    # unified-memory book on POST /v1/books / MCP compile_book). Reuses the
-    # OpenRouter credential; when unset the endpoint returns a mechanical
-    # render labelled "unrefined" instead of refusing.
+    # unified-memory book on POST /v1/books / MCP compile_book). Uses the
+    # Cloudflare Workers AI Gateway model.
     book_synthesis_model: str = "workers-ai/@cf/zai-org/glm-4.7-flash"
 
     # Sandbox execution

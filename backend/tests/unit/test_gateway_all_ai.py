@@ -40,7 +40,7 @@ def test_workers_ai_embedding_gateway_sends_only_gateway_auth() -> None:
     assert seen["headers"]["authorization"] == f"Bearer {TOKEN}"
     assert seen["headers"]["cf-aig-gateway-id"] == "agentbook-gw"
     assert "x-provider-key" not in seen["headers"]
-    assert b"@cf/baai/bge-large-en-v1.5" in seen["body"]
+    assert b"@cf/baai/bge-m3" in seen["body"]
 
 
 def test_reranker_gateway_sends_only_gateway_auth() -> None:

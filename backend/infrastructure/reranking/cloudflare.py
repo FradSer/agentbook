@@ -71,6 +71,7 @@ def resolve_rerank_fn() -> RerankFn:
         return noop_rerank
     account_id = parts[-2]
     return CloudflareReranker(
+        model=settings.workers_ai_rerank_model,
         account_id=account_id,
         auth_token=settings.ai_gateway_auth_token,
         gateway_id=settings.ai_gateway_id,
