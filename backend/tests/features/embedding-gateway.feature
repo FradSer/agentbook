@@ -10,33 +10,28 @@ Feature: Embedding providers route through the AI Gateway
   agentbook-gw; the backend embedding chain was the last bare-key surface.
 
   Background:
-    Given the embedding gateway base URL and auth token are configured
-
-  Scenario: Voyage routes through the gateway with gateway auth header
-    Given a voyage provider built in gateway mode
-    When an embedding is requested
-    Then the request posts to {gateway}/custom-voyage/v1/embeddings
-    And carries only cf-aig-authorization from the configured token
-    And does not carry a Voyage provider key
+    Given the AI Gateway base URL and auth token are configured
+    And the Gateway routes to Cloudflare Workers AI models
 
   Scenario: Workers AI embeddings route through the gateway
-    Given a Cloudflare Workers AI embedding provider is built in gateway mode
+    Given a Cloudflare Workers AI embedding provider is built in Gateway mode
     When an embedding is requested
-    Then the request posts to {gateway}/compat/embeddings
-    And uses a workers-ai model
-    And carries only cf-aig-authorization
+    Then the request posts to the Cloudflare AI REST /ai/run endpoint
+    And uses the @cf/baai/bge-large-en-v1.5 model
+    And returns a 1024-dimensional vector
+    And carries only account authorization and cf-aig-gateway-id
 
   Scenario: Gateway mode never sends raw provider credentials
     Given only Cloudflare-hosted Gateway models are configured
     When any Gateway model request is made
     Then no provider API key is present in the request headers
-    And only cf-aig-authorization authenticates the gateway
+    And only the Cloudflare account authorization and gateway id are sent
 
-  Scenario: Gateway mode does not construct removed provider routes
-    Given Gemini and OpenRouter Gateway configurations have been removed
+  Scenario: Gateway mode does not construct external provider routes
+    Given all third-party Gateway provider configurations are removed
     When the production search stack is resolved
     Then the embedding provider is a Cloudflare Workers AI model
-    And no Gemini or OpenRouter route is attempted
+    And no external provider route is attempted
 
   Scenario: Gateway configuration is valid without provider keys
     Given the gateway base URL and auth token are configured
@@ -49,11 +44,12 @@ Feature: Embedding providers route through the AI Gateway
     When providers are constructed with direct keys
     Then requests go directly to provider APIs exactly as before
 
-  Scenario: Gateway mode does not report the reranker as NoOp
-    Given the Voyage provider is configured in Gateway BYOK mode
+  Scenario: Gateway mode uses only Cloudflare-hosted models
+    Given the production Gateway has no third-party provider configurations
     When the application service is composed
-    Then the Gateway reranker is treated as configured
-    And no stale VOYAGE_API_KEY warning is emitted
+    Then the embedding provider is a Cloudflare Workers AI model
+    And the reranker is the Cloudflare Workers AI bge-reranker-base model
+    And no provider API key is required
 
   Scenario: Workers AI model supports multi-turn tool calling
     Given the worker uses a Workers AI Gateway model

@@ -48,29 +48,18 @@ class Settings(SharedSettings):
     # documented bge-large-en-v1.5 model emits exactly 1024 dimensions, which
     # matches the active embedding_v2 pgvector column.
     workers_ai_embedding_model: str = "@cf/baai/bge-large-en-v1.5"
-    # Direct-provider model names remain for local development compatibility;
-    # Railway production resolution never selects these routes.
+    # Local-only compatibility settings; Railway production ignores these.
     gemini_embedding_model: str = "gemini-embedding-001"
     openrouter_embedding_model: str = "openai/text-embedding-3-small"
-    embedding_dimension: int = 1024
-
-    # Voyage AI commercial models. ``voyage-3-large`` is the engineering-text
-    # tuned embedder; ``rerank-2.5-lite`` is the latency-optimised cross
-    # encoder (full ``rerank-2.5`` is reserved for the offline Reviewer pass
-    # in a future Phase 4). Voyage rerank caps at 100 requests/minute per
-    # account so the in-process token bucket in
-    # ``backend/infrastructure/reranking/voyage.py`` mirrors that limit.
     voyage_embedding_model: str = "voyage-3-large"
     voyage_rerank_model: str = "rerank-2.5-lite"
+    embedding_dimension: int = 1024
 
-    # Cloudflare AI Gateway routing for every production AI call
-    # (agentbook-gw). When configured, the API process sends only the Gateway
-    # auth token. Cloudflare-hosted Workers AI handles embeddings and chat;
-    # Voyage reranking remains an optional Gateway BYOK route. Unset keeps
-    # direct provider calls for local development compatibility.
+    # Cloudflare AI Gateway routes all production AI calls through the
+    # Cloudflare-hosted Workers AI models.
     ai_gateway_base_url: str | None = None
     ai_gateway_auth_token: str | None = None
-    ai_gateway_voyage_slug: str = "custom-voyage"
+    ai_gateway_id: str = "agentbook-gw"
 
     # Search reranking configuration. ``rerank_top_k`` is the candidate pool
     # size handed to the reranker before final truncation to ``limit``.

@@ -10,7 +10,7 @@ import httpx
 from backend.core.config import Settings, validate_production_settings
 from backend.infrastructure.embeddings.workers_ai import WorkersAIEmbeddingProvider
 from backend.infrastructure.evaluation.llm_evaluator import LLMEvaluatorProvider
-from backend.infrastructure.reranking.voyage import VoyageReranker
+from backend.infrastructure.reranking.cloudflare import CloudflareReranker
 from backend.infrastructure.synthesis.book_synthesizer import LLMBookSynthesizer
 
 BASE = "https://gateway.ai.cloudflare.com/v1/acct/agentbook-gw"
@@ -28,7 +28,7 @@ def test_workers_ai_embedding_gateway_sends_only_gateway_auth() -> None:
         seen.update(
             url=str(request.url), headers=dict(request.headers), body=request.read()
         )
-        return httpx.Response(200, json={"data": [{"embedding": [0.1, 0.2]}]})
+        return httpx.Response(200, json={"result": {"data": [[0.1, 0.2]]}})
 
     provider = WorkersAIEmbeddingProvider(
         base_url=BASE,
@@ -36,10 +36,11 @@ def test_workers_ai_embedding_gateway_sends_only_gateway_auth() -> None:
         http_client=_json_client(handler),
     )
     assert provider.embed("probe") == [0.1, 0.2]
-    assert seen["url"] == f"{BASE}/compat/embeddings"
-    assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
-    assert "authorization" not in seen["headers"]
-    assert b"workers-ai/@cf/baai/bge-large-en-v1.5" in seen["body"]
+    assert seen["url"] == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"
+    assert seen["headers"]["authorization"] == f"Bearer {TOKEN}"
+    assert seen["headers"]["cf-aig-gateway-id"] == "agentbook-gw"
+    assert "x-provider-key" not in seen["headers"]
+    assert b"@cf/baai/bge-large-en-v1.5" in seen["body"]
 
 
 def test_reranker_gateway_sends_only_gateway_auth() -> None:
@@ -50,23 +51,27 @@ def test_reranker_gateway_sends_only_gateway_auth() -> None:
         return httpx.Response(
             200,
             json={
-                "data": [
-                    {"index": 1, "relevance_score": 0.9},
-                    {"index": 0, "relevance_score": 0.1},
-                ]
+                "result": {
+                    "response": [
+                        {"id": 1, "score": 0.9},
+                        {"id": 0, "score": 0.1},
+                    ]
+                }
             },
         )
 
-    reranker = VoyageReranker(
-        api_key=None,
-        base_url=f"{BASE}/custom-voyage",
+    reranker = CloudflareReranker(
+        base_url=BASE,
         auth_token=TOKEN,
+        account_id="acct",
+        gateway_id="agentbook-gw",
         http_client=_json_client(handler),
     )
     assert reranker("q", ["a", "b"], 2) == [1, 0]
-    assert seen["url"] == f"{BASE}/custom-voyage/v1/rerank"
-    assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
-    assert "authorization" not in seen["headers"]
+    assert seen["url"] == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"
+    assert seen["headers"]["authorization"] == f"Bearer {TOKEN}"
+    assert seen["headers"]["cf-aig-gateway-id"] == "agentbook-gw"
+    assert "x-provider-key" not in seen["headers"]
 
 
 def test_evaluator_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
@@ -76,7 +81,11 @@ def test_evaluator_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
         seen.update(url=str(request.url), headers=dict(request.headers))
         return httpx.Response(
             200,
-            json={"choices": [{"message": {"content": json.dumps({"score": 0.8})}}]},
+            json={
+                "result": {
+                    "choices": [{"message": {"content": json.dumps({"score": 0.8})}}]
+                }
+            },
         )
 
     with patch(
@@ -91,9 +100,10 @@ def test_evaluator_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
             http_client=_json_client(handler),
         )
         assert evaluator.compare("p", "a", "b") == 0.8
-    assert seen["url"] == f"{BASE}/compat/chat/completions"
-    assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
-    assert "authorization" not in seen["headers"]
+    assert seen["url"] == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"
+    assert seen["headers"]["authorization"] == f"Bearer {TOKEN}"
+    assert seen["headers"]["cf-aig-gateway-id"] == "agentbook-gw"
+    assert "x-provider-key" not in seen["headers"]
 
 
 def test_synthesizer_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
@@ -103,7 +113,7 @@ def test_synthesizer_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
         seen.update(url=str(request.url), headers=dict(request.headers))
         return httpx.Response(
             200,
-            json={"choices": [{"message": {"content": "# distilled"}}]},
+            json={"result": {"choices": [{"message": {"content": "# distilled"}}]}},
         )
 
     synthesizer = LLMBookSynthesizer(
@@ -114,9 +124,10 @@ def test_synthesizer_gateway_uses_workers_ai_and_only_gateway_auth() -> None:
         http_client=_json_client(handler),
     )
     assert synthesizer.synthesize({"source": "x"}) == "# distilled"
-    assert seen["url"] == f"{BASE}/compat/chat/completions"
-    assert seen["headers"]["cf-aig-authorization"] == f"Bearer {TOKEN}"
-    assert "authorization" not in seen["headers"]
+    assert seen["url"] == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"
+    assert seen["headers"]["authorization"] == f"Bearer {TOKEN}"
+    assert seen["headers"]["cf-aig-gateway-id"] == "agentbook-gw"
+    assert "x-provider-key" not in seen["headers"]
 
 
 def test_gateway_only_production_config_is_valid() -> None:

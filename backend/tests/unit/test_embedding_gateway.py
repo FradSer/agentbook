@@ -5,7 +5,6 @@ from __future__ import annotations
 import httpx
 
 from backend.core.config import settings
-from backend.infrastructure.embeddings.voyage import VoyageEmbeddingProvider
 from backend.infrastructure.embeddings.workers_ai import WorkersAIEmbeddingProvider
 
 _GATEWAY = "https://gateway.ai.cloudflare.com/v1/acct/agentbook-gw"
@@ -15,39 +14,43 @@ def _mock_client(handler) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler))
 
 
-def test_voyage_gateway_mode_posts_to_gateway_path_with_auth() -> None:
+def test_workers_ai_gateway_mode_returns_embedding() -> None:
     seen: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["url"] = str(request.url)
-        seen["auth"] = request.headers.get("cf-aig-authorization")
-        seen["voyage_auth"] = request.headers.get("Authorization")
+        seen["auth"] = request.headers.get("Authorization")
+        seen["gateway_id"] = request.headers.get("cf-aig-gateway-id")
+        seen["provider_auth"] = request.headers.get("x-provider-key")
         return httpx.Response(
-            200, json={"data": [{"embedding": [0.1, 0.2], "index": 0}]}
+            200,
+            json={"result": {"data": [[0.1, 0.2]]}},
         )
 
-    provider = VoyageEmbeddingProvider(
-        api_key=None,
-        model="voyage-3-large",
-        base_url=f"{_GATEWAY}/custom-voyage",
+    provider = WorkersAIEmbeddingProvider(
+        base_url=_GATEWAY,
+        account_id="acct",
+        gateway_id="agentbook-gw",
         auth_token="cf-token-1",
         http_client=_mock_client(handler),
     )
     assert provider.embed("probe") == [0.1, 0.2]
-    assert seen["url"] == f"{_GATEWAY}/custom-voyage/v1/embeddings"
+    assert seen["url"] == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"
     assert seen["auth"] == "Bearer cf-token-1"
-    assert seen["voyage_auth"] is None
+    assert seen["gateway_id"] == "agentbook-gw"
+    assert seen["provider_auth"] is None
 
 
-def test_workers_ai_gateway_mode_posts_to_compat_embeddings() -> None:
+def test_workers_ai_gateway_mode_posts_to_rest_embeddings() -> None:
     seen: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["url"] = str(request.url)
-        seen["auth"] = request.headers.get("cf-aig-authorization")
-        seen["provider_auth"] = request.headers.get("Authorization")
+        seen["auth"] = request.headers.get("Authorization")
+        seen["gateway_id"] = request.headers.get("cf-aig-gateway-id")
+        seen["provider_auth"] = request.headers.get("x-provider-key")
         seen["body"] = request.read()
-        return httpx.Response(200, json={"data": [{"embedding": [0.5]}]})
+        return httpx.Response(200, json={"result": {"data": [[0.5]]}})
 
     provider = WorkersAIEmbeddingProvider(
         base_url=_GATEWAY,
@@ -55,10 +58,11 @@ def test_workers_ai_gateway_mode_posts_to_compat_embeddings() -> None:
         http_client=_mock_client(handler),
     )
     assert provider.embed("probe") == [0.5]
-    assert seen["url"] == f"{_GATEWAY}/compat/embeddings"
+    assert seen["url"] == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"
     assert seen["auth"] == "Bearer cf-token-1"
+    assert seen["gateway_id"] == "agentbook-gw"
     assert seen["provider_auth"] is None
-    assert b"workers-ai/@cf/baai/bge-large-en-v1.5" in seen["body"]
+    assert b"@cf/baai/bge-large-en-v1.5" in seen["body"]
 
 
 def test_workers_ai_resolver_uses_gateway_without_provider_key(monkeypatch) -> None:

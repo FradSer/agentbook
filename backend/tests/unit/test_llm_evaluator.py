@@ -119,9 +119,13 @@ def test_resolve_evaluator_provider_returns_none_without_gateway() -> None:
 def test_resolve_evaluator_provider_uses_workers_ai_gateway(monkeypatch) -> None:
     from backend.core.config import settings
 
-    monkeypatch.setattr(settings, "ai_gateway_base_url", "https://gateway.example")
+    monkeypatch.setattr(
+        settings,
+        "ai_gateway_base_url",
+        "https://gateway.ai.cloudflare.com/v1/acct/agentbook-gw",
+    )
     monkeypatch.setattr(settings, "ai_gateway_auth_token", "gateway-token")
     provider = resolve_evaluator_provider()
     assert isinstance(provider, LLMEvaluatorProvider)
     assert provider._model == "workers-ai/@cf/zai-org/glm-4.7-flash"
-    assert provider._url == "https://gateway.example/compat/chat/completions"
+    assert provider._url == "https://api.cloudflare.com/client/v4/accounts/acct/ai/run"

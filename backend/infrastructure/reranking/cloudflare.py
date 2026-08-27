@@ -1,22 +1,24 @@
-"""Cloudflare Workers AI embedding provider through the AI Gateway REST API."""
+"""Cloudflare Workers AI reranking through the AI Gateway REST API."""
 
 from __future__ import annotations
 
 import httpx
 
 from backend.core.config import settings
+from backend.domain.services import RerankFn
+from backend.infrastructure.reranking.noop import noop_rerank
 
-_DEFAULT_MODEL = "@cf/baai/bge-large-en-v1.5"
+_DEFAULT_MODEL = "@cf/baai/bge-reranker-base"
 _DEFAULT_TIMEOUT_SECONDS = 5.0
 
 
-class WorkersAIEmbeddingProvider:
-    """Generate 1024-dimensional embeddings with a Cloudflare-hosted model."""
+class CloudflareReranker:
+    """Rerank candidate documents with a Cloudflare-hosted model."""
 
     def __init__(
         self,
-        model: str = _DEFAULT_MODEL,
         *,
+        model: str = _DEFAULT_MODEL,
         account_id: str | None = None,
         auth_token: str,
         gateway_id: str = "agentbook-gw",
@@ -40,44 +42,35 @@ class WorkersAIEmbeddingProvider:
         }
         self._http = http_client or httpx.Client(timeout=timeout_seconds)
 
-    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+    def __call__(self, query: str, candidates: list[str], top_k: int) -> list[int]:
+        if not candidates:
+            return []
         response = self._http.post(
             self._url,
             headers=self._headers,
             json={
                 "model": self._model,
-                "input": {"text": texts},
+                "input": {
+                    "query": query,
+                    "contexts": [{"text": text} for text in candidates],
+                    "top_k": min(top_k, len(candidates)),
+                },
             },
         )
         response.raise_for_status()
         payload = response.json()
-        result = payload.get("result") or {}
-        data = result.get("data") or []
-        if len(data) != len(texts):
-            raise ValueError("Workers AI Gateway response missing embeddings")
-        if not all(isinstance(vector, list) for vector in data):
-            raise ValueError("Workers AI Gateway response format is invalid")
-        return [[float(value) for value in vector] for vector in data]
-
-    def embed(self, text: str, *, input_type: str = "query") -> list[float]:
-        del input_type
-        return self._embed_batch([text])[0]
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        if not texts:
-            return []
-        return self._embed_batch(texts)
+        rows = (payload.get("result") or {}).get("response") or []
+        return [int(row["id"]) for row in rows]
 
 
-def resolve_embedding_provider() -> WorkersAIEmbeddingProvider | None:
+def resolve_rerank_fn() -> RerankFn:
     if not settings.ai_gateway_base_url or not settings.ai_gateway_auth_token:
-        return None
+        return noop_rerank
     parts = settings.ai_gateway_base_url.rstrip("/").split("/")
     if len(parts) < 2:
-        return None
+        return noop_rerank
     account_id = parts[-2]
-    return WorkersAIEmbeddingProvider(
-        model=settings.workers_ai_embedding_model,
+    return CloudflareReranker(
         account_id=account_id,
         auth_token=settings.ai_gateway_auth_token,
         gateway_id=settings.ai_gateway_id,

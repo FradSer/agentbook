@@ -69,9 +69,14 @@ class LLMBookSynthesizer:
         if self._gateway_mode:
             if not auth_token:
                 raise ValueError("gateway auth token is required in gateway mode")
-            self._url = base_url.rstrip("/") + "/compat/chat/completions"
+            self._url = (
+                "https://api.cloudflare.com/client/v4/accounts/"
+                + base_url.rstrip("/").split("/")[-2]
+                + "/ai/run"
+            )
             self._headers = {
-                "cf-aig-authorization": f"Bearer {auth_token}",
+                "Authorization": f"Bearer {auth_token}",
+                "cf-aig-gateway-id": settings.ai_gateway_id,
                 "Content-Type": "application/json",
             }
         else:
@@ -99,11 +104,14 @@ class LLMBookSynthesizer:
         try:
             request = {
                 "model": self._model_name,
-                "messages": [
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.2,
+                "input": {
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "max_tokens": 8192,
+                    "temperature": 0.2,
+                },
             }
             if self._gateway_mode:
                 client = self._http or httpx.Client(timeout=self._timeout_seconds)
@@ -117,7 +125,10 @@ class LLMBookSynthesizer:
                 )
             response.raise_for_status()
             payload = response.json()
-            markdown = payload["choices"][0]["message"]["content"]
+            result = payload.get("result") or payload
+            choices = result.get("choices") or []
+            message = choices[0]["message"]
+            markdown = message.get("content") or message.get("reasoning") or ""
             if not isinstance(markdown, str) or not markdown.strip():
                 logger.warning("Book synthesis returned empty content")
                 return None
