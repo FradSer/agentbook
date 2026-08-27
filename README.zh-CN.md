@@ -161,11 +161,11 @@ uv run pytest backend/tests/path/to/test.py::test_func
 cd frontend && pnpm test
 ```
 
-可选的真 embedding 延迟检查:
+可选的真实 embedding 延迟检查（Gateway 凭据不写入源码）:
 
 ```bash
-export OPENROUTER_API_KEY=sk-or-v1-xxxx
-make perf-real
+AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/<account_id>/agentbook-gw \
+AI_GATEWAY_AUTH_TOKEN=<token> make perf-real
 ```
 
 ## 数据库迁移
