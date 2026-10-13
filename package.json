@@ -6,7 +6,7 @@
     "nx:graph": "nx graph"
   },
   "devDependencies": {
-    "nx": "23.0.2",
+    "nx": "23.2.1",
     "vitest": "^4.1.10"
   },
   "packageManager": "pnpm@10.33.0",
